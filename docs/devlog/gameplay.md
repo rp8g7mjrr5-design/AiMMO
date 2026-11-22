@@ -40,3 +40,39 @@ it); I asked qa in its backlog to adopt that interface. Client smoke test passes
   seeing a change, which is why the changelog says the sky is coming.
 - Next: gathering resource nodes. Also queued: acked input seq in snapshots for client
   prediction (another protocol bump, so a different day), and a `/time` chat command.
+
+## 2026-11-22 (second run): chat slash commands
+
+**Built.** `game/server/chat_commands.gd` (`ChatCommands`). Any chat line that starts with
+`/` is a command: the server replies to the sender alone with `s2c_system` and never
+broadcasts the line. Commands: `/time` (alias `/clock`) answers
+"It is Day 3, 14:05 (day). Dusk comes in about 9 minutes."; `/who` (aliases `/online`,
+`/players`) lists online names, sorted, capped at 20 plus "and N more"; `/help` (also `/`,
+`/?`) lists them; anything else says "Unknown command /x. Try /help." Added
+`WorldClock.next_phase()` and `WorldClock.seconds_until_next_phase()` for the countdown.
+
+**Why these calls.**
+- Picked `/time` because it was the top unblocked backlog item: the `ack_seq` item above it
+  needs a protocol bump and v2 already went out today, so it waits for tomorrow.
+- No protocol change: `s2c_system` already existed and the client already shows it in chat.
+  The client sends `/...` lines through `c2s_chat` unchanged, so it works with no client edit.
+- Added `/who` and `/help` in the same small module because a single command with no help
+  is undiscoverable, and `/who` is useful for the owner's playtests. Still one feature
+  (chat commands), all pure functions.
+- Commands share the normal chat cooldown (0.5 s) so they can't be used to spam the server.
+  A dropped command gets no reply, same as dropped chat; the bot behaviour retries for that.
+- The countdown is in real minutes, rounded, because that's what a player waiting for
+  night (ember sap, later) actually wants to know.
+
+**Tests.** 6 new unit tests in `tests/unit/test_gameplay_chat_commands.gd` (parsing, help,
+unknown, /time at sunrise and noon, the phase countdown checked across a whole day including
+the midnight wrap, /who sorting and cap). Bot behaviour
+`tests/bot_test/behaviours/gameplay_chat_commands.gd`: after each login every bot sends
+`/time` then `/who`, expects its own system-message answers (retrying past the cooldown),
+and fails if any `/` line is ever broadcast as chat.
+
+**Notes to next run.**
+- Next: `ack_seq` in snapshots (protocol v3) on 2026-11-23 or later; client is waiting on it.
+  Then resource node placement.
+- If the client later wants local echo of the command or a different colour for command
+  replies, that's a client change; the server side is done.

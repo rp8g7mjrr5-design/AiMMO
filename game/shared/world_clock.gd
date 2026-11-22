@@ -84,6 +84,34 @@ static func extrapolate(synced_seconds: float, synced_at_msec: int, now_msec: in
 	return synced_seconds + maxf(0.0, float(now_msec - synced_at_msec) / 1000.0)
 
 
+## The phase that comes after the current one: night -> dawn -> day -> dusk -> night.
+static func next_phase(world_seconds: float) -> String:
+	match phase(world_seconds):
+		"night":
+			return "dawn"
+		"dawn":
+			return "day"
+		"day":
+			return "dusk"
+	return "night"
+
+
+## Real seconds until the current phase ends and next_phase() begins. Always > 0.
+static func seconds_until_next_phase(world_seconds: float) -> float:
+	var f := day_fraction(world_seconds)
+	var boundary: float
+	match phase(world_seconds):
+		"night":
+			boundary = DAWN_START if f < DAWN_START else DAWN_START + 1.0
+		"dawn":
+			boundary = DAY_START
+		"day":
+			boundary = DUSK_START
+		_:
+			boundary = NIGHT_START
+	return maxf((boundary - f) * DAY_SECONDS, 0.001)
+
+
 ## A readable label like "Day 3, 14:05 (day)" for logs and, later, the HUD.
 static func describe(world_seconds: float) -> String:
 	var h := hour(world_seconds)
