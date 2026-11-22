@@ -1,0 +1,2 @@
+- The sky now runs on the valley's own clock: everyone in Ashgrove sees the same sunrise, the same noon, and the same stars, because the server decides when the sun comes up.
+- The sun's path got a small nudge to match: it rises in the east, swings a little south at noon, and sets in the west.

@@ -1,13 +1,14 @@
 extends TestCase
-## World stream: day and night sky.
+## World stream: day and night sky, driven by the one shared clock (WorldClock).
+
+const D := WorldClock.DAY_SECONDS
 
 
-func test_day_clock_wraps_and_offsets() -> void:
-	check_eq(SkyClock.day_fraction(0.0), 0.0)
-	check(absf(SkyClock.day_fraction(SkyClock.DAY_LENGTH * 0.5) - 0.5) < 0.0001, "half a day is noon")
-	check(absf(SkyClock.day_fraction(SkyClock.DAY_LENGTH * 3.25) - 0.25) < 0.0001, "wraps every day")
-	check(absf(SkyClock.day_fraction(0.0, SkyClock.DAY_LENGTH * 0.75) - 0.75) < 0.0001, "offset shifts the clock")
-	check(SkyClock.day_fraction(-10.0) >= 0.0, "never negative")
+func test_fraction_maps_onto_the_shared_clock() -> void:
+	for f in [0.0, 0.1, 0.25, 0.5, 0.75, 0.99]:
+		check_near(WorldClock.day_fraction(SkyClock.seconds_for_fraction(f)), f, 0.00001, "round trip at %s" % f)
+	check_near(SkyClock.seconds_for_fraction(0.25), 0.0, 0.0001, "sunrise is world second 0")
+	check_near(SkyClock.seconds_for_fraction(1.25), 0.0, 0.0001, "fractions wrap")
 
 
 func test_sun_rises_peaks_and_sets() -> void:
@@ -19,6 +20,18 @@ func test_sun_rises_peaks_and_sets() -> void:
 	check(SkyClock.moon_direction(0.0).y > 0.5, "moon up at midnight")
 
 
+func test_sky_sun_matches_world_clock() -> void:
+	# The sun you see must be the sun gameplay reasons about.
+	for i in 24:
+		var s := D * i / 24.0
+		var f := WorldClock.day_fraction(s)
+		check((SkyClock.sun_direction(f) - WorldClock.sun_direction(s)).length() < 0.0001, "sun dir at %d" % i)
+		check_near(SkyClock.sun_height(f), WorldClock.sun_elevation(s), 0.0001, "sun height at %d" % i)
+	# Stars come out at night and are gone by day, in step with the clock's phases.
+	check_eq(SkyClock.star_alpha(WorldClock.day_fraction(D * 0.25)), 0.0, "no stars at noon")
+	check(SkyClock.star_alpha(WorldClock.day_fraction(D * 0.75)) > 0.99, "stars at midnight")
+
+
 func test_sky_samples_day_and_night() -> void:
 	var noon := SkyClock.sample(0.5)
 	var night := SkyClock.sample(0.0)
@@ -28,10 +41,6 @@ func test_sky_samples_day_and_night() -> void:
 	check_eq(noon.stars, 0.0, "no stars at noon")
 	check_eq(night.stars, 1.0, "stars at midnight")
 	check((night.sky_top as Color).get_luminance() < (noon.sky_top as Color).get_luminance(), "night sky darker")
-	check_eq(SkyClock.phase_name(0.5), "Day")
-	check_eq(SkyClock.phase_name(0.0), "Night")
-	check_eq(SkyClock.phase_name(0.25), "Dawn")
-	check_eq(SkyClock.phase_name(0.75), "Dusk")
 	# No frame of the day may produce a broken colour or a light pointing up from underground.
 	for i in 96:
 		var s := SkyClock.sample(i / 96.0)
@@ -39,13 +48,31 @@ func test_sky_samples_day_and_night() -> void:
 		check(s.ambient_energy >= 0.18, "ambient never pitch black at %d" % i)
 
 
-func test_day_night_sync_and_pin() -> void:
+func test_day_night_reads_the_server_clock() -> void:
 	DayNight.pinned_fraction = -1.0
-	DayNight.sync_to_server(0.6)
-	check(absf(DayNight.now_fraction() - 0.6) < 0.001, "synced to the server clock")
+	DayNight.clear_sync()
+	check(not DayNight.is_synced(), "starts unsynced")
+	check_near(DayNight.now_world_seconds(), WorldClock.now_seconds(), 1.0, "before sync: local wall clock, same epoch")
+	# A server whose clock agrees with ours must not make the sky jump.
+	var before := DayNight.now_fraction()
+	DayNight.set_world_seconds(WorldClock.now_seconds())
+	check(DayNight.is_synced(), "synced")
+	check(absf(DayNight.now_fraction() - before) < 0.001, "no jump when the clocks agree")
+	# A server half a day ahead wins.
+	var server := WorldClock.now_seconds() + D * 0.5
+	DayNight.set_world_seconds(server)
+	check_near(DayNight.now_world_seconds(), server, 0.5, "server time wins")
+	check_near(DayNight.now_fraction(), WorldClock.day_fraction(server), 0.001, "fraction from the server time")
+	DayNight.set_world_seconds(NAN)
+	check_near(DayNight.now_world_seconds(), server, 0.5, "a broken value is ignored")
+	DayNight.clear_sync()
+
+
+func test_pin_wins_over_everything() -> void:
+	DayNight.set_world_seconds(123.0)
 	DayNight.pinned_fraction = 0.1
 	check_eq(DayNight.now_fraction(), 0.1, "pin freezes time")
 	DayNight.pinned_fraction = -1.0
-	DayNight.clock_offset = 0.0
+	DayNight.clear_sync()
 	var sh := DayNight.sky_shader()
 	check(sh.code.contains("shader_type sky"), "sky shader built in code")

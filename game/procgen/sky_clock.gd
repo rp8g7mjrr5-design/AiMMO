@@ -1,14 +1,13 @@
 class_name SkyClock
-## The pure maths behind day and night: what time of day it is, where the sun and moon are,
-## and what colour the sky, fog, and light should be. No nodes here, so it is fully unit-tested
-## headless. `DayNight` applies these values to the world every frame.
+## The colour side of day and night: what colour the sky, fog, and light should be, and how
+## bright the stars are, for a given time of day. No nodes here, so it is fully unit-tested
+## headless. `DayNight` applies these values to the world.
+##
+## Time itself (day length, sun path, phases) belongs to the one shared clock, `WorldClock`
+## in game/shared/world_clock.gd, which the server owns. This file only maps the sun's
+## height to colours, so the sky can never disagree with gameplay about what time it is.
 ##
 ## Time of day is a fraction: 0.0 midnight, 0.25 sunrise, 0.5 noon, 0.75 sunset.
-## One Ashgrove day lasts DAY_LENGTH real seconds (40 minutes, see roadmap).
-
-const DAY_LENGTH := 2400.0
-const SUN_TILT_DEG := 28.0 ## how far the sun's path leans south; keeps noon shadows interesting
-const SUN_AZIMUTH_DEG := -35.0 ## sunrise heading, matches the old fixed sun's direction
 
 ## Sky keys by sun height (sine of elevation). Each: [height, top, horizon, fog/ground, light].
 ## Day keeps the late-afternoon palette from the design bible; dusk leans on the ember orange.
@@ -22,22 +21,21 @@ const KEYS := [
 ]
 
 
-## The one function every clock read goes through. `offset` lets the server's clock replace
-## the local one later without touching callers (gameplay owns the shared clock).
-static func day_fraction(unix_seconds: float, offset: float = 0.0) -> float:
-	return fposmod((unix_seconds + offset) / DAY_LENGTH, 1.0)
+## World seconds that land on this day fraction on day 1 (inverse of
+## WorldClock.day_fraction). Lets a pinned fraction (screenshots, tests) reuse the shared
+## clock's sun maths.
+static func seconds_for_fraction(frac: float) -> float:
+	return (fposmod(frac, 1.0) - WorldClock.START_FRACTION) * WorldClock.DAY_SECONDS
 
 
-## Unit vector pointing from the ground towards the sun.
+## Unit vector pointing from the ground towards the sun, straight from the shared clock.
 static func sun_direction(frac: float) -> Vector3:
-	var a := (frac - 0.25) * TAU # 0 at sunrise, PI/2 at noon
-	var v := Vector3(cos(a), sin(a), 0.0) # east -> up -> west
-	v = v.rotated(Vector3.RIGHT, deg_to_rad(SUN_TILT_DEG))
-	return v.rotated(Vector3.UP, deg_to_rad(SUN_AZIMUTH_DEG)).normalized()
+	return WorldClock.sun_direction(seconds_for_fraction(frac))
 
 
+## Sun height: +1 at noon, 0 at sunrise and sunset, -1 at midnight (WorldClock.sun_elevation).
 static func sun_height(frac: float) -> float:
-	return sun_direction(frac).y
+	return WorldClock.sun_elevation(seconds_for_fraction(frac))
 
 
 ## The moon rides opposite the sun, so somebody is always lighting the valley.
@@ -88,13 +86,3 @@ static func sample(frac: float) -> Dictionary:
 		"sun_dir": sun_direction(frac),
 		"moon_dir": moon_direction(frac),
 	}
-
-
-## "Dawn", "Day", "Dusk", or "Night": handy for HUDs, logs, and future ambient music.
-static func phase_name(frac: float) -> String:
-	var h := sun_height(frac)
-	if h > 0.12:
-		return "Day"
-	if h < -0.12:
-		return "Night"
-	return "Dawn" if frac < 0.5 else "Dusk"
