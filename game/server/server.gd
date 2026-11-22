@@ -15,6 +15,10 @@ var _autosave_timer := 0.0
 var _stop_file := ""
 var _stopping := false
 var _stop_check := 0.0
+var _clock_sync_timer := 0.0
+## Shifts the world clock, for testing and screenshots (e.g. --clock-offset=1200 jumps half a
+## day). Leave it at 0 in production so every server restart keeps the same time.
+var clock_offset := 0.0
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -22,6 +26,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	transport = CliArgs.setting(args, "transport", "AIMMO_TRANSPORT", "enet")
 	port = CliArgs.setting(args, "port", "AIMMO_PORT", OS.get_environment("PORT") if OS.get_environment("PORT") != "" else str(GameConfig.DEFAULT_PORT)).to_int()
 	_stop_file = CliArgs.setting(args, "stop-file", "AIMMO_STOP_FILE", "")
+	clock_offset = CliArgs.setting(args, "clock-offset", "AIMMO_CLOCK_OFFSET", "0").to_float()
 	var data_dir := CliArgs.setting(args, "data-dir", "AIMMO_DATA_DIR", OS.get_user_data_dir())
 
 	Engine.max_fps = 60
@@ -47,6 +52,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.chat_requested.connect(_on_chat)
 	get_tree().set_auto_accept_quit(false)
 	print("[server] listening on port %d via %s, protocol v%d" % [port, transport, GameConfig.PROTOCOL_VERSION])
+	print("[server] world clock: ", WorldClock.describe(world_seconds()))
 
 
 func _notification(what: int) -> void:
@@ -69,6 +75,10 @@ func _process(delta: float) -> void:
 	if _autosave_timer >= GameConfig.AUTOSAVE_SECONDS:
 		_autosave_timer = 0.0
 		_save_all()
+	_clock_sync_timer += delta
+	if _clock_sync_timer >= GameConfig.WORLD_TIME_SYNC_SECONDS:
+		_clock_sync_timer = 0.0
+		_broadcast_world_time()
 	_stop_check += delta
 	if _stop_file != "" and _stop_check >= 0.5:
 		_stop_check = 0.0
@@ -173,6 +183,7 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 	s.character = ch
 	s.yaw = ch.yaw
 	_send(id, "s2c_login_result", [true, "Welcome to Ashgrove, %s!" % ch.name if is_new else "Welcome back, %s." % ch.name, id, ch])
+	_send(id, "s2c_world_time", [world_seconds()])
 	# Tell the newcomer about everyone already here, and everyone about the newcomer.
 	for other in sessions:
 		var o: Dictionary = sessions[other]
@@ -182,6 +193,18 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 		_send(other, "s2c_player_joined", [id, ch.name, ch.appearance_seed])
 		_send(other, "s2c_system", ["%s has arrived." % ch.name])
 	print("[server] %s logged in as peer %d (%s) at %s" % [ch.name, id, "new" if is_new else "returning", CharacterData.position(ch)])
+
+
+## The authoritative world clock in world seconds (see WorldClock).
+func world_seconds() -> float:
+	return WorldClock.now_seconds(clock_offset)
+
+
+func _broadcast_world_time() -> void:
+	var t := world_seconds()
+	for id in sessions:
+		if sessions[id].logged_in:
+			_send(id, "s2c_world_time", [t])
 
 
 func _reject(id: int, msg: String) -> void:
