@@ -1,1 +1,0 @@
-- Behind the scenes: our automated tests now catch code that crashes halfway through a check, so fewer hidden bugs slip into the world.

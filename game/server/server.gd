@@ -237,6 +237,15 @@ func _on_chat(id: int, text: String) -> void:
 	if clean == "":
 		return
 	s.last_chat = now
+	if ChatCommands.is_command(clean):
+		var online: Array = []
+		for other in sessions:
+			if sessions[other].logged_in:
+				online.append(sessions[other].character.name)
+		var reply := ChatCommands.run(clean, {"world_seconds": world_seconds(), "online": online})
+		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
+		_send(id, "s2c_system", [reply])
+		return
 	print("[chat] %s: %s" % [s.character.name, clean])
 	for other in sessions:
 		if sessions[other].logged_in:
