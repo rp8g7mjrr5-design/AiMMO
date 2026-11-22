@@ -37,6 +37,16 @@ Warm, curious, slightly melancholy. Patch notes and in-game text are friendly an
 - **Chat:** one global channel, 200 characters, 0.5 s cooldown.
 - **Persistence:** position and facing saved on logout, every 30 s, and on shutdown.
 
+### How gathering feels (owner direction, 2026-11-22)
+Gathering works the way players already know from mainstream MMOs, never through chat commands:
+1. Walk up to a tree, rock or seep. When one is in reach it is softly highlighted and a prompt shows its action and key, e.g. "[E] Chop Ember Ash".
+2. Press the interact key (E) or click the node. Your character turns to it and plays a looping gathering motion (chop, strike, scoop), with matching procedural sound.
+3. A short gather bar fills (about 2 s, set by the server). Moving, jumping or pressing E again cancels it; nothing is lost.
+4. When it fills, the item pops into your pack: a "+1 Ash wood" toast, a small chime, and the pack updates at once.
+5. Each node gives a few gathers, then visibly empties (stump, rubble, dry seep) for everyone nearby and grows back later.
+6. Other players see you gathering. Several players can work the same node; each gather takes one charge.
+The server times the bar and decides the result; the client only shows it. `/gather` stays as a hidden debug and bot command, not listed in `/help` or patch notes. We borrow the genre's mechanics only: no names, art, UI or sounds from any existing game.
+
 ## Core systems (planned order)
 See `docs/roadmap.md` for dates. The intended stack of systems:
 1. Day and night cycle (shared clock, the world feels alive)
@@ -53,5 +63,6 @@ See `docs/roadmap.md` for dates. The intended stack of systems:
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 00 (2026-11-22, gathering feel):** Added "How gathering feels". The owner disliked typing `/gather` and pointed at mainstream MMOs as the model, so gathering becomes walk up, prompt, press E or click, timed gather bar with animation, item toast, and visibly emptied nodes. `/gather` is kept only as a debug fallback.
 - **Week 00 (follow-up):** Added the owner's north star, "Make the Greatest MMO of all time", above the pillars so every weekly session measures its choices against it.
 - **Week 00:** First version. Defined the pillars, Ashgrove, the art direction, and the planned order of systems. Chose WebSocket as the production transport on Railway (see devlog week 00) while keeping ENet for direct/LAN play; both use Godot's high-level multiplayer API.

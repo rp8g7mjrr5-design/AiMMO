@@ -3,6 +3,7 @@
 Owns quality, tests, CI, and operations. See `docs/workstreams.md` for ownership.
 
 ## Backlog (top = next)
+- [ ] **Top priority (director, owner request 2026-11-22): cover real gathering in CI** once gameplay's protocol v3 lands. Bot test: at least 4 of the 8 bots gather through `c2s_gather_start` (not `/gather`), including one cancel by walking away, two bots on one node, and a node emptied and respawned; assert inventories match the server's count and nothing desyncs across reconnect. Pair it with the protocol-mismatch test below, since v3 locks out old clients.
 - [x] Bot behaviour plugin hook (merged, PR #7)
 - [x] Unit runner fails tests that hit a SCRIPT ERROR or log an ERROR (this PR, `ws/qa/unit-script-errors`)
 - [ ] Triage `docs/playtest.md` every run and fix crashes first (2026-11-22 evening: still empty)
