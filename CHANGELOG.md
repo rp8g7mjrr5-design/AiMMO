@@ -5,6 +5,13 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- **Press E to gather.** Walk up to an ember ash, a pine, a stone outcrop or (at night) an ember-sap seep and a prompt like "[E] Chop Ember Ash" appears. Tap E, or just hold it, and a short ember bar fills while you work.
+- Every haul pops up as a toast above the prompt, like "+2 Ash wood (6)", so you can keep your eyes on the trees instead of the chat.
+- Birch groves now line the lake shores: chalk-white trunks, yellow-green crowns, and a little lean toward the light.
+- The pine forests have mossy boulders to sit on (and walk around).
+- Wildflower patches dot the grassy lowlands in yellow, violet, white, red and blue. They don't do anything yet. They're just nice.
+- Your pack is safe across updates: every patch is now checked against saved characters to make sure every stack you carry (even ones you've used up) comes back exactly as you left it.
+- Behind the scenes: the rules for crafting a stone axe, a stone pickaxe, torches and a campfire are in, and so are tools that make gathering faster and richer. The Spawn Meadow workbench and its crafting window come next.
 - Ashgrove gives! Walk up to an ember ash, a pine or a stone outcrop and type `/gather` in chat (or `/gather pine` for one kind). Each tree or rock gives a few times, then needs a few minutes to grow back.
 - Ember-sap seeps only give their glowing sap at night, so the dark is finally worth staying up for.
 - Nothing in reach? `/gather` points you to the nearest tree or rock: "The nearest pine is 14 m to the north-east."

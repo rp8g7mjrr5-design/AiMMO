@@ -91,7 +91,7 @@ static func _stump(put: Callable, bark: Color) -> void:
 
 ## Both looks of every node, ready for MultiMeshes:
 ## {layers: {layer: Array of [Transform3D, Color]}, slots: {id: {live: [[layer, index]...],
-## depleted: [[layer, index]...]}}}. Every node starts live, so its depleted parts begin
+## depleted: [[layer, index]...], kind, pos, scale}}}. Every node starts live, so its depleted parts begin
 ## hidden (their transforms are kept in `layers`; build() hides them).
 static func layout(nodes: Array) -> Dictionary:
 	var layers := {}
@@ -99,7 +99,7 @@ static func layout(nodes: Array) -> Dictionary:
 		layers[l] = []
 	var slots := {}
 	for n in nodes:
-		var slot := {"live": [], "depleted": []}
+		var slot := {"live": [], "depleted": [], "kind": n.kind, "pos": n.pos, "scale": n.scale}
 		for look in ["live", "depleted"]:
 			for p in parts(n, look == "depleted"):
 				slot[look].append([p.layer, layers[p.layer].size()])
@@ -122,6 +122,10 @@ static func build(nodes: Array = []) -> Node3D:
 		root.add_child(mmi)
 	for id in lay.slots:
 		_show(root, lay.slots[id].depleted, false)
+	root.set_meta("depleted", {})
+	var fx := NodeFx.new()
+	root.add_child(fx)
+	fx.setup(root, meshes)
 	return root
 
 
@@ -133,7 +137,39 @@ static func set_depleted(root: Node3D, id: int, depleted: bool) -> bool:
 	var slot: Dictionary = lay.slots[id]
 	_show(root, slot.live, not depleted)
 	_show(root, slot.depleted, depleted)
+	var dead: Dictionary = root.get_meta("depleted", {})
+	if depleted:
+		dead[id] = true
+	else:
+		dead.erase(id)
+	root.set_meta("depleted", dead)
+	var fx := root.get_node_or_null("Fx") as NodeFx
+	if fx:
+		fx.refresh(id)
 	return true
+
+
+## Softly light node `id` (the one in reach / under the reticle) with a warm rim glow, or
+## turn it off. One node is lit at a time: lighting another moves the glow. Cheap to call
+## every frame (the same node again is a no-op). Returns false for an unknown id.
+static func set_highlight(root: Node3D, id: int, on: bool) -> bool:
+	var fx := root.get_node_or_null("Fx") as NodeFx
+	return fx != null and fx.set_highlight(id, on)
+
+
+## The id lit by set_highlight, or -1.
+static func highlighted(root: Node3D) -> int:
+	var fx := root.get_node_or_null("Fx") as NodeFx
+	return fx.highlighted() if fx else -1
+
+
+## One gather's reaction on node `id`: an ash or pine shudders and sheds a few leaves or
+## needles, an outcrop jolts and throws stone chips, a seep's pool swells and splashes
+## glowing droplets. Call it once per gather result (for anyone's gather nearby). Returns
+## false for an unknown id.
+static func play_hit(root: Node3D, id: int) -> bool:
+	var fx := root.get_node_or_null("Fx") as NodeFx
+	return fx != null and fx.play_hit(id)
 
 
 static func _show(root: Node3D, entries: Array, visible: bool) -> void:
