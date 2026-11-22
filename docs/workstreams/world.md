@@ -3,6 +3,7 @@
 Owns how Ashgrove looks and sounds as a place. See `docs/workstreams.md` for ownership.
 
 ## Backlog (top = next)
+- [ ] **Top priority (director, owner request 2026-11-22): gathering feedback art** for the client's new gather flow (see "How gathering feels" in `docs/design_bible.md`). In `NodeProps`: `set_highlight(root, id, on)` for a soft rim/emissive glow on the node in reach, and `play_hit(root, id)` for a small per-kind reaction on each gather (leaf shake and a few falling ash leaves, stone chips, a sap droplet splash). Procedural only, cheap enough to call every frame. Answers the existing "can gather hint" follow-up.
 - [x] Day and night sky: sun path, sky colours, stars (merged, PR #9)
 - [x] **Use the one shared clock.** `SkyClock` keeps only colour/light keys; sun path and time come from `WorldClock`; `DayNight.set_world_seconds(s)` is the one entry point (PR ws/world/shared-clock-sky)
 - [x] **Avatar arms and short legs** for the client's walk cycle (request below; PR ws/world/avatar-limbs)
@@ -13,10 +14,10 @@ Owns how Ashgrove looks and sounds as a place. See `docs/workstreams.md` for own
 - [ ] Follow-up: wildflowers in the Spawn Meadow itself between the lanterns (kept clear for now), and reeds/lily pads at the water's edge
 - [ ] Follow-up: a "Detail" quality setting (client) could thin flowers on low-end machines; today they are cheap (2 MultiMeshes, 90 m visibility range, no shadows)
 - [x] Procedural resource-node props for gameplay's gathering (Week 02): ember ash, pine, stone outcrop with a pale seam, glowing ember-sap seep, each with a depleted look (stump, rubble, dry seep); scatter keeps 3 m clear of nodes (PR ws/world/resource-node-props)
-- [ ] Follow-up: a gentle "can gather" hint on the nearest node when gathering ships (outline or bob), once client shows the gather prompt
+- [ ] (superseded by the top item) Follow-up: a gentle "can gather" hint on the nearest node when gathering ships (outline or bob), once client shows the gather prompt
 - [ ] Gentle animated water (shader in code, no textures)
 - [ ] Procedural grass tufts near the camera (MultiMesh, cheap, quality setting from client's Settings window)
-- [ ] Procedural item icons for the inventory UI (wood, stone, ember sap, axe, pickaxe, torch, campfire), drawn in code to `ImageTexture`
+- [ ] (next after gathering feedback; the gather toast and pack use them) Procedural item icons for the inventory UI (wood, stone, ember sap, axe, pickaxe, torch, campfire), drawn in code to `ImageTexture`
 - [ ] Workbench and campfire models for crafting (Week 03)
 - [ ] Procedural critter models (grazer, bird) for gameplay's wildlife system (Week 04)
 
