@@ -35,6 +35,7 @@ var sfx_arrive: AudioStreamPlayer
 var settings: ClientSettings
 var settings_menu: SettingsMenu
 var time_dial: TimeDial
+var compass: CompassStrip
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -207,7 +208,21 @@ func _process(delta: float) -> void:
 		cam_pos.y = maxf(cam_pos.y, Terrain.height(cam_pos.x, cam_pos.z) + 0.6)
 		camera.position = camera.position.lerp(cam_pos, 1.0 - exp(-10.0 * delta))
 		camera.look_at(focus)
+		if compass.due(delta):
+			compass.feed(cam_yaw, me.position, other_positions())
 		hud_label.text = "Ashgrove  ·  %d online  ·  %.0f, %.0f" % [avatars.size(), me.position.x, me.position.z]
+
+
+## Rendered positions of every other player in the world (for the compass strip).
+func other_positions() -> Array:
+	var out: Array = []
+	for id in avatars:
+		if id == my_id:
+			continue
+		var n: Node3D = avatars[id].node
+		if n.position.y > -50.0: # not yet placed by a snapshot
+			out.append(n.position)
+	return out
 
 
 ## Fades the chat panel (and the time dial's readout, keeping its disk) when chat is quiet.
@@ -268,6 +283,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	chat_feed.wake()
 	time_dial.visible = true
 	time_dial.refresh()
+	compass.visible = true
 	hud_label.visible = true
 	help_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
@@ -285,6 +301,7 @@ func _on_server_disconnected() -> void:
 	login_panel.visible = true
 	chat_panel.visible = false
 	time_dial.visible = false
+	compass.visible = false
 	hud_label.visible = false
 	help_label.visible = false
 	connect_button.disabled = false
@@ -459,6 +476,18 @@ func _build_ui() -> void:
 	time_dial.visible = false
 	ui.add_child(time_dial)
 	time_dial.setup(theme)
+
+	# Compass strip, top centre: cardinal points, other players, and the way home.
+	compass = CompassStrip.new()
+	compass.anchor_left = 0.5
+	compass.anchor_right = 0.5
+	compass.offset_left = -CompassStrip.WIDTH * 0.5
+	compass.offset_right = CompassStrip.WIDTH * 0.5
+	compass.offset_top = 44
+	compass.offset_bottom = 44 + CompassStrip.HEIGHT
+	compass.visible = false
+	ui.add_child(compass)
+	compass.setup(theme)
 
 	hud_label = Label.new()
 	hud_label.theme = theme
