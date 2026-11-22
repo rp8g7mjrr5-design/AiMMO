@@ -1,1 +1,0 @@
-- Your pack is safe across updates: every patch is now checked against saved characters to make sure every stack you carry (even ones you've used up) comes back exactly as you left it.
