@@ -1,0 +1,2 @@
+- Someone has hung lanterns around the Spawn Meadow. They light themselves at dusk and go out after sunrise, so there is always a warm place to gather after dark.
+- At night the ember ash leaves give off a faint warm glow, and the ember-sap seeps burn brighter, which makes them much easier to find in the dark.
