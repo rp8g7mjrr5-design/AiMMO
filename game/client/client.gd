@@ -7,7 +7,7 @@ const CONFIG_PATH := "user://client.cfg"
 var net: Node
 var world: Node3D
 var camera: Camera3D
-var avatars := {} ## peer id -> {node: Node3D, target: Vector3, yaw: float, name: String}
+var avatars := {} ## peer id -> {node, body: Node3D, anim: WalkAnim, target: Vector3, yaw: float, name: String}
 var my_id := 0
 var logged_in := false
 var seq := 0
@@ -173,6 +173,9 @@ func _process(delta: float) -> void:
 		var n: Node3D = a.node
 		n.position = n.position.lerp(a.target, t)
 		n.rotation.y = lerp_angle(n.rotation.y, a.yaw, t)
+		var anim: WalkAnim = a.anim
+		anim.step(n.position, delta)
+		anim.apply(a.body)
 	if not logged_in:
 		# Slow orbit over the world behind the login screen.
 		cam_yaw += delta * 0.05
@@ -305,11 +308,23 @@ func _on_chat_submitted(text: String) -> void:
 
 
 func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, yaw: float) -> void:
-	var node := AvatarBuilder.build(player_name, appearance_seed, id == my_id)
+	var node := wrap_avatar(AvatarBuilder.build(player_name, appearance_seed, id == my_id))
 	node.position = pos
 	node.rotation.y = yaw
 	world.add_child(node)
-	avatars[id] = {"node": node, "target": pos, "yaw": yaw, "name": player_name}
+	avatars[id] = {"node": node, "body": node.get_node("Body"), "anim": WalkAnim.new(), "target": pos, "yaw": yaw, "name": player_name}
+
+
+## Puts the built avatar under a steady root so the walk cycle can bob and sway the body
+## ("Body") while the name tag stays level above it.
+static func wrap_avatar(body: Node3D) -> Node3D:
+	var root := Node3D.new()
+	body.name = "Body"
+	root.add_child(body)
+	for tag in body.find_children("*", "Label3D", false, false):
+		body.remove_child(tag)
+		root.add_child(tag)
+	return root
 
 
 func _set_status(text: String, is_error: bool) -> void:
