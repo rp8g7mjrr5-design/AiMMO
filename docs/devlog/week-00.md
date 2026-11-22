@@ -91,3 +91,7 @@ Merged #6 (client settings), #7 (qa bot-behaviour hook), #8 (gameplay world cloc
 - #35 and #34 were behind main after the earlier merges; merged main into each (clean, including the shared `docs/workstreams/client.md`) and each re-ran green before merging.
 - Folded `client-compass`, `gameplay-gathering`, `world-lamps-night-glow`, and the leftover `gameplay-inventory` fragment into the Week 00 changelog. Dropped the inventory note's "empty for now" line since gathering now fills the pack.
 - playtest.md still has no reports. Every stream backlog has 8+ open items, so no refill needed.
+
+## 2026-11-22 (evening) — integrator
+
+Merged #37 (qa save-compat checks packs), #38 (director: how gathering feels), #39 (client: press E to gather), #40 (director: owner directions), #41 (world: birches, mossy boulders, wildflowers) and #42 (gameplay: crafting rules and tools). #40 also edited `CLAUDE.md`, which is integrator-only, so I took that line out of the director's branch and added the same pointer to "Owner directions" here in the integrate PR. Resolved backlog conflicts in `docs/workstreams/client.md` and `gameplay.md` by keeping the more recent, more specific items (the shipped stopgap gather prompt; crafting done plus the `c2s_craft` follow-up). Note for gameplay: the planned `--dev-commands` gate will stop the client's E key (it sends `/gather` as chat) on the live server, so ship the gate only after `c2s_gather_start` is wired in the client.

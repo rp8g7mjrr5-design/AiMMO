@@ -1,3 +1,0 @@
-- Birch groves now line the lake shores: chalk-white trunks, yellow-green crowns, and a little lean toward the light.
-- The pine forests have mossy boulders to sit on (and walk around).
-- Wildflower patches dot the grassy lowlands in yellow, violet, white, red and blue. They don't do anything yet. They're just nice.

@@ -14,14 +14,19 @@ class_name Inventory
 const MAX_STACK := 99 ## per item id; picked so a pack of raw materials stays readable
 
 ## Every item that exists. Ids are PERMANENT: they are stored in inventory_items.item.
-## The four raw materials match ResourceNodes.KINDS[*].item.
+## The four raw materials match ResourceNodes.KINDS[*].item; the rest are made with
+## Crafting.RECIPES (whose ids are the same as the item they make).
 const ITEMS := {
 	"ash_wood": {"label": "ash wood"},
 	"pine_wood": {"label": "pine wood"},
 	"stone": {"label": "stone"},
 	"ember_sap": {"label": "ember sap"},
+	"stone_axe": {"label": "stone axe"},
+	"stone_pickaxe": {"label": "stone pickaxe"},
+	"torch": {"label": "torch"},
+	"campfire": {"label": "campfire"},
 }
-const ITEM_ORDER := ["ash_wood", "pine_wood", "stone", "ember_sap"]
+const ITEM_ORDER := ["ash_wood", "pine_wood", "stone", "ember_sap", "stone_axe", "stone_pickaxe", "torch", "campfire"]
 
 
 static func is_item(item: String) -> bool:
