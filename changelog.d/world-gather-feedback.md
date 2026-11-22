@@ -1,0 +1,2 @@
+- The tree, rock or seep you can reach now glows with a soft ember-gold rim, so you always know what you're about to gather.
+- Every gather gets a reaction: ash trees shudder and shed glowing leaves, pines drop needles, outcrops spit stone chips, and sap seeps swell and splash bright droplets.

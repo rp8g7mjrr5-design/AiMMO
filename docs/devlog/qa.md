@@ -197,3 +197,55 @@ in GDScript. Switched to `count(*)` from `pg_tables`.
 Client smoke not run: nothing the client loads changed.
 
 **Next run:** triage playtest.md, then the Railway health check / heartbeat.
+
+## 2026-11-22 (night) — old clients must be told to update, not left hanging
+
+Playtest inbox still empty, no open qa PR, budget 6/40. The top two backlog items (real
+gathering in CI, chat-is-for-talking) are blocked on gameplay's v3 and `--dev-commands`,
+which haven't landed. Took the protocol-mismatch test because the backlog pairs it with v3
+and v3 is due tomorrow, so it is most useful *before* that bump.
+
+**Found a real bug-in-waiting.** Godot numbers a node's RPCs by sorted method name and sends
+the number. I added the planned `c2s_gather_start` to `net.gd` locally (bumped to v3) and
+connected a v2 client: its `c2s_login` landed on the server's `c2s_input`, the server logged
+`Cannot convert argument 2 from String to Vector2`, and the client waited forever with no
+message. A v1 client against today's v2 server is fine only by luck: v2 added
+`s2c_world_time`, which sorts last. Godot's "rpc node checksum failed" ERROR is logged in
+both cases but the call still goes through, so the checksum is not a guard. Filed the fix
+options with gameplay (new RPCs on a child node of `Net`, or names that sort last).
+
+**Built:**
+- `tests/protocol/net_v1.gd`, `net_v2.gd`: frozen copies of `net.gd` at each protocol (v1 from
+  `ca6ce1e^`). `old_client.gd`: headless client from any frozen copy, any protocol number.
+- `tests/protocol/run_protocol_test.py`, new CI step before the bot test (about 3 s): each
+  frozen copy plus current RPCs with N-1 and N+1 must get a reply within 8 s that refuses
+  login and says to update, with no game traffic first; then a current client must still log
+  in, the server must stop cleanly, and no server ERROR except the checksum notice.
+- `tests/unit/test_qa_protocol_compat.gd`: fast check that `c2s_login`/`s2c_login_result`
+  keep their RPC number and argument types against every frozen copy, names the RPC that
+  shifted them, requires a frozen copy for every older protocol, plus a self-test that
+  injects `c2s_gather_start` into the v2 copy. `KNOWN_LOCKED_OUT` exists for a deliberate,
+  reasoned lockout; keep it empty.
+
+**Proved it catches it** (reverted): with the simulated v3 change, the live test reports
+"a v1 client: HANGS at login" and "a v2 client: HANGS at login", and the unit test fails
+with "c2s_login is RPC #2 for old clients but #3 now (new RPCs sorting before it:
+c2s_gather_start)".
+
+**Didn't work first time:** `Script.get_rpc_config()` doesn't exist in 4.3 (SCRIPT ERROR,
+and a `-s` script that errors in `_init` never quits, so it hung); the unit test parses
+`@rpc` lines from the source instead. `root.multiplayer` is null in a SceneTree's
+`_initialize`, so `old_client.gd` sets up on the first `_process`. My first self-test edited
+today's `net.gd` and broke as soon as `net.gd` itself had the new RPC; it now builds on the
+frozen v2 copy.
+
+**Ownership note:** from v4 on, the bump PR needs `tests/protocol/net_v<old>.gd`. That is a
+qa path; I told gameplay qa allows that one file in a bump PR. Integrator may want that in
+`docs/workstreams.md`.
+
+**Tests:** 165 unit tests pass with Postgres and without; protocol test passes over
+WebSocket and ENet; bot test 8 bots x 180s WebSocket + Postgres passed in 185s. Client smoke not
+run: nothing the client loads changed.
+
+**Next run:** v3 gathering in CI if it has landed (and check v3 kept old clients informed),
+otherwise the Railway health check.
