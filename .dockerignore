@@ -1,0 +1,5 @@
+.git
+.github
+**/.godot
+build/
+docs/
