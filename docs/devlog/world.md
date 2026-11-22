@@ -33,3 +33,20 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Known / not done.** The client doesn't call `set_world_seconds` yet (client owns that; request filed in `docs/workstreams/client.md`). Until it does, players see the local wall-clock sky, which matches the server to within clock skew.
 
 **Next run.** Lamps and ember-ash glow at night, driven by `WorldClock.daylight`.
+
+## 2026-11-22: avatars get arms and short legs
+**Built.** Answered client's request first (requests before backlog). `AvatarBuilder.build` now adds `ArmL`, `ArmR`, `LegL`, `LegR` as bare `Node3D` pivots, direct children of the root, pivot at shoulder (y 1.04, x ±0.40) or hip (y 0.40, x ±0.14), meshes hanging below: sleeve capsule plus a skin-tone hand, trouser capsule plus a dark boot. The tunic capsule shrank (height 1.2 → 0.96, centre 0.6 → 0.78) so it sits on the legs instead of hiding them. The client's `WalkAnim` swings them with no client change. The name tag is still a direct child of the root.
+
+**Decisions.**
+- Left is +X: an avatar faces +Z, so its own left hand is on +X. `WalkAnim` swings ArmL and LegR together, which is the natural gait either way.
+- Limbs take no draws from the appearance rng and the existing draw order is unchanged, so every saved character keeps their skin tone and hat (unit-tested by recomputing the old draws).
+- Sleeves are the tunic darkened 12%; trousers are the tunic darkened and pulled halfway to a brown so they never clash; boots are one shared dark brown. Limbs use 6 radial segments (bible: 5 to 8).
+- I split `build` into pure `parts(seed)` (every mesh as data) and `rig()` (root plus empty pivots). On the headless dummy renderer, freeing a MeshInstance3D with a primitive mesh, an ArrayMesh with a surface, or a Label3D each logs `Parameter "m" is null` (that's why `test_procgen::test_avatar_builds` skips headless). The pure halves let the unit tests and bots check the avatar shape headless with zero engine errors.
+
+**Didn't work.** First try baked every primitive into an ArrayMesh to dodge the headless errors; ArrayMeshes log the same error when freed, so I reverted that.
+
+**Tested.** 84 unit tests with Postgres (5 new in `tests/unit/test_world_avatar.gd`), 8-bot 180 s websocket bot test passed (new behaviour `world_avatar_limbs.gd`: each bot lays out every joining player's real avatar and walks a rig, ~20 avatars and 7 looks per bot, 8/8 characters persisted), client smoke test passed at midday; I looked at the screenshot and the arms, hands, and boots read clearly.
+
+**Known / not done.** No elbows or knees; the limbs are stiff pendulums. Hands don't hold anything yet (tools come with gathering).
+
+**Next run.** Lamps and ember-ash glow at night, driven by `WorldClock.daylight`.

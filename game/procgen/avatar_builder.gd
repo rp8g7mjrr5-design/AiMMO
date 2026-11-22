@@ -1,50 +1,30 @@
 class_name AvatarBuilder
 ## Builds a little low-poly wanderer from an appearance seed: tunic colour, hood or hat,
-## and a name tag. Faces local +Z.
+## arms and short legs, and a name tag. Faces local +Z, feet at y = 0.
+##
+## Limbs are bare `Node3D` pivots named ArmL, ArmR, LegL, LegR, direct children of the root,
+## with the pivot at the shoulder or hip and the meshes hanging below it, so the client's
+## WalkAnim can swing them with rotation.x. The Label3D name tag is a direct child of the root.
+## Left is +X (the avatar's own left when it faces +Z).
+##
+## `parts()` and `rig()` are the pure halves of `build()`: they never touch the renderer, so
+## unit tests and bots can check the shape on a headless machine, where mesh instances and
+## labels log engine errors.
+
+const LIMBS := ["ArmL", "ArmR", "LegL", "LegR"]
+const LIMB_PIVOTS := {
+	"ArmL": Vector3(0.4, 1.04, 0), "ArmR": Vector3(-0.4, 1.04, 0), # shoulders
+	"LegL": Vector3(0.14, 0.4, 0), "LegR": Vector3(-0.14, 0.4, 0), # hips
+}
+const ARM_LENGTH := 0.5
+const LEG_LENGTH := 0.4
 
 
 static func build(display_name: String, appearance_seed: int, is_self: bool) -> Node3D:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = appearance_seed
-	var tunic := Palette.from_seed(appearance_seed)
-	var skin := Color.from_hsv(0.07 + rng.randf() * 0.04, 0.35 + rng.randf() * 0.25, 0.55 + rng.randf() * 0.4)
-	var root := Node3D.new()
-
-	var body := CapsuleMesh.new()
-	body.radius = 0.32
-	body.height = 1.2
-	body.radial_segments = 8
-	body.rings = 2
-	root.add_child(_part(body, tunic, Vector3(0, 0.6, 0)))
-
-	var head := SphereMesh.new()
-	head.radius = 0.24
-	head.height = 0.48
-	head.radial_segments = 8
-	head.rings = 4
-	root.add_child(_part(head, skin, Vector3(0, 1.42, 0)))
-
-	var eye := BoxMesh.new()
-	eye.size = Vector3(0.06, 0.08, 0.04)
-	root.add_child(_part(eye, Color(0.1, 0.1, 0.12), Vector3(-0.09, 1.46, 0.21)))
-	root.add_child(_part(eye, Color(0.1, 0.1, 0.12), Vector3(0.09, 1.46, 0.21)))
-
-	var style := rng.randi() % 3
-	if style == 0: # pointed hat
-		var hat := CylinderMesh.new()
-		hat.top_radius = 0.0
-		hat.bottom_radius = 0.32
-		hat.height = 0.5
-		hat.radial_segments = 8
-		root.add_child(_part(hat, tunic.darkened(0.35), Vector3(0, 1.82, 0)))
-	elif style == 1: # flat cap
-		var cap := CylinderMesh.new()
-		cap.top_radius = 0.22
-		cap.bottom_radius = 0.27
-		cap.height = 0.12
-		cap.radial_segments = 8
-		root.add_child(_part(cap, tunic.lightened(0.3), Vector3(0, 1.64, 0)))
-	# style 2: bare-headed
+	var root := rig()
+	for p in parts(appearance_seed):
+		var parent: Node3D = root if p.limb == "" else root.get_node(p.limb)
+		parent.add_child(_part(p.mesh, p.color, p.pos))
 
 	var tag := Label3D.new()
 	tag.text = display_name
@@ -57,6 +37,93 @@ static func build(display_name: String, appearance_seed: int, is_self: bool) -> 
 	tag.no_depth_test = false
 	root.add_child(tag)
 	return root
+
+
+## The root with its four empty limb pivots, and nothing else.
+static func rig() -> Node3D:
+	var root := Node3D.new()
+	for limb in LIMBS:
+		var n := Node3D.new()
+		n.name = limb
+		n.position = LIMB_PIVOTS[limb]
+		root.add_child(n)
+	return root
+
+
+## Every mesh of the avatar as {limb, mesh, color, pos}: `limb` is "" for parts on the root,
+## else the pivot it hangs from, and `pos` is relative to that parent. Deterministic.
+static func parts(appearance_seed: int) -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = appearance_seed
+	var tunic := Palette.from_seed(appearance_seed)
+	var skin := Color.from_hsv(0.07 + rng.randf() * 0.04, 0.35 + rng.randf() * 0.25, 0.55 + rng.randf() * 0.4)
+	var out: Array = []
+
+	# The tunic sits on the legs: from just above the knees (y 0.3) to the neck (1.26).
+	out.append(_p("", _capsule(0.32, 0.96, 8, 2), tunic, Vector3(0, 0.78, 0)))
+
+	var head := SphereMesh.new()
+	head.radius = 0.24
+	head.height = 0.48
+	head.radial_segments = 8
+	head.rings = 4
+	out.append(_p("", head, skin, Vector3(0, 1.42, 0)))
+
+	var eye := BoxMesh.new()
+	eye.size = Vector3(0.06, 0.08, 0.04)
+	out.append(_p("", eye, Color(0.1, 0.1, 0.12), Vector3(-0.09, 1.46, 0.21)))
+	out.append(_p("", eye, Color(0.1, 0.1, 0.12), Vector3(0.09, 1.46, 0.21)))
+
+	var style := rng.randi() % 3
+	if style == 0: # pointed hat
+		var hat := CylinderMesh.new()
+		hat.top_radius = 0.0
+		hat.bottom_radius = 0.32
+		hat.height = 0.5
+		hat.radial_segments = 8
+		out.append(_p("", hat, tunic.darkened(0.35), Vector3(0, 1.82, 0)))
+	elif style == 1: # flat cap
+		var cap := CylinderMesh.new()
+		cap.top_radius = 0.22
+		cap.bottom_radius = 0.27
+		cap.height = 0.12
+		cap.radial_segments = 8
+		out.append(_p("", cap, tunic.lightened(0.3), Vector3(0, 1.64, 0)))
+	# style 2: bare-headed
+
+	# Limbs take no rng draws, so every existing appearance seed keeps its hat and skin.
+	var sleeve := tunic.darkened(0.12)
+	var trousers := tunic.darkened(0.5).lerp(Color(0.32, 0.27, 0.22), 0.5)
+	var boots := Color(0.2, 0.15, 0.12)
+	var arm := _capsule(0.085, ARM_LENGTH, 6, 1)
+	var hand := SphereMesh.new()
+	hand.radius = 0.075
+	hand.height = 0.15
+	hand.radial_segments = 6
+	hand.rings = 3
+	var leg := _capsule(0.1, LEG_LENGTH, 6, 1)
+	var boot := BoxMesh.new()
+	boot.size = Vector3(0.17, 0.09, 0.24)
+	for a in ["ArmL", "ArmR"]:
+		out.append(_p(a, arm, sleeve, Vector3(0, -ARM_LENGTH * 0.5 + 0.06, 0)))
+		out.append(_p(a, hand, skin, Vector3(0, -ARM_LENGTH + 0.04, 0)))
+	for l in ["LegL", "LegR"]:
+		out.append(_p(l, leg, trousers, Vector3(0, -LEG_LENGTH * 0.5 + 0.02, 0)))
+		out.append(_p(l, boot, boots, Vector3(0, -LEG_LENGTH + 0.045, 0.03)))
+	return out
+
+
+static func _p(limb: String, mesh: Mesh, color: Color, pos: Vector3) -> Dictionary:
+	return {"limb": limb, "mesh": mesh, "color": color, "pos": pos}
+
+
+static func _capsule(radius: float, height: float, segments: int, rings: int) -> CapsuleMesh:
+	var m := CapsuleMesh.new()
+	m.radius = radius
+	m.height = height
+	m.radial_segments = segments
+	m.rings = rings
+	return m
 
 
 static func _part(mesh: Mesh, color: Color, pos: Vector3) -> MeshInstance3D:
