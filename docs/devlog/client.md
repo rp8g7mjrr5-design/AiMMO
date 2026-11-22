@@ -38,3 +38,47 @@ make the runner fail on SCRIPT ERROR.
 - If gameplay has shipped an acked seq in snapshots, do prediction next; otherwise take the
   minimap/compass.
 - `tests/client_smoke/run.sh` (qa-owned) could also screenshot with `--open-settings`.
+
+## 2026-11-22: Walk animation (ws/client/walk-animation)
+
+**Why this item:** prediction is still blocked (no acked input seq on `main`; gameplay's
+world-clock PR #8 is v2 and the director's pending backlog puts `ack_seq` in v3). The
+director's unmerged PR #10 reorders my backlog with the sky-clock wiring and time-of-day dial
+first, but both need #8 and world's #9 on `main`, and inventory/gather need gameplay PRs that
+don't exist yet. Walk animation was the highest item in both the merged and the pending
+backlog that is unblocked today, and the director ranks it above the compass, so I took it
+over the minimap my last note suggested.
+
+**Built:**
+- `game/client/walk_anim.gd` (`WalkAnim`): one per avatar. Speed comes from how fast the
+  *rendered* (already smoothed) position moves, so it works for every avatar including your
+  own, with no server data. Gives bob (|sin| so it rises on each footstep), side roll, forward
+  lean, and arm/leg swing, all scaled by speed / `WALK_SPEED`. Moves over 3 m in one frame
+  (spawn snap from y=-100, corrections) count as teleports, not running. When stopping, the
+  phase eases to the nearest rest pose instead of freezing mid-stride; idle avatars breathe.
+- `client.gd`: `wrap_avatar()` puts `AvatarBuilder`'s output under a steady root as a child
+  named `Body` and moves the `Label3D` name tag onto the root, so tags don't bob or sway.
+  `avatars[id]` gains `body` and `anim`; `_process` steps and applies the anim after the
+  position/yaw lerp.
+- Tests: 7 unit tests in `tests/unit/test_client_walk_anim.gd`, and a bot behaviour
+  `client_walk_anim.gd` that runs `WalkAnim` on the real snapshot stream for every other
+  peer and fails on NaN/out-of-range poses or if no peer ever breaks into a walk. Bot run:
+  ~24k poses per bot, max gait 1.0, all 8 bots ok, Postgres verify 8/8.
+
+**Decisions:**
+- The avatar meshes are world's (`game/procgen/avatar_builder.gd`), so I didn't add arms. The
+  anim swings `ArmL`/`ArmR`/`LegL`/`LegR` if present; requested those in world's backlog.
+  Until then the bob + waddle + lean carry it, and it reads well on the capsule.
+- Wrapper node instead of animating the avatar root, because the root's position and yaw are
+  owned by snapshot smoothing.
+
+**What didn't work at first:** building a real avatar (or even a bare `Label3D`) in a headless
+unit test prints `Parameter "m" is null` from the dummy renderer. Not a failure in the runner,
+but noisy, so the wrap test uses a stand-in `Node3D` and skips the tag part when headless (the
+smoke run covers the real avatar; checked its world screenshot: tag sits above the body).
+
+**Notes to next run:**
+- Footsteps are the natural follow-up: `WalkAnim.phase` crosses 0 and PI once per step; play a
+  quiet procedural thud from `Sfx` for your own avatar only (added to backlog).
+- If #8 and #9 are on `main`, do the sky-clock wiring next (director's #1). If prediction's
+  `ack_seq` lands, prediction must keep the wrapper: animate `Body`, move the root.
