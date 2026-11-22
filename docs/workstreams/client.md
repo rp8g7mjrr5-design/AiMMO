@@ -11,7 +11,7 @@ Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
   - On `s2c_nodes` / `s2c_node_state`: `NodeProps.set_depleted(world.get_node("ResourceNodes"), id, on)` so empty nodes look empty and regrow for everyone.
   - Refusals (`s2c_system` text such as "too dark to find sap by day" or "pack full") show as a short centre-screen message, not only in chat.
   - Bot/smoke: a client smoke screenshot with the prompt and bar visible.
-- [ ] **Second (owner direction 2, 2026-11-22): over-the-shoulder action camera.** Follow "Owner directions → 2. The camera" in `docs/design_bible.md`. Replace the right-drag orbit camera in `client.gd` (pull it into `game/client/action_camera.gd` with pure, unit-tested maths):
+- [x] (in review, ws/client/action-camera) **Second (owner direction 2, 2026-11-22): over-the-shoulder action camera.** Follow "Owner directions → 2. The camera" in `docs/design_bible.md`. Replace the right-drag orbit camera in `client.gd` (pull it into `game/client/action_camera.gd` with pure, unit-tested maths):
   - Pivot at head height, right-shoulder offset ~0.6 m, distance ~3.5 m, wheel zoom 1.5 to 6 m, shoulder-swap key (default V).
   - Cursor captured and hidden while playing; mouse always turns the camera (no button). Freed while chat input, Settings, the pack or any window is open; recaptured on close. Esc frees it first.
   - Small procedural centre reticle (a dot or thin ring from our palette).
@@ -44,6 +44,11 @@ Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
 - [ ] Follow-up: compass markers for gathering nodes of the kind you're after, once gathering ships (reuse `CompassStrip.strip_x`)
 - [ ] Follow-up: hover or nearest-dot name on the compass ("Ash · 23 m") if the dots alone feel anonymous
 - [ ] Follow-up: soft procedural footstep sounds in time with the walk cycle (`WalkAnim.phase` crosses 0 and PI on each footstep)
+
+- [ ] Follow-up (action camera): pull the camera in for flora too (birches, boulders, the Props forest), not just resource node props; needs a position query from world's flora (ask world) or a cheap shared list.
+- [ ] Follow-up (action camera): left-click a node under the reticle to gather (bible: "E or left-click"); wire with the v3 gather messages.
+- [ ] Follow-up (action camera): smoke screenshot with a node under the reticle and the prompt showing (the smoke player spawns in the empty meadow centre; needs a spawn-offset test hook or a walk step).
+- [ ] Follow-up (action camera): free-look / shoulder keys in the key rebinding window and the F1 controls overlay.
 
 ## Requests from other streams
 - **From gameplay (crafting PR):** the crafting rules are on the server (`game/shared/crafting.gd`). Please build the crafting window, UI-first per owner direction 1: when the player is within `Crafting.BENCH_RANGE` of `Crafting.workbench_pos()`, show an "[E] Use Workbench" prompt; E opens a recipe window listing `Crafting.RECIPE_ORDER` with each recipe's `needs` against the pack (`Crafting.missing(inv, id)` tells you what is short, `Crafting.check` gives the reason) and a Craft button. The button will send `c2s_craft(recipe_id)` once gameplay adds it (protocol v3 or v4); until then the window can be built and shown read-only. Results come back as `s2c_craft_result` and `s2c_inventory`. Torches (`bench: false`) could later be craftable from the pack window too.

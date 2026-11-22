@@ -11,9 +11,8 @@ var avatars := {} ## peer id -> {node, body: Node3D, anim: WalkAnim, target: Vec
 var my_id := 0
 var logged_in := false
 var seq := 0
-var cam_yaw := 0.0
-var cam_pitch := -0.35
-var cam_dist := 9.0
+var cam_yaw := 0.0 ## the slow orbit behind the login screen
+var cam := ActionCamera.new() ## the over-the-shoulder camera while playing
 var _send_accum := 0.0
 var _last_sent := Vector2(INF, INF)
 
@@ -37,6 +36,7 @@ var settings_menu: SettingsMenu
 var time_dial: TimeDial
 var compass: CompassStrip
 var gather_prompt: GatherPrompt
+var reticle: Reticle
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -109,6 +109,8 @@ func _setup_input() -> void:
 		"move_left": [KEY_A, KEY_LEFT],
 		"move_right": [KEY_D, KEY_RIGHT],
 		"interact": [KEY_E],
+		"free_look": [KEY_ALT],
+		"swap_shoulder": [KEY_V],
 	}
 	for action in binds:
 		if not InputMap.has_action(action):
@@ -129,23 +131,26 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not logged_in or settings_menu.visible:
 		return
-	if event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
-		var look := look_delta(event.relative, settings)
-		cam_yaw += look.x
-		cam_pitch = clampf(cam_pitch + look.y, -1.2, 0.15)
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		cam.turn(look_delta(event.relative, settings))
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			cam_dist = maxf(3.0, cam_dist - 0.8)
+			cam.zoom(-1.0)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			cam_dist = minf(30.0, cam_dist + 0.8)
+			cam.zoom(1.0)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
 			chat_feed.wake()
 			chat_edit.grab_focus()
 			get_viewport().set_input_as_handled()
+		elif event.is_action("swap_shoulder"):
+			settings.shoulder_right = not settings.shoulder_right
+			cam.side = settings.shoulder_side()
+			settings.save_to()
+			get_viewport().set_input_as_handled()
 
 
-## Camera yaw and pitch change for a mouse drag, after sensitivity and invert Y.
+## Camera yaw and pitch change for a mouse movement, after sensitivity and invert Y.
 static func look_delta(relative: Vector2, s: ClientSettings) -> Vector2:
 	return Vector2(-relative.x * 0.006, -relative.y * 0.004 * s.pitch_sign()) * s.mouse_sensitivity
 
@@ -154,6 +159,8 @@ func _apply_settings(s: ClientSettings) -> void:
 	AudioServer.set_bus_volume_db(0, s.volume_db())
 	AudioServer.set_bus_mute(0, s.master_volume <= 0.0)
 	camera.far = s.draw_distance
+	camera.fov = s.field_of_view
+	cam.side = s.shoulder_side()
 	for sun in world.find_children("*", "DirectionalLight3D", true, false):
 		sun.shadow_enabled = s.shadow_quality > 0
 		if s.shadow_quality > 0:
@@ -165,13 +172,7 @@ func _move_vector() -> Vector2:
 		return Vector2.ZERO
 	var f := Input.get_action_strength("move_forward") - Input.get_action_strength("move_back")
 	var r := Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
-	if f == 0.0 and r == 0.0:
-		return Vector2.ZERO
-	var forward := Vector3(-sin(cam_yaw), 0, -cos(cam_yaw))
-	var right := Vector3(cos(cam_yaw), 0, -sin(cam_yaw))
-	var m := (forward * f + right * r)
-	m = m.normalized() if m.length() > 1.0 else m
-	return Vector2(m.x, m.z)
+	return ActionCamera.move_vector(f, r, cam.move_yaw())
 
 
 func _process(delta: float) -> void:
@@ -191,38 +192,51 @@ func _process(delta: float) -> void:
 		camera.look_at(Vector3(0, 2, 0))
 		return
 	_update_chat_fade(delta)
+	_update_mouse_capture()
+	cam.set_free_look(Input.is_action_pressed("free_look") and not chat_edit.has_focus() and not settings_menu.visible)
 	var move := _move_vector()
 	_send_accum += delta
 	if _send_accum >= GameConfig.TICK_DT:
 		_send_accum = 0.0
 		if move != _last_sent or move != Vector2.ZERO or seq % 10 == 0:
 			seq += 1
-			var yaw: float = atan2(move.x, move.y) if move != Vector2.ZERO else (avatars[my_id].yaw if avatars.has(my_id) else 0.0)
+			# While moving you face where the camera looks (or your kept heading in free-look).
+			var yaw: float = ActionCamera.facing_yaw(cam.move_yaw()) if move != Vector2.ZERO else (avatars[my_id].yaw if avatars.has(my_id) else 0.0)
 			net.c2s_input.rpc_id(1, seq, move, yaw)
 			_last_sent = move
 		else:
 			seq += 1
 	if avatars.has(my_id):
 		var me: Node3D = avatars[my_id].node
-		var focus := me.position + Vector3.UP * 1.6
-		var offset := Vector3(sin(cam_yaw) * cos(cam_pitch), -sin(cam_pitch), cos(cam_yaw) * cos(cam_pitch)) * cam_dist
-		var cam_pos := focus + offset
-		cam_pos.y = maxf(cam_pos.y, Terrain.height(cam_pos.x, cam_pos.z) + 0.6)
-		camera.position = camera.position.lerp(cam_pos, 1.0 - exp(-10.0 * delta))
-		camera.look_at(focus)
+		var props := ResourceNodes.near(me.position, ActionCamera.DIST_MAX + 3.0)
+		var xf := cam.step(me.position, delta, Callable(Terrain, "height"), props)
+		camera.transform = xf
 		if compass.due(delta):
-			compass.feed(cam_yaw, me.position, other_positions())
-		_update_gather(delta, me.position)
+			compass.feed(cam.yaw, me.position, other_positions())
+		_update_gather(delta, me.position, xf.origin, -xf.basis.z)
 		hud_label.text = "Ashgrove  ·  %d online  ·  %.0f, %.0f" % [avatars.size(), me.position.x, me.position.z]
 
 
 ## The "E  Gather Ember ash" prompt: press or hold E near a node to gather it (sent as
 ## "/gather <kind>" chat until protocol v3 adds c2s_gather).
-func _update_gather(delta: float, my_pos: Vector3) -> void:
+## The node it targets is the one under the reticle (look-to-interact), else the nearest.
+func _update_gather(delta: float, my_pos: Vector3, eye: Vector3, look: Vector3) -> void:
 	var held := Input.is_action_pressed("interact") and not chat_edit.has_focus() and not settings_menu.visible
-	var cmd := gather_prompt.update(delta, my_pos, TimeDial.current_seconds(), Time.get_ticks_msec() / 1000.0, held)
+	var cmd := gather_prompt.update(delta, my_pos, TimeDial.current_seconds(), Time.get_ticks_msec() / 1000.0, held, eye, look)
+	var t := gather_prompt.current_target()
+	reticle.active = not t.is_empty() and bool(t.can)
 	if cmd != "":
 		net.c2s_chat.rpc_id(1, cmd)
+
+
+## The cursor is captured (hidden, mouse turns the camera) while you play, and freed while you
+## type in chat, have Settings open, or the game window is in the background.
+func _update_mouse_capture() -> void:
+	var want := ActionCamera.wants_capture(logged_in, chat_edit.has_focus(), settings_menu.visible, get_window().has_focus())
+	var mode := Input.MOUSE_MODE_CAPTURED if want else Input.MOUSE_MODE_VISIBLE
+	if Input.mouse_mode != mode:
+		Input.mouse_mode = mode
+	reticle.visible = logged_in and not settings_menu.visible
 
 
 ## Rendered positions of every other player in the world (for the compass strip).
@@ -300,7 +314,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	hud_label.visible = true
 	help_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
-	cam_yaw = character.yaw + PI
+	cam.place(Vector3(character.x, character.y, character.z), character.yaw + PI)
 	_on_system(message)
 	sfx_arrive.play()
 
@@ -319,6 +333,9 @@ func _on_server_disconnected() -> void:
 	gather_prompt.hide_all()
 	hud_label.visible = false
 	help_label.visible = false
+	reticle.visible = false
+	reticle.active = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	connect_button.disabled = false
 	_set_status("Disconnected from the server.", true)
 
@@ -378,6 +395,10 @@ func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, ya
 	var node := wrap_avatar(AvatarBuilder.build(player_name, appearance_seed, id == my_id))
 	node.position = pos
 	node.rotation.y = yaw
+	if id == my_id:
+		# Your own name would hang right in front of the over-the-shoulder camera.
+		for tag in node.find_children("*", "Label3D", false, false):
+			tag.visible = false
 	world.add_child(node)
 	avatars[id] = {"node": node, "body": node.get_node("Body"), "anim": WalkAnim.new(), "target": pos, "yaw": yaw, "name": player_name}
 
@@ -520,6 +541,12 @@ func _build_ui() -> void:
 	ui.add_child(gather_prompt)
 	gather_prompt.setup(theme)
 
+	# Centre reticle for the action camera: what you look at is what E gathers.
+	reticle = Reticle.new()
+	reticle.setup()
+	reticle.visible = false
+	ui.add_child(reticle)
+
 	hud_label = Label.new()
 	hud_label.theme = theme
 	hud_label.position = Vector2(16, 12)
@@ -530,7 +557,7 @@ func _build_ui() -> void:
 
 	help_label = Label.new()
 	help_label.theme = theme
-	help_label.text = "WASD to walk · hold right mouse to look · wheel to zoom · E to gather · Enter to chat · Esc for settings"
+	help_label.text = "WASD move · mouse look · Alt free look · V shoulder · wheel zoom · E gather · Enter chat · Esc settings"
 	help_label.anchor_left = 1.0
 	help_label.anchor_right = 1.0
 	help_label.offset_left = -860
