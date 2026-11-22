@@ -1,2 +1,0 @@
-- Ashgrove now keeps time. The server runs one shared clock for everyone: a full day lasts 40 real minutes, dawn to dusk to a properly dark night, and it carries on even while you are offline. (The sky catching up is coming soon.)
-- This update changes how the game talks to the server, so download the new client from the Releases page to keep playing.

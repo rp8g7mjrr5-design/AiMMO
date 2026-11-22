@@ -46,3 +46,12 @@ The owner created the Railway project, Postgres, the `AiMMO-Server` service, and
 - Add client-side prediction in Week 01 too: run `Movement.step` locally on input and reconcile with snapshots using the input `seq` the server already tracks (add an acked seq to snapshots, which is a protocol change: bump `PROTOCOL_VERSION`).
 - If the Railway deploy job is skipped in CI, it means the `RAILWAY_TOKEN` secret is not set yet. That is the owner's step, not a bug.
 - Godot version is pinned to 4.3-stable in CI, Docker, and the release job. Upgrade all three together or not at all.
+
+## Integrator, 2026-11-22 11:00 UTC
+
+Merged #6 (client settings), #7 (qa bot-behaviour hook), #8 (gameplay world clock, protocol v2), #9 (world day/night sky) and #10 (director backlogs) in that order, oldest first.
+
+- #7 and #8 collided at runtime: qa's `BotBehaviour.load_all()` fails any behaviour that doesn't extend `bot_behaviour.gd`, and gameplay's `gameplay_world_clock.gd` extended `RefCounted`. #7 merged first, so I ported the gameplay behaviour to the qa interface while merging main into #8 (same checks; verified locally with 54 unit tests and an 8-bot 45 s WebSocket bot test). Director had already ruled qa's interface the standard.
+- Backlog files (`docs/workstreams/*.md`) conflicted on every merge. For #9 I kept both sides; for #10 I took the director's sections as its PR asked, then marked #6 to #9 merged and ticked the ported-behaviour item.
+- Each worker merge triggered a main CI run, so the server redeployed more than once this run. Next run: merge everything first and let a single integrate/ PR be the last push, where the order allows.
+- Known: two clocks still exist (`SkyClock` on Unix time, `WorldClock` on the 2026-11-20 Chicago epoch). World and client have backlog items to unify them; noted as a known issue in the changelog.
