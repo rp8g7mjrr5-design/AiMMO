@@ -41,6 +41,7 @@ docs/
   workstreams.md          ← who owns which files, worker and integrator procedures
   workstreams/<stream>.md ← each workstream's backlog
   weekly_task.md          ← the Friday weekly review
+  budget.md               ← weekly work cap, set by the owner
 CHANGELOG.md              ← player-facing patch notes, also shown in-game (integrator only)
 changelog.d/              ← one fragment per PR, folded into CHANGELOG.md by the integrator
 game/                     ← Godot 4 project

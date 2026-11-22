@@ -33,4 +33,4 @@ the next week. The update must be live and playable by the weekend.
 - If the deploy fails, roll back to the last good commit and confirm the previous version is live.
 
 ## 6. Report
-End with a short summary for the owner: the week's headline, what each stream shipped, notable fixes, known issues, and whether the update is live.
+End with a short summary for the owner: the week's headline, what each stream shipped, how much of the weekly budget in `docs/budget.md` each stream used, notable fixes, known issues, and whether the update is live.

@@ -38,6 +38,8 @@ and note it in the changelog fragment.
 
 ## Worker procedure (each run)
 
+0. **Budget check first.** Follow `docs/budget.md`. If your stream has hit its weekly cap and
+   has no open PR to fix, stop immediately.
 1. Attach and clone the repo. Read `CLAUDE.md`, this file, `docs/design_bible.md`
    (especially the North star), `docs/roadmap.md`, your backlog `docs/workstreams/<stream>.md`,
    and the tail of `docs/devlog/<stream>.md`.
@@ -62,6 +64,8 @@ and note it in the changelog fragment.
 
 ## Integrator procedure (each run)
 
+0. **Cheap exit first.** Before cloning, check for open `ws/*` PRs and the latest `main` CI
+   result. If there are no open worker PRs and `main` is green, stop with one line.
 1. Attach and clone. Read CLAUDE.md and this file.
 2. **Health first.** Check the latest CI run on `main` and the Railway deploy. If `main` is
    red or the deploy failed, fix it or revert to the last good commit before anything else.
