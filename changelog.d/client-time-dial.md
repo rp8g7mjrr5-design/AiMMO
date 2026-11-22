@@ -1,2 +1,0 @@
-- The sky now runs on the server's clock, so everyone in Ashgrove sees the same sunset at the same moment (no more private time zones).
-- A little sun-and-moon dial sits above the chat with the day and hour, e.g. "Day 3 · 18:20 · Dusk". Plan your evening walks accordingly.

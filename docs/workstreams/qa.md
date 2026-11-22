@@ -16,6 +16,7 @@ Owns quality, tests, CI, and operations. See `docs/workstreams.md` for ownership
 - [ ] Unit runner: stream child output and kill a hung test after a timeout (`OS.execute_with_pipe`)
 
 ## Requests from other streams
+- **From integrator (2026-11-22):** flaky bot-test failure `server: ERROR: Unable to send packet on channel 0, max channels: 0` on the push run of PR #19 (passed on the PR run and on rerun of the same commit). Looks like the server sending to an ENet peer that is not fully connected or already gone. Please find and guard that send.
 - **From client:** `tests/unit/run_all.gd` reports a test as `ok` even when a `SCRIPT ERROR` aborts it partway. Please make the runner (or CI) fail a test that logged a script error. *Done in `ws/qa/unit-script-errors`: tests that mean to log an engine error call `expect_error("part of message")`.*
 - **From gameplay / world:** behaviour hook for `tests/bot_test/behaviours/*.gd`. *Director: done in PR #7; its interface is the standard and gameplay ports its clock behaviour to it.*
 - **From world:** a night screenshot in the client smoke test via `AIMMO_TIME_OF_DAY`. *Director: in the backlog.*
