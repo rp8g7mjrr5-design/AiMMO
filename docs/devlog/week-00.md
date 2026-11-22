@@ -1,0 +1,45 @@
+# Week 00 devlog: First Steps
+
+## Plan
+Week 0 is the foundation every later week builds on. The headline feature is "a shared world you can walk around in", which needs every layer to exist and be tested:
+
+1. Godot 4 project with one entry point and three roles (server, client, bot).
+2. Authoritative dedicated server: login, movement, chat, snapshots at 20 Hz.
+3. Postgres persistence with add-only migrations, plus a JSON fallback for local dev.
+4. A procedural world: terrain, water, trees, rocks, sky, character avatars, sounds.
+5. Desktop client: login screen with patch notes, third-person camera, chat.
+6. Unit tests and the bot test (8 bots, 3 minutes, disconnect and reconnect, data-loss check).
+7. CI: test on every push and PR; on `main`, deploy to Railway and publish client builds as a GitHub Release.
+8. Docs: design bible, roadmap, playtest inbox, this devlog, changelog.
+
+## What shipped
+All of the above. Key decisions and why:
+
+- **Postgres driver written in GDScript** (`game/server/pg_client.gd`). Godot has no Postgres client and I did not want a sidecar process. It speaks the v3 wire protocol with SCRAM-SHA-256 (Railway's default), MD5, and cleartext auth; uses the extended protocol with bound parameters for anything containing player input. Tested against Postgres 16 locally and in CI.
+- **Migrations run on server start** from `db/migrations/`, each in a transaction, recorded in `schema_migrations`. A unit test fails the build if a migration contains DROP, RENAME, TRUNCATE, DELETE FROM, or ALTER COLUMN, or if numbering is not sequential.
+- **Save compatibility** lives in one place: `CharacterData.normalize()` gives every field a default and repairs bad values. `tests/fixtures/week00_characters.sql` is a character stored the Week 00 way; `test_save_compat` loads it every run. When a later week changes the schema, add a fixture for the old shape.
+- **Transport: WebSocket in production, ENet otherwise.** CLAUDE.md names ENet, but as far as I know Railway's public networking only proxies TCP, and ENet is UDP. Godot's `WebSocketMultiplayerPeer` is a drop-in for the same high-level multiplayer API, so all game code is transport-agnostic. The Docker image sets `AIMMO_TRANSPORT=websocket`; the client picks WebSocket when the address starts with `ws://`. The bot test runs over WebSocket (the production path) for the full 3 minutes and over ENet for a shorter smoke run. If Railway adds UDP, switching back is one environment variable.
+- **The server runs from source in Docker** (`godot --headless --path game`) rather than from an exported binary. This avoids downloading ~1 GB of export templates on every Railway build. The `server` export preset still exists for anyone who wants a single binary.
+- **Graceful shutdown.** Godot does not handle SIGTERM, so `docker/entrypoint.sh` traps it and drops a stop file; the server polls for it, saves everyone, and exits. Autosave every 30 s caps any loss if that fails.
+- **Passwords** are PBKDF2-SHA256, 20,000 iterations, 16-byte salt, implemented on Godot's native HMAC. Unit-tested against known vectors.
+
+## What didn't work / what I changed
+- TLS to Postgres: Godot's `TLSOptions.client_unsafe()` still failed the handshake against a self-signed certificate in my local test. Railway's private network URL does not use TLS, so `sslmode` now defaults to `disable`; `prefer` falls back to plain on failure; `require` is supported but untested against Railway's public proxy.
+- First pass let `-s tests/unit/run_all.gd` resolve outside `res://`. Godot resolves `-s` paths inside the project, so `game/tests` is a symlink to the top-level `tests/` folder (same for `game/CHANGELOG.md`). This keeps the layout from CLAUDE.md and the test command working unchanged.
+
+## Known bugs and limitations
+- No client-side prediction: your own character moves when the server says so. On high latency it feels floaty. Scheduled for Week 01.
+- Database calls are synchronous on the server's main thread. Fine at this scale (a save is one small UPDATE), but logins briefly stall the tick. Backlog item.
+- Snapshots include every player. Fine below ~100 players; interest management is in the backlog.
+- One global chat channel, no moderation tools yet.
+- macOS builds are ad-hoc signed only; macOS will warn on first launch (right-click → Open).
+
+## Setup the owner needs to do (one time)
+See the PR description for Week 00. In short: a Railway project with Postgres and a service built from this repo's Dockerfile, a TCP proxy on the server port, and the `RAILWAY_TOKEN` secret plus `RAILWAY_SERVICE` and `AIMMO_PUBLIC_SERVER` variables in GitHub.
+
+## Notes to next week's self
+- Check `docs/playtest.md` first. Nobody has played yet, so the first real reports will come after Week 00 deploys.
+- Week 01 is Day and night. Keep the clock on the server and send only the time offset at login plus a periodic correction; the sky is pure procgen on the client.
+- Add client-side prediction in Week 01 too: run `Movement.step` locally on input and reconcile with snapshots using the input `seq` the server already tracks (add an acked seq to snapshots, which is a protocol change: bump `PROTOCOL_VERSION`).
+- If the Railway deploy job is skipped in CI, it means the `RAILWAY_TOKEN` secret is not set yet. That is the owner's step, not a bug.
+- Godot version is pinned to 4.3-stable in CI, Docker, and the release job. Upgrade all three together or not at all.

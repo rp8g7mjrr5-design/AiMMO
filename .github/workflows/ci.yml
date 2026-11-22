@@ -1,0 +1,161 @@
+name: CI
+
+# Every push and PR: unit tests, the 3-minute bot test, and a client smoke test.
+# Pushes to main then deploy the server to Railway and publish client builds as a Release.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GODOT_VERSION: 4.3-stable
+
+jobs:
+  test:
+    name: Test (unit + bot test + client smoke)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: aimmo
+          POSTGRES_PASSWORD: aimmo_ci_only
+          POSTGRES_DB: aimmo_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aimmo" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      # Throwaway CI database, not a secret.
+      DATABASE_URL: postgres://aimmo:aimmo_ci_only@127.0.0.1:5432/aimmo_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-godot
+        with:
+          version: ${{ env.GODOT_VERSION }}
+
+      - name: Unit tests
+        run: godot --headless --path game -s tests/unit/run_all.gd
+
+      - name: Bot test (8 bots, 3 minutes, WebSocket, Postgres)
+        run: python3 tests/bot_test/run_bot_test.py --bots 8 --duration 180 --transport websocket
+
+      - name: Bot test smoke (8 bots, 45 seconds, ENet)
+        run: python3 tests/bot_test/run_bot_test.py --bots 8 --duration 45 --transport enet
+
+      - name: Install virtual display for the client smoke test
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri >/dev/null
+
+      - name: Client smoke test
+        run: tests/client_smoke/run.sh build/client-smoke
+
+      - name: Upload screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: |
+            build/client-smoke/
+            /tmp/aimmo-bot-test-*/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  deploy:
+    name: Deploy server to Railway
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Railway is configured
+        id: cfg
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::warning::RAILWAY_TOKEN secret is not set, skipping deploy. See docs/devlog/week-00.md for setup."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Deploy
+        if: steps.cfg.outputs.skip != 'true'
+        run: |
+          npm install -g @railway/cli@4
+          railway up --ci --service "${RAILWAY_SERVICE:-aimmo-server}"
+
+  release:
+    name: Build clients and publish release
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-godot
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          templates: "true"
+
+      - name: Read this week's changelog entry
+        id: notes
+        run: |
+          python3 - <<'PY'
+          import os, re
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          m = re.search(r"^## Week (\d+) — (.+)$", text, re.M)
+          if not m:
+              raise SystemExit("CHANGELOG.md has no '## Week NN — Headline' entry")
+          start = m.end()
+          nxt = re.search(r"^## ", text[start:], re.M)
+          body = text[start:start + nxt.start()] if nxt else text[start:]
+          open("release-notes.md", "w", encoding="utf-8").write(body.strip() + "\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"tag=week-{m.group(1)}\n")
+              out.write(f"title=Week {m.group(1)} — {m.group(2).strip()}\n")
+          PY
+
+      - name: Bake the public server address into the client
+        env:
+          AIMMO_PUBLIC_SERVER: ${{ vars.AIMMO_PUBLIC_SERVER }}
+        run: |
+          if [ -n "$AIMMO_PUBLIC_SERVER" ]; then
+            echo "$AIMMO_PUBLIC_SERVER" > game/client/default_server.txt
+          else
+            echo "::warning::AIMMO_PUBLIC_SERVER variable not set; clients will default to 127.0.0.1"
+          fi
+
+      - name: Export clients
+        run: |
+          set -euo pipefail
+          for p in client-linux client-windows client-macos; do
+            mkdir -p "build/$p"
+            godot --headless --path game --export-release "$p" 2>&1 | tee "build/$p.log"
+            if grep -q "ERROR" "build/$p.log"; then echo "export $p failed"; exit 1; fi
+          done
+          mkdir -p dist
+          (cd build/client-linux && zip -q -r ../../dist/AiMMO-linux.zip .)
+          (cd build/client-windows && zip -q -r ../../dist/AiMMO-windows.zip .)
+          cp build/client-macos/AiMMO.zip dist/AiMMO-macos.zip
+          ls -la dist
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.notes.outputs.tag }}
+          TITLE: ${{ steps.notes.outputs.title }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # A fix pushed later in the same week updates that week's release.
+            gh release edit "$TAG" --title "$TITLE" --notes-file release-notes.md
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --title "$TITLE" --notes-file release-notes.md --target "$GITHUB_SHA"
+          fi

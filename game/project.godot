@@ -1,0 +1,22 @@
+; AiMMO Godot 4 project. One project, two roles: dedicated server and desktop client.
+; Role is picked at launch: `-- --server`, `-- --bot`, or no flag for the client.
+
+config_version=5
+
+[application]
+
+config/name="AiMMO"
+config/description="A real-time 3D MMO designed, built, and run by AI."
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.3")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="mobile"
+textures/vram_compression/import_etc2_astc=true
