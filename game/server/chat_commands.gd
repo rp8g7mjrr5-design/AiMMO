@@ -3,11 +3,13 @@ class_name ChatCommands
 ## answers only the sender with a system message and never broadcasts the line itself.
 ## Pure functions, so they are unit tested without a running server.
 ##
-## Commands: /help, /time, /who, /bag, /gather. /gather changes the world, so the server
-## handles it itself (see is_gather); everything else is answered by run(). Names are case-insensitive; extra words are ignored.
+## Commands: /help, /time, /who, /bag, /gather, /craft. /gather and /craft change the world
+## or a pack, so the server handles them itself (see is_gather, is_craft); everything else
+## is answered by run(). Names are case-insensitive; extra words are ignored.
 
-const HELP := "Commands: /gather (take from the tree, rock or seep you stand at; /gather pine for one kind), /bag (what you carry), /time (time of day in Ashgrove), /who (who is online), /help."
+const HELP := "Commands: /gather (take from the tree, rock or seep you stand at; /gather pine for one kind), /bag (what you carry), /craft (recipes; /craft axe at the Spawn Meadow workbench), /time (time of day in Ashgrove), /who (who is online), /help."
 const GATHER_NAMES := ["gather", "g", "harvest", "chop", "mine"]
+const CRAFT_NAMES := ["craft", "make", "build", "recipes"]
 const WHO_MAX_NAMES := 20 ## cap the /who list so one line stays readable
 
 
@@ -30,6 +32,11 @@ static func argument(text: String) -> String:
 ## True for /gather and its aliases, which the server runs against its world state.
 static func is_gather(text: String) -> bool:
 	return is_command(text) and name_of(text) in GATHER_NAMES
+
+
+## True for /craft and its aliases, which the server runs against the sender's pack.
+static func is_craft(text: String) -> bool:
+	return is_command(text) and name_of(text) in CRAFT_NAMES
 
 
 ## Returns the reply for a command line (already cleaned by Validation.clean_chat).

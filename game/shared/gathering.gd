@@ -18,6 +18,12 @@ const COOLDOWN := 1.5 ## real seconds between two gathers by the same player
 const CHARGES := {"ash": 3, "pine": 3, "stone": 3, "ember_sap": 1}
 const DEFAULT_CHARGES := 1
 const HINT_RADIUS := 80.0 ## how far "the nearest pine is 14 m north-east" looks
+## Tools (see Crafting): carrying the right one gives TOOL_EXTRA more per gather and cuts
+## the cooldown to COOLDOWN * TOOL_SPEED. Protocol v3's timed gather channel should use the
+## same TOOL_SPEED on its duration. Seeps take no tool: sap is collected by hand.
+const TOOLS := {"ash": "stone_axe", "pine": "stone_axe", "stone": "stone_pickaxe"}
+const TOOL_EXTRA := 1
+const TOOL_SPEED := 0.5
 
 
 ## {taken: {node_id: gathers so far}, respawn_at: {node_id: time it comes back}}
@@ -66,7 +72,8 @@ static func charges_left(state: Dictionary, id: int, now: float) -> int:
 
 ## Why `id` can't be gathered by a player at `player_pos` right now, or "" if it can.
 ## Reasons: "unknown", "far", "depleted", "day" (night-only node in daylight), "cooldown".
-static func check(state: Dictionary, id: int, player_pos: Vector3, now: float, world_seconds: float, last_gather: float) -> String:
+## `cooldown` is the player's own (see cooldown_for); it defaults to the bare-handed one.
+static func check(state: Dictionary, id: int, player_pos: Vector3, now: float, world_seconds: float, last_gather: float, cooldown: float = COOLDOWN) -> String:
 	var node := ResourceNodes.get_by_id(id)
 	if node.is_empty():
 		return "unknown"
@@ -76,7 +83,7 @@ static func check(state: Dictionary, id: int, player_pos: Vector3, now: float, w
 		return "depleted"
 	if ResourceNodes.kind_info(node.kind).get("night_only", false) and not WorldClock.is_night(world_seconds):
 		return "day"
-	if now - last_gather < COOLDOWN:
+	if now - last_gather < cooldown:
 		return "cooldown"
 	return ""
 
@@ -112,6 +119,22 @@ static func give_back(state: Dictionary, id: int) -> void:
 		state.taken.erase(id)
 	else:
 		state.taken[id] = used
+
+
+## The tool in `inv` that helps with a node of `kind`, or "" if none does / none is carried.
+static func tool_for(kind: String, inv: Dictionary) -> String:
+	var tool := str(TOOLS.get(kind, ""))
+	return tool if tool != "" and Inventory.count(inv, tool) > 0 else ""
+
+
+## The cooldown after gathering a node of `kind` with this pack.
+static func cooldown_for(kind: String, inv: Dictionary) -> float:
+	return COOLDOWN * TOOL_SPEED if tool_for(kind, inv) != "" else COOLDOWN
+
+
+## How many items one gather of `kind` gives with this pack.
+static func amount_for(kind: String, inv: Dictionary) -> int:
+	return int(ResourceNodes.kind_info(kind).get("amount", 1)) + (TOOL_EXTRA if tool_for(kind, inv) != "" else 0)
 
 
 ## "north-east" for a flat offset (north is -Z, east is +X, as on the client's compass).
@@ -173,11 +196,13 @@ static func refusal(reason: String, state: Dictionary, id: int, player_pos: Vect
 
 
 ## "You gather 2 ash wood from the ember ash (6 in your pack). It is spent for now."
-static func success(id: int, got: int, in_pack: int, depleted: bool) -> String:
+## Pass the tool's item id (from tool_for) to say it was used.
+static func success(id: int, got: int, in_pack: int, depleted: bool, tool: String = "") -> String:
 	var node := ResourceNodes.get_by_id(id)
 	var info := ResourceNodes.kind_info(node.kind)
-	var line := "You gather %d %s from the %s (%d in your pack)." % [
-		got, Inventory.label(str(info.item)).to_lower(), str(info.label).to_lower(), in_pack]
+	var with := " with your %s" % Inventory.label(tool) if tool != "" else ""
+	var line := "You gather %d %s from the %s%s (%d in your pack)." % [
+		got, Inventory.label(str(info.item)).to_lower(), str(info.label).to_lower(), with, in_pack]
 	if depleted:
 		line += " It is spent for now."
 	return line
