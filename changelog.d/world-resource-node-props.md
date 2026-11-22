@@ -1,0 +1,2 @@
+- Look closer at Ashgrove's wild places: big ember ashes, tall four-tier pines, stone outcrops with a pale seam, and ember-sap seeps that glow from a ring of dark stones. These are the things you'll soon be able to gather.
+- A ring of them waits right around the Spawn Meadow, so newcomers don't have to wander far.
