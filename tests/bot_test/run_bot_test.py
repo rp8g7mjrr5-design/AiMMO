@@ -125,6 +125,9 @@ def main() -> int:
         print(f"[bot-test] {name}: ok={r['ok']} logins={s['logins']} snapshots={s['snapshots']} "
               f"walked={s['distance_walked']:.1f}m chats_in={s['chats_from_others']} peers_seen={s['max_peers_seen']} "
               f"restored={s['position_restored']}")
+        for bname, bstats in sorted(s.get("behaviours", {}).items()):
+            if bstats:
+                print(f"[bot-test]   {bname}: " + " ".join(f"{k}={v}" for k, v in sorted(bstats.items())))
         if "final_position" in s:
             expected[name] = s["final_position"]
 
