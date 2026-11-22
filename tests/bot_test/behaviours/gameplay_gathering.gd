@@ -1,16 +1,17 @@
 extends "res://tests/bot_test/bot_behaviour.gd"
 ## Bot behaviour (gameplay): gathering.
 ##
-## A while after each login the bot walks to a wood or stone node near Spawn Meadow, stands
-## in reach and types /gather. Eight bots share about fourteen nodes, so a node may already
-## be spent: the bot then walks to the next one on its (shuffled) list. One good gather per
+## Soon after each login the bot walks to one of the wood or stone nodes nearest to it,
+## stands in reach and types /gather. Eight bots share about fourteen nodes near spawn, so a
+## node may already be spent: the bot then walks to the next nearest one. One good gather per
 ## login is enough. On the second login the pack must still hold what the server said was
 ## in it after the first gather, which checks gathered items are saved.
 ##
 ## Ember-sap seeps are skipped: they only give at night and the bot test runs at any hour.
 
-const FIRST_DELAY := 12.0 ## after the /time, /who and /bag behaviours have had their turn
+const FIRST_DELAY := 3.0 ## short: CI also runs a 45 s bot test, so a login can last only ~15 s
 const SEARCH_RADIUS := 60.0 ## bot.gd keeps bots within about 60 m of spawn
+const SPREAD := 4 ## start at one of the nearest few nodes, so bots don't all queue at one
 const STOP_AT := 1.5 ## metres from the node centre (reach is ResourceNodes.GATHER_RANGE)
 const RETRY_AFTER := 3.0 ## an unanswered /gather (chat cooldown) is sent again
 const MAX_TRIES := 5
@@ -46,10 +47,14 @@ func on_login(reconnect: bool, character: Dictionary) -> void:
 			if int(inv.get(item, 0)) < int(_reported[item]):
 				fail("pack lost gathered %s: server said %d before logout, login has %d" % [item, _reported[item], int(inv.get(item, 0))])
 	_targets.clear()
-	for n in ResourceNodes.near(GameConfig.SPAWN_POINT, SEARCH_RADIUS):
+	# Nearest first from where we stand, starting a few nodes in so bots spread out.
+	var here := Vector3(character.x, character.y, character.z)
+	for n in ResourceNodes.near(here, SEARCH_RADIUS):
 		if not ResourceNodes.kind_info(n.kind).get("night_only", false):
 			_targets.append(n.id)
-	_shuffle(_targets)
+	if _targets.size() > 1:
+		var k := rng.randi_range(0, mini(SPREAD, _targets.size()) - 1)
+		_targets = _targets.slice(k) + _targets.slice(0, k)
 	_target = -1
 	_active = true
 	_phase_gathered = false
@@ -120,14 +125,6 @@ func _on_system(text: String) -> void:
 	else:
 		fail("unexpected gather reply: %s" % text)
 		_active = false
-
-
-func _shuffle(a: Array) -> void:
-	for i in range(a.size() - 1, 0, -1):
-		var j := rng.randi_range(0, i)
-		var t = a[i]
-		a[i] = a[j]
-		a[j] = t
 
 
 func on_finish() -> void:

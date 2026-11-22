@@ -234,3 +234,11 @@ the behaviour can fail on contention: then raise `SEARCH_RADIUS`, not lower the 
   it: `get_by_id` is safe). For `s2c_nodes`, run `Gathering.respawn_due` in the server tick
   (every second is plenty) and broadcast what changed.
 - Crafting can start the same way (`/craft`) if v3 is not done yet.
+
+**CI fix (same run).** The first CI run failed: CI also runs a 45 s ENet bot test, where a
+login lasts only ~15 s, and two bots spent it on a 12 s start delay plus a walk to a random
+node up to 60 m away. The behaviour now starts 3 s after login and goes for the nodes
+nearest where the bot stands (starting one of the 4 nearest in, so bots spread out). Locally
+the 45 s ENet test passed 3 times in a row with every bot gathering on both logins, and the
+180 s websocket test passed too. Lesson for next time: run the 45 s ENet bot test as well,
+not just the 3-minute one.
