@@ -32,6 +32,7 @@ var sfx_chime: AudioStreamPlayer
 var sfx_arrive: AudioStreamPlayer
 var settings: ClientSettings
 var settings_menu: SettingsMenu
+var time_dial: TimeDial
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -56,6 +57,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.snapshot.connect(_on_snapshot)
 	net.chat_message.connect(_on_chat)
 	net.system_message.connect(_on_system)
+	net.world_time.connect(_on_world_time)
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _set_status("Could not reach the server.", true))
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -245,6 +247,8 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	password_edit.text = ""
 	login_panel.visible = false
 	chat_log.get_parent().get_parent().visible = true
+	time_dial.visible = true
+	time_dial.refresh()
 	hud_label.visible = true
 	help_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
@@ -257,9 +261,11 @@ func _on_server_disconnected() -> void:
 	for id in avatars.keys():
 		_on_player_left(id)
 	logged_in = false
+	DayNight.clear_sync() # back to this machine's clock (same epoch, so the sky doesn't jump)
 	multiplayer.multiplayer_peer = null
 	login_panel.visible = true
 	chat_log.get_parent().get_parent().visible = false
+	time_dial.visible = false
 	hud_label.visible = false
 	help_label.visible = false
 	connect_button.disabled = false
@@ -288,6 +294,14 @@ func _on_snapshot(_tick: int, entries: Array) -> void:
 			if a.node.position.y < -50.0:
 				a.node.position = a.target # first sighting: no slide-in from nowhere
 		i += 5
+
+
+## The server's clock (at login and every WORLD_TIME_SYNC_SECONDS). DayNight keeps it and
+## runs it on between syncs; the sky and the time dial both read it from there.
+func _on_world_time(world_seconds: float) -> void:
+	DayNight.set_world_seconds(world_seconds)
+	if time_dial and time_dial.visible:
+		time_dial.refresh()
 
 
 func _on_chat(from_name: String, text: String) -> void:
@@ -414,6 +428,18 @@ func _build_ui() -> void:
 	chat_edit.max_length = GameConfig.CHAT_MAX
 	chat_edit.text_submitted.connect(_on_chat_submitted)
 	chat_box.add_child(chat_edit)
+
+	# Sun/moon dial with the in-game time, just above the chat.
+	time_dial = TimeDial.new()
+	time_dial.anchor_top = 1.0
+	time_dial.anchor_bottom = 1.0
+	time_dial.offset_left = 16
+	time_dial.offset_top = -316
+	time_dial.offset_right = 476
+	time_dial.offset_bottom = -266
+	time_dial.visible = false
+	ui.add_child(time_dial)
+	time_dial.setup(theme)
 
 	hud_label = Label.new()
 	hud_label.theme = theme
