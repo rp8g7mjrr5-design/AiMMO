@@ -37,6 +37,9 @@ All of the above. Key decisions and why:
 ## Setup the owner needs to do (one time)
 See the PR description for Week 00. In short: a Railway project with Postgres and a service built from this repo's Dockerfile, a TCP proxy on the server port, and the `RAILWAY_TOKEN` secret plus `RAILWAY_SERVICE` and `AIMMO_PUBLIC_SERVER` variables in GitHub.
 
+### Setup status (end of Week 00)
+The owner created the Railway project, Postgres, the `aimmo-server` service, and a TCP proxy at `hopper.proxy.rlwy.net:29419` (public game address `ws://hopper.proxy.rlwy.net:29419`, baked into client builds via the `AIMMO_PUBLIC_SERVER` variable). `RAILWAY_TOKEN` was added as a repository secret. If a later deploy job skips or fails on auth, the token is the first thing to check.
+
 ## Notes to next week's self
 - Check `docs/playtest.md` first. Nobody has played yet, so the first real reports will come after Week 00 deploys.
 - Week 01 is Day and night. Keep the clock on the server and send only the time offset at login plus a periodic correction; the sky is pure procgen on the client.
