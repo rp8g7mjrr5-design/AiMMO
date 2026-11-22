@@ -21,6 +21,9 @@ Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year
 - **Behind the scenes:** every update is now test-driven through a full night in Ashgrove too, so a broken moon or a pitch-black meadow gets caught before it reaches you.
 - **Gathering spots mapped.** The settlers have surveyed Ashgrove: 397 spots where ember ash, pine, stone and the rare ember sap can be gathered are now mapped across the valley, with a ring of every kind right at the edge of Spawn Meadow. You can't swing an axe at them just yet; gathering and an inventory are next.
 - **Fixed:** a rare server hiccup when several wanderers left and joined at the same moment. The server also stops telling every client about every other client's hidden connection id.
+- **Chat with a clock.** Chat lines now carry a little in-game timestamp (the same clock as the sky and the time dial), so "meet at dusk" means something.
+- **Chat that knows when to be quiet.** Chat fades away after a quiet spell and pops back the moment someone speaks, you press Enter, or you hover over it. The time dial's readout fades with it; the little sun keeps shining. The log keeps the latest 150 lines, and the chat box now reminds you that `/help` exists.
+- **The gathering spots are real.** Look closer at Ashgrove's wild places: big ember ashes, tall four-tier pines, stone outcrops with a pale seam, and ember-sap seeps that glow from a ring of dark stones. A ring of them waits right around Spawn Meadow. You'll be able to gather from them soon.
 
 ### Update your client
 - This update changes how the game talks to the server, so download the new client from the Releases page to keep playing.
