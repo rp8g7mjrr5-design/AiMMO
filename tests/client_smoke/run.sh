@@ -8,12 +8,18 @@ OUT="${1:-$REPO/build/client-smoke}"
 GODOT="${GODOT:-godot}"
 PORT="${AIMMO_SMOKE_PORT:-7801}"
 mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd)" # Godot changes into the project folder, so every path it gets must be absolute
 export AIMMO_PORT="$PORT" AIMMO_DATA_DIR="$OUT/data" AIMMO_STOP_FILE="$OUT/stop"
 rm -f "$AIMMO_STOP_FILE"
 
 "$GODOT" --headless --path "$REPO/game" -- --server > "$OUT/server.log" 2>&1 &
 SERVER=$!
-trap 'touch "$AIMMO_STOP_FILE"; wait $SERVER || true' EXIT
+stop_server() {
+  touch "$AIMMO_STOP_FILE"
+  for _ in $(seq 1 60); do kill -0 "$SERVER" 2>/dev/null || return 0; sleep 0.5; done
+  echo "server did not stop within 30s, killing it"; kill -9 "$SERVER" 2>/dev/null || true
+}
+trap stop_server EXIT
 for _ in $(seq 1 100); do grep -q "listening" "$OUT/server.log" && break; sleep 0.2; done
 
 run_client() {

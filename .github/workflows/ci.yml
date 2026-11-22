@@ -52,6 +52,7 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri >/dev/null
 
       - name: Client smoke test
+        timeout-minutes: 8
         run: tests/client_smoke/run.sh build/client-smoke
 
       - name: Upload screenshots and logs
