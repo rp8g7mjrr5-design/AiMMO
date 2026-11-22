@@ -1,3 +1,0 @@
-- Chat lines now carry a little in-game timestamp (the same clock as the sky and the time dial), so "meet at dusk" means something.
-- Chat politely fades away after a quiet spell and pops back the moment someone speaks, you press Enter, or you hover over it. The time dial's readout fades with it; the little sun keeps shining.
-- Long sessions no longer pile up chat forever: the log keeps the latest 150 lines. And the chat box now reminds you that /help exists.

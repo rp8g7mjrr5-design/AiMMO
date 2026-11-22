@@ -71,3 +71,10 @@ Merged #6 (client settings), #7 (qa bot-behaviour hook), #8 (gameplay world cloc
 - Out of oldest-first order on purpose: after merging main into #22, its push-event CI run failed on the `Unable to send packet on channel 0, max channels: 0` flake again while its PR-event run passed. #24 is the fix for exactly that, so it went first; #22 then re-ran green on top of it. If this error shows up again after #24, the relay was not the (only) cause: send it back to qa with the failing run link.
 - Folded `gameplay-resource-nodes` and `qa-no-peer-relay` into the Week 00 changelog. Players can't interact with nodes yet, and the patch note says so.
 - playtest.md still has no reports. Every stream backlog has 8+ items, so no refill needed.
+
+## Integrator, 2026-11-22 18:00 UTC
+- Merged #25 (client chat polish: in-game timestamps, idle fade, 150-line cap) and #27 (world resource-node props: visible ash, pine, stone and ember-sap nodes with depleted looks), oldest first.
+- Both stayed in their owned paths. #27's only cross-stream edit is a "Requests from other streams" entry in the client backlog, which the procedure allows. No migrations, no imported assets, no secrets; each added unit tests and a bot behaviour.
+- Merged main into each branch before merging (both clean, including the shared `docs/workstreams/client.md`), and each re-ran green. No sign of the `max channels: 0` flake this run, so #24 looks like it fixed it.
+- Folded `client-chat-polish` and `world-resource-node-props` into the Week 00 changelog. Merged the 2 fragments' bullets into 3 notes; the props note says gathering isn't live yet.
+- playtest.md still has no reports. Every stream backlog has 8+ items, so no refill needed.
