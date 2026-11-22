@@ -19,6 +19,8 @@ var _clock_sync_timer := 0.0
 ## Shifts the world clock, for testing and screenshots (e.g. --clock-offset=1200 jumps half a
 ## day). Leave it at 0 in production so every server restart keeps the same time.
 var clock_offset := 0.0
+## Which resource nodes are used up, and when they come back (see Gathering).
+var gathering := Gathering.new_state()
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -113,7 +115,7 @@ func _tick() -> void:
 
 
 func _on_peer_connected(id: int) -> void:
-	sessions[id] = {"logged_in": false, "character": {}, "move": Vector2.ZERO, "yaw": 0.0, "seq": -1, "last_chat": -1000.0, "login_attempts": 0}
+	sessions[id] = {"logged_in": false, "character": {}, "move": Vector2.ZERO, "yaw": 0.0, "seq": -1, "last_chat": -1000.0, "last_gather": -1000.0, "login_attempts": 0}
 	print("[server] peer %d connected" % id)
 
 
@@ -242,6 +244,10 @@ func _on_chat(id: int, text: String) -> void:
 	if clean == "":
 		return
 	s.last_chat = now
+	if ChatCommands.is_gather(clean):
+		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
+		_send(id, "s2c_system", [gather(id, ChatCommands.argument(clean))])
+		return
 	if ChatCommands.is_command(clean):
 		var online: Array = []
 		for other in sessions:
@@ -255,6 +261,38 @@ func _on_chat(id: int, text: String) -> void:
 	for other in sessions:
 		if sessions[other].logged_in:
 			_send(other, "s2c_chat", [s.character.name, clean])
+
+
+## A player gathers from the node they stand at ("/gather", or "/gather pine" for one kind).
+## The server checks reach (from its own copy of the position), depletion, night-only
+## nodes and the per-player cooldown, then puts the items in the pack via give_item.
+## Returns the reply for the player.
+func gather(id: int, kind_word: String = "") -> String:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return ""
+	var s: Dictionary = sessions[id]
+	var now := Time.get_ticks_msec() / 1000.0
+	var ws := world_seconds()
+	Gathering.respawn_due(gathering, now)
+	var kind = Gathering.parse_kind(kind_word)
+	if kind == null:
+		return "Gather what? Try /gather, or /gather ash, pine, stone or sap."
+	var pos := CharacterData.position(s.character)
+	var node_id := Gathering.pick_target(gathering, pos, now, ws, kind)
+	if node_id < 0:
+		return Gathering.refusal("none", gathering, -1, pos, now, ws, kind)
+	var why := Gathering.check(gathering, node_id, pos, now, ws, s.last_gather)
+	if why != "":
+		return Gathering.refusal(why, gathering, node_id, pos, now, ws, kind)
+	var got := Gathering.take(gathering, node_id, now)
+	var added := give_item(id, got.item, got.qty)
+	if added <= 0:
+		Gathering.give_back(gathering, node_id)
+		return Gathering.refusal("full", gathering, node_id, pos, now, ws, kind)
+	s.last_gather = now
+	if got.depleted:
+		print("[gather] node %d depleted for %ds" % [node_id, int(got.respawn)])
+	return Gathering.success(node_id, added, Inventory.count(s.character.inventory, got.item), got.depleted)
 
 
 ## Server-authoritative inventory changes. Every system that hands out or uses up items

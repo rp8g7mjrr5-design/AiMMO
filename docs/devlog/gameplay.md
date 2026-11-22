@@ -178,3 +178,59 @@ that `/bag` answers (16 answers across 8 bots x 2 logins). Client smoke test pas
   sent after login and after every `give_item` / `take_item`. Then gathering
   (`c2s_gather`, `s2c_nodes`), which needs a protocol bump too: if v3 lands on the 23rd,
   either put `c2s_gather`/`s2c_nodes` into v3 as well or wait until the 24th.
+
+## 2026-11-22 (fifth run): gathering, server side, through `/gather`
+
+**Built.** `game/shared/gathering.gd` (`Gathering`), pure functions over one world state
+`{taken: {id: n}, respawn_at: {id: t}}`. `check` returns why a node can't be gathered
+("unknown", "far", "depleted", "day", "cooldown") or "". Wood and stone nodes give
+`KINDS.amount` per gather, 3 times (`CHARGES`), then respawn after `KINDS.respawn`; an
+ember-sap seep gives once and only at night (`WorldClock.is_night`). `pick_target` picks the
+nearest gatherable node within `GATHER_RANGE` of the player (optionally one kind), `take` /
+`give_back` change the state, `hint` names the nearest live node with a compass direction
+(north = -Z, east = +X, the same as client's compass in PR #33). `server.gd` gets
+`gather(peer, kind_word)`, using the server's own copy of the position and `give_item`. New
+chat command `/gather` (aliases `/g`, `/harvest`, `/chop`, `/mine`; `/gather pine`,
+`/gather rock`, `/gather sap`). `/help` lists it, and the empty `/bag` now tells players to
+use it.
+
+**Why these calls.**
+- `ack_seq` (protocol v3) is still not allowed today (v2 shipped today, and it is 15:00
+  Chicago on the 22nd). Gathering was next, but its backlog shape needs `c2s_gather` and
+  `s2c_nodes`, both protocol changes. Rather than ship nothing, I split it: the rules and
+  the server state now, playable through chat like `/bag`; the RPCs ride in v3. Players can
+  fill their pack today, which also makes the inventory PR mean something.
+- `ChatCommands.run` stays pure; `/gather` changes world state, so the server intercepts it
+  (`ChatCommands.is_gather`) before `run`. The command name/argument parsing helpers live
+  in `ChatCommands`, the rules in `Gathering`.
+- 3 charges per wood/stone node instead of depleting on the first gather: the starter ring
+  has only 6 wood/stone nodes and every new player starts there. Ember sap stays one-shot,
+  rare and at night, as the design bible wants.
+- Depletion state is in server memory and resets on restart (as planned in the resource
+  nodes run). Nothing new in the database; items go through the existing pack and save.
+- A full pack calls `give_back`, so a node is never spent on nothing.
+- Cooldown 1.5 s per player on top of the 0.5 s chat cooldown, so a macro can't strip the
+  starter ring in a second.
+- Left the depleted look alone: world's `NodeProps.set_depleted` needs node state on the
+  client, which needs `s2c_nodes` (v3). Until then a spent tree still looks whole, and
+  `/gather` there says "This pine is spent; it comes back in about 3 minutes" plus a hint.
+
+**Tests.** 9 unit tests in `tests/unit/test_gameplay_gathering.gd` (charges, depletion and
+respawn timing, every refusal, night-only sap, target picking, give_back, hint skips spent
+nodes, compass names, kind parsing and `/gather` aliases, reply lines). All unit tests pass
+with Postgres. New bot behaviour `gameplay_gathering.gd`: after each login every bot walks
+to a wood/stone node within 60 m of spawn (shuffled list, moves on if a node is spent),
+types `/gather`, needs "You gather ...", and on the second login checks the pack still holds
+at least what the server reported, so gathered items are proven saved. Bot test (8 bots,
+180 s, websocket, Postgres) PASSED, every bot gathered twice. Client smoke test passes.
+
+**Known gaps.** No visual feedback beyond the chat line until v3. Bots never test ember sap
+(the bot test runs at any hour); the unit tests cover it. If 8+ bots ever share fewer nodes
+the behaviour can fail on contention: then raise `SEARCH_RADIUS`, not lower the bar.
+
+**Notes to next run.**
+- From 2026-11-23: protocol v3 = `ack_seq` + `s2c_inventory` + `c2s_gather(node_id)` +
+  `s2c_nodes`. `c2s_gather` should call the same `Gathering.check` with that id (validate
+  it: `get_by_id` is safe). For `s2c_nodes`, run `Gathering.respawn_due` in the server tick
+  (every second is plenty) and broadcast what changed.
+- Crafting can start the same way (`/craft`) if v3 is not done yet.
