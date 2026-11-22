@@ -2,6 +2,9 @@ class_name Props
 ## Deterministic placement of trees and rocks. Same seed, same forest, on every machine.
 
 
+const NODE_CLEARANCE := 3.0 ## no decorative tree or rock this close to a resource node
+
+
 ## Returns an Array of {pos: Vector3, scale: float, kind: "ash"|"pine"|"rock", rot: float}.
 static func scatter(count: int = 1800) -> Array:
 	var rng := RandomNumberGenerator.new()
@@ -26,5 +29,7 @@ static func scatter(count: int = 1800) -> Array:
 				kind = "pine" if r < 0.8 else "rock"
 			else:
 				kind = "ash" if r < 0.7 else ("pine" if r < 0.85 else "rock")
+		if not ResourceNodes.near(Vector3(x, 0.0, z), NODE_CLEARANCE).is_empty():
+			continue # all draws for this spot are done, so skipping never shifts the rest of the forest
 		out.append({"pos": Vector3(x, y - 0.1, z), "scale": rng.randf_range(0.7, 1.4), "kind": kind, "rot": rng.randf() * TAU})
 	return out

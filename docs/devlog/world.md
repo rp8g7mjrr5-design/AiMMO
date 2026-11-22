@@ -50,3 +50,22 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Known / not done.** No elbows or knees; the limbs are stiff pendulums. Hands don't hold anything yet (tools come with gathering).
 
 **Next run.** Lamps and ember-ash glow at night, driven by `WorldClock.daylight`.
+
+## 2026-11-22: resource-node props
+**Built.** Answered gameplay's request (requests before backlog). New `game/procgen/node_props.gd`: `NodeProps.parts(node, depleted)` lays out one node's prop as pure data, `layout(nodes)` packs both looks of every node into six MultiMesh layers with a per-node slot table, `build()` makes the `ResourceNodes` node that `WorldBuilder` adds, and `set_depleted(root, id, on)` swaps a node's look by showing/hiding its instances (collapsed basis), so nothing is created or freed in play. `Props.scatter` now skips decorative trees and rocks within 3 m of a node.
+
+**Looks.** Ember ash: thick trunk, big crown plus a smaller lifted crown, brighter orange than decoration. Pine: four tiers, slightly brighter green. Stone outcrop: a big 2 m boulder, two side chunks and a pale quartz seam on top. Ember-sap seep: a ring of dark stones around a glowing (emissive, shadowless) pool with three glowing shards. Depleted: stumps with a pale cut face, low rubble, a dried dark seep with the rim stones left.
+
+**Decisions.**
+- Node props are drawn from `ResourceNodes.all()` exactly (pos/rot/scale), never placed by world, so the server and the picture always agree.
+- The scatter clearance check runs after all rng draws for a spot, so the remaining decoration is the same forest minus the spots next to nodes, plus a few extra trees at the end of the list. Nothing is saved from decoration, so this is safe.
+- Small per-node variation (crown tint, rubble angles, shard heights) is seeded from the node id, not from the placement rng, so it can never disturb gameplay's list.
+- MultiMesh show/hide rather than per-node MeshInstances: 397 nodes, about 3.5k instances in 6 draw calls.
+
+**Didn't work.** First version made the outcrop and seep too small: at 15 m in the smoke shot the outcrop read as an ordinary pebble and the seep was invisible. Scaled the outcrop about 1.5x, raised the seep and added the glowing shards; checked with close-up renders of each kind, live and depleted.
+
+**Tested.** 106 unit tests with Postgres (5 new in `tests/unit/test_world_node_props.gd`: every kind's live and depleted look, props stand on their node, determinism, layout slots, scatter clearance), 8-bot 180 s websocket bot test passed (new behaviour `world_resource_nodes.gd`: 36 nearest-node checks per bot, all 4 kinds seen, 8/8 characters persisted), client smoke test passed (day and night). Rendered close-ups of all four kinds with everything depleted via `set_depleted` on the real renderer; no errors.
+
+**Known / not done.** The decorative ash and a node ash still look alike from far away; the "can gather" hint (follow-up in backlog) should fix that properly. No collision on props (nothing has collision yet). The client has to call `set_depleted` once node state is on the wire (request filed in client backlog).
+
+**Next run.** Lamps and ember-ash glow at night, driven by `WorldClock.daylight` (the sap seeps' emissive material is a natural thing to brighten at night too).
