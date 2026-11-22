@@ -156,3 +156,44 @@ Client smoke not run: nothing the client loads changed.
 small gameplay-owned hook in `server.gd` or a log line qa can watch; look at what Railway's
 healthcheck can do over TCP/WebSocket first). When inventory lands, extend `_check_account`
 to compare item rows before and after.
+
+## 2026-11-22 (evening) — save-compat now checks every saved pack
+
+Playtest inbox still empty, no open qa PR, budget 5/40. Picked the save-compat follow-up
+over the Railway health check because inventory (#30, `0002_inventory_items`) and
+gathering (#34) have landed, so packs are now player data that the save-compat test didn't
+look at. The health check needs a gameplay-owned hook and a look at what Railway's
+healthcheck can do over a WebSocket port; it is next.
+
+**Built** (all in `tests/unit/test_qa_save_compat.gd`):
+- Before any current code runs, the test snapshots every `inventory_items` row (if the table
+  exists in the fixture's schema; a 0001-era fixture gives empty packs, which is correct).
+- After the current `PgStore` opens and migrates it, every character's loaded pack must equal
+  its stored rows exactly: same quantities, qty-0 rows kept, unknown item ids kept, nothing new.
+- The round-trip now also changes the pack (`changed_pack`: first item used up to 0, the rest
+  +1 capped at `MAX_STACK`, plus a new stack of a real item), saves, reloads, and reads
+  `inventory_items` directly to check the table holds exactly what was saved.
+- Whole-table row count after loading and saving is never below the stored count (rows are
+  never deleted).
+- Password check: a fixture's plain password comes from a `-- password: X` header or the
+  existing comment form `Password is "X"`, and every account in it must still verify. That
+  covered the last thing the old shared-DB `test_save_compat.gd` did, so I deleted it.
+  Asked gameplay (their backlog) to update the stale comment in `week00_characters.sql`
+  (gameplay owns fixtures; I didn't edit it).
+
+**Proved it catches things** (all reverted):
+- Extra migration `0003_bad.sql` = `DELETE FROM inventory_items WHERE qty = 0` via
+  `AIMMO_MIGRATIONS_DIR`: fails with "pack on load: 'stone' (x0) lost" (and test_add_only
+  also fails on the DELETE).
+- `PgStore._with_inventory` changed to skip unknown item ids: fails with "'retired_relic' (x1)
+  lost". gameplay's own `test_week00_pack_loads` also caught it.
+- Fixture comment changed to the wrong password: fails with "the old password no longer logs in".
+
+**Didn't work first time:** checked table existence with `to_regclass(...) IS NOT NULL`;
+PgClient returns booleans as the string "t", and comparing that to `true` is a SCRIPT ERROR
+in GDScript. Switched to `count(*)` from `pg_tables`.
+
+**Tests:** 146 unit tests pass with Postgres (fresh DB) and without; bot test 8 bots x 180s WebSocket + Postgres passed in 185s.
+Client smoke not run: nothing the client loads changed.
+
+**Next run:** triage playtest.md, then the Railway health check / heartbeat.
