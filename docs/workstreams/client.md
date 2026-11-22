@@ -10,12 +10,14 @@ Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
 - [ ] Inventory window (I key): grid of stacks from `s2c_inventory`, world's procedural icons when they exist (needs gameplay's inventory PR first)
 - [ ] Gather interaction: highlight the nearest node in range, press E to gather, a short progress bar and a "+1 Ash wood" toast
 - [x] Simple walk animation: procedural bob, waddle, and lean from rendered speed; swings ArmL/ArmR/LegL/LegR when the avatar has them (in review, PR #11)
-- [ ] Chat polish: timestamps, fade when idle, /who command display
+- [x] Chat polish: in-game timestamps, fade when idle, 150-line cap, /help hint (in review, ws/client/chat-polish). /who already shows as a system line from gameplay's commands.
 - [ ] Compass strip with other players' direction dots
 - [ ] Key rebinding in the Settings window (InputMap is built in `_setup_input`)
 - [ ] Separate UI/chat volume from world volume once there is more than one kind of sound
 - [ ] Field of view slider and UI scale for high-DPI screens
-- [ ] Follow-up: hide the time dial's text (keep the disk) when the chat fades, once chat fade exists
+- [x] Follow-up: hide the time dial's text (keep the disk) when the chat fades (ws/client/chat-polish)
+- [ ] Follow-up: Up/Down arrow in the chat box recalls your last sent lines
+- [ ] Follow-up: chat fade timing (hold/fade seconds) in Settings, if playtesters find 12 s too short
 - [ ] Follow-up: soft procedural footstep sounds in time with the walk cycle (`WalkAnim.phase` crosses 0 and PI on each footstep)
 
 ## Requests from other streams
