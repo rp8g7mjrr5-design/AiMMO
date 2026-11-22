@@ -18,6 +18,7 @@ Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year
 - **Settings window.** Press **Esc** (or the Settings button on the login screen) to tune mouse sensitivity, invert look, volume, shadows, and draw distance. Changes show up instantly and are remembered between sessions, so you can find your perfect sunset before clicking Done.
 - **Behind the scenes:** our automated tests now catch code that crashes halfway through a check, so fewer hidden bugs slip into the world.
 - **Behind the scenes:** our test bots now check that the world keeps streaming to every player at full speed, so a stalled server gets caught before it ever reaches you.
+- **Behind the scenes:** every update is now test-driven through a full night in Ashgrove too, so a broken moon or a pitch-black meadow gets caught before it reaches you.
 
 ### Update your client
 - This update changes how the game talks to the server, so download the new client from the Releases page to keep playing.
