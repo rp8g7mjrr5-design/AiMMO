@@ -2,7 +2,9 @@ class_name Crafting
 ## Crafting: recipes, the Spawn Meadow workbench, and the replies for /craft. Pure
 ## functions over an Inventory Dictionary, so the rules are unit tested without a server.
 ## The server checks with check(), then moves the items with its own take_item/give_item
-## (it never trusts the client, which only ever sends the words "/craft stone axe").
+## (it never trusts the client, which only names a recipe id). Players will craft from a
+## window opened with E at the workbench (c2s_craft, a later protocol bump); until then the
+## hidden debug command "/craft axe" drives the same server code for bots and developers.
 ##
 ## Tools are kept in the pack like any item. A tool (`tool: true`) is never worn out and
 ## you only ever need one, so crafting a second is refused. Gathering.tool_for() reads the
@@ -149,4 +151,4 @@ static func recipes_text(inv: Dictionary) -> String:
 			ready = " (ready)"
 		var what := str(r.label) if int(r.makes) == 1 else "%d %ses" % [int(r.makes), r.label]
 		parts.append("%s: %s%s%s" % [what, needs_text(r.needs), where, ready])
-	return "Recipes (type /craft axe): %s." % "; ".join(parts)
+	return "Recipes: %s." % "; ".join(parts)

@@ -5,9 +5,11 @@ class_name ChatCommands
 ##
 ## Commands: /help, /time, /who, /bag, /gather, /craft. /gather and /craft change the world
 ## or a pack, so the server handles them itself (see is_gather, is_craft); everything else
-## is answered by run(). Names are case-insensitive; extra words are ignored.
+## is answered by run(). /craft is a debug and bot command only (owner direction: chat is
+## for talking): it is never listed in HELP or patch notes. Players craft from a window at
+## the workbench once c2s_craft exists. Names are case-insensitive; extra words are ignored.
 
-const HELP := "Commands: /gather (take from the tree, rock or seep you stand at; /gather pine for one kind), /bag (what you carry), /craft (recipes; /craft axe at the Spawn Meadow workbench), /time (time of day in Ashgrove), /who (who is online), /help."
+const HELP := "Commands: /gather (take from the tree, rock or seep you stand at; /gather pine for one kind), /bag (what you carry), /time (time of day in Ashgrove), /who (who is online), /help."
 const GATHER_NAMES := ["gather", "g", "harvest", "chop", "mine"]
 const CRAFT_NAMES := ["craft", "make", "build", "recipes"]
 const WHO_MAX_NAMES := 20 ## cap the /who list so one line stays readable

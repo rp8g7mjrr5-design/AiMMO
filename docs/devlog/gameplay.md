@@ -300,7 +300,17 @@ login); the unit tests prove the bookkeeping, and the server glue is a thin loop
 `take_item`/`give_item`. Campfires and torches do nothing yet: placing campfires is the next
 backlog item after v3.
 
+**Change in the same run (owner direction: chat is for talking).** After the PR opened, the
+coordinator passed on the owner's standing rule (PR #40): no gameplay through chat, new
+systems UI-first. So `/craft` is now a hidden debug/bot command: dropped from `HELP` (the
+unit test now asserts it is *not* listed), the recipe list no longer says "type /craft", and
+the changelog fragment no longer tells players to type anything. The rules and the server's
+`craft()` stay: they are exactly what `c2s_craft(recipe_id)` will call. Asked client for the
+workbench window and added `c2s_craft` to the backlog for v3/v4. Until the `--dev-commands`
+gate lands (separate backlog item), the hidden command still works on the live server.
+
 **Notes to next run.**
-- 2026-11-23: protocol v3 first (director's top item). Scale the gather channel by
+- 2026-11-23: protocol v3 first (director's top item). Try to fit `c2s_craft` +
+  `s2c_craft_result` into the same bump. Scale the gather channel by
   `Gathering.TOOL_SPEED` when `tool_for` finds a tool, and send `s2c_inventory` after
   crafts too.

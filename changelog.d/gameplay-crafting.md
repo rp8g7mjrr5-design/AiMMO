@@ -1,2 +1,1 @@
-- **Crafting is here!** Head to the workbench at the heart of Spawn Meadow and type `/craft` to see what you can make: a stone axe, a stone pickaxe, a campfire, and torches (those you can twist together anywhere).
-- Tools matter: carry a stone axe and every tree gives an extra piece of wood, twice as fast. A stone pickaxe does the same for stone.
+- Behind the scenes: the rules for crafting a stone axe, a stone pickaxe, torches and a campfire are in, and so are tools that make gathering faster and richer. The Spawn Meadow workbench and its crafting window come next.

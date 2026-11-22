@@ -112,5 +112,5 @@ func test_craft_command_routing() -> void:
 		check(not ChatCommands.is_gather(line), "%s is not /gather" % line)
 	check(not ChatCommands.is_craft("craft me an axe"), "plain chat")
 	check(not ChatCommands.is_craft("/gather"), "line 114")
-	check(ChatCommands.HELP.contains("/craft"), "listed in /help")
+	check(not ChatCommands.HELP.contains("/craft"), "debug only: never listed in /help (chat is for talking)")
 	check_eq(ChatCommands.argument("/craft stone axe"), "stone axe")
