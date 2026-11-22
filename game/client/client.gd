@@ -24,8 +24,10 @@ var name_edit: LineEdit
 var password_edit: LineEdit
 var connect_button: Button
 var status_label: Label
+var chat_panel: PanelContainer
 var chat_log: RichTextLabel
 var chat_edit: LineEdit
+var chat_feed := ChatFeed.new()
 var hud_label: Label
 var help_label: Label
 var sfx_chime: AudioStreamPlayer
@@ -135,6 +137,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			cam_dist = minf(30.0, cam_dist + 0.8)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+			chat_feed.wake()
 			chat_edit.grab_focus()
 			get_viewport().set_input_as_handled()
 
@@ -184,6 +187,7 @@ func _process(delta: float) -> void:
 		camera.position = Vector3(sin(cam_yaw) * 60.0, 32.0, cos(cam_yaw) * 60.0)
 		camera.look_at(Vector3(0, 2, 0))
 		return
+	_update_chat_fade(delta)
 	var move := _move_vector()
 	_send_accum += delta
 	if _send_accum >= GameConfig.TICK_DT:
@@ -204,6 +208,20 @@ func _process(delta: float) -> void:
 		camera.position = camera.position.lerp(cam_pos, 1.0 - exp(-10.0 * delta))
 		camera.look_at(focus)
 		hud_label.text = "Ashgrove  ·  %d online  ·  %.0f, %.0f" % [avatars.size(), me.position.x, me.position.z]
+
+
+## Fades the chat panel (and the time dial's readout, keeping its disk) when chat is quiet.
+func _update_chat_fade(delta: float) -> void:
+	var a := chat_feed.step(delta, chat_awake())
+	chat_panel.modulate.a = a
+	time_dial.label.modulate.a = a / ChatFeed.FULL_ALPHA
+
+
+## Chat stays fully visible while you type in it, have a menu open, or point at it.
+func chat_awake() -> bool:
+	if chat_edit.has_focus() or settings_menu.visible:
+		return true
+	return chat_panel.get_global_rect().has_point(get_viewport().get_mouse_position())
 
 
 # --- network events ---
@@ -246,7 +264,8 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	logged_in = true
 	password_edit.text = ""
 	login_panel.visible = false
-	chat_log.get_parent().get_parent().visible = true
+	chat_panel.visible = true
+	chat_feed.wake()
 	time_dial.visible = true
 	time_dial.refresh()
 	hud_label.visible = true
@@ -264,7 +283,7 @@ func _on_server_disconnected() -> void:
 	DayNight.clear_sync() # back to this machine's clock (same epoch, so the sky doesn't jump)
 	multiplayer.multiplayer_peer = null
 	login_panel.visible = true
-	chat_log.get_parent().get_parent().visible = false
+	chat_panel.visible = false
 	time_dial.visible = false
 	hud_label.visible = false
 	help_label.visible = false
@@ -305,12 +324,12 @@ func _on_world_time(world_seconds: float) -> void:
 
 
 func _on_chat(from_name: String, text: String) -> void:
-	chat_log.append_text("[color=#ffd27a]%s[/color]: %s\n" % [from_name, text])
+	chat_feed.append(chat_log, ChatFeed.chat_line(TimeDial.current_seconds(), from_name, text))
 	sfx_chime.play()
 
 
 func _on_system(text: String) -> void:
-	chat_log.append_text("[color=#9fd3ff][i]%s[/i][/color]\n" % text.replace("[", "(").replace("]", ")"))
+	chat_feed.append(chat_log, ChatFeed.system_line(TimeDial.current_seconds(), text))
 
 
 func _on_chat_submitted(text: String) -> void:
@@ -405,7 +424,7 @@ func _build_ui() -> void:
 	box.add_child(notes)
 
 	# Chat, bottom-left.
-	var chat_panel := PanelContainer.new()
+	chat_panel = PanelContainer.new()
 	chat_panel.theme = theme
 	chat_panel.anchor_top = 1.0
 	chat_panel.anchor_bottom = 1.0
@@ -414,7 +433,7 @@ func _build_ui() -> void:
 	chat_panel.offset_right = 476
 	chat_panel.offset_bottom = -16
 	chat_panel.visible = false
-	chat_panel.modulate = Color(1, 1, 1, 0.92)
+	chat_panel.modulate = Color(1, 1, 1, ChatFeed.FULL_ALPHA)
 	ui.add_child(chat_panel)
 	var chat_box := VBoxContainer.new()
 	chat_panel.add_child(chat_box)
@@ -424,7 +443,7 @@ func _build_ui() -> void:
 	chat_log.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	chat_box.add_child(chat_log)
 	chat_edit = LineEdit.new()
-	chat_edit.placeholder_text = "Press Enter to chat"
+	chat_edit.placeholder_text = "Press Enter to chat · /help for commands"
 	chat_edit.max_length = GameConfig.CHAT_MAX
 	chat_edit.text_submitted.connect(_on_chat_submitted)
 	chat_box.add_child(chat_edit)

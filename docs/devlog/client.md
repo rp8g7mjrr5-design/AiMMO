@@ -126,3 +126,45 @@ Control is fine.
   are good picks.
 - The dial sits at a fixed offset above the chat panel (offset_top -316). If chat panel size
   changes, move the dial with it.
+
+## 2026-11-22: Chat polish (ws/client/chat-polish)
+
+**Why this item:** prediction still needs gameplay's `ack_seq`, and inventory/gather need
+gameplay's inventory and node PRs (#22 is only node placement), so chat polish was the top
+unblocked item. It also closes my own follow-up (fade the dial text with the chat).
+
+**Built:**
+- `game/client/chat_feed.gd` (`ChatFeed`): static `timestamp`, `escape`, `chat_line`,
+  `system_line`, `alpha`, plus a small stateful `step`/`wake`/`append`. Lines look like
+  `14:05 Ash: hello` with a dim in-game time read from `TimeDial.current_seconds()` (so pinned
+  screenshots, the dial, and chat agree). Panel holds at 0.92 for 12 s of quiet, then
+  smoothsteps to 0 over 1.5 s. Typing, settings open, or the mouse over the panel keep it
+  awake; a new line or Enter wakes it. The time dial's label follows the panel's alpha, the
+  disk stays. Log capped at 150 lines with `RichTextLabel.remove_paragraph(0)`.
+- `client.gd`: `chat_panel` is now a field (was reached via `chat_log.get_parent().get_parent()`),
+  `_update_chat_fade` each logged-in frame, placeholder mentions /help.
+- Tests: 6 unit tests in `tests/unit/test_client_chat_feed.gd` (timestamps match the dial at
+  every quarter hour, BBCode escaping incl. the rendered text, fade curve, wake rules, line cap,
+  and the client's handler). Bot behaviour `client_chat_feed.gd` renders every real chat and
+  system line through `ChatFeed` into a RichTextLabel and checks the exact parsed text. Bot run:
+  8/8 ok, ~125 lines per bot, Postgres verify 8/8. Smoke passed; world shot shows `12:00` on the
+  welcome line matching the dial's `12:00`.
+
+**Decisions:**
+- In-game time, not real time, for timestamps: it is the world's clock and everyone shares it.
+- Fade to fully hidden rather than a ghost: the top-right help line already says "Enter to chat",
+  and the screen is cleaner for screenshots. Hover brings it back.
+- Escaping is now `[lb]`/`[rb]` (shows brackets exactly) instead of the old system-line
+  replacement of `[` with `(`. The server strips brackets from chat already; this is defence in
+  depth for names and system text.
+- "/who display": gameplay's `/who` answer already arrives as a system line, so nothing new to
+  build there; the placeholder hint makes commands discoverable instead.
+
+**What didn't work at first:** calling `_on_chat` in a unit test plays `sfx_chime` outside the
+tree, which logs an engine error that the runner counts as a failure; the handler test uses
+`_on_system` instead.
+
+**Notes to next run:**
+- Bot run never hit the 150 cap or a faded chat (bots chat every 8 to 20 s); both are unit tested.
+- Good next picks: compass strip, key rebinding, chat history on Up arrow. Prediction as soon as
+  gameplay ships `ack_seq`.
