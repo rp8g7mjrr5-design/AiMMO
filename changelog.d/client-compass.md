@@ -1,3 +1,0 @@
-- A compass now rides across the top of the screen. It turns with your camera, so north is always the orange **N**.
-- Other wanderers show up as little dots on it, fainter the farther they are. Anyone behind you gets an arrow at the edge, pointing the quicker way to turn and find them.
-- Lost? The ember diamond always points back to the Spawn Meadow.

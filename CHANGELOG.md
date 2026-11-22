@@ -5,6 +5,16 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- Ashgrove gives! Walk up to an ember ash, a pine or a stone outcrop and type `/gather` in chat (or `/gather pine` for one kind). Each tree or rock gives a few times, then needs a few minutes to grow back.
+- Ember-sap seeps only give their glowing sap at night, so the dark is finally worth staying up for.
+- Nothing in reach? `/gather` points you to the nearest tree or rock: "The nearest pine is 14 m to the north-east."
+- Every settler now carries a pack. Type `/bag` in chat to look inside.
+- Your pack is saved with your character, so whatever ends up in it is still there when you come back.
+- A compass now rides across the top of the screen. It turns with your camera, so north is always the orange **N**.
+- Other wanderers show up as little dots on it, fainter the farther they are. Anyone behind you gets an arrow at the edge, pointing the quicker way to turn and find them.
+- Lost? The ember diamond always points back to the Spawn Meadow.
+- Someone has hung lanterns around the Spawn Meadow. They light themselves at dusk and go out after sunrise, so there is always a warm place to gather after dark.
+- At night the ember ash leaves give off a faint warm glow, and the ember-sap seeps burn brighter, which makes them much easier to find in the dark.
 - **Arms and legs!** Wanderers finally have them. Arms swing, little boots stomp, and nobody slides across the meadow like a chess piece any more. Sleeves match your tunic and trousers are a darker shade of it, so every look you already had just got a matching outfit.
 - **A sun-and-moon dial.** A little dial now sits above the chat with the day and hour, e.g. "Day 3 · 18:20 · Dusk". Plan your evening walks accordingly.
 - **Same sunset for everyone.** Your sky now follows the server's clock exactly, so everyone in Ashgrove sees the sun go down at the same moment (no more private time zones).

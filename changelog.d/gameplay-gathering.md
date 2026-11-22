@@ -1,3 +1,0 @@
-- Ashgrove gives! Walk up to an ember ash, a pine or a stone outcrop and type `/gather` in chat (or `/gather pine` for one kind). Each tree or rock gives a few times, then needs a few minutes to grow back.
-- Ember-sap seeps only give their glowing sap at night, so the dark is finally worth staying up for.
-- Nothing in reach? `/gather` points you to the nearest tree or rock: "The nearest pine is 14 m to the north-east."
