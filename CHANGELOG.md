@@ -5,6 +5,8 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- **Gathering is getting a glow-up.** The tree, rock or seep in reach will glow with a soft ember-gold rim, and every gather gets a reaction: ash trees shudder and shed glowing leaves, pines drop needles, outcrops spit stone chips, and sap seeps splash bright droplets. The effects are built and switch on with the next client update.
+- Haven't updated yet? Every build is now tested against older clients, so an out-of-date game gets a clear "please update" message instead of a login screen that spins forever.
 - **Press E to gather.** Walk up to an ember ash, a pine, a stone outcrop or (at night) an ember-sap seep and a prompt like "[E] Chop Ember Ash" appears. Tap E, or just hold it, and a short ember bar fills while you work.
 - Every haul pops up as a toast above the prompt, like "+2 Ash wood (6)", so you can keep your eyes on the trees instead of the chat.
 - Birch groves now line the lake shores: chalk-white trunks, yellow-green crowns, and a little lean toward the light.
