@@ -3,13 +3,14 @@
 Owns quality, tests, CI, and operations. See `docs/workstreams.md` for ownership.
 
 ## Backlog (top = next)
+- [ ] **Top priority (director, owner request 2026-11-22): cover real gathering in CI** once gameplay's protocol v3 lands. Bot test: at least 4 of the 8 bots gather through `c2s_gather_start` (not `/gather`), including one cancel by walking away, two bots on one node, and a node emptied and respawned; assert inventories match the server's count and nothing desyncs across reconnect. Pair it with the protocol-mismatch test below, since v3 locks out old clients.
 - [x] Bot behaviour plugin hook (merged, PR #7)
 - [x] Unit runner fails tests that hit a SCRIPT ERROR or log an ERROR (this PR, `ws/qa/unit-script-errors`)
-- [ ] Triage `docs/playtest.md` every run and fix crashes first (2026-11-22: still empty)
+- [ ] Triage `docs/playtest.md` every run and fix crashes first (2026-11-22 evening: still empty)
 - [x] Client smoke test at night as well as noon, with both screenshots kept as CI artifacts and a day/night brightness check (this PR, `ws/qa/night-smoke`)
 - [ ] Health endpoint or heartbeat log so Railway restarts a hung server
 - [x] Save-compatibility test: load every file in `tests/fixtures/` with the current `CharacterData` and the current migrations on Postgres; must stay green when gameplay adds inventory (Week 02) (this PR, `ws/qa/save-compat-all-fixtures`)
-- [ ] Save-compat follow-up: once gameplay's inventory lands, check that every loaded character's items survive too (extend `_check_account` to compare `inventory_items` rows before/after), and retire the shared-DB `test_save_compat.gd` once the new test covers its password check
+- [x] Save-compat follow-up: once gameplay's inventory lands, check that every loaded character's items survive too (extend `_check_account` to compare `inventory_items` rows before/after), and retire the shared-DB `test_save_compat.gd` once the new test covers its password check (this PR, `ws/qa/save-compat-items`)
 - [ ] Server performance check in the bot test: tick time, memory, and bandwidth per player logged and asserted under a budget
 - [ ] Protocol-mismatch test: an old-protocol client gets a clear "please update" message, not a hang (protocol is bumping often this week)
 - [ ] Bot-test option `--only-behaviour=<name>` to run one behaviour quickly while developing it
