@@ -95,9 +95,12 @@ passed in 185s; client smoke passed three times locally.
 **Next run:** triage playtest.md, then the health endpoint / heartbeat for Railway, or the
 save-compat test before gameplay's Week 02 inventory lands.
 
-### Same PR, later: fixed the ENet bot-test flake that turned CI red
+## 2026-11-22 — fixed the ENet bot-test flake (max channels: 0)
 
-After the integrator merged `main` into this branch, both CI runs failed the 45s ENet bot
+PR #21 (night smoke) was merged before this fix landed on its branch, so it ships as its own
+PR on `ws/qa/no-peer-relay`.
+
+After the integrator merged `main` into #21, both of its CI runs failed the 45s ENet bot
 test with `server: ERROR: Unable to send packet on channel 0, max channels: 0` (the same
 error made `main` red on #19's push run). `Server._send()` already skips peers that aren't
 `STATE_CONNECTED`, so the send wasn't ours: SceneMultiplayer's `server_relay` (on by
