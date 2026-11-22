@@ -76,3 +76,49 @@ and fails if any `/` line is ever broadcast as chat.
   Then resource node placement.
 - If the client later wants local echo of the command or a different colour for command
   replies, that's a client change; the server side is done.
+
+## 2026-11-22 (third run): resource node placement (data only)
+
+**Built.** `game/shared/resource_nodes.gd` (`ResourceNodes`), the one list of gatherable
+nodes: 397 of them (ash 142, pine 112, stone 112, ember_sap 31). Each node is
+`{id, kind, pos, rot, scale}`; `id` is its index. Two passes from an rng seeded
+`WORLD_SEED + 101`: a starter ring of 7 nodes (2 ash, 2 pine, 2 stone, 1 ember sap) 16 to
+34 m from spawn, then the wild pass, where the land picks the kind (ash in lowlands below
+6 m with a 12% chance of an ember-sap seep, pine on higher flat ground, stone on slopes over
+1.0 or above 12 m). Rules: 6 m minimum spacing, dry ground only, nothing above 22 m, nothing
+within 12 m of spawn, 6 m inside the border. `KINDS` holds what each gives (item, amount,
+respawn seconds, `night_only` for ember sap). Lookups: `all`, `get_by_id` (safe for
+client-sent ids), `near` (32 m grid index, nearest first, kind filter), `nearest`,
+`in_range` (`GATHER_RANGE` 3 m, horizontal only), `fingerprint`, `describe`. Builds in about
+15 ms, once, cached. The server logs `[server] resource nodes: ...` at startup so the bot
+test exercises the code path on the server.
+
+**Why these calls.**
+- Top unblocked item: `ack_seq` still waits for tomorrow's protocol bump.
+- A separate list instead of reusing `Props.scatter`: Props is world's decoration (1800
+  trees and rocks, in `game/procgen/`), and the server shouldn't depend on procgen or own
+  1800 states. Fewer, deliberate nodes are better gameplay too. Cost: a decorative tree can
+  stand on top of a node until world reconciles; I asked world (their backlog) to skip
+  scatter props within ~3 m of a node using `ResourceNodes.near`.
+- Starter ring with every kind near spawn, because the design bible's cooperation pillar
+  wants new players gathering side by side, and nobody should have to walk 100 m to try
+  the first system. One ember-sap seep there so night matters at spawn too.
+- Ids are permanent once gathering ships (inventory, quests and depletion state will refer
+  to them). The unit test pins a fingerprint (`397-661be157...`); any change to placement,
+  `Terrain`, or `WORLD_SEED` turns it red on purpose. New nodes must come from a new pass
+  appended at the end.
+- No database or protocol change. Depletion state will live in server memory (nodes reset
+  on restart, which is fine for respawning resources).
+
+**Tests.** 9 unit tests in `tests/unit/test_gameplay_resource_nodes.gd` (pinned
+fingerprint, determinism, ids, targets reached, dry ground in bounds, spacing, starter
+ring, `near` vs brute force, `nearest`/`in_range`). All 98 unit tests pass with Postgres.
+Bot test (8 bots, 180 s, websocket, Postgres) PASSED; client smoke test passes. No bot
+behaviour: there is nothing a player can do with nodes yet. The gathering PR adds one.
+
+**Notes to next run.**
+- Next: `ack_seq` in snapshots (protocol v3), allowed from 2026-11-23. Then inventory
+  (migration + `CharacterData` defaults + fixture), then gathering, which will need a
+  `s2c_nodes` state message (depleted ids) for the client and world to hide depleted nodes.
+- If the fingerprint test ever fails on another platform (float formatting), switch the
+  fingerprint to rounded integers in centimetres rather than loosening the test.

@@ -1,0 +1,248 @@
+class_name ResourceNodes
+## Where the gatherable things in Ashgrove are: ember ash trees, pines, stone outcrops and
+## ember-sap seeps. This is the one list of resource nodes. The server will own each node's
+## state (depleted or not) and the world stream draws a node prop at each position, so both
+## read the same list from here and always agree.
+##
+## Pure and deterministic: the list depends only on GameConfig.WORLD_SEED and Terrain, so
+## every machine builds it identically and nothing is stored in the database.
+##
+## A node's `id` is its index in the list and is PERMANENT once gathering ships (later
+## systems will refer to nodes by id). Never reorder or re-roll the list. To add nodes, add
+## a new placement pass that appends after the existing ones. tests/unit/test_gameplay_
+## resource_nodes.gd pins a fingerprint of the list so an accidental change is caught.
+
+const PLACEMENT_SEED_OFFSET := 101 ## rng seed = WORLD_SEED + this (Props uses + 7)
+
+## What each kind of node gives. `respawn` is real seconds until a depleted node is back.
+## `night_only` nodes can only be gathered at night (used by the gathering system, see
+## WorldClock.is_night). Amounts and timers are first guesses, tuned once gathering exists.
+const KINDS := {
+	"ash": {"label": "Ember ash", "item": "ash_wood", "amount": 2, "respawn": 180.0, "night_only": false},
+	"pine": {"label": "Pine", "item": "pine_wood", "amount": 2, "respawn": 180.0, "night_only": false},
+	"stone": {"label": "Stone outcrop", "item": "stone", "amount": 2, "respawn": 240.0, "night_only": false},
+	"ember_sap": {"label": "Ember-sap seep", "item": "ember_sap", "amount": 1, "respawn": 600.0, "night_only": true},
+}
+const KIND_ORDER := ["ash", "pine", "stone", "ember_sap"]
+
+## How many of each kind the wild placement pass aims for (it stops early if the terrain
+## runs out of suitable spots, which the tests check doesn't happen).
+const TARGETS := {"ash": 140, "pine": 110, "stone": 110, "ember_sap": 30}
+
+const GATHER_RANGE := 3.0 ## metres from a player to a node's centre to gather it
+const MIN_SPACING := 6.0 ## no two nodes closer than this
+const SPAWN_CLEAR_RADIUS := 12.0 ## the very centre of Spawn Meadow stays empty
+const STARTER_MIN_RADIUS := 16.0 ## the starter ring sits on the meadow's edge
+const STARTER_MAX_RADIUS := 34.0
+const EDGE_MARGIN := 6.0 ## keep nodes this far inside the world border
+const MAX_HEIGHT := 22.0 ## nothing grows on the snowy peaks
+const CELL := 32.0 ## spatial index cell size in metres
+
+## The starter ring around Spawn Meadow: two of every kind (one ember-sap seep) so a new
+## player finds everything near spawn and gathers alongside other new players.
+const STARTER_KINDS := ["ash", "pine", "stone", "ash", "pine", "stone", "ember_sap"]
+
+static var _nodes: Array = []
+static var _grid: Dictionary = {}
+
+
+## Every node, as an Array of {id: int, kind: String, pos: Vector3, rot: float, scale: float}.
+## Built once and cached; treat it as read-only.
+static func all() -> Array:
+	if _nodes.is_empty():
+		_nodes = generate()
+		_grid = _index(_nodes)
+	return _nodes
+
+
+static func count() -> int:
+	return all().size()
+
+
+## The node with this id, or an empty Dictionary for an unknown id (ids come from clients
+## later, so never trust them).
+static func get_by_id(id: int) -> Dictionary:
+	var list := all()
+	if id < 0 or id >= list.size():
+		return {}
+	return list[id]
+
+
+static func kind_info(kind: String) -> Dictionary:
+	return KINDS.get(kind, {})
+
+
+## Nodes whose centre is within `radius` metres of `pos` (horizontal distance), nearest
+## first. Pass `kind` to only get that kind.
+static func near(pos: Vector3, radius: float, kind: String = "") -> Array:
+	all()
+	var out: Array = []
+	var r2 := radius * radius
+	var c0 := _cell(pos.x - radius, pos.z - radius)
+	var c1 := _cell(pos.x + radius, pos.z + radius)
+	for cx in range(c0.x, c1.x + 1):
+		for cz in range(c0.y, c1.y + 1):
+			for id in _grid.get(Vector2i(cx, cz), []):
+				var n: Dictionary = _nodes[id]
+				if kind != "" and n.kind != kind:
+					continue
+				if _flat_dist2(n.pos, pos) <= r2:
+					out.append(n)
+	out.sort_custom(func(a, b): return _flat_dist2(a.pos, pos) < _flat_dist2(b.pos, pos))
+	return out
+
+
+## The nearest node to `pos` (optionally of one kind), searching outward up to
+## `max_radius`. Empty Dictionary if there is none in range.
+static func nearest(pos: Vector3, kind: String = "", max_radius: float = 128.0) -> Dictionary:
+	var r := CELL
+	while true:
+		var found := near(pos, minf(r, max_radius), kind)
+		if not found.is_empty():
+			return found[0]
+		if r >= max_radius:
+			return {}
+		r *= 2.0
+	return {}
+
+
+## True if a player standing at `player_pos` is close enough to gather node `id`.
+static func in_range(id: int, player_pos: Vector3) -> bool:
+	var n := get_by_id(id)
+	if n.is_empty():
+		return false
+	return _flat_dist2(n.pos, player_pos) <= GATHER_RANGE * GATHER_RANGE
+
+
+## Builds the list from scratch. Use all() instead; this is public for tests.
+static func generate() -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = GameConfig.WORLD_SEED + PLACEMENT_SEED_OFFSET
+	var out: Array = []
+	var grid := {}
+	_place_starter_ring(rng, out, grid)
+	_place_wild(rng, out, grid)
+	return out
+
+
+## Pass 1: the starter ring. Evenly spaced angles with a little jitter, on the flat meadow.
+static func _place_starter_ring(rng: RandomNumberGenerator, out: Array, grid: Dictionary) -> void:
+	var n := STARTER_KINDS.size()
+	for i in n:
+		for attempt in 20:
+			var ang := TAU * float(i) / n + rng.randf_range(-0.25, 0.25)
+			var dist := rng.randf_range(STARTER_MIN_RADIUS, STARTER_MAX_RADIUS)
+			var x := cos(ang) * dist
+			var z := sin(ang) * dist
+			if _too_close(grid, out, x, z):
+				continue
+			_add(out, grid, STARTER_KINDS[i], x, z, rng)
+			break
+
+
+## Pass 2: the wild. Kind follows the land: ash in the warm lowlands (with the odd ember-sap
+## seep among them), pine on higher flat ground, stone on steep slopes and ridges.
+static func _place_wild(rng: RandomNumberGenerator, out: Array, grid: Dictionary) -> void:
+	var placed := {}
+	var want := 0
+	for k in KIND_ORDER:
+		placed[k] = 0
+		want += TARGETS[k]
+	var h := GameConfig.WORLD_HALF_SIZE - EDGE_MARGIN
+	var tries := 0
+	var done := 0
+	while done < want and tries < want * 40:
+		tries += 1
+		var x := rng.randf_range(-h, h)
+		var z := rng.randf_range(-h, h)
+		var roll := rng.randf()
+		if Vector2(x, z).length() < STARTER_MAX_RADIUS + MIN_SPACING:
+			continue # the meadow keeps only its starter ring
+		var y := Terrain.height(x, z)
+		if y < Terrain.water_level() + 1.0 or y > MAX_HEIGHT:
+			continue
+		var kind := _kind_for(y, _slope(x, z, y), roll)
+		if placed[kind] >= TARGETS[kind] or _too_close(grid, out, x, z):
+			continue
+		_add(out, grid, kind, x, z, rng)
+		placed[kind] += 1
+		done += 1
+
+
+static func _kind_for(y: float, slope: float, roll: float) -> String:
+	if slope > 1.0 or y > 12.0:
+		return "stone"
+	if y > 6.0:
+		return "pine" if roll < 0.85 else "stone"
+	if roll < 0.12:
+		return "ember_sap"
+	return "ash" if roll < 0.9 else "pine"
+
+
+static func _slope(x: float, z: float, y: float) -> float:
+	return absf(Terrain.height(x + 1.0, z) - y) + absf(Terrain.height(x, z + 1.0) - y)
+
+
+static func _add(out: Array, grid: Dictionary, kind: String, x: float, z: float, rng: RandomNumberGenerator) -> void:
+	var id := out.size()
+	out.append({
+		"id": id,
+		"kind": kind,
+		"pos": Vector3(x, Terrain.height(x, z), z),
+		"rot": rng.randf() * TAU,
+		"scale": rng.randf_range(0.85, 1.2),
+	})
+	var c := _cell(x, z)
+	if not grid.has(c):
+		grid[c] = []
+	grid[c].append(id)
+
+
+static func _too_close(grid: Dictionary, out: Array, x: float, z: float) -> bool:
+	var p := Vector3(x, 0.0, z)
+	var c := _cell(x, z)
+	for cx in range(c.x - 1, c.x + 2):
+		for cz in range(c.y - 1, c.y + 2):
+			for id in grid.get(Vector2i(cx, cz), []):
+				if _flat_dist2(out[id].pos, p) < MIN_SPACING * MIN_SPACING:
+					return true
+	return false
+
+
+static func _index(list: Array) -> Dictionary:
+	var grid := {}
+	for n in list:
+		var c := _cell(n.pos.x, n.pos.z)
+		if not grid.has(c):
+			grid[c] = []
+		grid[c].append(n.id)
+	return grid
+
+
+static func _cell(x: float, z: float) -> Vector2i:
+	return Vector2i(floori(x / CELL), floori(z / CELL))
+
+
+static func _flat_dist2(a: Vector3, b: Vector3) -> float:
+	var dx := a.x - b.x
+	var dz := a.z - b.z
+	return dx * dx + dz * dz
+
+
+## A short stable text summary of the whole list, used by the tests to notice any change.
+static func fingerprint() -> String:
+	var parts := PackedStringArray()
+	for n in all():
+		parts.append("%d:%s:%.2f:%.2f" % [n.id, n.kind, n.pos.x, n.pos.z])
+	return "%d-%s" % [count(), "\n".join(parts).md5_text()]
+
+
+## One line for the server log.
+static func describe() -> String:
+	var by_kind := {}
+	for n in all():
+		by_kind[n.kind] = by_kind.get(n.kind, 0) + 1
+	var bits := PackedStringArray()
+	for k in KIND_ORDER:
+		bits.append("%s %d" % [k, by_kind.get(k, 0)])
+	return "%d nodes (%s)" % [count(), ", ".join(bits)]

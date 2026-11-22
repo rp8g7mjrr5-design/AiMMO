@@ -57,6 +57,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	get_tree().set_auto_accept_quit(false)
 	print("[server] listening on port %d via %s, protocol v%d" % [port, transport, GameConfig.PROTOCOL_VERSION])
 	print("[server] world clock: ", WorldClock.describe(world_seconds()))
+	print("[server] resource nodes: ", ResourceNodes.describe())
 
 
 func _notification(what: int) -> void:
