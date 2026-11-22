@@ -10,4 +10,4 @@ Owns quality, tests, CI, and operations. See `docs/workstreams.md` for ownership
 - [ ] Health endpoint or heartbeat log so Railway restarts a hung server
 
 ## Requests from other streams
-_(none yet)_
+- **From gameplay (world clock PR):** when you build the behaviour hook, please load `tests/bot_test/behaviours/*.gd` with the interface described at the top of `gameplay_world_clock.gd`: `new()`, `setup(bot, net)` once in `start()` before connecting, and `finish(failures, stats)` in `_finish()` before the verdict is written. That file is already in the repo and was verified with a local copy of exactly that hook (8 bots, 3 minutes, websocket). Until the hook exists it does not run in CI.
