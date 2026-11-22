@@ -7,13 +7,14 @@ at the owner's request) changes these numbers.
 | Setting | Value |
 |---|---|
 | Max PRs opened per workstream per week | 10 |
+| Budget week starts | Wednesday (when the owner's plan usage resets) |
 | Integrator | runs only when there is something to merge |
 
 **How workers check it (step 0 of every run):** count PRs whose head branch starts with
-`ws/<stream>/` created since the start of the current week (Friday 00:00 America/Chicago):
+`ws/<stream>/` created since the start of the current budget week. The budget week starts **Wednesday 00:00 America/Chicago**, matching when the owner's plan usage resets:
 
 ```sh
-SINCE=<YYYY-MM-DD of the most recent Friday>   # e.g. date -d "last friday" +%F, or today if today is Friday
+SINCE=<YYYY-MM-DD of the most recent Wednesday>   # TZ=America/Chicago; today if today is Wednesday, else date -d "last wednesday" +%F
 gh api "repos/rp8g7mjrr5-design/AiMMO/pulls?state=all&per_page=100" --paginate \
   --jq "[.[] | select(.head.ref | startswith(\"ws/<stream>/\")) | select(.created_at >= \"${SINCE}\")] | length"
 ```
