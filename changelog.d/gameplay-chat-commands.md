@@ -1,2 +1,0 @@
-- Lost track of the sun? Type `/time` in chat to see the day and hour in Ashgrove, and how long until dawn, day, dusk, or night.
-- Type `/who` to see who else is wandering Ashgrove right now, and `/help` for the list of commands. Only you see the answers.
