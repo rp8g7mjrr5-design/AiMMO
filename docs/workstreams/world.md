@@ -4,6 +4,7 @@ Owns how Ashgrove looks and sounds as a place. See `docs/workstreams.md` for own
 
 ## Backlog (top = next)
 - [ ] **Top priority (director, owner request 2026-11-22): gathering feedback art** for the client's new gather flow (see "How gathering feels" in `docs/design_bible.md`). In `NodeProps`: `set_highlight(root, id, on)` for a soft rim/emissive glow on the node in reach, and `play_hit(root, id)` for a small per-kind reaction on each gather (leaf shake and a few falling ash leaves, stone chips, a sap droplet splash). Procedural only, cheap enough to call every frame. Answers the existing "can gather hint" follow-up.
+- [ ] **Second (owner direction 2, 2026-11-22): close-up read for the action camera.** The camera now sits ~3.5 m behind the shoulder, so the avatar's back, the node props and the meadow get seen up close: check silhouettes and flat-shading from that range, add a little detail where it reads flat (bark facets, stone seams, sap shine), and make sure nothing lets the camera see inside a mesh. Procedural only.
 - [x] Day and night sky: sun path, sky colours, stars (merged, PR #9)
 - [x] **Use the one shared clock.** `SkyClock` keeps only colour/light keys; sun path and time come from `WorldClock`; `DayNight.set_world_seconds(s)` is the one entry point (PR ws/world/shared-clock-sky)
 - [x] **Avatar arms and short legs** for the client's walk cycle (request below; PR ws/world/avatar-limbs)
