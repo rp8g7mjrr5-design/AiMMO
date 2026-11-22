@@ -8,7 +8,8 @@ Owns quality, tests, CI, and operations. See `docs/workstreams.md` for ownership
 - [ ] Triage `docs/playtest.md` every run and fix crashes first (2026-11-22: still empty)
 - [x] Client smoke test at night as well as noon, with both screenshots kept as CI artifacts and a day/night brightness check (this PR, `ws/qa/night-smoke`)
 - [ ] Health endpoint or heartbeat log so Railway restarts a hung server
-- [ ] Save-compatibility test: load every file in `tests/fixtures/` with the current `CharacterData` and the current migrations on Postgres; must stay green when gameplay adds inventory (Week 02)
+- [x] Save-compatibility test: load every file in `tests/fixtures/` with the current `CharacterData` and the current migrations on Postgres; must stay green when gameplay adds inventory (Week 02) (this PR, `ws/qa/save-compat-all-fixtures`)
+- [ ] Save-compat follow-up: once gameplay's inventory lands, check that every loaded character's items survive too (extend `_check_account` to compare `inventory_items` rows before/after), and retire the shared-DB `test_save_compat.gd` once the new test covers its password check
 - [ ] Server performance check in the bot test: tick time, memory, and bandwidth per player logged and asserted under a budget
 - [ ] Protocol-mismatch test: an old-protocol client gets a clear "please update" message, not a hang (protocol is bumping often this week)
 - [ ] Bot-test option `--only-behaviour=<name>` to run one behaviour quickly while developing it
