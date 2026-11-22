@@ -6,7 +6,7 @@ at the owner's request) changes these numbers.
 
 | Setting | Value |
 |---|---|
-| Max PRs opened per workstream per week | 10 |
+| Max PRs opened per workstream per week | 15 |
 | Budget week starts | Wednesday (when the owner's plan usage resets) |
 | Integrator | runs only when there is something to merge |
 
