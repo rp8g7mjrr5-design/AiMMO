@@ -296,6 +296,10 @@ the camera, next unblocked owner direction.
   take). Today nodes are 6 m apart with 3 m reach, so this almost never changes the pick; it is
   ready for v3's gather-by-id.
 - Settings: field of view (55 to 100, default 70) and camera shoulder (right/left).
+- World's gather-feedback PR landed on main while this was in progress, so after merging main
+  the client now calls `NodeProps.set_highlight` for the prompt's target every frame (off while
+  typing, on disconnect). It follows the reticle, so the node that glows is the one E takes.
+  `play_hit` still waits for v3's `s2c_gather_result`.
 - Tests: 12 unit tests in `tests/unit/test_client_action_camera.gd`. Bot behaviour
   `client_action_camera.gd` runs the camera behind every bot on real positions with a sweeping
   "mouse", checking never under ground, never inside a node prop, arm in limits, W along the
@@ -308,11 +312,11 @@ probes CLEARANCE further along the arm.
 **Second thing that didn't work:** the first bot run failed with ~200 "camera inside ash/pine
 node" frames out of ~200k: a bot gathering within 1.5 m of a tree and the "mouse" nodding down
 lifts the camera into the crown even at the shortest arm. Pulling in can't fix that (only fading
-the occluder could), so the behaviour now counts it as `unavoidable_inside_frames` (0 to 62 per
+the occluder could), so the behaviour now counts it as `unavoidable_inside_frames` (0 to 124 per
 bot) and fails only when a shorter arm would have avoided the prop. From inside a crown you see
 out through it (back faces are culled), so it reads as "leaves around the camera".
 
-**Results:** 180 unit tests passed (12 new). Bot test (8 bots, 180 s, websocket, Postgres):
+**Results (after merging main):** 191 unit tests passed (12 new). Bot test (8 bots, 180 s, websocket, Postgres):
 8/8 ok, verify 8/8, ~25k camera frames per bot, ~36% of frames pulled in (mostly looking up
 against the ground), min arm 0.35 to 1.1 m, look-to-interact target on 1.2k to 3k frames per
 bot, all in reach. Client smoke passed; world shot shows the character left of centre with the

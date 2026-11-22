@@ -225,8 +225,22 @@ func _update_gather(delta: float, my_pos: Vector3, eye: Vector3, look: Vector3) 
 	var cmd := gather_prompt.update(delta, my_pos, TimeDial.current_seconds(), Time.get_ticks_msec() / 1000.0, held, eye, look)
 	var t := gather_prompt.current_target()
 	reticle.active = not t.is_empty() and bool(t.can)
+	_highlight_target(-1 if t.is_empty() or chat_edit.has_focus() else int(t.id))
 	if cmd != "":
 		net.c2s_chat.rpc_id(1, cmd)
+
+
+## World's warm glow on the node E would gather (the one under the reticle, else the nearest).
+func _highlight_target(id: int) -> void:
+	var nodes := world.get_node_or_null("ResourceNodes") as Node3D
+	if nodes == null:
+		return
+	if id >= 0:
+		NodeProps.set_highlight(nodes, id, true)
+	else:
+		var lit := NodeProps.highlighted(nodes)
+		if lit >= 0:
+			NodeProps.set_highlight(nodes, lit, false)
 
 
 ## The cursor is captured (hidden, mouse turns the camera) while you play, and freed while you
@@ -331,6 +345,7 @@ func _on_server_disconnected() -> void:
 	compass.visible = false
 	gather_prompt.visible = false
 	gather_prompt.hide_all()
+	_highlight_target(-1)
 	hud_label.visible = false
 	help_label.visible = false
 	reticle.visible = false
