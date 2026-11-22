@@ -44,6 +44,10 @@ func start(p_net: Node, args: Dictionary) -> void:
 		push_error("[server] could not listen on port %d (%s): %s" % [port, transport, error_string(made[1])])
 		get_tree().quit(3)
 		return
+	# No client-to-client relay: clients only ever talk to the server, and the relay's own
+	# ADD/DEL_PEER notices are sent without our _is_live() guard, so a peer that drops while
+	# another joins or leaves logged "Unable to send packet on channel 0, max channels: 0".
+	(multiplayer as SceneMultiplayer).server_relay = false
 	multiplayer.multiplayer_peer = made[0]
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
