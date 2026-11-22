@@ -3,14 +3,33 @@ class_name ChatCommands
 ## answers only the sender with a system message and never broadcasts the line itself.
 ## Pure functions, so they are unit tested without a running server.
 ##
-## Commands: /help, /time, /who, /bag. Names are case-insensitive; extra words are ignored.
+## Commands: /help, /time, /who, /bag, /gather. /gather changes the world, so the server
+## handles it itself (see is_gather); everything else is answered by run(). Names are case-insensitive; extra words are ignored.
 
-const HELP := "Commands: /time (time of day in Ashgrove), /who (who is online), /bag (what you carry), /help."
+const HELP := "Commands: /gather (take from the tree, rock or seep you stand at; /gather pine for one kind), /bag (what you carry), /time (time of day in Ashgrove), /who (who is online), /help."
+const GATHER_NAMES := ["gather", "g", "harvest", "chop", "mine"]
 const WHO_MAX_NAMES := 20 ## cap the /who list so one line stays readable
 
 
 static func is_command(text: String) -> bool:
 	return text.begins_with("/")
+
+
+## The command's name, lower case ("help" for a bare "/").
+static func name_of(text: String) -> String:
+	var words := text.substr(1).strip_edges().split(" ", false)
+	return words[0].to_lower() if words.size() > 0 else "help"
+
+
+## Everything after the command's name, trimmed ("" if nothing).
+static func argument(text: String) -> String:
+	var words := text.substr(1).strip_edges().split(" ", false)
+	return " ".join(words.slice(1)) if words.size() > 1 else ""
+
+
+## True for /gather and its aliases, which the server runs against its world state.
+static func is_gather(text: String) -> bool:
+	return is_command(text) and name_of(text) in GATHER_NAMES
 
 
 ## Returns the reply for a command line (already cleaned by Validation.clean_chat).
