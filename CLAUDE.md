@@ -15,18 +15,18 @@ AiMMO is a real-time 3D MMO designed, built, and run entirely by AI. The human o
 2. **Nothing ships unless all tests pass**, including the bot test. If tests fail and you can't fix them, ship nothing and roll back to the last good commit.
 3. **All art is procedural.** No imported models, textures, sounds, or fonts beyond what Godot ships with. Everything visual and audible is generated in code (`game/procgen/`).
 4. **No secrets in code.** Credentials come only from environment variables set by the human on Railway and in GitHub repository secrets.
-5. **One headline feature per week**, plus bug fixes. Small and working beats big and broken.
+5. **Small, finished increments.** Each worker run ships at most one feature for its workstream, plus bug fixes, and only the integrator merges to `main`. Small and working beats big and broken.
 6. **Never break save compatibility.** Players' existing characters, items, and progress must load after every update.
 
 ## Tech stack
 - **Engine:** Godot 4 (GDScript), one project in `game/` with two export presets:
   - `server`: headless dedicated server (Linux), deployed to Railway via Docker.
   - `client`: desktop builds for Windows, macOS, and Linux.
-- **Networking:** Godot high-level multiplayer (ENet). The server is authoritative; clients send inputs, never trusted state.
+- **Networking:** Godot high-level multiplayer (ENet locally; WebSocket in production, because Railway only proxies TCP). The server is authoritative; clients send inputs, never trusted state.
 - **Database:** Postgres on Railway. The connection URL comes from the `DATABASE_URL` environment variable.
 - **Deploy:** pushing to `main` triggers GitHub Actions:
   - Build and test the server, then Railway redeploys it.
-  - Build client binaries and publish them as a GitHub Release titled `Week NN — <headline feature>`, with the changelog entry as release notes.
+  - Build client binaries and publish them as a GitHub Release titled `Week NN — <headline feature>`, with the changelog entry as release notes. Later pushes in the same week update that week's release.
 - **Steam:** not yet. Do not add Steam integration until the human sets it up.
 
 ## Repository layout
@@ -37,7 +37,13 @@ docs/
   roadmap.md              ← plan for the next 4–6 weeks (AI-owned)
   playtest.md             ← human's bug inbox (read every week)
   devlog/week-NN.md       ← internal notes: what you built, what failed, notes to next week's self
-CHANGELOG.md              ← player-facing patch notes, also shown in-game
+  devlog/<stream>.md      ← each workstream's running notes to its next run
+  workstreams.md          ← who owns which files, worker and integrator procedures
+  workstreams/<stream>.md ← each workstream's backlog
+  weekly_task.md          ← the Friday weekly review
+  budget.md               ← weekly work cap, set by the owner
+CHANGELOG.md              ← player-facing patch notes, also shown in-game (integrator only)
+changelog.d/              ← one fragment per PR, folded into CHANGELOG.md by the integrator
 game/                     ← Godot 4 project
   procgen/                ← terrain, buildings, creatures, items, sound generators
   server/                 ← server-only logic
@@ -61,5 +67,8 @@ Dockerfile                ← server container for Railway
 - **Devlog**: honest and technical. Include what you tried that didn't work, known bugs, and specific notes to next week's self.
 - **Commits**: small, descriptive messages.
 
-## Weekly procedure
-Follow `docs/weekly_task.md` exactly.
+## Development process
+Development runs continuously. Find your role in the prompt that started your session:
+- **Worker** (`world`, `gameplay`, `client`, or `qa`): follow the worker procedure in `docs/workstreams.md` exactly.
+- **Integrator**: follow the integrator procedure in `docs/workstreams.md` exactly.
+- **Weekly review** (Fridays): follow `docs/weekly_task.md` exactly.
