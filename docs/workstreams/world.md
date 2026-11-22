@@ -6,7 +6,8 @@ Owns how Ashgrove looks and sounds as a place. See `docs/workstreams.md` for own
 - [x] Day and night sky: sun path, sky colours, stars (merged, PR #9)
 - [x] **Use the one shared clock.** `SkyClock` keeps only colour/light keys; sun path and time come from `WorldClock`; `DayNight.set_world_seconds(s)` is the one entry point (PR ws/world/shared-clock-sky)
 - [x] **Avatar arms and short legs** for the client's walk cycle (request below; PR ws/world/avatar-limbs)
-- [ ] Lamps and ember-ash glow at night: a few procedural lanterns around the Spawn Meadow and a faint warm glow in ash leaves, driven by `WorldClock.daylight`
+- [x] Lamps and ember-ash glow at night: 8 procedural lanterns ring the Spawn Meadow, ash leaves (decorative and node) glow faintly, sap seeps brighten; all from `Lamps.night_glow` on the shared clock (PR ws/world/lamps-night-glow)
+- [ ] Follow-up: lanterns along the first paths out of the meadow once there are paths or a town plan (gameplay/director), and a gentle flame flicker on the lamp lights
 - [x] Bot behaviour `world_day_night.gd` on qa's `BotBehaviour` base: sky time matches server time and moves forward (shipped with the shared-clock PR, it is that feature's test)
 - [ ] Biome variety: birch meadows near water, mossy boulders in pine forests, wildflower patches (deterministic from the world seed)
 - [x] Procedural resource-node props for gameplay's gathering (Week 02): ember ash, pine, stone outcrop with a pale seam, glowing ember-sap seep, each with a depleted look (stump, rubble, dry seep); scatter keeps 3 m clear of nodes (PR ws/world/resource-node-props)

@@ -69,3 +69,21 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Known / not done.** The decorative ash and a node ash still look alike from far away; the "can gather" hint (follow-up in backlog) should fix that properly. No collision on props (nothing has collision yet). The client has to call `set_depleted` once node state is on the wire (request filed in client backlog).
 
 **Next run.** Lamps and ember-ash glow at night, driven by `WorldClock.daylight` (the sap seeps' emissive material is a natural thing to brighten at night too).
+
+## 2026-11-22: lanterns and the ember ash's night glow
+**Built.** New `game/procgen/lamps.gd`. `Lamps.positions()` puts 8 lanterns in a ring about 9 m round spawn (turned by the world seed, on the ground, nudged outward if a resource node is within 2.5 m; none are today). Each lantern is a stone foot, a wooden post, a short arm and a hanging iron-capped glass, drawn as three MultiMesh layers plus one shadowless `OmniLight3D` per lantern. `Lamps.night_glow(frac)` (0 by day, 1 at night) drives everything that glows after dark through `Lamps.apply_glow(world, glow)`, which `DayNight.apply` calls on every repaint: lamp lights and glass, a faint ember emission on the decorative `AshCrowns` and on `NodeAshCrowns`, and the sap seeps (0.9 by day, as before, up to 1.6 at night; they are night-only to gather, so they should be easy to find then). WorldBuilder applies once after building so the first frame is already right.
+
+**Decisions.**
+- Lamps key on the sun's height with their own curve (`smoothstep(0.14, -0.06, sun_height)`) rather than `WorldClock.daylight`, because settlers light lanterns *before* it gets dark: at sunset (0.75) they are already about half lit. It still comes from the one shared clock (`SkyClock.sun_height` -> `WorldClock.sun_elevation`), so a unit test checks it is identical from world seconds.
+- Ring radius 9 m: decoration keeps 10 m clear and resource nodes 12 m, so the ring sits in open meadow and every new player spawns inside it.
+- Lantern lights have no shadows: 8 shadowed omni lights would hurt low-end laptops, and at 11 m range nobody notices.
+- Leaf glow is deliberately faint (0.10 emission, 0.14 on gatherable ash): it should feel like warmth, not fairy lights, and it is a quiet hint toward the bible's mystery (the trees are the warm roots of something asleep).
+- One `apply_glow` entry point that looks nodes up by name and skips anything missing, so a partial world (tests, bots) never errors.
+
+**Didn't work.** First version used `Basis.scaled()` for part sizes, which scales in world axes after the rotation, so the arm would have stretched wrongly on turned lanterns; switched to `rotation * Basis.from_scale(size)`. Glass at emission 2.4 burned to pure white in the night screenshot and the light pools looked greenish on grass; toned glass down to 1.3 and warmed the flame colour.
+
+**Tested.** 130 unit tests with Postgres (5 new in `tests/unit/test_world_lamps.gd`: ring placement and spacing, determinism, lantern parts and light position, glow follows the clock, glow values), 8-bot 180 s websocket bot test (new behaviour `world_lamps.gd`: lanterns on the ground and off nodes, glow agrees with the server's phase on every time sync, nearest lantern each bot walked past), client smoke test passed; I looked at the midnight and noon screenshots.
+
+**Known / not done.** No flicker yet. Lamps only exist at spawn; once there is a town or paths, extend `positions()` (follow-up in the backlog). Night luminance in the smoke shot rose from about 0.08 to about 0.13, still far below day (0.73); about 0.12 after toning the glass down.
+
+**Next run.** Biome variety (birch meadows near water, mossy boulders, wildflowers).
