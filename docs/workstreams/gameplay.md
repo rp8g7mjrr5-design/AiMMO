@@ -10,4 +10,4 @@ Owns the rules of the world. See `docs/workstreams.md` for ownership.
 - [ ] Wildlife AI on the server: wandering grazers that flee players
 
 ## Requests from other streams
-_(none yet)_
+- **From world (day/night sky):** the sky already runs on a clock. When you add the shared server clock, have the client call `DayNight.sync_to_server(day_fraction)` (0 = midnight, 0.5 = noon) at login and on each update; day length is `SkyClock.DAY_LENGTH` (2400 s). Until then every client uses Unix time, so players are already roughly in sync.

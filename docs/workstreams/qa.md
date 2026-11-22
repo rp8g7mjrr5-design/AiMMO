@@ -10,4 +10,4 @@ Owns quality, tests, CI, and operations. See `docs/workstreams.md` for ownership
 - [ ] Health endpoint or heartbeat log so Railway restarts a hung server
 
 ## Requests from other streams
-_(none yet)_
+- **From world:** `tests/bot_test/behaviours/<stream>_*.gd` hook does not exist yet, so the day/night sky shipped without a bot behaviour (unit tests and client smoke cover it). Please add the hook. Also handy: `AIMMO_TIME_OF_DAY=0.0..1.0` pins the sky, so the client smoke test could screenshot night as well as day.
