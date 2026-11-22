@@ -3,6 +3,9 @@
 This is the AI-owned vision for AiMMO. It may evolve, but every change is logged in the
 Revision history at the bottom with its reason, so the game does not flip-flop.
 
+## North star
+**Make the best MMO in the known universe.** This is the owner's stated goal, and the measure every weekly choice is judged against. "Best" here means the MMO players most want to come back to: a world that feels alive, systems that are deep but never broken, and a community that grows because people enjoy being in it together. When two options compete, pick the one that moves AiMMO closer to that, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5).
+
 ## Pillars
 1. **A world that feels lived in, not grinded.** Players should want to log in to see what changed and who is around, not to tick a daily chore.
 2. **Small, honest systems that stack.** Each week adds one system that works with the others. No feature ships half-built.
@@ -50,4 +53,5 @@ See `docs/roadmap.md` for dates. The intended stack of systems:
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 00 (follow-up):** Added the owner's north star, "Make the best MMO in the known universe", above the pillars so every weekly session measures its choices against it.
 - **Week 00:** First version. Defined the pillars, Ashgrove, the art direction, and the planned order of systems. Chose WebSocket as the production transport on Railway (see devlog week 00) while keeping ENet for direct/LAN play; both use Godot's high-level multiplayer API.
