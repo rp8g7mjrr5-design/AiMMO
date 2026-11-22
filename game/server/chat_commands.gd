@@ -3,9 +3,9 @@ class_name ChatCommands
 ## answers only the sender with a system message and never broadcasts the line itself.
 ## Pure functions, so they are unit tested without a running server.
 ##
-## Commands: /help, /time, /who. Names are case-insensitive; extra words are ignored.
+## Commands: /help, /time, /who, /bag. Names are case-insensitive; extra words are ignored.
 
-const HELP := "Commands: /time (time of day in Ashgrove), /who (who is online), /help."
+const HELP := "Commands: /time (time of day in Ashgrove), /who (who is online), /bag (what you carry), /help."
 const WHO_MAX_NAMES := 20 ## cap the /who list so one line stays readable
 
 
@@ -14,7 +14,8 @@ static func is_command(text: String) -> bool:
 
 
 ## Returns the reply for a command line (already cleaned by Validation.clean_chat).
-## ctx keys: "world_seconds" (float) and "online" (Array of character names).
+## ctx keys: "world_seconds" (float), "online" (Array of character names), and
+## "inventory" (the sender's Inventory Dictionary).
 static func run(text: String, ctx: Dictionary) -> String:
 	var words := text.substr(1).strip_edges().split(" ", false)
 	var cmd := words[0].to_lower() if words.size() > 0 else "help"
@@ -25,6 +26,8 @@ static func run(text: String, ctx: Dictionary) -> String:
 			return time_reply(float(ctx.get("world_seconds", 0.0)))
 		"who", "online", "players":
 			return who_reply(ctx.get("online", []))
+		"bag", "pack", "inventory", "inv", "i":
+			return Inventory.describe(Inventory.normalize(ctx.get("inventory", {})))
 	return "Unknown command /%s. Try /help." % cmd.substr(0, 20)
 
 

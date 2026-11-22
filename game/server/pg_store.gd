@@ -65,7 +65,7 @@ func load_or_create_character(account: Dictionary) -> Dictionary:
 	if rows == null:
 		return {}
 	if not rows.is_empty():
-		return CharacterData.from_pg_row(rows[0])
+		return _with_inventory(CharacterData.from_pg_row(rows[0]))
 	var ch := CharacterData.new_for(account)
 	var ins: Variant = _q(
 		"INSERT INTO characters (account_id, name, pos_x, pos_y, pos_z, yaw, appearance_seed) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
@@ -79,14 +79,46 @@ func save_character(ch: Dictionary) -> bool:
 	var r: Variant = _q(
 		"UPDATE characters SET pos_x = $2, pos_y = $3, pos_z = $4, yaw = $5, updated_at = now() WHERE id = $1",
 		[ch.id, ch.x, ch.y, ch.z, ch.yaw])
-	return r != null
+	if r == null:
+		return false
+	return _save_inventory(int(ch.id), Inventory.normalize(ch.get("inventory", {})))
 
 
 func find_character_by_name(char_name: String) -> Dictionary:
 	var rows: Variant = _q("SELECT * FROM characters WHERE lower(name) = lower($1) ORDER BY id LIMIT 1", [char_name])
 	if rows == null or rows.is_empty():
 		return {}
-	return CharacterData.from_pg_row(rows[0])
+	return _with_inventory(CharacterData.from_pg_row(rows[0]))
+
+
+## Fills ch.inventory from inventory_items. Returns {} if the query fails, so a character is
+## never handed out (and later saved) with a pack that failed to load.
+func _with_inventory(ch: Dictionary) -> Dictionary:
+	var rows: Variant = _q("SELECT item, qty FROM inventory_items WHERE character_id = $1", [ch.id])
+	if rows == null:
+		return {}
+	var inv := {}
+	for r in rows:
+		inv[r.item] = r.qty
+	ch.inventory = Inventory.normalize(inv)
+	return ch
+
+
+## Upserts every item in the pack, zeros included (see Inventory), in one statement.
+## Never deletes rows.
+func _save_inventory(character_id: int, inv: Dictionary) -> bool:
+	if inv.is_empty():
+		return true
+	var values := PackedStringArray()
+	var params: Array = [character_id]
+	for item in inv:
+		params.append(item)
+		params.append(int(inv[item]))
+		values.append("($1, $%d, $%d, now())" % [params.size() - 1, params.size()])
+	var r: Variant = _q(
+		"INSERT INTO inventory_items (character_id, item, qty, updated_at) VALUES %s ON CONFLICT (character_id, item) DO UPDATE SET qty = EXCLUDED.qty, updated_at = now()" % ", ".join(values),
+		params)
+	return r != null
 
 
 func _account(row: Dictionary) -> Dictionary:
