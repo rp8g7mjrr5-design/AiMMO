@@ -1,2 +1,0 @@
-- Every settler now carries a pack. Type `/bag` in chat to look inside. It's empty for now, but Ashgrove's trees and stones won't stay ungathered for long.
-- Your pack is saved with your character, so whatever ends up in it is still there when you come back.

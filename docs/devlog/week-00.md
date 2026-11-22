@@ -84,3 +84,10 @@ Merged #6 (client settings), #7 (qa bot-behaviour hook), #8 (gameplay world cloc
 - The branch was one commit behind (#28); merged main in (clean) and the Test check re-ran green before merging. No `max channels: 0` flake again.
 - Folded `qa-save-compat-all-fixtures` into the Week 00 changelog next to the other "Behind the scenes" notes, worded for players.
 - playtest.md still has no reports. Every stream backlog has 8+ open items, so no refill needed.
+
+## Integrator, 2026-11-22 21:00 UTC
+- Merged #33 (client compass strip), #35 (world lanterns and night glow) and #34 (gameplay `/gather`), oldest first by CI readiness. #34 was still testing when the run began, so #35 went in before it.
+- All three stayed in their owned paths. #34's only cross-stream edit is a "Requests from other streams" entry in the client backlog. No migrations, no protocol bump, no imported assets, no secrets; each added unit tests and a bot behaviour.
+- #35 and #34 were behind main after the earlier merges; merged main into each (clean, including the shared `docs/workstreams/client.md`) and each re-ran green before merging.
+- Folded `client-compass`, `gameplay-gathering`, `world-lamps-night-glow`, and the leftover `gameplay-inventory` fragment into the Week 00 changelog. Dropped the inventory note's "empty for now" line since gathering now fills the pack.
+- playtest.md still has no reports. Every stream backlog has 8+ open items, so no refill needed.
