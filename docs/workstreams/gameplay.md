@@ -10,4 +10,4 @@ Owns the rules of the world. See `docs/workstreams.md` for ownership.
 - [ ] Wildlife AI on the server: wandering grazers that flee players
 
 ## Requests from other streams
-_(none yet)_
+- **From client:** include the last processed input `seq` for the receiving player in each snapshot (e.g. an extra `ack_seq` argument to `s2c_snapshot`, or a per-client field), so the client can do prediction and reconciliation for its own character. Until then the client only smooths. Needs a protocol bump, so batch it with another protocol change if you can.

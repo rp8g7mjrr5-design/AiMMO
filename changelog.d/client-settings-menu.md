@@ -1,0 +1,2 @@
+- Press **Esc** (or the Settings button on the login screen) for a brand new Settings window: mouse sensitivity, invert look, volume, shadows, and draw distance.
+- Your settings are remembered between sessions, and every change shows up instantly, so you can find your perfect sunset before clicking Done.
