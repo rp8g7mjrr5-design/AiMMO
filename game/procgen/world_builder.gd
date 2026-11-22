@@ -1,13 +1,23 @@
 class_name WorldBuilder
 ## Assembles the visible world: terrain chunks, water, trees, rocks, sky, sun, and fog.
 ## Everything is generated here from code and the shared world seed.
+## A DayNight child moves the sun and repaints the sky with the time of day.
 
 
 static func build() -> Node3D:
 	var root := Node3D.new()
 	root.name = "World"
-	root.add_child(_environment())
-	root.add_child(_sun())
+	var we := _environment()
+	var sun := _sun()
+	root.add_child(we)
+	root.add_child(sun)
+	DayNight.pin_from_env()
+	var dn := DayNight.new()
+	dn.name = "DayNight"
+	dn.env = we.environment
+	dn.sky_mat = we.environment.sky.sky_material as ShaderMaterial
+	dn.sun = sun
+	root.add_child(dn)
 	root.add_child(_terrain())
 	root.add_child(_water())
 	for n in _props():
@@ -16,12 +26,8 @@ static func build() -> Node3D:
 
 
 static func _environment() -> WorldEnvironment:
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.36, 0.55, 0.82)
-	sky_mat.sky_horizon_color = Color(0.93, 0.78, 0.62)
-	sky_mat.ground_horizon_color = Color(0.80, 0.72, 0.62) # matches the fog so the world edge fades out
-	sky_mat.ground_bottom_color = Color(0.62, 0.58, 0.52)
-	sky_mat.sun_angle_max = 20.0
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = DayNight.sky_shader() # colours are set by DayNight; the ground colour matches the fog so the world edge fades out
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	var env := Environment.new()
@@ -41,7 +47,8 @@ static func _environment() -> WorldEnvironment:
 
 static func _sun() -> DirectionalLight3D:
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-38, -35, 0)
+	sun.name = "Sun"
+	sun.rotation_degrees = Vector3(-38, -35, 0) # DayNight takes over from the first frame
 	sun.light_color = Color(1.0, 0.92, 0.80)
 	sun.light_energy = 1.0
 	sun.shadow_enabled = true

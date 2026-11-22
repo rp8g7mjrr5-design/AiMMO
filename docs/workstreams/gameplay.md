@@ -12,4 +12,5 @@ Owns the rules of the world. See `docs/workstreams.md` for ownership.
 - [ ] Follow-up: `/time` chat command that replies with `WorldClock.describe()` as a system message
 
 ## Requests from other streams
+- **From world (day/night sky):** the sky already runs on a clock. When you add the shared server clock, have the client call `DayNight.sync_to_server(day_fraction)` (0 = midnight, 0.5 = noon) at login and on each update; day length is `SkyClock.DAY_LENGTH` (2400 s). Until then every client uses Unix time, so players are already roughly in sync.
 - **From client:** include the last processed input `seq` for the receiving player in each snapshot (e.g. an extra `ack_seq` argument to `s2c_snapshot`, or a per-client field), so the client can do prediction and reconciliation for its own character. Until then the client only smooths. Needs a protocol bump, so batch it with another protocol change if you can.
