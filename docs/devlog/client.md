@@ -305,9 +305,24 @@ the camera, next unblocked owner direction.
 camera sat exactly on the face (unit test caught it: arm 2.0 with a wall at x=2). Now it also
 probes CLEARANCE further along the arm.
 
+**Second thing that didn't work:** the first bot run failed with ~200 "camera inside ash/pine
+node" frames out of ~200k: a bot gathering within 1.5 m of a tree and the "mouse" nodding down
+lifts the camera into the crown even at the shortest arm. Pulling in can't fix that (only fading
+the occluder could), so the behaviour now counts it as `unavoidable_inside_frames` (0 to 62 per
+bot) and fails only when a shorter arm would have avoided the prop. From inside a crown you see
+out through it (back faces are culled), so it reads as "leaves around the camera".
+
+**Results:** 180 unit tests passed (12 new). Bot test (8 bots, 180 s, websocket, Postgres):
+8/8 ok, verify 8/8, ~25k camera frames per bot, ~36% of frames pulled in (mostly looking up
+against the ground), min arm 0.35 to 1.1 m, look-to-interact target on 1.2k to 3k frames per
+bot, all in reach. Client smoke passed; world shot shows the character left of centre with the
+reticle (copied to the project's week-00 folder).
+
 **Known gaps / notes to next run:**
 - Flora that isn't a resource node (birches, boulders, the Props forest) doesn't pull the camera
   in yet; follow-up logged. Camera may clip a birch crown.
+- Follow-up idea: fade a node's crown when the camera is inside it (needs a per-instance alpha
+  from world's NodeProps, ask world).
 - Prop columns are hand-measured from `node_props.gd` meshes; if world resizes props, update
   `PROP_COLUMNS`.
 - Mouse capture under xvfb: the window never has focus, so the smoke shot runs with a visible

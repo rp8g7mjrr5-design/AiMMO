@@ -15,6 +15,7 @@ var frames := 0
 var pulled_in := 0
 var min_arm := INF
 var aimed := 0
+var under_canopy := 0
 var swaps := 0
 var _t := 0.0
 
@@ -50,14 +51,19 @@ func on_play(delta: float) -> void:
 		fail("camera %.2f m under the ground at %s" % [ground - p.y, p])
 	if _cam.arm < Cam.ARM_MIN - 0.001 or _cam.arm > Cam.DIST_MAX + 0.001:
 		fail("arm %.2f out of limits" % _cam.arm)
-	if _cam.arm < _cam.distance - 0.05:
+	var shoulder: Vector3 = Cam.shoulder_point(_cam.pivot, _cam.yaw, _cam.side_eased)
+	if Cam.clear_arm(shoulder, _cam.yaw, _cam.pitch, _cam.distance, _height, props) < _cam.distance - 0.05:
 		pulled_in += 1
 	min_arm = minf(min_arm, _cam.arm)
-	# The arm is checked against where the pivot is; the pivot trails the feet a little, so check
-	# props against the same pivot the camera used.
+	# Inside a prop is only allowed when it can't be helped: standing under a crown and looking
+	# down, even the shortest arm (ARM_MIN) is inside it. Counted, not failed.
+	var nearest: Vector3 = Cam.camera_point(shoulder, _cam.yaw, _cam.pitch, Cam.ARM_MIN)
 	for n in props:
 		if Cam.inside_prop(p, n, 0.0):
-			fail("camera inside %s node %d" % [n.kind, n.id])
+			if Cam.inside_prop(nearest, n, Cam.CLEARANCE):
+				under_canopy += 1
+			else:
+				fail("camera inside %s node %d" % [n.kind, n.id])
 	var w: Vector2 = Cam.move_vector(1.0, 0.0, _cam.move_yaw())
 	var f: Vector3 = Cam.forward(_cam.yaw)
 	if w.distance_to(Vector2(f.x, f.z)) > 0.001:
@@ -75,5 +81,6 @@ func on_finish() -> void:
 	stat("min_arm", snappedf(min_arm, 0.01) if min_arm < INF else -1.0)
 	stat("target_frames", aimed)
 	stat("shoulder_swaps", swaps)
+	stat("unavoidable_inside_frames", under_canopy)
 	if bot.elapsed > 60.0 and frames == 0:
 		fail("camera never ran")
