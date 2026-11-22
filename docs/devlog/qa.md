@@ -29,3 +29,38 @@ passed in 185s; 8 bots x 45s ENet passed; client smoke passed.
 as a server-side log plus a behaviour or a run_bot_test.py assertion. Movement is still
 owned by bot.gd; if a stream needs bots to walk to a target (e.g. a resource node), add a
 small `bot.steer_to(pos)` helper rather than letting behaviours fight over `move`.
+
+## 2026-11-22 — unit runner fails tests that hit a SCRIPT ERROR
+
+**Built:** `tests/unit/run_all.gd` now re-runs itself as a child process
+(`-- --unit-child`) that prints `[unit] begin/end <test>` markers around each test, and the
+parent reads the child's combined stdout+stderr with `tests/unit/unit_log.gd`. A test fails if
+it has a failed check, logs a `SCRIPT ERROR`/`ERROR` line, or begins and never ends (child
+crashed). Errors outside any test (e.g. a parse error while loading a file) also fail the run,
+as does a non-zero child exit code or zero tests run. `TestCase.expect_error("part")` lets a
+test that deliberately triggers a `push_error` say so; an expected error that never shows up
+fails the test. `--dir=<path>` runs another folder of tests. The CI/CLAUDE.md command is
+unchanged. New `test_qa_unit_runner.gd`: parser cases plus an end-to-end run of the real
+runner on a temp folder whose test dies halfway (must exit 1 and name the line).
+
+**Decisions:** Godot 4.3 has no in-process hook for script errors (the `Logger` API only
+arrived in 4.5), and a script error just makes the called function return, so the only
+reliable signal is the log. A child process was chosen over a CI grep so the documented
+command does the right thing locally too, and so each error is pinned to its test. I made
+`ERROR:` lines fail too, not just `SCRIPT ERROR:`, because the whole suite (73 tests, with
+Postgres) logs none today; `WARNING:` lines are ignored. Checked ordering of stdout vs stderr
+through `OS.execute` empirically: lines stay in order (debug builds flush stdout on print).
+
+**Didn't do / known gaps:** `OS.execute` is blocking, so output appears only when the child
+finishes, and a hung test hangs the run until the CI job timeout (30 min). Program output is
+printed first, then the ok/FAIL list, so output is no longer interleaved with test names.
+If another stream's open PR has a test that logs an `ERROR`, it will go red after this merges:
+the fix is `expect_error(...)` in that test, or fixing the error.
+
+**Tests:** 73 unit tests pass with Postgres (fresh DB); a test with a deliberate script error
+injected into `test_misc.gd` turned the run red with the file and line; bot test 8 bots x 180s
+WebSocket + Postgres passed in 185s. Client smoke not run: nothing the client loads changed.
+
+**Next run:** triage `docs/playtest.md` (still empty), then the night client smoke test
+(world's request). Consider `OS.execute_with_pipe` plus a per-run timeout if a hung test ever
+bites.
