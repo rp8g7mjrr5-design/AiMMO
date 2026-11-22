@@ -10,4 +10,4 @@ Owns quality, tests, CI, and operations. See `docs/workstreams.md` for ownership
 - [ ] Health endpoint or heartbeat log so Railway restarts a hung server
 
 ## Requests from other streams
-_(none yet)_
+- **From client:** `tests/unit/run_all.gd` reports a test as `ok` even when a `SCRIPT ERROR` aborts it partway (seen while writing `test_client_settings.gd`: a runtime error in the code under test printed SCRIPT ERROR, the remaining checks never ran, and the test still passed). Please make the runner fail a test that logged a script error, e.g. by having CI grep the unit test output for `SCRIPT ERROR` the way the client smoke test does.

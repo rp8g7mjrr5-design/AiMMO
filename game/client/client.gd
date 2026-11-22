@@ -30,10 +30,13 @@ var hud_label: Label
 var help_label: Label
 var sfx_chime: AudioStreamPlayer
 var sfx_arrive: AudioStreamPlayer
+var settings: ClientSettings
+var settings_menu: SettingsMenu
 
 
 func start(p_net: Node, args: Dictionary) -> void:
 	net = p_net
+	settings = ClientSettings.load_from()
 	_setup_input()
 	_build_ui()
 	_build_audio()
@@ -45,6 +48,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	add_child(camera)
 	camera.position = Vector3(30, 25, 30)
 	camera.look_at(Vector3(0, 2, 0))
+	_apply_settings(settings)
 
 	net.login_result.connect(_on_login_result)
 	net.player_joined.connect(_on_player_joined)
@@ -65,6 +69,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 		name_edit.text = str(args.name)
 	if args.has("password"):
 		password_edit.text = str(args.password)
+	if args.has("open-settings"):
+		settings_menu.open()
 	if args.has("autoconnect"):
 		_on_connect_pressed.call_deferred()
 	if args.has("screenshot"):
@@ -107,11 +113,19 @@ func _setup_input() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not logged_in:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		if chat_edit.has_focus():
+			chat_edit.release_focus()
+		else:
+			settings_menu.toggle()
+		get_viewport().set_input_as_handled()
+		return
+	if not logged_in or settings_menu.visible:
 		return
 	if event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
-		cam_yaw -= event.relative.x * 0.006
-		cam_pitch = clampf(cam_pitch - event.relative.y * 0.004, -1.2, 0.15)
+		var look := look_delta(event.relative, settings)
+		cam_yaw += look.x
+		cam_pitch = clampf(cam_pitch + look.y, -1.2, 0.15)
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			cam_dist = maxf(3.0, cam_dist - 0.8)
@@ -123,8 +137,23 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 
+## Camera yaw and pitch change for a mouse drag, after sensitivity and invert Y.
+static func look_delta(relative: Vector2, s: ClientSettings) -> Vector2:
+	return Vector2(-relative.x * 0.006, -relative.y * 0.004 * s.pitch_sign()) * s.mouse_sensitivity
+
+
+func _apply_settings(s: ClientSettings) -> void:
+	AudioServer.set_bus_volume_db(0, s.volume_db())
+	AudioServer.set_bus_mute(0, s.master_volume <= 0.0)
+	camera.far = s.draw_distance
+	for sun in world.find_children("*", "DirectionalLight3D", true, false):
+		sun.shadow_enabled = s.shadow_quality > 0
+		if s.shadow_quality > 0:
+			sun.directional_shadow_max_distance = s.shadow_distance()
+
+
 func _move_vector() -> Vector2:
-	if chat_edit.has_focus():
+	if chat_edit.has_focus() or settings_menu.visible:
 		return Vector2.ZERO
 	var f := Input.get_action_strength("move_forward") - Input.get_action_strength("move_back")
 	var r := Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
@@ -327,6 +356,11 @@ func _build_ui() -> void:
 	connect_button.text = "Enter the world"
 	connect_button.pressed.connect(_on_connect_pressed)
 	box.add_child(connect_button)
+	var settings_button := Button.new()
+	settings_button.text = "Settings"
+	settings_button.flat = true
+	settings_button.pressed.connect(func(): settings_menu.open())
+	box.add_child(settings_button)
 	status_label = Label.new()
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(status_label)
@@ -376,10 +410,10 @@ func _build_ui() -> void:
 
 	help_label = Label.new()
 	help_label.theme = theme
-	help_label.text = "WASD to walk · hold right mouse to look · wheel to zoom · Enter to chat"
+	help_label.text = "WASD to walk · hold right mouse to look · wheel to zoom · Enter to chat · Esc for settings"
 	help_label.anchor_left = 1.0
 	help_label.anchor_right = 1.0
-	help_label.offset_left = -620
+	help_label.offset_left = -760
 	help_label.offset_right = -16
 	help_label.offset_top = 12
 	help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -387,6 +421,12 @@ func _build_ui() -> void:
 	help_label.add_theme_constant_override("outline_size", 6)
 	help_label.visible = false
 	ui.add_child(help_label)
+
+	settings_menu = SettingsMenu.new()
+	settings_menu.setup(settings, theme)
+	settings_menu.changed.connect(_apply_settings)
+	settings_menu.closed.connect(func(): sfx_chime.play())
+	ui.add_child(settings_menu)
 
 
 func _field(parent: Control, label_text: String, placeholder: String) -> LineEdit:
