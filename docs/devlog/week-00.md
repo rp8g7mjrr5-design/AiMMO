@@ -60,3 +60,8 @@ Merged #6 (client settings), #7 (qa bot-behaviour hook), #8 (gameplay world cloc
 - Merged #11 (client walk animation) and #13 (world shared-clock sky). Both stayed in their owned paths; their only cross-stream edits were "Requests from other streams" entries, which the procedure allows. No migrations, no assets, no secrets; each added unit tests and a bot behaviour.
 - #13 conflicted with #11 in `docs/workstreams/world.md` (both touched the requests list). Kept both entries; CI re-ran green on the merged branch before merging.
 - Changelog: #13's fragment said the server decides the sky, but the client doesn't call `DayNight.set_world_seconds` yet, so players still compute the shared schedule from their own clock. I worded the patch note and known issue to match what players actually get.
+
+## Integrator, 2026-11-22 16:00 UTC
+- Merged #21 (qa night smoke screenshot + day/night brightness check). Test-only, qa-owned paths, unit tests added. Merged main into the branch first (clean).
+- Both CI runs on the merged branch failed on the bot-test flake `server: ERROR: Unable to send packet on channel 0, max channels: 0` (the same one logged for qa on PR #19). It passed on a rerun of the same commit, so I merged; the PR doesn't touch the server or bot test. The flake is getting more frequent (2 of 2 runs this time), so the qa request to guard that send should be qa's next item.
+- Folded `qa-night-smoke` into the Week 00 changelog.
