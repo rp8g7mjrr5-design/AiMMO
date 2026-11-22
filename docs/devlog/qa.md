@@ -64,3 +64,33 @@ WebSocket + Postgres passed in 185s. Client smoke not run: nothing the client lo
 **Next run:** triage `docs/playtest.md` (still empty), then the night client smoke test
 (world's request). Consider `OS.execute_with_pipe` plus a per-run timeout if a hung test ever
 bites.
+
+## 2026-11-22 — night screenshot in the client smoke test
+
+**Built:** `tests/client_smoke/run.sh` now takes three client shots: `login.png`,
+`world.png` pinned to noon (`AIMMO_TIME_OF_DAY=0.5`) and a new `world-night.png` pinned to
+midnight (`AIMMO_TIME_OF_DAY=0.0`). Both world shots land in the existing CI artifact
+(`build/client-smoke/`). New `tests/client_smoke/image_stats.gd` (run with `godot --headless
+-s`) measures mean Rec. 709 luminance of each and fails the smoke test if the day shot is
+near-black (< 0.15, world didn't render), the night shot is pure black (< 0.01), or night is
+not clearly darker than day (> 80% of day). Its output goes to `brightness.log`, so the
+existing SCRIPT ERROR grep covers it. The run now also requires two logins (the night client
+logs in again as the same character, so it doubles as a reconnect/"Welcome back" check).
+Unit test `test_qa_smoke_brightness.gd` covers the luminance maths and each failure case.
+
+**Decisions:** used the client-side pin (`AIMMO_TIME_OF_DAY`, read by
+`DayNight.pin_from_env()`) rather than restarting the server with `--clock-offset`, because
+one server serves both shots and the pin also drives the time dial, so the HUD reads
+"12:00 · Day" / "00:00 · Night". Pinning the day shot to noon makes it deterministic; before,
+it showed whatever the wall clock said, so a CI run at the wrong hour gave a night picture
+labelled "world". Brightness check in Godot rather than Python so CI needs no PIL. Thresholds
+are loose on purpose: measured day 0.735, night 0.081 under xvfb + Mesa llvmpipe.
+
+**Didn't do:** no dusk shot yet (colours are still being tuned by world), no pixel-diff
+against a golden image (procedural art changes every day, so it would be red constantly).
+
+**Tests:** 92 unit tests pass with Postgres; bot test 8 bots x 180s WebSocket + Postgres
+passed in 185s; client smoke passed three times locally.
+
+**Next run:** triage playtest.md, then the health endpoint / heartbeat for Railway, or the
+save-compat test before gameplay's Week 02 inventory lands.
