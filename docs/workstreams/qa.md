@@ -4,6 +4,8 @@ Owns quality, tests, CI, and operations. See `docs/workstreams.md` for ownership
 
 ## Backlog (top = next)
 - [ ] **Top priority (director, owner request 2026-11-22): cover real gathering in CI** once gameplay's protocol v3 lands. Bot test: at least 4 of the 8 bots gather through `c2s_gather_start` (not `/gather`), including one cancel by walking away, two bots on one node, and a node emptied and respawned; assert inventories match the server's count and nothing desyncs across reconnect. Pair it with the protocol-mismatch test below, since v3 locks out old clients.
+- [ ] **Second (owner direction 1, 2026-11-22): chat is for talking, in CI.** Start the bot-test server with `--dev-commands` once gameplay gates commands behind it, and add a bot behaviour against a server *without* the flag: a bot types `/gather`, `/bag` and `/who` and the test asserts nothing changed (no items, no node charge used), the line was not broadcast, and the "Chat is for talking" hint came back. Also a unit or lint check that `CHANGELOG.md` and `changelog.d/` never tell players to type a slash command.
+- [ ] **Third (owner direction 2): camera smoke shots.** Client smoke screenshots from the new over-the-shoulder camera (reticle visible, character left of centre), plus one with the camera backed against a hill to prove it never clips into terrain.
 - [x] Bot behaviour plugin hook (merged, PR #7)
 - [x] Unit runner fails tests that hit a SCRIPT ERROR or log an ERROR (this PR, `ws/qa/unit-script-errors`)
 - [ ] Triage `docs/playtest.md` every run and fix crashes first (2026-11-22: still empty)

@@ -11,18 +11,33 @@ Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
   - On `s2c_nodes` / `s2c_node_state`: `NodeProps.set_depleted(world.get_node("ResourceNodes"), id, on)` so empty nodes look empty and regrow for everyone.
   - Refusals (`s2c_system` text such as "too dark to find sap by day" or "pack full") show as a short centre-screen message, not only in chat.
   - Bot/smoke: a client smoke screenshot with the prompt and bar visible.
+- [ ] **Second (owner direction 2, 2026-11-22): over-the-shoulder action camera.** Follow "Owner directions → 2. The camera" in `docs/design_bible.md`. Replace the right-drag orbit camera in `client.gd` (pull it into `game/client/action_camera.gd` with pure, unit-tested maths):
+  - Pivot at head height, right-shoulder offset ~0.6 m, distance ~3.5 m, wheel zoom 1.5 to 6 m, shoulder-swap key (default V).
+  - Cursor captured and hidden while playing; mouse always turns the camera (no button). Freed while chat input, Settings, the pack or any window is open; recaptured on close. Esc frees it first.
+  - Small procedural centre reticle (a dot or thin ring from our palette).
+  - Camera-relative movement: W = camera heading, A/D strafe, S back; the avatar turns to face the camera heading while moving. Hold Alt for free-look (camera turns, character doesn't). Needs gameplay's facing-yaw input (gameplay backlog); until then turn the rendered avatar locally only.
+  - Smooth follow with exponential easing, no jitter at 30 to 144 fps; terrain collision (sample `Terrain.height_at` along the arm and pull in) and pull-in for node props within the arm, easing back out.
+  - Look-to-interact: `GatherPrompt.target` prefers the in-reach node closest to the reticle ray, falling back to nearest. Update the help line.
+  - Settings: field of view slider and shoulder side (sensitivity and invert Y already exist).
+  - Unit tests for arm length, collision pull-in, shoulder offset and target picking; smoke screenshots from the new camera.
+- [ ] **Third (owner direction 1): chat is for talking, so every slash command gets real UI.** Pack window first (the Inventory window item below), then in order:
+  - Players panel (default key O, or a button by the compass): who is online, from snapshot names now and gameplay's `s2c_roster` when it lands. Replaces `/who`.
+  - Time dial tooltip on hover: "Day 3, 14:05. Dusk in about 9 minutes" via `WorldClock`. Replaces `/time`.
+  - Controls overlay on F1 (and a "?" button): every key, rebind hint. Replaces `/help`. Drop the "/help" hint from the chat box and the patch notes.
+  - Show server refusals and system notices as short centre-screen messages (already started for gathering), not as chat lines; chat shows only what players say plus join/leave lines.
+  - Any new feature's controls go in the F1 overlay, never in chat.
 - [x] Settings menu: mouse sensitivity, invert Y, volume, shadows, draw distance (merged, PR #6)
 - [x] (in review, ws/client/time-dial) **Wire the server clock to the sky.** Connect `net.world_time`, keep the value with `Time.get_ticks_msec()`, extrapolate with `WorldClock.extrapolate(...)` each frame and hand it to world's `DayNight` (one entry point, see world's backlog). Needs #8 and world's sky PR on main; until then build against `WorldClock.now_seconds()`.
 - [ ] Client-side prediction and reconciliation for your own character (needs gameplay's `ack_seq`, protocol v3; smooth harder until then)
 - [x] Time-of-day readout: small sun/moon dial by the chat showing dawn/day/dusk/night (in review, ws/client/time-dial)
-- [ ] (second, right after gathering) Inventory window (I key): grid of stacks from `s2c_inventory`, world's procedural icons when they exist (needs gameplay's inventory PR first)
+- [ ] (with the third item; replaces `/bag`) Inventory window (I key): grid of stacks from `s2c_inventory`, world's procedural icons when they exist (needs gameplay's inventory PR first)
 - [ ] (superseded by the top item) Gather interaction: highlight the nearest node in range, press E to gather, a short progress bar and a "+1 Ash wood" toast
 - [x] Simple walk animation: procedural bob, waddle, and lean from rendered speed; swings ArmL/ArmR/LegL/LegR when the avatar has them (in review, PR #11)
 - [x] Chat polish: in-game timestamps, fade when idle, 150-line cap, /help hint (in review, ws/client/chat-polish). /who already shows as a system line from gameplay's commands.
 - [x] Compass strip with other players' direction dots, edge chevrons for players behind you, and a Spawn Meadow marker (in review, ws/client/compass)
 - [ ] Key rebinding in the Settings window (InputMap is built in `_setup_input`)
 - [ ] Separate UI/chat volume from world volume once there is more than one kind of sound
-- [ ] Field of view slider and UI scale for high-DPI screens
+- [ ] UI scale for high-DPI screens (field of view moved into the camera item)
 - [x] Follow-up: hide the time dial's text (keep the disk) when the chat fades (ws/client/chat-polish)
 - [ ] Follow-up: Up/Down arrow in the chat box recalls your last sent lines
 - [ ] Follow-up: chat fade timing (hold/fade seconds) in Settings, if playtesters find 12 s too short
