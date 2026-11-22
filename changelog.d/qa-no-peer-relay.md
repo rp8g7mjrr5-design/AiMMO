@@ -1,1 +1,0 @@
-- Fixed a rare server hiccup when several wanderers left and joined at the same moment. The server also stops telling every client about every other client's hidden connection id.

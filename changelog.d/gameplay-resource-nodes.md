@@ -1,1 +1,0 @@
-- The settlers have surveyed Ashgrove: 397 spots where ember ash, pine, stone and the rare ember sap can be gathered are now mapped across the valley, with a ring of every kind right at the edge of Spawn Meadow. You can't swing an axe at them just yet; gathering and an inventory are next.

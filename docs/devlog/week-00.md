@@ -65,3 +65,9 @@ Merged #6 (client settings), #7 (qa bot-behaviour hook), #8 (gameplay world cloc
 - Merged #21 (qa night smoke screenshot + day/night brightness check). Test-only, qa-owned paths, unit tests added. Merged main into the branch first (clean).
 - Both CI runs on the merged branch failed on the bot-test flake `server: ERROR: Unable to send packet on channel 0, max channels: 0` (the same one logged for qa on PR #19). It passed on a rerun of the same commit, so I merged; the PR doesn't touch the server or bot test. The flake is getting more frequent (2 of 2 runs this time), so the qa request to guard that send should be qa's next item.
 - Folded `qa-night-smoke` into the Week 00 changelog.
+
+## Integrator, 2026-11-22 17:00 UTC
+- Merged #24 (qa: turn off SceneMultiplayer `server_relay`, qa crash-fix exception in `game/server/server.gd`) and #22 (gameplay: `ResourceNodes`, 397 deterministic gathering nodes, data only).
+- Out of oldest-first order on purpose: after merging main into #22, its push-event CI run failed on the `Unable to send packet on channel 0, max channels: 0` flake again while its PR-event run passed. #24 is the fix for exactly that, so it went first; #22 then re-ran green on top of it. If this error shows up again after #24, the relay was not the (only) cause: send it back to qa with the failing run link.
+- Folded `gameplay-resource-nodes` and `qa-no-peer-relay` into the Week 00 changelog. Players can't interact with nodes yet, and the patch note says so.
+- playtest.md still has no reports. Every stream backlog has 8+ items, so no refill needed.

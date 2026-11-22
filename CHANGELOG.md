@@ -19,6 +19,8 @@ Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year
 - **Behind the scenes:** our automated tests now catch code that crashes halfway through a check, so fewer hidden bugs slip into the world.
 - **Behind the scenes:** our test bots now check that the world keeps streaming to every player at full speed, so a stalled server gets caught before it ever reaches you.
 - **Behind the scenes:** every update is now test-driven through a full night in Ashgrove too, so a broken moon or a pitch-black meadow gets caught before it reaches you.
+- **Gathering spots mapped.** The settlers have surveyed Ashgrove: 397 spots where ember ash, pine, stone and the rare ember sap can be gathered are now mapped across the valley, with a ring of every kind right at the edge of Spawn Meadow. You can't swing an axe at them just yet; gathering and an inventory are next.
+- **Fixed:** a rare server hiccup when several wanderers left and joined at the same moment. The server also stops telling every client about every other client's hidden connection id.
 
 ### Update your client
 - This update changes how the game talks to the server, so download the new client from the Releases page to keep playing.
