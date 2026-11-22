@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Client smoke test: boots a server, then the real desktop client under a virtual display,
-# logs in, and takes screenshots of the login screen and the world. Fails on any script
-# error in either process. Needs xvfb-run and Mesa (software OpenGL).
+# logs in, and takes screenshots of the login screen and the world at noon and at midnight
+# (AIMMO_TIME_OF_DAY pins the sky). Fails on any script error in either process, or if the
+# night shot is not clearly darker than the day shot (tests/client_smoke/image_stats.gd).
+# Needs xvfb-run and Mesa (software OpenGL).
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="${1:-$REPO/build/client-smoke}"
@@ -28,13 +30,19 @@ run_client() {
     --path "$REPO/game" -- "$@" > "$OUT/client-$label.log" 2>&1 || true
 }
 run_client login --screenshot="$OUT/login.png" --quit-after=5
-run_client world --screenshot="$OUT/world.png" --quit-after=8 --name=SmokeTester --password=smoke123 --address=127.0.0.1:$PORT --autoconnect
+AIMMO_TIME_OF_DAY=0.5 run_client world --screenshot="$OUT/world.png" --quit-after=8 --name=SmokeTester --password=smoke123 --address=127.0.0.1:$PORT --autoconnect
+AIMMO_TIME_OF_DAY=0.0 run_client night --screenshot="$OUT/world-night.png" --quit-after=8 --name=SmokeTester --password=smoke123 --address=127.0.0.1:$PORT --autoconnect
 
 fail=0
-for f in login.png world.png; do
+for f in login.png world.png world-night.png; do
   [ -s "$OUT/$f" ] || { echo "missing screenshot $f"; fail=1; }
 done
+if [ $fail -eq 0 ]; then
+  "$GODOT" --headless --path "$REPO/game" -s tests/client_smoke/image_stats.gd -- \
+    --day="$OUT/world.png" --night="$OUT/world-night.png" > "$OUT/brightness.log" 2>&1 || fail=1
+  cat "$OUT/brightness.log"
+fi
 if grep -hE "SCRIPT ERROR|Parse Error|Compile Error" "$OUT"/*.log; then fail=1; fi
-grep -q "SmokeTester logged in" "$OUT/server.log" || { echo "client never logged in"; fail=1; }
+[ "$(grep -c "SmokeTester logged in" "$OUT/server.log")" -ge 2 ] || { echo "client did not log in for both world shots"; fail=1; }
 [ $fail -eq 0 ] && echo "client smoke test passed, screenshots in $OUT" || { echo "client smoke test FAILED"; cat "$OUT"/*.log; }
 exit $fail
