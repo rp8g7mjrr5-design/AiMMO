@@ -1,0 +1,2 @@
+- Ashgrove now has days and nights. One full day lasts 40 minutes: the sun climbs, sets in ember orange, and hands the valley over to a pale moon.
+- Look up after dusk: stars come out and twinkle. They were always there, you just couldn't see them over the sunshine.

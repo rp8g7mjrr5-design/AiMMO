@@ -1,0 +1,133 @@
+class_name DayNight
+extends Node
+## Drives the sky, sun, moon, stars, fog, and ambient light from the time of day.
+## WorldBuilder creates one of these; it repaints the world a few times a second.
+##
+## Clock: every read goes through `now_fraction()`. Until the server sends a shared clock,
+## that uses the machine's Unix time, which is already close to the same for every player.
+## When gameplay adds the server clock, call `DayNight.sync_to_server(server_fraction)` and
+## nothing else needs to change. `AIMMO_TIME_OF_DAY=0.0..1.0` pins the time (screenshots, tests).
+
+const UPDATE_INTERVAL := 0.25 ## seconds between repaints; the sun moves 0.04 degrees in that time
+
+static var clock_offset := 0.0 ## seconds added to local Unix time to match the server
+static var pinned_fraction := -1.0 ## >= 0 freezes the clock at that fraction
+
+var env: Environment
+var sky_mat: ShaderMaterial
+var sun: DirectionalLight3D
+var _timer := 0.0
+
+
+static func now_fraction() -> float:
+	if pinned_fraction >= 0.0:
+		return fposmod(pinned_fraction, 1.0)
+	return SkyClock.day_fraction(Time.get_unix_time_from_system(), clock_offset)
+
+
+## Line the local clock up with the server's time of day (0..1). Safe to call every minute.
+static func sync_to_server(server_fraction: float) -> void:
+	var local := SkyClock.day_fraction(Time.get_unix_time_from_system())
+	var delta := fposmod(server_fraction - local, 1.0)
+	clock_offset = delta * SkyClock.DAY_LENGTH
+
+
+static func pin_from_env() -> void:
+	var v := OS.get_environment("AIMMO_TIME_OF_DAY")
+	if v != "" and v.is_valid_float():
+		pinned_fraction = clampf(v.to_float(), 0.0, 1.0)
+
+
+func _ready() -> void:
+	apply(now_fraction())
+
+
+func _process(delta: float) -> void:
+	_timer -= delta
+	if _timer > 0.0:
+		return
+	_timer = UPDATE_INTERVAL
+	apply(now_fraction())
+
+
+func apply(frac: float) -> void:
+	var s := SkyClock.sample(frac)
+	if sky_mat:
+		sky_mat.set_shader_parameter("top_color", s.sky_top)
+		sky_mat.set_shader_parameter("horizon_color", s.sky_horizon)
+		sky_mat.set_shader_parameter("ground_color", s.fog)
+		sky_mat.set_shader_parameter("sun_dir", s.sun_dir)
+		sky_mat.set_shader_parameter("moon_dir", s.moon_dir)
+		sky_mat.set_shader_parameter("star_alpha", s.stars)
+	if env:
+		env.fog_light_color = s.fog
+		env.ambient_light_energy = s.ambient_energy
+	if sun:
+		var dir: Vector3 = s.light_dir
+		if dir.y > 0.001:
+			# A DirectionalLight shines along its -Z, so look from the light towards the ground.
+			sun.basis = Basis.looking_at(-dir, Vector3.UP if absf(dir.y) < 0.99 else Vector3.FORWARD)
+		sun.light_color = s.light_color
+		sun.light_energy = s.light_energy
+		sun.visible = s.light_energy > 0.01
+
+
+## The sky itself: a code-only shader with a colour gradient, a sun disk, a moon, and stars.
+static func sky_shader() -> Shader:
+	var sh := Shader.new()
+	sh.code = """
+shader_type sky;
+
+uniform vec3 top_color : source_color = vec3(0.36, 0.55, 0.82);
+uniform vec3 horizon_color : source_color = vec3(0.93, 0.78, 0.62);
+uniform vec3 ground_color : source_color = vec3(0.80, 0.72, 0.62);
+uniform vec3 sun_dir = vec3(0.0, 1.0, 0.0);
+uniform vec3 moon_dir = vec3(0.0, -1.0, 0.0);
+uniform float star_alpha = 0.0;
+
+float hash13(vec3 p) {
+	p = fract(p * 0.1031);
+	p += dot(p, p.zyx + 31.32);
+	return fract((p.x + p.y) * p.z);
+}
+
+void sky() {
+	vec3 d = normalize(EYEDIR);
+	float up = d.y;
+	vec3 col;
+	if (up >= 0.0) {
+		col = mix(horizon_color, top_color, pow(clamp(up, 0.0, 1.0), 0.55));
+	} else {
+		col = mix(horizon_color, ground_color, clamp(-up * 6.0, 0.0, 1.0));
+	}
+
+	// Sun: a soft glow on the horizon side plus a crisp low-poly-friendly disk.
+	float sd = dot(d, normalize(sun_dir));
+	float glow = pow(max(sd, 0.0), 24.0) * 0.35 * clamp(sun_dir.y * 4.0 + 0.6, 0.0, 1.0);
+	col += horizon_color * glow;
+	col = mix(col, vec3(1.0, 0.95, 0.85) * 1.6, smoothstep(0.9993, 0.9996, sd) * step(-0.05, sun_dir.y));
+
+	// Stars: one hashed point per cell of a cube grid, fading in at dusk and twinkling a little.
+	if (star_alpha > 0.0 && up > 0.0) {
+		vec3 g = d * 160.0;
+		vec3 cell = floor(g);
+		float h = hash13(cell);
+		if (h > 0.985) {
+			vec3 centre = cell + 0.5 + (vec3(hash13(cell + 1.7), hash13(cell + 3.1), hash13(cell + 5.3)) - 0.5) * 0.6;
+			float r = length(g - centre);
+			float tw = 0.75 + 0.25 * sin(TIME * (1.0 + h * 3.0) + h * 40.0);
+			float s = smoothstep(0.28, 0.0, r) * tw * clamp(up * 5.0, 0.0, 1.0);
+			col += vec3(0.85, 0.9, 1.0) * s * star_alpha * 1.4;
+		}
+	}
+
+	// Moon: a pale disk with a faint ember-tinted rim, only above the horizon.
+	float md = dot(d, normalize(moon_dir));
+	float moon = smoothstep(0.9990, 0.9993, md) * step(0.0, moon_dir.y);
+	col = mix(col, vec3(0.86, 0.88, 0.95), moon * max(star_alpha, 0.35));
+	col += vec3(0.6, 0.45, 0.4) * pow(max(md, 0.0), 300.0) * 0.12 * star_alpha;
+
+	COLOR = col;
+}
+"""
+	return sh
