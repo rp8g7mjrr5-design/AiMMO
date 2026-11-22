@@ -1,2 +1,0 @@
-- Wanderers finally have arms and legs. Arms swing, little boots stomp, and nobody slides across the meadow like a chess piece any more.
-- Sleeves match your tunic and trousers are a darker shade of it, so every look you already had just got a matching outfit.
