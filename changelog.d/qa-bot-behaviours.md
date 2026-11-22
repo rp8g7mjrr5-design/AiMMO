@@ -1,1 +1,0 @@
-- Behind the scenes: our test bots now check that the world keeps streaming to every player at full speed, so a stalled server gets caught before it ever reaches you.

@@ -5,6 +5,15 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- **Days and nights.** Ashgrove now keeps one shared clock for everyone: a full day lasts 40 real minutes, and it carries on even while you are offline. The sun climbs, sets in ember orange, and hands the valley over to a pale moon.
+- **Look up after dusk.** Stars come out and twinkle. They were always there, you just couldn't see them over the sunshine.
+- **Settings window.** Press **Esc** (or the Settings button on the login screen) to tune mouse sensitivity, invert look, volume, shadows, and draw distance. Changes show up instantly and are remembered between sessions, so you can find your perfect sunset before clicking Done.
+- **Behind the scenes:** our test bots now check that the world keeps streaming to every player at full speed, so a stalled server gets caught before it ever reaches you.
+
+### Update your client
+- This update changes how the game talks to the server, so download the new client from the Releases page to keep playing.
+
+### Launch day
 - **The valley of Ashgrove.** Half a kilometre of rolling hills, lakes, pine ridges, and ember-leaved ash groves, all grown from a single seed. Everyone sees the same world, tree for tree.
 - **Make your wanderer.** Pick a name and a password and you are in. Your look (tunic colour, hat, and all) is woven from your name.
 - **Walk together.** See everyone else who is online, moving in real time.
@@ -14,3 +23,4 @@ Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year
 ### Known issues
 - There is nothing to *do* yet besides explore and chat. That changes next week.
 - Your own character is not predicted locally, so on a slow connection walking can feel a little floaty.
+- The sky still reads your computer's clock rather than the server's, so the sun may sit in a slightly different spot for you and a friend. Hooking it to the shared clock is next.
