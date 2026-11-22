@@ -36,6 +36,7 @@ var settings: ClientSettings
 var settings_menu: SettingsMenu
 var time_dial: TimeDial
 var compass: CompassStrip
+var gather_prompt: GatherPrompt
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -107,6 +108,7 @@ func _setup_input() -> void:
 		"move_back": [KEY_S, KEY_DOWN],
 		"move_left": [KEY_A, KEY_LEFT],
 		"move_right": [KEY_D, KEY_RIGHT],
+		"interact": [KEY_E],
 	}
 	for action in binds:
 		if not InputMap.has_action(action):
@@ -210,7 +212,17 @@ func _process(delta: float) -> void:
 		camera.look_at(focus)
 		if compass.due(delta):
 			compass.feed(cam_yaw, me.position, other_positions())
+		_update_gather(delta, me.position)
 		hud_label.text = "Ashgrove  ·  %d online  ·  %.0f, %.0f" % [avatars.size(), me.position.x, me.position.z]
+
+
+## The "E  Gather Ember ash" prompt: press or hold E near a node to gather it (sent as
+## "/gather <kind>" chat until protocol v3 adds c2s_gather).
+func _update_gather(delta: float, my_pos: Vector3) -> void:
+	var held := Input.is_action_pressed("interact") and not chat_edit.has_focus() and not settings_menu.visible
+	var cmd := gather_prompt.update(delta, my_pos, TimeDial.current_seconds(), Time.get_ticks_msec() / 1000.0, held)
+	if cmd != "":
+		net.c2s_chat.rpc_id(1, cmd)
 
 
 ## Rendered positions of every other player in the world (for the compass strip).
@@ -284,6 +296,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	time_dial.visible = true
 	time_dial.refresh()
 	compass.visible = true
+	gather_prompt.visible = true
 	hud_label.visible = true
 	help_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
@@ -302,6 +315,8 @@ func _on_server_disconnected() -> void:
 	chat_panel.visible = false
 	time_dial.visible = false
 	compass.visible = false
+	gather_prompt.visible = false
+	gather_prompt.hide_all()
 	hud_label.visible = false
 	help_label.visible = false
 	connect_button.disabled = false
@@ -346,6 +361,8 @@ func _on_chat(from_name: String, text: String) -> void:
 
 
 func _on_system(text: String) -> void:
+	if gather_prompt:
+		gather_prompt.on_system(text)
 	chat_feed.append(chat_log, ChatFeed.system_line(TimeDial.current_seconds(), text))
 
 
@@ -489,6 +506,20 @@ func _build_ui() -> void:
 	ui.add_child(compass)
 	compass.setup(theme)
 
+	# Gather prompt and "+2 ash wood" toasts, bottom centre.
+	gather_prompt = GatherPrompt.new()
+	gather_prompt.anchor_left = 0.5
+	gather_prompt.anchor_right = 0.5
+	gather_prompt.anchor_top = 1.0
+	gather_prompt.anchor_bottom = 1.0
+	gather_prompt.offset_left = -GatherPrompt.WIDTH * 0.5
+	gather_prompt.offset_right = GatherPrompt.WIDTH * 0.5
+	gather_prompt.offset_top = -170
+	gather_prompt.offset_bottom = -170 + GatherPrompt.HEIGHT
+	gather_prompt.visible = false
+	ui.add_child(gather_prompt)
+	gather_prompt.setup(theme)
+
 	hud_label = Label.new()
 	hud_label.theme = theme
 	hud_label.position = Vector2(16, 12)
@@ -499,10 +530,10 @@ func _build_ui() -> void:
 
 	help_label = Label.new()
 	help_label.theme = theme
-	help_label.text = "WASD to walk · hold right mouse to look · wheel to zoom · Enter to chat · Esc for settings"
+	help_label.text = "WASD to walk · hold right mouse to look · wheel to zoom · E to gather · Enter to chat · Esc for settings"
 	help_label.anchor_left = 1.0
 	help_label.anchor_right = 1.0
-	help_label.offset_left = -760
+	help_label.offset_left = -860
 	help_label.offset_right = -16
 	help_label.offset_top = 12
 	help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
