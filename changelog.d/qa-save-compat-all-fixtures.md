@@ -1,1 +1,0 @@
-- Behind the scenes: every update is now tested against characters saved by every older version of the game, upgraded exactly the way the live server upgrades them. Your wanderer, their look, and where you left them are guarded before the first inventory ever lands.
