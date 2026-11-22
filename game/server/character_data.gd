@@ -1,0 +1,65 @@
+class_name CharacterData
+## The one place that turns stored rows into character Dictionaries. Every field has a
+## default so characters saved by older versions always load (save compatibility rule).
+
+const DEFAULTS := {
+	"id": 0,
+	"account_id": 0,
+	"name": "",
+	"x": 0.0,
+	"y": 0.0,
+	"z": 0.0,
+	"yaw": 0.0,
+	"appearance_seed": 0,
+}
+
+
+static func normalize(src: Dictionary) -> Dictionary:
+	var out := {}
+	for k in DEFAULTS:
+		var v: Variant = src.get(k, null)
+		if v == null:
+			v = DEFAULTS[k]
+		match typeof(DEFAULTS[k]):
+			TYPE_INT:
+				out[k] = int(v) if typeof(v) != TYPE_STRING else (v as String).to_int()
+			TYPE_FLOAT:
+				var f: float = float(v) if typeof(v) != TYPE_STRING else (v as String).to_float()
+				out[k] = f if is_finite(f) else 0.0
+			_:
+				out[k] = str(v)
+	# A position outside the world (e.g. after a world resize) snaps back inside it.
+	var p := Terrain.clamp_to_world(Vector3(out.x, out.y, out.z))
+	out.x = p.x
+	out.y = p.y
+	out.z = p.z
+	return out
+
+
+static func from_pg_row(row: Dictionary) -> Dictionary:
+	return normalize({
+		"id": row.get("id"),
+		"account_id": row.get("account_id"),
+		"name": row.get("name"),
+		"x": row.get("pos_x"),
+		"y": row.get("pos_y"),
+		"z": row.get("pos_z"),
+		"yaw": row.get("yaw"),
+		"appearance_seed": row.get("appearance_seed"),
+	})
+
+
+static func new_for(account: Dictionary) -> Dictionary:
+	var p := Terrain.clamp_to_world(GameConfig.SPAWN_POINT)
+	return normalize({
+		"account_id": account.id,
+		"name": account.username,
+		"x": p.x,
+		"y": p.y,
+		"z": p.z,
+		"appearance_seed": hash(account.username_lc) & 0x7FFFFFFF,
+	})
+
+
+static func position(ch: Dictionary) -> Vector3:
+	return Vector3(ch.x, ch.y, ch.z)
