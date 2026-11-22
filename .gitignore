@@ -1,0 +1,8 @@
+# Godot
+.godot/
+*.import
+export_credentials.cfg
+# Builds
+build/
+# Local data
+*.tmp
