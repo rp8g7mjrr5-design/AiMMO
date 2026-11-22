@@ -1,11 +1,16 @@
 extends Node
 ## A simulated player for the bot test. Logs in, walks around, chats, disconnects,
 ## reconnects, checks its saved position came back, and writes a JSON verdict.
+## Extra behaviours (one per stream feature) are plugged in from tests/bot_test/behaviours/,
+## see bot_behaviour.gd.
 ##
 ## Args: --bot --name=bot_1 --password=... --address=127.0.0.1:7777 --transport=enet
 ##       --duration=180 --result=/path/result.json --expect-peers=7
 
+const BotBehaviour := preload("res://tests/bot_test/bot_behaviour.gd")
+
 var net: Node
+var behaviours: Array = []
 var bot_name := "bot_1"
 var password := "botpassword"
 var host := "127.0.0.1"
@@ -64,7 +69,18 @@ func start(p_net: Node, args: Dictionary) -> void:
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _fail("connection failed in phase " + phase))
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	_load_behaviours()
 	_connect()
+
+
+func _load_behaviours() -> void:
+	var loaded: Array = BotBehaviour.load_all()
+	for e in loaded[1]:
+		_fail(e)
+	behaviours = loaded[0]
+	for b in behaviours:
+		b.bot = self
+		b.setup(net)
 
 
 func _connect() -> void:
@@ -97,8 +113,11 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 			stats.position_restored = true
 	my_pos = p
 	have_pos = true
-	phase = "playing_2" if phase == "reconnecting" else "playing_1"
+	var reconnect := phase == "reconnecting"
+	phase = "playing_2" if reconnect else "playing_1"
 	_phase_started = elapsed
+	for b in behaviours:
+		b.on_login(reconnect, character)
 
 
 func _on_snapshot(t: int, entries: Array) -> void:
@@ -125,6 +144,8 @@ func _on_snapshot(t: int, entries: Array) -> void:
 			peers += 1
 		i += 5
 	stats.max_peers_seen = maxi(stats.max_peers_seen, peers)
+	for b in behaviours:
+		b.on_snapshot(t, entries)
 
 
 func _on_chat(from_name: String, text: String) -> void:
@@ -186,7 +207,7 @@ func _stop_and(next_phase: String) -> void:
 	_phase_started = elapsed
 
 
-func _play(_delta: float) -> void:
+func _play(delta: float) -> void:
 	if elapsed >= next_turn:
 		next_turn = elapsed + rng.randf_range(1.0, 4.0)
 		var a := rng.randf() * TAU
@@ -195,6 +216,8 @@ func _play(_delta: float) -> void:
 		if Vector2(my_pos.x, my_pos.z).length() > 60.0:
 			move = -Vector2(my_pos.x, my_pos.z).normalized()
 		yaw = atan2(move.x, move.y)
+	for b in behaviours:
+		b.on_play(delta)
 	_send_input()
 	if elapsed >= next_chat:
 		next_chat = elapsed + rng.randf_range(8.0, 20.0)
@@ -219,6 +242,11 @@ func _finish() -> void:
 		return
 	var final_phase := phase
 	phase = "done"
+	var behaviour_stats := {}
+	for b in behaviours:
+		b.on_finish()
+		behaviour_stats[b.name] = b.stats
+	stats.behaviours = behaviour_stats
 	if stats.logins < 2:
 		_fail("expected 2 logins (initial + reconnect), got %d (ended in phase %s)" % [stats.logins, final_phase])
 	if stats.snapshots < 10:
