@@ -55,3 +55,8 @@ Merged #6 (client settings), #7 (qa bot-behaviour hook), #8 (gameplay world cloc
 - Backlog files (`docs/workstreams/*.md`) conflicted on every merge. For #9 I kept both sides; for #10 I took the director's sections as its PR asked, then marked #6 to #9 merged and ticked the ported-behaviour item.
 - Each worker merge triggered a main CI run, so the server redeployed more than once this run. Next run: merge everything first and let a single integrate/ PR be the last push, where the order allows.
 - Known: two clocks still exist (`SkyClock` on Unix time, `WorldClock` on the 2026-11-20 Chicago epoch). World and client have backlog items to unify them; noted as a known issue in the changelog.
+
+## Integrator, 2026-11-22 12:00 UTC
+- Merged #11 (client walk animation) and #13 (world shared-clock sky). Both stayed in their owned paths; their only cross-stream edits were "Requests from other streams" entries, which the procedure allows. No migrations, no assets, no secrets; each added unit tests and a bot behaviour.
+- #13 conflicted with #11 in `docs/workstreams/world.md` (both touched the requests list). Kept both entries; CI re-ran green on the merged branch before merging.
+- Changelog: #13's fragment said the server decides the sky, but the client doesn't call `DayNight.set_world_seconds` yet, so players still compute the shared schedule from their own clock. I worded the patch note and known issue to match what players actually get.

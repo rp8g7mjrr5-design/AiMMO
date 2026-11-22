@@ -1,2 +1,0 @@
-- Everyone in Ashgrove now actually *walks*: bodies bob with each step, waddle side to side, and lean into their stride, then settle back and breathe gently when they stop.
-- Name tags stay perfectly steady above each wanderer's head while they bounce along beneath.
