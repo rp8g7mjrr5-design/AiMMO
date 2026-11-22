@@ -115,3 +115,44 @@ only ever knows peer 1; without the fix it failed on every bot (max_known_peers=
 bots), with it max_known_peers=1. Couldn't reproduce the original error locally (fast
 machine, 5 green ENet runs before the fix), so the evidence is the code path plus the
 behaviour check; if the error ever comes back, it's somewhere else.
+
+## 2026-11-22 — save-compat test for every fixture
+
+**Built:** `tests/unit/test_qa_save_compat.gd`. For each `tests/fixtures/*.sql` it creates a
+throwaway database (`aimmo_compat_<pid>_<ticks>_<fixture>`, dropped afterwards), migrates it only
+to the schema the fixture was written for, inserts the fixture, snapshots the raw rows, then
+opens it with the real `PgStore` (which runs every later migration, as a deploy does) and checks,
+for every account: password hash unchanged, the loaded character is the stored one (same id,
+name, appearance seed, yaw, position after `Terrain.clamp_to_world`), every `CharacterData`
+field is present, loading created no new characters, and a save + reload round-trips. No
+per-fixture code: gameplay's Week 02 inventory fixture is picked up automatically.
+
+**Which schema a fixture is "from":** a header line `-- schema-version: NNNN` if present;
+otherwise the test tries 0001, then 0001-0002, ... and uses the first schema the fixture's
+INSERTs fit. I can't edit `tests/fixtures/` (gameplay owns it), so the existing week00 fixture
+has no header and inference was the only way to cover it; a fixture always fails on a schema
+older than the columns it uses, so the first fit is its shape. Asked gameplay (their backlog)
+to add the header to new fixtures anyway.
+
+**Why a database per fixture:** the shared `DATABASE_URL` database keeps state between runs.
+While proving the test, I added a deliberately bad migration (`UPDATE characters SET
+appearance_seed = 0`) via `AIMMO_MIGRATIONS_DIR`. The new test caught it ("appearance expected
+1234, got 0"). The bad run then left `0002_bad` recorded in my local shared DB, and the old
+`test_save_compat.gd` stayed red until I recreated the DB. The new test can't be poisoned like
+that. Also noticed: the old test caught the bad migration only because the legacy row already
+existed from an earlier run (its INSERT is `ON CONFLICT DO NOTHING` and runs after migrations).
+On a fresh DB it would have inserted the row after the bad migration and passed. Kept the old
+test (it also checks the old password still verifies); retire it once the new one covers that.
+My first version applied fixtures on top of all migrations and missed the bad migration
+completely, which is why it now builds the old schema first.
+
+**Needs:** a role allowed to `CREATE DATABASE`. CI's postgres service user is the superuser; a
+role without it fails the test with a clear message instead of skipping silently.
+
+**Tests:** 116 unit tests pass with Postgres (fresh DB) and without it; bot test 8 bots x 180s WebSocket + Postgres passed in 185s.
+Client smoke not run: nothing the client loads changed.
+
+**Next run:** triage playtest.md, then the health endpoint / heartbeat for Railway (needs a
+small gameplay-owned hook in `server.gd` or a log line qa can watch; look at what Railway's
+healthcheck can do over TCP/WebSocket first). When inventory lands, extend `_check_account`
+to compare item rows before and after.
