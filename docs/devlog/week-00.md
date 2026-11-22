@@ -78,3 +78,9 @@ Merged #6 (client settings), #7 (qa bot-behaviour hook), #8 (gameplay world cloc
 - Merged main into each branch before merging (both clean, including the shared `docs/workstreams/client.md`), and each re-ran green. No sign of the `max channels: 0` flake this run, so #24 looks like it fixed it.
 - Folded `client-chat-polish` and `world-resource-node-props` into the Week 00 changelog. Merged the 2 fragments' bullets into 3 notes; the props note says gathering isn't live yet.
 - playtest.md still has no reports. Every stream backlog has 8+ items, so no refill needed.
+
+## Integrator, 2026-11-22 19:00 UTC
+- Merged #29 (qa: save-compat test that builds each fixture's own old schema, inserts it, upgrades through every later migration with the real `PgStore`, and checks every character still loads and saves). Test-only, qa-owned paths; its one cross-stream edit is a "Requests from other streams" entry in gameplay's backlog. It drops only its own throwaway `aimmo_compat_*` databases, never the shared test DB.
+- The branch was one commit behind (#28); merged main in (clean) and the Test check re-ran green before merging. No `max channels: 0` flake again.
+- Folded `qa-save-compat-all-fixtures` into the Week 00 changelog next to the other "Behind the scenes" notes, worded for players.
+- playtest.md still has no reports. Every stream backlog has 8+ open items, so no refill needed.
