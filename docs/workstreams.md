@@ -38,7 +38,9 @@ follow-ups).
 
 **Protocol changes** (`game/shared/net.gd`, `GameConfig.PROTOCOL_VERSION`) belong to
 `gameplay`. A protocol bump means old clients can't connect, so do it at most once per day
-and note it in the changelog fragment.
+and note it in the changelog fragment. From v4 on, the bump PR also adds a frozen copy of the old `net.gd` as
+`tests/protocol/net_v<old>.gd`; that one qa path is allowed in a gameplay PR (see
+`tests/protocol/README.md`).
 
 ## Worker procedure (each run)
 
