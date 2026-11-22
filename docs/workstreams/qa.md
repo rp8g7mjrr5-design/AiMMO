@@ -3,7 +3,7 @@
 Owns quality, tests, CI, and operations. See `docs/workstreams.md` for ownership.
 
 ## Backlog (top = next)
-- [x] Bot behaviour plugin hook (in review, PR #7)
+- [x] Bot behaviour plugin hook (merged, PR #7)
 - [ ] **Unit runner must fail tests that hit a SCRIPT ERROR** (client's request below). A test that silently stops halfway and passes is the most dangerous kind of green.
 - [ ] Triage `docs/playtest.md` every run and fix crashes first
 - [ ] Client smoke test at night as well as noon (`AIMMO_TIME_OF_DAY`, or the server's `--clock-offset`), with both screenshots kept as CI artifacts

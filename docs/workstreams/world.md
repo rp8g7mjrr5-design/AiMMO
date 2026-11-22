@@ -3,7 +3,7 @@
 Owns how Ashgrove looks and sounds as a place. See `docs/workstreams.md` for ownership.
 
 ## Backlog (top = next)
-- [x] Day and night sky: sun path, sky colours, stars (in review on `ws/world/day-night-sky`; open the PR if it isn't open yet)
+- [x] Day and night sky: sun path, sky colours, stars (merged, PR #9)
 - [ ] **Use the one shared clock.** Once gameplay's `WorldClock` (`game/shared/world_clock.gd`) is on main, make `SkyClock`/`DayNight` read time from it instead of their own Unix-time maths, and keep only the colour/light keys in `SkyClock`. Today the two clocks use different epochs, so the sky would jump when the server time arrives. Expose one entry point, `DayNight.set_world_seconds(s)`, for the client to call. (Director: the server clock wins; one source of truth.)
 - [ ] Lamps and ember-ash glow at night: a few procedural lanterns around the Spawn Meadow and a faint warm glow in ash leaves, driven by `WorldClock.daylight`
 - [ ] Bot behaviour `world_day_night.gd` on qa's `BotBehaviour` base (after qa's hook PR merges): sky phase advances in step with server time

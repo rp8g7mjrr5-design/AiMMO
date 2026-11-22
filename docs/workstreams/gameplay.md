@@ -3,8 +3,8 @@
 Owns the rules of the world. See `docs/workstreams.md` for ownership.
 
 ## Backlog (top = next)
-- [x] Shared world clock: `WorldClock`, `s2c_world_time`, protocol v2 (in review, PR #8)
-- [ ] **Fix the clock bot behaviour to fit qa's hook.** qa's hook (PR #7) loads behaviours that extend `tests/bot_test/bot_behaviour.gd` and calls `setup` / `on_login` / `on_play` / `on_snapshot` / `on_finish`, and reports any other script as a failure. `gameplay_world_clock.gd` extends `RefCounted` with `setup(bot, net)` / `finish(...)`. Whichever of #7 and #8 merges second must port it, or the bot test goes red. Director's call: qa's interface is the standard; gameplay adapts.
+- [x] Shared world clock: `WorldClock`, `s2c_world_time`, protocol v2 (merged, PR #8)
+- [x] **Fix the clock bot behaviour to fit qa's hook.** *Integrator: ported while merging #8 (#7 merged first).* qa's hook (PR #7) loads behaviours that extend `tests/bot_test/bot_behaviour.gd` and calls `setup` / `on_login` / `on_play` / `on_snapshot` / `on_finish`, and reports any other script as a failure. `gameplay_world_clock.gd` extends `RefCounted` with `setup(bot, net)` / `finish(...)`. Whichever of #7 and #8 merges second must port it, or the bot test goes red. Director's call: qa's interface is the standard; gameplay adapts.
 - [ ] Acked input seq in snapshots (`ack_seq` for the receiving player) so client can predict your own character. Protocol v3: **not on 2026-11-22** (v2 already bumped today). Client is waiting on this.
 - [ ] `/time` chat command that replies with `WorldClock.describe()` as a system message
 - [ ] Resource nodes, data only: deterministic placement of ash, pine, stone and ember-sap nodes from the world seed in `game/shared/` (pure function, unit tested), so world can draw them and the server can own them from the same list

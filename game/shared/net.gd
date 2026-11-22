@@ -13,6 +13,7 @@ signal player_left(id: int)
 signal snapshot(tick: int, entries: Array)
 signal chat_message(from_name: String, text: String)
 signal system_message(text: String)
+signal world_time(world_seconds: float)
 
 
 # --- client to server ---
@@ -63,3 +64,10 @@ func s2c_chat(from_name: String, text: String) -> void:
 @rpc("authority", "call_remote", "reliable")
 func s2c_system(text: String) -> void:
 	system_message.emit(text)
+
+
+## The shared clock, in world seconds (see WorldClock). Sent right after a successful login
+## and every GameConfig.WORLD_TIME_SYNC_SECONDS. Clients extrapolate between syncs.
+@rpc("authority", "call_remote", "reliable")
+func s2c_world_time(world_seconds: float) -> void:
+	world_time.emit(world_seconds)
