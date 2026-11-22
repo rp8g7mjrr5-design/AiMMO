@@ -209,3 +209,45 @@ Cooperation-first pillar directly: you can see where other people are and walk t
   the screenshot.
 - Good next picks: key rebinding, chat history on Up arrow. Gather/inventory UI as soon as
   gameplay ships the RPCs; the compass can then mark nodes too.
+
+## 2026-11-22: Press E to gather (ws/client/gather-prompt)
+
+**Why this item:** gameplay asked for it ("Requests from other streams" come first), and
+gathering is live on main through `/gather` only, which is a chat command, not a game action.
+Prediction still waits on `ack_seq`, the inventory window on `s2c_inventory`.
+
+**Built:**
+- `game/client/gather_prompt.gd` (`GatherPrompt`), bottom centre above the chat line:
+  "E  Gather Ember ash" for the nearest node within `ResourceNodes.GATHER_RANGE`; a seep in
+  daylight shows dimmed "Ember-sap seep  only seeps at night" and E does nothing. Press or hold
+  E: the client sends `/gather <kind>` as chat at most once per `PRESS_INTERVAL` (1.6 s, the
+  server's 1.5 s cooldown plus slack, and above the 0.5 s chat cooldown), an ember bar fills over
+  that interval, and the server's success line ("You gather 2 ash wood ... (6 in your pack)")
+  becomes a toast "+2 ash wood  (6)" that floats up and fades over 2.2 s. Replies still land in
+  chat as before.
+- `client.gd`: `interact` action on E in `_setup_input` (so key rebinding picks it up later),
+  `_update_gather` each logged-in frame (ignored while typing or in Settings), `_on_system`
+  hands lines to the prompt, hidden on disconnect, help line mentions E.
+- Tests: 7 unit tests in `tests/unit/test_client_gather_prompt.gd` (reach, agreement with
+  `Gathering.pick_target` on 180 positions, seeps at night, press interval, parsing every
+  `Gathering.success` line incl. "spent", toast fade, the widget sending twice in 3 s of held E).
+  Bot behaviour `client_gather_prompt.gd` runs the real widget on every bot, holding E whenever
+  the bot stands still. Bot run (8 bots, 180 s, websocket, Postgres): 8/8 ok, 2 to 5 presses and
+  2 to 4 toasts per bot, ~800 to 2200 prompt frames each, verify 8/8. Smoke passed.
+
+**Decisions:**
+- Send `/gather <kind>` of the prompted node, not bare `/gather`, so what you get is what the
+  prompt said (nodes are 6 m apart and reach is 3 m, so the kind picks that exact node; the unit
+  test checks it).
+- Hold-to-repeat: holding E while standing at a node is the natural way to empty it, and the
+  interval keeps it under the server cooldown so you don't get "Easy; you're still gathering."
+- Parse the server's English success line for the toast. Brittle on purpose for now: the regex
+  is unit tested against `Gathering.success` itself, so if gameplay rewords it the test goes red.
+  Protocol v3 should replace this with structured data.
+
+**Known gaps / notes to next run:**
+- The client can't tell a spent node (no `s2c_nodes` before v3), so the prompt shows on it and
+  the server's refusal explains in chat.
+- The smoke test spawns in the cleared meadow centre, so no screenshot shows the prompt; layout
+  is checked by unit tests only. If a playtester reports overlap with the chat, move it up.
+- Good next picks: key rebinding (now includes `interact`), chat history on Up arrow.
