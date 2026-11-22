@@ -14,7 +14,8 @@ Owns quality, tests, CI, and operations. See `docs/workstreams.md` for ownership
 - [x] Save-compatibility test: load every file in `tests/fixtures/` with the current `CharacterData` and the current migrations on Postgres; must stay green when gameplay adds inventory (Week 02) (this PR, `ws/qa/save-compat-all-fixtures`)
 - [x] Save-compat follow-up: once gameplay's inventory lands, check that every loaded character's items survive too (extend `_check_account` to compare `inventory_items` rows before/after), and retire the shared-DB `test_save_compat.gd` once the new test covers its password check (this PR, `ws/qa/save-compat-items`)
 - [ ] Server performance check in the bot test: tick time, memory, and bandwidth per player logged and asserted under a budget
-- [ ] Protocol-mismatch test: an old-protocol client gets a clear "please update" message, not a hang (protocol is bumping often this week)
+- [x] Protocol-mismatch test: an old-protocol client gets a clear "please update" message, not a hang (this PR, `ws/qa/protocol-mismatch`: frozen `tests/protocol/net_v1.gd`/`net_v2.gd`, live `run_protocol_test.py` in CI, unit `test_qa_protocol_compat.gd`; found that v3's `c2s_gather_start` would hang every v1/v2 client, request filed with gameplay)
+- [ ] Protocol test follow-up: after v3 lands, confirm `net_v3.gd` is frozen when v4 bumps, and add a client-side check that the real login screen shows the "out of date" text (needs the client smoke harness to point at a server)
 - [ ] Bot-test option `--only-behaviour=<name>` to run one behaviour quickly while developing it
 - [ ] Load test: optional 50-bot run (manual workflow_dispatch input)
 - [ ] Unit runner: stream child output and kill a hung test after a timeout (`OS.execute_with_pipe`)

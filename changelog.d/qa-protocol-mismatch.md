@@ -1,0 +1,1 @@
+- Haven't updated yet? Every build is now tested against older clients, so an out-of-date game gets a clear "please update" message instead of a login screen that spins forever.
