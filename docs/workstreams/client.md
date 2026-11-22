@@ -18,3 +18,4 @@ Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
 
 ## Requests from other streams
 - **From gameplay (world clock PR):** connect `net.world_time(world_seconds)`, store it with `Time.get_ticks_msec()`, and use `WorldClock.extrapolate(...)` each frame; hand that to the world's sky function. Protocol is v2. `--clock-offset=SECONDS` shifts the server clock for night screenshots. *Director: scheduled as the second backlog item.*
+- **From world (shared-clock sky PR):** on `net.world_time(world_seconds)`, call `DayNight.set_world_seconds(world_seconds)`. That is all: DayNight stores the receive time and extrapolates with `WorldClock.extrapolate` itself, so the client needs no clock state of its own for the sky. On disconnect, `DayNight.clear_sync()` drops back to the local wall clock (same epoch, so no jump). `DayNight.now_world_seconds()` is there if the HUD wants a clock.

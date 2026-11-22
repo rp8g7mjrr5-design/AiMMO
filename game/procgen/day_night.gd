@@ -3,14 +3,17 @@ extends Node
 ## Drives the sky, sun, moon, stars, fog, and ambient light from the time of day.
 ## WorldBuilder creates one of these; it repaints the world a few times a second.
 ##
-## Clock: every read goes through `now_fraction()`. Until the server sends a shared clock,
-## that uses the machine's Unix time, which is already close to the same for every player.
-## When gameplay adds the server clock, call `DayNight.sync_to_server(server_fraction)` and
-## nothing else needs to change. `AIMMO_TIME_OF_DAY=0.0..1.0` pins the time (screenshots, tests).
+## Clock: there is one source of truth, the server's `WorldClock`. The client calls
+## `DayNight.set_world_seconds(s)` whenever the server sends the time (s2c_world_time);
+## between syncs the time runs on from the last value. Before the first sync it uses
+## `WorldClock.now_seconds()` from this machine's wall clock, which has the same epoch as
+## the server, so the sky does not jump when the server's time arrives.
+## `AIMMO_TIME_OF_DAY=0.0..1.0` pins the time of day (screenshots, tests).
 
 const UPDATE_INTERVAL := 0.25 ## seconds between repaints; the sun moves 0.04 degrees in that time
 
-static var clock_offset := 0.0 ## seconds added to local Unix time to match the server
+static var synced_seconds := NAN ## last world seconds from the server; NAN until the first sync
+static var synced_at_msec := 0 ## Time.get_ticks_msec() when synced_seconds arrived
 static var pinned_fraction := -1.0 ## >= 0 freezes the clock at that fraction
 
 var env: Environment
@@ -19,17 +22,35 @@ var sun: DirectionalLight3D
 var _timer := 0.0
 
 
+## The one entry point for the server clock. Safe to call on every sync.
+static func set_world_seconds(world_seconds: float) -> void:
+	if not is_finite(world_seconds):
+		return
+	synced_seconds = world_seconds
+	synced_at_msec = Time.get_ticks_msec()
+
+
+## Forget the server sync (back to the local wall clock). Used on disconnect and by tests.
+static func clear_sync() -> void:
+	synced_seconds = NAN
+	synced_at_msec = 0
+
+
+static func is_synced() -> bool:
+	return not is_nan(synced_seconds)
+
+
+## World seconds right now as this client best knows them.
+static func now_world_seconds() -> float:
+	if is_synced():
+		return WorldClock.extrapolate(synced_seconds, synced_at_msec, Time.get_ticks_msec())
+	return WorldClock.now_seconds()
+
+
 static func now_fraction() -> float:
 	if pinned_fraction >= 0.0:
 		return fposmod(pinned_fraction, 1.0)
-	return SkyClock.day_fraction(Time.get_unix_time_from_system(), clock_offset)
-
-
-## Line the local clock up with the server's time of day (0..1). Safe to call every minute.
-static func sync_to_server(server_fraction: float) -> void:
-	var local := SkyClock.day_fraction(Time.get_unix_time_from_system())
-	var delta := fposmod(server_fraction - local, 1.0)
-	clock_offset = delta * SkyClock.DAY_LENGTH
+	return WorldClock.day_fraction(now_world_seconds())
 
 
 static func pin_from_env() -> void:
