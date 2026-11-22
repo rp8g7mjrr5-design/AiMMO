@@ -9,7 +9,9 @@ Owns how Ashgrove looks and sounds as a place. See `docs/workstreams.md` for own
 - [x] Lamps and ember-ash glow at night: 8 procedural lanterns ring the Spawn Meadow, ash leaves (decorative and node) glow faintly, sap seeps brighten; all from `Lamps.night_glow` on the shared clock (PR ws/world/lamps-night-glow)
 - [ ] Follow-up: lanterns along the first paths out of the meadow once there are paths or a town plan (gameplay/director), and a gentle flame flicker on the lamp lights
 - [x] Bot behaviour `world_day_night.gd` on qa's `BotBehaviour` base: sky time matches server time and moves forward (shipped with the shared-clock PR, it is that feature's test)
-- [ ] Biome variety: birch meadows near water, mossy boulders in pine forests, wildflower patches (deterministic from the world seed)
+- [x] Biome variety: birch groves on lake shores, mossy boulders in pine forests, wildflower patches; `Flora` in `game/procgen/flora.gd`, its own seed so the old forest is unchanged (PR ws/world/biome-variety)
+- [ ] Follow-up: wildflowers in the Spawn Meadow itself between the lanterns (kept clear for now), and reeds/lily pads at the water's edge
+- [ ] Follow-up: a "Detail" quality setting (client) could thin flowers on low-end machines; today they are cheap (2 MultiMeshes, 90 m visibility range, no shadows)
 - [x] Procedural resource-node props for gameplay's gathering (Week 02): ember ash, pine, stone outcrop with a pale seam, glowing ember-sap seep, each with a depleted look (stump, rubble, dry seep); scatter keeps 3 m clear of nodes (PR ws/world/resource-node-props)
 - [ ] Follow-up: a gentle "can gather" hint on the nearest node when gathering ships (outline or bob), once client shows the gather prompt
 - [ ] Gentle animated water (shader in code, no textures)

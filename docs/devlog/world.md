@@ -87,3 +87,24 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Known / not done.** No flicker yet. Lamps only exist at spawn; once there is a town or paths, extend `positions()` (follow-up in the backlog). Night luminance in the smoke shot rose from about 0.08 to about 0.13, still far below day (0.73); about 0.12 after toning the glass down.
 
 **Next run.** Biome variety (birch meadows near water, mossy boulders, wildflowers).
+
+## 2026-11-22: biome variety (shore birches, mossy boulders, wildflowers)
+**Built.** New `game/procgen/flora.gd` (`Flora`). `spots()` (cached) is a second scatter on its own seed (`WORLD_SEED + 401..404`): 260 birches on lake shores, 150 mossy boulders in the pine band, 220 wildflower patches of 12 flowers in the grasslands. `parts(spot)` and `layout()` are pure data; `build()` makes the "Flora" node with seven MultiMesh layers, added by `WorldBuilder` right after the decorative props.
+
+**Looks.** Birch: a slim chalk-white trunk with three dark bark bands and two tall yellow-green crowns, leaning up to about 6° (from a position hash). Boulder: a big squashed grey rock with a green moss hemisphere on top, and on about half of them a small mossy companion. Flowers: thin stems with a little bloom; each patch has one colour from five (yellow, violet, white, ember red, sky blue) with a couple of odd ones mixed in, and each flower sits on its own bit of ground so patches on slopes don't float.
+
+**Decisions.**
+- A separate scatter instead of new kinds inside `Props.scatter`, because changing that loop would shift every existing tree. A unit test pins the old scatter at 1800 entries.
+- "Near water" means open water (height below the water line) within 9 m in one of 8 directions, plus a height band just above the shore. Height alone would have put birches all over the 0.5 m-high Spawn Meadow.
+- Wildflowers cluster where a low-frequency noise mask is high, so they come in meadows, not evenly sprinkled.
+- Flora keeps 3 m off resource nodes, 11 m off spawn (outside the lantern ring), 2.2 m off decorative trees/rocks, and off other flora. No collision (nothing has collision yet).
+- Flower layers cast no shadows and stop drawing past 90 m: 2,640 tiny instances that nobody can see from further away.
+- The look's small variation comes from a hash of the position, never from the placement rng.
+
+**Didn't work.** First probe hung: GDScript couldn't infer types from `Variant` math inside the `match`, the script failed to compile, and a SceneTree script that never reaches `quit()` sits there forever. Always run probes under `timeout`. First flower patches (7 flowers) looked sparse in a close-up render; went to 12 and slightly bigger blooms.
+
+**Tested.** 151 unit tests with Postgres (6 new in `tests/unit/test_world_flora.gd`: every kind grows, each in its biome, clearances, determinism, old forest unchanged, parts), 8-bot 180 s websocket bot test passed (new behaviour `world_flora.gd`: ~58 look-arounds per bot, nearest flora 1.3 m, 8/8 characters persisted), client smoke test passed (day 0.727, night 0.123 luminance). I rendered a close-up of each kind on the real renderer and looked at them: birches around a lake read clearly as a different tree.
+
+**Known / not done.** Flora has no night glow (deliberately: only the ash is warm). The lake water still renders quite pale/white in software GL; worth a look when animated water is built.
+
+**Next run.** Gentle animated water (shader in code), unless a request comes in.
