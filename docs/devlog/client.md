@@ -168,3 +168,44 @@ tree, which logs an engine error that the runner counts as a failure; the handle
 - Bot run never hit the 150 cap or a faded chat (bots chat every 8 to 20 s); both are unit tested.
 - Good next picks: compass strip, key rebinding, chat history on Up arrow. Prediction as soon as
   gameplay ships `ack_seq`.
+
+## 2026-11-22: Compass strip (ws/client/compass)
+
+**Why this item:** prediction still waits on gameplay's `ack_seq`; inventory window and gather
+interaction still wait on gameplay (no `s2c_inventory` or gather RPC on main yet, only `/bag`
+and node placement). The compass strip was the top unblocked item, and it serves the
+Cooperation-first pillar directly: you can see where other people are and walk to them.
+
+**Built:**
+- `game/client/compass.gd` (`CompassStrip`): a 480x30 strip, top centre under the HUD line.
+  Shows ticks every 15 degrees, N/E/S/W (N in ember orange), a dot per other player (opaque
+  within 40 m, fading to 0.35 at 200 m), a chevron pinned to the near edge for players more
+  than 90 degrees off your view, pointing the shorter way to turn, and an ember diamond for the
+  Spawn Meadow (hidden within 12 m of it). Letters and ticks fade over the last 28 px of the
+  strip so they don't hang half off the ends (first smoke shot had a clipped "E" and "W").
+- Conventions: north = -Z, east = +X, headings clockwise from north. `heading(cam_yaw)` is
+  `-cam_yaw`, which matches the client camera forward `(-sin(yaw), 0, -cos(yaw))`; the unit
+  test checks that for 36 yaws.
+- `client.gd`: `compass` field, built in `_build_ui`, shown on login and hidden on disconnect,
+  fed at 20 Hz (`due()` throttle) from `other_positions()` (rendered positions of other avatars,
+  skipping ones still parked at y=-100 before their first snapshot).
+- Tests: 6 unit tests in `tests/unit/test_client_compass.gd` (heading vs camera forward,
+  cardinals, left/right/behind placement, distance and edge fade, home marker, client feed).
+  Bot behaviour `client_compass.gd` builds the marks from every real snapshot with a turning
+  camera and checks one mark per player, all on the strip, dots at the true bearing, chevrons on
+  the right side. Bot run: 8/8 ok, ~24k marks per bot (about half of them edge chevrons), up to 7
+  other players seen, Postgres verify 8/8. Smoke passed; world shot shows the strip facing S.
+
+**Decisions:**
+- 180-degree span: matches a wide third-person view closely enough that a dot near the strip's
+  edge is near the screen's edge too, and still leaves room to spread out a crowd.
+- Players behind you are always shown (as chevrons) rather than dropped, because "where is
+  everyone?" is the question the compass answers.
+- No names on the dots for now: a crowd at spawn would turn into unreadable text. Logged as a
+  follow-up (nearest-dot name) if it feels anonymous.
+
+**Notes to next run:**
+- Smoke test only ever has one player, so the dots are covered by the unit and bot tests, not
+  the screenshot.
+- Good next picks: key rebinding, chat history on Up arrow. Gather/inventory UI as soon as
+  gameplay ships the RPCs; the compass can then mark nodes too.

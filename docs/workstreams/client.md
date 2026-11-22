@@ -11,13 +11,15 @@ Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
 - [ ] Gather interaction: highlight the nearest node in range, press E to gather, a short progress bar and a "+1 Ash wood" toast
 - [x] Simple walk animation: procedural bob, waddle, and lean from rendered speed; swings ArmL/ArmR/LegL/LegR when the avatar has them (in review, PR #11)
 - [x] Chat polish: in-game timestamps, fade when idle, 150-line cap, /help hint (in review, ws/client/chat-polish). /who already shows as a system line from gameplay's commands.
-- [ ] Compass strip with other players' direction dots
+- [x] Compass strip with other players' direction dots, edge chevrons for players behind you, and a Spawn Meadow marker (in review, ws/client/compass)
 - [ ] Key rebinding in the Settings window (InputMap is built in `_setup_input`)
 - [ ] Separate UI/chat volume from world volume once there is more than one kind of sound
 - [ ] Field of view slider and UI scale for high-DPI screens
 - [x] Follow-up: hide the time dial's text (keep the disk) when the chat fades (ws/client/chat-polish)
 - [ ] Follow-up: Up/Down arrow in the chat box recalls your last sent lines
 - [ ] Follow-up: chat fade timing (hold/fade seconds) in Settings, if playtesters find 12 s too short
+- [ ] Follow-up: compass markers for gathering nodes of the kind you're after, once gathering ships (reuse `CompassStrip.strip_x`)
+- [ ] Follow-up: hover or nearest-dot name on the compass ("Ash · 23 m") if the dots alone feel anonymous
 - [ ] Follow-up: soft procedural footstep sounds in time with the walk cycle (`WalkAnim.phase` crosses 0 and PI on each footstep)
 
 ## Requests from other streams
