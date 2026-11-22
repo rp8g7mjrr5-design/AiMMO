@@ -42,6 +42,7 @@ docs/
   workstreams/<stream>.md ← each workstream's backlog
   weekly_task.md          ← the Friday weekly review
   budget.md               ← weekly work cap, set by the owner
+  digest/YYYY-MM-DD.md    ← the director's daily summary for the owner
 CHANGELOG.md              ← player-facing patch notes, also shown in-game (integrator only)
 changelog.d/              ← one fragment per PR, folded into CHANGELOG.md by the integrator
 game/                     ← Godot 4 project
@@ -71,4 +72,5 @@ Dockerfile                ← server container for Railway
 Development runs continuously. Find your role in the prompt that started your session:
 - **Worker** (`world`, `gameplay`, `client`, or `qa`): follow the worker procedure in `docs/workstreams.md` exactly.
 - **Integrator**: follow the integrator procedure in `docs/workstreams.md` exactly.
+- **Director** (daily): follow the director procedure in `docs/workstreams.md` exactly.
 - **Weekly review** (Fridays): follow `docs/weekly_task.md` exactly.

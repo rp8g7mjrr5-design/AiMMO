@@ -29,7 +29,7 @@ the next week. The update must be live and playable by the weekend.
 - If the design vision changed, log it in the design bible's revision history with the reason.
 
 ## 5. Ship
-- Push to `main`. Confirm the Actions run passes, the server redeploys, and the GitHub Release `Week NN — <headline>` shows the final notes and client builds.
+- Open a PR with these changes, wait for the "Test" check, and merge it (`main` is protected; never push to it directly). Confirm the Actions run on `main` passes, the server redeploys, and the GitHub Release `Week NN — <headline>` shows the final notes and client builds.
 - If the deploy fails, roll back to the last good commit and confirm the previous version is live.
 
 ## 6. Report
