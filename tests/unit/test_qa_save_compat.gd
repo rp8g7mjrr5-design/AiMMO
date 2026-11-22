@@ -16,9 +16,16 @@ extends TestCase
 ## Needs DATABASE_URL and a role that may CREATE DATABASE (CI's is the superuser). Each
 ## fixture gets its own throwaway database, dropped afterwards, so it never touches the
 ## shared test database other tests use.
+##
+## Packs (inventory_items, migration 0002) are checked the same way: every stored row loads
+## with its quantity, zeros and item ids the game no longer knows included, and no row is
+## ever deleted by loading or saving. A fixture may also name the plain password its hash was
+## made from, with a header `-- password: <text>` (or the older comment form
+## `Password is "<text>"`), and the test checks that password still logs in.
 
 const FIXTURES_DIR := "res://tests/fixtures"
 const HEADER := "schema-version:"
+const PASSWORD_HEADER := "password:"
 
 
 ## Pure: the schema version a fixture declares, or "" when it has no header.
@@ -31,6 +38,67 @@ static func schema_version_of(sql: String) -> String:
 		if l.begins_with(HEADER):
 			return l.substr(HEADER.length()).strip_edges()
 	return ""
+
+
+## Pure: the plain password a fixture says its hashes were made from, or "" if it says none.
+## Accepts a header `-- password: <text>` or a comment containing `Password is "<text>"`.
+static func password_of(sql: String) -> String:
+	for line in sql.split("\n"):
+		var l := line.strip_edges()
+		if not l.begins_with("--"):
+			continue
+		l = l.substr(2).strip_edges()
+		if l.begins_with(PASSWORD_HEADER):
+			return l.substr(PASSWORD_HEADER.length()).strip_edges()
+		var at := l.find("Password is \"")
+		if at >= 0:
+			var start := at + "Password is \"".length()
+			var end := l.find("\"", start)
+			if end > start:
+				return l.substr(start, end - start)
+	return ""
+
+
+## Pure: {character_id: {item: qty}} from inventory_items rows.
+static func packs_by_character(rows: Array) -> Dictionary:
+	var out := {}
+	for r in rows:
+		var cid := int(r.character_id)
+		if not out.has(cid):
+			out[cid] = {}
+		out[cid][str(r.item)] = int(r.qty)
+	return out
+
+
+## Pure: what is wrong with `got` as a load of the stored pack `want` (both item -> qty).
+## Every stored item must come back with its quantity, zeros and unknown ids included;
+## nothing may appear that wasn't stored. Empty array means it is right.
+static func pack_problems(want: Dictionary, got: Dictionary, extra := "appeared from nowhere") -> PackedStringArray:
+	var out := PackedStringArray()
+	for item in want:
+		if not got.has(item):
+			out.append("'%s' (x%d) lost" % [item, want[item]])
+		elif int(got[item]) != int(want[item]):
+			out.append("'%s' x%d became x%d" % [item, want[item], got[item]])
+	for item in got:
+		if not want.has(item):
+			out.append("'%s' x%d %s" % [item, got[item], extra])
+	return out
+
+
+## Pure: the pack the round-trip saves: every item +1 except the first (sorted), which is
+## used up to 0, plus one new stack of a real item. Exercises a change, a zero and an insert.
+static func changed_pack(inv: Dictionary) -> Dictionary:
+	var out := {}
+	var keys := inv.keys()
+	keys.sort()
+	for i in keys.size():
+		out[keys[i]] = 0 if i == 0 else mini(int(inv[keys[i]]) + 1, Inventory.MAX_STACK)
+	for item in Inventory.ITEM_ORDER:
+		if not out.has(item):
+			out[item] = 3
+			break
+	return out
 
 
 ## Pure: the migration files that existed at `version` ("0001" keeps 0001_*.sql and older).
@@ -83,6 +151,34 @@ func test_url_with_database() -> void:
 	check_eq(p.database, "other")
 	check_eq(p.sslmode, "require")
 	check_eq(_ident("Week-02 inv.v2"), "week_02_inv_v2", "database name piece")
+
+
+func test_password_parsing() -> void:
+	check_eq(password_of("-- password: hunter2\nINSERT"), "hunter2", "header")
+	check_eq(password_of("-- Password is \"oldpassword\" hashed with 1000 iterations."), "oldpassword", "comment form")
+	check_eq(password_of("INSERT INTO accounts VALUES ('Password is \"x\"');"), "", "only comments count")
+	check_eq(password_of("-- nothing here\n"), "", "none")
+
+
+func test_pack_checks() -> void:
+	var rows := [
+		{"character_id": "5", "item": "stone", "qty": "0"},
+		{"character_id": 5, "item": "retired_relic", "qty": 1},
+		{"character_id": 6, "item": "ash_wood", "qty": 9},
+	]
+	var packs := packs_by_character(rows)
+	check_eq(packs, {5: {"stone": 0, "retired_relic": 1}, 6: {"ash_wood": 9}}, "grouped")
+	check_eq(pack_problems({"stone": 0, "relic": 1}, {"stone": 0, "relic": 1}), PackedStringArray(), "same pack")
+	check_eq(pack_problems({"stone": 0}, {}), PackedStringArray(["'stone' (x0) lost"]), "a zero row counts")
+	check_eq(pack_problems({"relic": 2}, {"relic": 1}), PackedStringArray(["'relic' x2 became x1"]))
+	check_eq(pack_problems({}, {"stone": 1}), PackedStringArray(["'stone' x1 appeared from nowhere"]))
+	var changed := changed_pack({"stone": 4, "ash_wood": 98, "relic": 1})
+	check_eq(changed.ash_wood, 0, "first sorted item used up")
+	check_eq(changed.relic, 2, "others +1")
+	check_eq(changed.stone, 5, "others +1")
+	check_eq(changed_pack({"ash_wood": 99, "pine_wood": 99}).pine_wood, Inventory.MAX_STACK, "capped at a full stack")
+	check_eq(changed.get("pine_wood"), 3, "a new real item stack is added")
+	check_eq(changed_pack({}), {"ash_wood": 3}, "empty pack gets one stack")
 
 
 func test_there_are_fixtures() -> void:
@@ -138,6 +234,7 @@ func _check_fixture(admin: PgClient, base: String, fixture: String, db_name: Str
 	var all := Migrator.list_files(mig_dir)
 	var url := url_with_database(base, db_name)
 	var before: Variant = null
+	var packs: Variant = {}
 	var tried := PackedStringArray()
 
 	# 1 and 2. The schema as it was when the fixture was written, the old data, and a raw
@@ -169,6 +266,13 @@ func _check_fixture(admin: PgClient, base: String, fixture: String, db_name: Str
 			"ORDER BY a.id")
 		if before == null:
 			check(false, "%s: snapshot: %s" % [fixture, db.last_error])
+		else:
+			packs = _snapshot_packs(db)
+			if packs == null:
+				check(false, "%s: pack snapshot: %s" % [fixture, db.last_error])
+				before = null
+				db.close()
+				return
 		db.close()
 		print("[qa] save-compat: %s written for schema %s, upgrading through %d later migration(s)" % [
 			fixture, version, all.size() - migrations_up_to(all, version).size()])
@@ -178,12 +282,24 @@ func _check_fixture(admin: PgClient, base: String, fixture: String, db_name: Str
 		admin.simple_query("DROP DATABASE IF EXISTS %s" % db_name)
 		return
 	check(before.size() >= 1, "%s inserts no accounts" % fixture)
-	_check_upgraded(fixture, url, mig_dir, before)
+	_check_upgraded(fixture, url, mig_dir, before, packs, password_of(sql))
 	if admin.simple_query("DROP DATABASE IF EXISTS %s" % db_name) == null:
 		check(false, "%s: could not drop %s: %s" % [fixture, db_name, admin.last_error])
 
 
-func _check_upgraded(fixture: String, url: String, mig_dir: String, before: Array) -> void:
+## {character_id: pack} as stored, or {} on a schema from before inventory_items existed
+## (those characters simply have empty packs), or null if the query failed.
+func _snapshot_packs(db: PgClient) -> Variant:
+	var t: Variant = db.query("SELECT count(*) AS n FROM pg_tables WHERE tablename = 'inventory_items'")
+	if t == null or t.is_empty():
+		return null
+	if int(t[0].n) == 0:
+		return {}
+	var rows: Variant = db.query("SELECT character_id, item, qty FROM inventory_items")
+	return null if rows == null else packs_by_character(rows)
+
+
+func _check_upgraded(fixture: String, url: String, mig_dir: String, before: Array, packs: Dictionary, password: String) -> void:
 	# 3. Today's server opens it: runs the remaining migrations, then loads every character.
 	var store := PgStore.new()
 	store.url = url
@@ -193,19 +309,27 @@ func _check_upgraded(fixture: String, url: String, mig_dir: String, before: Arra
 		store.close()
 		return
 	var count_before := _character_count(store)
+	var stored_rows := 0
+	for cid in packs:
+		stored_rows += packs[cid].size()
 	for row in before:
-		_check_account(fixture, store, row)
+		_check_account(fixture, store, row, packs, password)
 	check_eq(_character_count(store), count_before, "%s: loading created characters" % fixture)
+	var rows_now := _count(store, "SELECT count(*) AS n FROM inventory_items")
+	check(rows_now >= stored_rows, "%s: inventory_items went from %d to %d rows (rows are never deleted)" % [
+		fixture, stored_rows, rows_now])
 	store.close()
 
 
-func _check_account(fixture: String, store: PgStore, row: Dictionary) -> void:
+func _check_account(fixture: String, store: PgStore, row: Dictionary, packs: Dictionary, password: String) -> void:
 	var who := "%s/%s" % [fixture, row.username_lc]
 	var acct := store.find_account(row.username_lc)
 	check(not acct.is_empty(), who + ": account not found")
 	if acct.is_empty():
 		return
 	check_eq(acct.password_hash, row.password_hash, who + ": password hash changed")
+	if password != "":
+		check(CryptoUtil.verify_password(password, acct.password_hash), who + ": the old password no longer logs in")
 	if row.get("id") == null:
 		return  # account that never made a character: creating one now is fine
 	var ch := store.load_or_create_character(acct)
@@ -221,11 +345,17 @@ func _check_account(fixture: String, store: PgStore, row: Dictionary) -> void:
 	check(CharacterData.position(ch).distance_to(want) < 0.001,
 		"%s: position %s, stored %s" % [who, CharacterData.position(ch), want])
 	check_near(ch.yaw, float(row.yaw), 0.0001, who + ": yaw")
+	var stored_pack: Dictionary = packs.get(int(row.id), {})
+	for p in pack_problems(stored_pack, ch.inventory):
+		check(false, "%s: pack on load: %s" % [who, p])
+	if not stored_pack.is_empty():
+		print("[qa] save-compat: %s carries %d stored item row(s)" % [who, stored_pack.size()])
 
 	# Save and load again: what the server writes back must read back the same.
 	# (normalize, because the store snaps a moved character back onto the terrain)
 	ch.x += 1.0
 	ch.yaw = 0.5
+	ch.inventory = changed_pack(ch.inventory)
 	ch = CharacterData.normalize(ch)
 	check(store.save_character(ch), who + ": save failed: " + store.last_error)
 	var again := store.load_or_create_character(acct)
@@ -236,10 +366,21 @@ func _check_account(fixture: String, store: PgStore, row: Dictionary) -> void:
 			check(absf(float(a) - b) < 0.0001, "%s: '%s' after save: %s vs %s" % [who, k, a, b])
 		else:
 			check_eq(a, b, "%s: '%s' after save" % [who, k])
+	# And straight from the table: every row that existed is still there, holding what was saved.
+	var raw: Variant = store._q("SELECT character_id, item, qty FROM inventory_items WHERE character_id = $1", [ch.id])
+	check(raw != null, who + ": reading inventory_items: " + store.last_error)
+	if raw != null:
+		var saved: Dictionary = packs_by_character(raw).get(int(ch.id), {})
+		for p in pack_problems(ch.inventory, saved, "is still in the table but the loaded pack lost it"):
+			check(false, "%s: inventory_items after save: %s" % [who, p])
 
 
 func _character_count(store: PgStore) -> int:
-	var r: Variant = store._q("SELECT count(*) AS n FROM characters")
+	return _count(store, "SELECT count(*) AS n FROM characters")
+
+
+func _count(store: PgStore, sql: String) -> int:
+	var r: Variant = store._q(sql)
 	return -1 if r == null or r.is_empty() else int(r[0].n)
 
 

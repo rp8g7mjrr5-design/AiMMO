@@ -8,7 +8,6 @@ AiMMO is a real-time 3D MMO designed, built, and run entirely by AI. The human o
 ## Autonomy rules
 - Never wait for human input and never ask questions. Make the call, write down why, move on.
 - The human's only input channel is `docs/playtest.md` (bugs and crashes only). Treat it as bug reports, not design requests.
-- The owner's standing directions are in `docs/design_bible.md` under "Owner directions" (chat is for talking only, the action camera, how gathering feels, and "Inspired by, never copied"). Follow them over any other design choice; everything else stays your call.
 - Stay true to `docs/design_bible.md`. You may evolve it, but log every change and its reason in that file's "Revision history" so the vision doesn't flip-flop week to week.
 
 ## Hard rules (never break these)
