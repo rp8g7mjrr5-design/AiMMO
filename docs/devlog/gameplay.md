@@ -242,3 +242,75 @@ nearest where the bot stands (starting one of the 4 nearest in, so bots spread o
 the 45 s ENet test passed 3 times in a row with every bot gathering on both logins, and the
 180 s websocket test passed too. Lesson for next time: run the 45 s ENet bot test as well,
 not just the 3-minute one.
+
+## 2026-11-22 (sixth run): crafting through `/craft`, tools that help gathering
+
+**Built.** `game/shared/crafting.gd` (`Crafting`): the workbench at `WORKBENCH_XZ` (x 3,
+z -2, 3.6 m from the spawn point, inside the empty meadow centre, no node within 4 m), use
+range `BENCH_RANGE` 6 m, and four recipes: stone axe (3 ash wood, 2 stone), stone pickaxe
+(3 pine wood, 3 stone), torches (1 pine wood + 1 ember sap -> 3, anywhere), campfire (2 ash,
+2 pine, 4 stone). `check` returns "unknown", "owned", "bench", "missing" or "full"; replies
+name exactly what is missing and where the bench is. `Inventory.ITEMS` gains the four
+products. `Gathering` gains `TOOLS`, `tool_for`, `amount_for` (+1 per gather with the right
+tool) and `cooldown_for` (x0.5); `check` takes the player's cooldown as an optional last
+argument, so old callers are unchanged. `server.gd` gets `craft(peer, word)`: check, then
+`take_item` per ingredient, then `give_item`, with rollback if a step ever fails. Chat:
+`/craft` (aliases `/make`, `/build`; `/recipes` lists), and `/help` mentions it.
+
+**Why these calls.**
+- Protocol v3 (the owner-requested real gathering) is still blocked today: v2 shipped
+  today and it is 16:30 Chicago on the 22nd. Crafting was the next unblocked item and fits
+  without a protocol change, the same way `/gather` did.
+- No migration: products are ordinary item ids in `inventory_items`. Old saves load as
+  before (nothing in them changes); unknown-id handling in `Inventory.normalize` already
+  keeps anything future versions retire.
+- Tools never wear out and you can only hold one of each: durability is a grind tax with no
+  fun at this stage (pillar 1), and "you need one axe" keeps the pack readable. Revisit if
+  the economy needs a sink.
+- Tools give +1 item and half the cooldown rather than only "speed": through chat, a 1.5 s
+  cooldown barely shows, but a bigger haul does. `TOOL_SPEED` is the hook for v3's timed
+  gather channel.
+- The torch needs ember sap (night-only), so torches are a night activity, which fits the
+  Week 05 "torches keep danger away" plan. It is the only recipe without the bench.
+- Ingredient costs are first guesses sized against the starter ring (6 wood/stone nodes,
+  3 charges x 2 items): one axe is about 2 tree gathers + 1 rock gather.
+- The workbench has no visible prop yet; request filed in world's backlog. Until then the
+  refusal tells players the distance and compass direction to it, and new players arrive
+  in range anyway.
+
+**Tests.** `tests/unit/test_gameplay_crafting.gd`, 8 tests: recipes well-formed and in
+`Inventory`, bench placement (dry, clear, spawn in reach), word parsing, every refusal in
+order, reply text, the take/give bookkeeping, tool effects on amount/cooldown/check, and
+`/craft` routing. Bot behaviour `gameplay_crafting.gd`: after each login the bot holds
+still, needs the recipe list from `/craft`, then `/craft axe` must be judged by the server's
+own position (sent to the bench when far, pack-checked when near; positions within 1 m of
+the edge are skipped).
+Results: 153 unit tests pass with Postgres. Bot test 8 bots x 180 s websocket + Postgres
+PASSED (every bot listed recipes twice, 15 clear axe checks, 0 skipped); 8 bots x 45 s ENet
+PASSED. Client smoke test passes. The first 180 s run had the bench at x 4, z -3, exactly
+5 m from spawn, which sits on the 1 m "too close to call" edge, so first logins were
+skipped; moved it to x 3, z -2 (3.6 m) so a new player is clearly in reach.
+
+**Gotcha.** A static function named `is_tool` on a `class_name` script collides with
+`Script.is_tool()`: the call parses as the built-in with 0 arguments. Renamed to
+`makes_tool`.
+
+**Known gaps.** Bots never actually complete a craft (they can't afford one in a bot-test
+login); the unit tests prove the bookkeeping, and the server glue is a thin loop over
+`take_item`/`give_item`. Campfires and torches do nothing yet: placing campfires is the next
+backlog item after v3.
+
+**Change in the same run (owner direction: chat is for talking).** After the PR opened, the
+coordinator passed on the owner's standing rule (PR #40): no gameplay through chat, new
+systems UI-first. So `/craft` is now a hidden debug/bot command: dropped from `HELP` (the
+unit test now asserts it is *not* listed), the recipe list no longer says "type /craft", and
+the changelog fragment no longer tells players to type anything. The rules and the server's
+`craft()` stay: they are exactly what `c2s_craft(recipe_id)` will call. Asked client for the
+workbench window and added `c2s_craft` to the backlog for v3/v4. Until the `--dev-commands`
+gate lands (separate backlog item), the hidden command still works on the live server.
+
+**Notes to next run.**
+- 2026-11-23: protocol v3 first (director's top item). Try to fit `c2s_craft` +
+  `s2c_craft_result` into the same bump. Scale the gather channel by
+  `Gathering.TOOL_SPEED` when `tool_for` finds a tool, and send `s2c_inventory` after
+  crafts too.

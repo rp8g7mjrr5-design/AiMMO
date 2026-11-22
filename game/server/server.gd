@@ -248,6 +248,10 @@ func _on_chat(id: int, text: String) -> void:
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [gather(id, ChatCommands.argument(clean))])
 		return
+	if ChatCommands.is_craft(clean):
+		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
+		_send(id, "s2c_system", [craft(id, "" if ChatCommands.name_of(clean) == "recipes" else ChatCommands.argument(clean))])
+		return
 	if ChatCommands.is_command(clean):
 		var online: Array = []
 		for other in sessions:
@@ -281,18 +285,57 @@ func gather(id: int, kind_word: String = "") -> String:
 	var node_id := Gathering.pick_target(gathering, pos, now, ws, kind)
 	if node_id < 0:
 		return Gathering.refusal("none", gathering, -1, pos, now, ws, kind)
-	var why := Gathering.check(gathering, node_id, pos, now, ws, s.last_gather)
+	var node_kind := str(ResourceNodes.get_by_id(node_id).kind)
+	var inv: Dictionary = s.character.inventory
+	var why := Gathering.check(gathering, node_id, pos, now, ws, s.last_gather, Gathering.cooldown_for(node_kind, inv))
 	if why != "":
 		return Gathering.refusal(why, gathering, node_id, pos, now, ws, kind)
+	var tool := Gathering.tool_for(node_kind, inv)
 	var got := Gathering.take(gathering, node_id, now)
-	var added := give_item(id, got.item, got.qty)
+	var added := give_item(id, got.item, Gathering.amount_for(node_kind, inv))
 	if added <= 0:
 		Gathering.give_back(gathering, node_id)
 		return Gathering.refusal("full", gathering, node_id, pos, now, ws, kind)
 	s.last_gather = now
 	if got.depleted:
 		print("[gather] node %d depleted for %ds" % [node_id, int(got.respawn)])
-	return Gathering.success(node_id, added, Inventory.count(s.character.inventory, got.item), got.depleted)
+	return Gathering.success(node_id, added, Inventory.count(s.character.inventory, got.item), got.depleted, tool)
+
+
+## A player crafts ("/craft axe"), or lists the recipes ("/craft" or "/recipes"). The
+## server checks the recipe against its own copy of the pack and position (Crafting.check),
+## then uses up the ingredients and hands over the product through take_item/give_item.
+## check() already made sure everything is there and there is room, so this can't half-run;
+## if it ever does, the ingredients taken so far go back. Returns the reply for the player.
+func craft(id: int, recipe_word: String = "") -> String:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return ""
+	var s: Dictionary = sessions[id]
+	var inv: Dictionary = s.character.inventory
+	var recipe = Crafting.parse_recipe(recipe_word)
+	if recipe == null:
+		return "Unknown recipe \"%s\". %s" % [recipe_word.substr(0, 20), Crafting.recipes_text(inv)]
+	if recipe == "":
+		return Crafting.recipes_text(inv)
+	var pos := CharacterData.position(s.character)
+	var why := Crafting.check(inv, recipe, pos)
+	if why != "":
+		return Crafting.refusal(why, inv, recipe, pos)
+	var r: Dictionary = Crafting.RECIPES[recipe]
+	var taken := {}
+	for item in r.needs:
+		if not take_item(id, item, int(r.needs[item])):
+			for back in taken:
+				give_item(id, back, int(taken[back]))
+			return Crafting.refusal("missing", inv, recipe, pos)
+		taken[item] = int(r.needs[item])
+	var made := give_item(id, recipe, int(r.makes))
+	if made <= 0:
+		for back in taken:
+			give_item(id, back, int(taken[back]))
+		return Crafting.refusal("full", inv, recipe, pos)
+	print("[craft] %s made %d %s" % [s.character.name, made, recipe])
+	return Crafting.success(recipe, made, inv)
 
 
 ## Server-authoritative inventory changes. Every system that hands out or uses up items

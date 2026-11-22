@@ -1,0 +1,1 @@
+- Behind the scenes: the rules for crafting a stone axe, a stone pickaxe, torches and a campfire are in, and so are tools that make gathering faster and richer. The Spawn Meadow workbench and its crafting window come next.
