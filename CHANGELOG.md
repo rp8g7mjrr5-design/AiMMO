@@ -5,6 +5,9 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- **Arms and legs!** Wanderers finally have them. Arms swing, little boots stomp, and nobody slides across the meadow like a chess piece any more. Sleeves match your tunic and trousers are a darker shade of it, so every look you already had just got a matching outfit.
+- **A sun-and-moon dial.** A little dial now sits above the chat with the day and hour, e.g. "Day 3 · 18:20 · Dusk". Plan your evening walks accordingly.
+- **Same sunset for everyone.** Your sky now follows the server's clock exactly, so everyone in Ashgrove sees the sun go down at the same moment (no more private time zones).
 - **What time is it?** Lost track of the sun? Type `/time` in chat to see the day and hour in Ashgrove, and how long until dawn, day, dusk, or night.
 - **Who's around?** Type `/who` to see who else is wandering Ashgrove right now, and `/help` for the list of commands. Only you see the answers.
 - **Everyone walks.** Wanderers now bob with each step, waddle side to side, and lean into their stride, then settle back and breathe gently when they stop. Name tags stay perfectly steady above their heads while they bounce along beneath.
