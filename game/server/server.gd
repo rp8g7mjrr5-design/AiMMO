@@ -247,7 +247,7 @@ func _on_chat(id: int, text: String) -> void:
 		for other in sessions:
 			if sessions[other].logged_in:
 				online.append(sessions[other].character.name)
-		var reply := ChatCommands.run(clean, {"world_seconds": world_seconds(), "online": online})
+		var reply := ChatCommands.run(clean, {"world_seconds": world_seconds(), "online": online, "inventory": s.character.inventory})
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [reply])
 		return
@@ -255,6 +255,30 @@ func _on_chat(id: int, text: String) -> void:
 	for other in sessions:
 		if sessions[other].logged_in:
 			_send(other, "s2c_chat", [s.character.name, clean])
+
+
+## Server-authoritative inventory changes. Every system that hands out or uses up items
+## (gathering, crafting, quests) goes through these two, never edits the Dictionary itself.
+## The change is saved with the character (autosave, logout, shutdown). Until protocol v3
+## adds s2c_inventory, the client sees its pack in the login character and via /bag.
+## Returns how many were added (stacks cap at Inventory.MAX_STACK).
+func give_item(id: int, item: String, qty: int) -> int:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return 0
+	var added := Inventory.add(sessions[id].character.inventory, item, qty)
+	if added > 0:
+		print("[inventory] %s +%d %s" % [sessions[id].character.name, added, item])
+	return added
+
+
+## Removes exactly qty of item, or nothing. Returns whether it was removed.
+func take_item(id: int, item: String, qty: int) -> bool:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return false
+	var ok := Inventory.remove(sessions[id].character.inventory, item, qty)
+	if ok:
+		print("[inventory] %s -%d %s" % [sessions[id].character.name, qty, item])
+	return ok
 
 
 ## Sends an RPC only if the peer is still fully connected. A peer that has started

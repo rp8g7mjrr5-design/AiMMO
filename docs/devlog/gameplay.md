@@ -122,3 +122,59 @@ behaviour: there is nothing a player can do with nodes yet. The gathering PR add
   `s2c_nodes` state message (depleted ids) for the client and world to hide depleted nodes.
 - If the fingerprint test ever fails on another platform (float formatting), switch the
   fingerprint to rounded integers in centimetres rather than loosening the test.
+
+## 2026-11-22 (fourth run): inventory (the pack), no protocol change
+
+**Built.** `game/shared/inventory.gd` (`Inventory`): a pack is a Dictionary of item id to
+quantity. Four items (`ash_wood`, `pine_wood`, `stone`, `ember_sap`, matching
+`ResourceNodes.KINDS[*].item`), stacks capped at 99 per id. Pure functions: `add` (caps,
+refuses unknown ids and non-positive amounts, returns how many went in), `remove` (all or
+nothing), `count`, `has`, `held`, `total`, `describe`, `normalize`. Migration
+`0002_inventory_items.sql`: `inventory_items (character_id, item, qty >= 0, updated_at)`,
+primary key `(character_id, item)`. `CharacterData.DEFAULTS.inventory = {}`, normalized
+through `Inventory.normalize`. `PgStore` loads the rows into `ch.inventory` and upserts the
+whole pack in one statement on every save; `JsonStore` keeps it inside the character.
+`server.gd` has `give_item(peer, item, qty)` / `take_item(peer, item, qty)`, the only way
+systems should change a pack. New chat command `/bag` (aliases `/pack`, `/inventory`,
+`/inv`, `/i`). New fixture `tests/fixtures/week00_inventory.sql` with the
+`-- schema-version: 0002` header qa asked for.
+
+**Why these calls.**
+- Top unblocked item: `ack_seq` still waits for tomorrow (protocol v2 went out today).
+- No `s2c_inventory` yet. Adding an RPC to `net.gd` changes the RPC table, which is a
+  protocol change, and the once-a-day limit is already spent. The client gets the pack in
+  the login `character` Dictionary (adding a key is not a protocol change; old clients
+  ignore it) and players see it through `/bag`. `s2c_inventory` should ride along with
+  `ack_seq` in protocol v3, so it's one bump for both.
+- Removed items stay in the Dictionary at 0 and are saved as `qty = 0` instead of the row
+  being deleted. Hard rule 1 says never delete player data; this keeps the server free of
+  DELETEs on player tables entirely, and the next save after a reload never needs to know
+  which rows went stale.
+- `normalize` keeps unknown item ids. If an item is ever retired from `ITEMS`, nobody's
+  saved stack of it vanishes; it shows up by its id in `/bag` and stays in the database.
+- Upsert the whole pack every save (one statement, at most a handful of rows) rather than
+  tracking dirty items. Cheap at this size; revisit if packs grow to hundreds of ids.
+- If loading inventory rows fails, the store returns `{}` for the character, so the login
+  is refused instead of handing out an empty pack that could later be saved over the real one.
+  (An upsert of an empty pack writes nothing anyway, but this keeps the failure loud.)
+- Put the pack round-trip and fixture test in `test_gameplay_inventory.gd`, not
+  `test_save_compat.gd`, because that file belongs to qa. qa's pending generic save-compat
+  test (PR #29) also passes with the new fixture: I ran their file locally against this branch.
+
+**Tests.** 9 unit tests in `tests/unit/test_gameplay_inventory.gd` (stacking and cap,
+all-or-nothing remove, normalize repairs and keeps unknown ids, items match node kinds,
+CharacterData defaults are never shared, `/bag`, JsonStore and PgStore round-trips, the
+fixture loads with a qty-0 and an unknown item and round-trips). 121 unit tests pass with
+Postgres. Bot test (8 bots, 180 s, websocket, Postgres) PASSED: new behaviour
+`gameplay_inventory.gd` checks every login character has an `inventory` Dictionary and
+that `/bag` answers (16 answers across 8 bots x 2 logins). Client smoke test passes.
+
+**Known gaps.** Nothing gives items yet, so every live pack is empty until gathering ships.
+`give_item` / `take_item` have no caller yet (they are thin wrappers over the unit-tested
+`Inventory.add` / `remove`); the gathering PR calls them and exercises them in the bot test.
+
+**Notes to next run.**
+- Next (from 2026-11-23): protocol v3 = `ack_seq` in snapshots + `s2c_inventory(items)`
+  sent after login and after every `give_item` / `take_item`. Then gathering
+  (`c2s_gather`, `s2c_nodes`), which needs a protocol bump too: if v3 lands on the 23rd,
+  either put `c2s_gather`/`s2c_nodes` into v3 as well or wait until the 24th.
