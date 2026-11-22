@@ -1,5 +1,6 @@
 class_name WorldBuilder
-## Assembles the visible world: terrain chunks, water, trees, rocks, resource nodes, sky, sun, and fog.
+## Assembles the visible world: terrain chunks, water, trees, rocks, flora (birches, mossy boulders,
+## wildflowers), resource nodes, sky, sun, and fog.
 ## Everything is generated here from code and the shared world seed.
 ## A DayNight child moves the sun, repaints the sky, and lights the lamps with the time of day.
 
@@ -22,6 +23,7 @@ static func build() -> Node3D:
 	root.add_child(_water())
 	for n in _props():
 		root.add_child(n)
+	root.add_child(Flora.build())
 	root.add_child(NodeProps.build())
 	root.add_child(Lamps.build())
 	dn.apply(DayNight.now_fraction()) # light the lamps and leaves now that they exist
