@@ -94,3 +94,24 @@ passed in 185s; client smoke passed three times locally.
 
 **Next run:** triage playtest.md, then the health endpoint / heartbeat for Railway, or the
 save-compat test before gameplay's Week 02 inventory lands.
+
+## 2026-11-22 — fixed the ENet bot-test flake (max channels: 0)
+
+PR #21 (night smoke) was merged before this fix landed on its branch, so it ships as its own
+PR on `ws/qa/no-peer-relay`.
+
+After the integrator merged `main` into #21, both of its CI runs failed the 45s ENet bot
+test with `server: ERROR: Unable to send packet on channel 0, max channels: 0` (the same
+error made `main` red on #19's push run). `Server._send()` already skips peers that aren't
+`STATE_CONNECTED`, so the send wasn't ours: SceneMultiplayer's `server_relay` (on by
+default) makes the server tell every client about every other client's connect/disconnect,
+and those ADD/DEL_PEER notices go straight to the ENet peer with no liveness check. When
+bots reconnect together, a notice can hit a peer ENet has already reset (channel count 0).
+Fix (qa crash-fix exception, one line in `game/server/server.gd`, gameplay-owned):
+`server_relay = false` before the peer is set. Nothing uses the relay: clients only
+`rpc_id(1, ...)` and learn about other players from `s2c_player_joined`. It also stops
+leaking every peer id to every client. New behaviour `qa_no_peer_relay.gd` asserts a bot
+only ever knows peer 1; without the fix it failed on every bot (max_known_peers=4 with 4
+bots), with it max_known_peers=1. Couldn't reproduce the original error locally (fast
+machine, 5 green ENet runs before the fix), so the evidence is the code path plus the
+behaviour check; if the error ever comes back, it's somewhere else.
