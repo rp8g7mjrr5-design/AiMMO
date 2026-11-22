@@ -223,7 +223,7 @@ Prediction still waits on `ack_seq`, the inventory window on `s2c_inventory`.
   E: the client sends `/gather <kind>` as chat at most once per `PRESS_INTERVAL` (1.6 s, the
   server's 1.5 s cooldown plus slack, and above the 0.5 s chat cooldown), an ember bar fills over
   that interval, and the server's success line ("You gather 2 ash wood ... (6 in your pack)")
-  becomes a toast "+2 ash wood  (6)" that floats up and fades over 2.2 s. Replies still land in
+  becomes a toast "+2 Ash wood  (6)" that floats up and fades over 2.2 s. Replies still land in
   chat as before.
 - `client.gd`: `interact` action on E in `_setup_input` (so key rebinding picks it up later),
   `_update_gather` each logged-in frame (ignored while typing or in Settings), `_on_system`
@@ -251,3 +251,12 @@ Prediction still waits on `ack_seq`, the inventory window on `s2c_inventory`.
 - The smoke test spawns in the cleared meadow centre, so no screenshot shows the prompt; layout
   is checked by unit tests only. If a playtester reports overlap with the chat, move it up.
 - Good next picks: key rebinding (now includes `interact`), chat history on Up arrow.
+
+**Update (same day, merge of main):** the director's gathering plan (#38) landed while this PR
+was open: new top backlog item plus "How gathering feels" in the design bible. Resolved the
+backlog conflict by keeping #38's order and marking the old gather item as this stopgap. Aligned
+the stopgap with the bible: prompt reads "[E] Chop Ember Ash" / "Mine Stone Outcrop" / "Collect
+Ember Sap", toasts read "+2 Ash wood (6)", and the changelog no longer mentions `/gather` (the
+bible keeps it as a hidden debug command). Dropped my three follow-ups (v3 rewire, chop sound,
+node highlight) because the new top item covers all of them. Re-ran after the merge: 154 unit
+tests passed, bot test 8/8 with verify 8/8, smoke passed.

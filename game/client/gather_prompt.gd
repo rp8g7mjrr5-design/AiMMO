@@ -1,9 +1,9 @@
 class_name GatherPrompt
 extends Control
 ## Gathering as a game action: when you stand within reach of a tree, rock or seep, a small
-## prompt above the chat says "E  Gather Ember ash". Press (or hold) E and the client sends
+## prompt above the chat says "[E] Chop Ember Ash". Press (or hold) E and the client sends
 ## "/gather <kind>" for that node, a short bar fills while you gather, and the server's
-## answer pops up as a toast like "+2 ash wood".
+## answer pops up as a toast like "+2 Ash wood".
 ##
 ## The server still decides everything: reach, depletion, night-only seeps, the cooldown,
 ## pack room. Until protocol v3 brings c2s_gather and s2c_nodes the client can't know which
@@ -13,6 +13,8 @@ extends Control
 const WIDTH := 300.0
 const HEIGHT := 64.0
 const KEY_LABEL := "E"
+## The action word per node kind, as in the design bible ("[E] Chop Ember Ash").
+const VERBS := {"ash": "Chop", "pine": "Chop", "stone": "Mine", "ember_sap": "Collect"}
 ## Seconds between two presses: the server's gather cooldown plus a little slack for the
 ## round trip, and never faster than the chat cooldown (gathers travel as chat until v3).
 const PRESS_INTERVAL := 1.6
@@ -40,12 +42,13 @@ static func target(pos: Vector3, world_seconds: float) -> Dictionary:
 	var info := ResourceNodes.kind_info(n.kind)
 	var can: bool = not (bool(info.get("night_only", false)) and not WorldClock.is_night(world_seconds))
 	var label := str(info.get("label", n.kind))
+	var what := "Ember Sap" if n.kind == "ember_sap" else label.capitalize()
 	return {
 		"id": int(n.id),
 		"kind": str(n.kind),
 		"label": label,
 		"can": can,
-		"text": ("%s  Gather %s" % [KEY_LABEL, label]) if can else ("%s  only seeps at night" % label),
+		"text": ("[%s] %s %s" % [KEY_LABEL, VERBS.get(n.kind, "Gather"), what]) if can else ("%s only seeps at night" % label),
 		"command": "/gather %s" % n.kind,
 	}
 
@@ -74,9 +77,10 @@ static func parse_gain(text: String) -> Dictionary:
 	return {"qty": m.get_string(1).to_int(), "item": item, "label": label, "in_pack": m.get_string(3).to_int()}
 
 
-## "+2 ash wood  (6)" for a parsed gain.
+## "+2 Ash wood  (6)" for a parsed gain.
 static func toast_text(gain: Dictionary) -> String:
-	return "+%d %s  (%d)" % [int(gain.qty), str(gain.label), int(gain.in_pack)]
+	var label := str(gain.label)
+	return "+%d %s  (%d)" % [int(gain.qty), label.left(1).to_upper() + label.substr(1), int(gain.in_pack)]
 
 
 ## Toast opacity `age` seconds after it appeared: holds, then fades over the last third.
@@ -150,7 +154,7 @@ func update(delta: float, pos: Vector3, world_seconds: float, now: float, intera
 	return ""
 
 
-## Shows "+2 ash wood" if `text` is a gather success line. Returns whether it was.
+## Shows "+2 Ash wood" if `text` is a gather success line. Returns whether it was.
 func on_system(text: String) -> bool:
 	var gain := parse_gain(text)
 	if gain.is_empty():

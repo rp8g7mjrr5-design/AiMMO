@@ -1,2 +1,2 @@
-- **Press E to gather.** Walk up to an ember ash, pine, stone outcrop or (at night) an ember-sap seep and a little "E  Gather" prompt appears. Tap E, or just hold it, and a short ember bar fills while you work.
-- Every haul pops up as a toast above the prompt, like "+2 ash wood (6)", so you can keep your eyes on the trees instead of the chat. Typing /gather still works too.
+- **Press E to gather.** Walk up to an ember ash, a pine, a stone outcrop or (at night) an ember-sap seep and a prompt like "[E] Chop Ember Ash" appears. Tap E, or just hold it, and a short ember bar fills while you work.
+- Every haul pops up as a toast above the prompt, like "+2 Ash wood (6)", so you can keep your eyes on the trees instead of the chat.
