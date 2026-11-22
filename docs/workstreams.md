@@ -29,8 +29,12 @@ when the test harness supports them (qa builds that hook if it doesn't exist yet
 **QA exception:** `qa` may make the smallest possible fix in any file to resolve a crash,
 data-loss bug, or red `main`. It must say so in the PR description.
 
-**Integrator only:** `CHANGELOG.md`, `docs/roadmap.md`, `docs/design_bible.md`, `CLAUDE.md`,
-`docs/workstreams.md`, `docs/weekly_task.md`, `docs/devlog/week-NN.md`.
+**Integrator only:** `CHANGELOG.md`, `CLAUDE.md`, `docs/workstreams.md`, `docs/weekly_task.md`,
+`docs/devlog/week-NN.md`.
+
+**Director:** `docs/roadmap.md`, `docs/design_bible.md`, `docs/digest/`, and the "Backlog"
+sections of every `docs/workstreams/<stream>.md` (workers still tick their own items and add
+follow-ups).
 
 **Protocol changes** (`game/shared/net.gd`, `GameConfig.PROTOCOL_VERSION`) belong to
 `gameplay`. A protocol bump means old clients can't connect, so do it at most once per day
@@ -87,6 +91,25 @@ and note it in the changelog fragment.
 
 **Week numbers:** weeks start Friday. Week 00 started 2026-11-20. Week NN is the number of
 whole weeks since then.
+
+## Director procedure (daily)
+
+The director keeps the four streams pointed at the North star and makes sure they never run
+dry. It does not write game code.
+
+1. Read CLAUDE.md, this file, the design bible, the roadmap, every stream's backlog and the
+   last day of `docs/devlog/<stream>.md`, the PRs merged and opened in the last 24 hours, and
+   `docs/playtest.md`.
+2. Judge the last day honestly: is the game getting better for players? Are streams
+   duplicating work, blocked on each other, or drifting from the design bible?
+3. Refill and reorder every backlog so each stream has 8 to 12 well-sized items, cross-stream
+   dependencies come in the right order (e.g. gameplay adds the data before client shows it),
+   and requests between streams are answered. Keep the roadmap covering the next 4 to 6 weeks.
+4. Write `docs/digest/YYYY-MM-DD.md`: a short plain-language summary for the owner of what
+   changed in the game yesterday, what's coming today, anything stuck, and budget use so far.
+5. Commit on a branch `ws/director/YYYY-MM-DD` and open a PR (docs only). The integrator
+   merges it like any other.
+6. End the run with the digest's text so the owner can read it in the thread.
 
 ## Weekly review (Fridays)
 
