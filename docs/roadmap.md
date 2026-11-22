@@ -12,6 +12,9 @@ plan, not a promise: a broken system or a serious bug always goes first.
 | 04 | **Wildlife** | Procedural critters (deer-like grazers, birds) with simple server-side AI. Purely ambient at first. |
 | 05 | **Health and danger** | Health, a few hostile creatures on the ridges, respawning at the meadow. Torches keep danger away at night. |
 | 06 | **The Hearth** | First shared town building: players donate resources to raise a communal hearth at spawn. First step of the ember ash mystery. |
+| 07 | **Embers Below** | First quest chain: a handful of hand-off quests from the Hearth that send players into the ash groves at night, where the trees' warmth pulses. Chapter One of the mystery. Needs a quest table (add-only migration) and a simple quest log. |
+
+**Director note (2026-11-22):** with four streams shipping in parallel, Week 01 work (clock, sky, settings) started in Week 00. That's fine: streams may build ahead on next week's headline, but the headline for a week is what gets polished and released that week. Gathering's data and art groundwork (node positions, node props, inventory migration) may start late in Week 01 so Week 02 doesn't stall on dependencies.
 
 ## Backlog (unscheduled)
 - Zone or proximity chat, private messages
