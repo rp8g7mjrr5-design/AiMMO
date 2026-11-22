@@ -82,8 +82,11 @@ and note it in the changelog fragment.
      close it with a reason and put the item back in that stream's backlog.
 4. After merging, fold every `changelog.d/*.md` fragment into `CHANGELOG.md` under the
    current week's heading (`## Week NN — <headline>`; create it if this is the first merge of
-   the week, with a provisional headline), then delete the fragments. Push to `main`. At most
-   one push to `main` per run, so the live server restarts at most once an hour.
+   the week, with a provisional headline), then delete the fragments. `main` is protected and
+   only accepts merged PRs with a green "Test" check, so put this on a branch
+   `integrate/YYYY-MM-DD-HH`, open a PR, wait for CI, and merge it. Never push to `main`
+   directly. Aim for at most one deploy per run, so the live server restarts at most once an
+   hour.
 5. Confirm CI passes, the server redeploys, and the `Week NN` release updates. If the deploy
    breaks, revert and confirm the previous version is live.
 6. Triage `docs/playtest.md`: tag new reports and add them to the right stream's backlog.
@@ -113,4 +116,5 @@ dry. It does not write game code.
 
 ## Weekly review (Fridays)
 
-See `docs/weekly_task.md`.
+See `docs/weekly_task.md`. Like everyone else, it changes `main` only through a PR with a green
+"Test" check.
