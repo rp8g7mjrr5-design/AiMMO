@@ -108,3 +108,25 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Known / not done.** Flora has no night glow (deliberately: only the ash is warm). The lake water still renders quite pale/white in software GL; worth a look when animated water is built.
 
 **Next run.** Gentle animated water (shader in code), unless a request comes in.
+
+## 2026-11-22: gathering feedback art (node glow and hit reactions)
+**Built.** New `game/procgen/node_fx.gd` (`NodeFx`, a Node3D that `NodeProps.build()` adds as `ResourceNodes/Fx`). Public API stays on `NodeProps` as the director asked: `set_highlight(root, id, on)`, `highlighted(root)`, `play_hit(root, id)`. `set_depleted` now records depleted ids in the root's `depleted` meta and tells Fx so a lit or shaking node follows its new look. Layout slots also carry `kind`, `pos`, `scale` so Fx never has to look nodes up.
+
+**Looks.**
+- Highlight: a shell made of the node's own current parts, grown 7% about each part's centre, drawn with an unshaded additive fresnel shader in ember gold (`HIGHLIGHT`), with a slow pulse and a 0.15 s fade. Six small MultiMeshes (one per layer, 10 slots each), hidden when nothing is lit.
+- Hit: ash and pine shudder from the base (~2.5°, ringing down over 0.6 s; sway axis turned per node by the golden angle so neighbours differ). Ash sheds 7 warm, faintly glowing leaves that drift down with a sway; pine drops 7 needle tufts. Stone jolts (2.5 cm, slight squash, 0.35 s) and throws 6 chips on arcs, one of them pale seam quartz. Sap seeps keep their rim still; the pool swells and settles while 8 glowing droplets splash up. Bits shrink away over their last 0.25 s and never go below the ground.
+- All bits share one 64-instance MultiMesh (one draw call) with a tiny shader using `INSTANCE_CUSTOM.r` for glow; the oldest bit is reused when the pool is full.
+
+**Decisions.**
+- One lit node at a time: the bible says the prompt shows one target, and it keeps `set_highlight` a no-op when called every frame with the same id.
+- No CPUParticles/GPUParticles: my own bits are pure maths (`spawn_bits`, `bit_xform`, `shake`, `shell_xform`), so unit tests and bots check every bit headless, and the headless dummy renderer's free errors never come up.
+- Fx only processes while something is fading, shaking or flying; idle it costs nothing.
+- Hits on a depleted ash/pine/seep shudder but throw nothing (nothing left to shed); depleted rubble still chips. Bits are seeded per node and hit number, so they are deterministic but vary hit to hit.
+
+**Didn't work.** First leaves spawned inside the crown sphere (radius 1.9 × scale), so a close-up 0.2 s after the hit showed nothing; they now start just outside the crown's lower edge and are a bit bigger. First rim was nearly white against the sky (additive saturating); toned it to `0.08 + 0.6 * rim^2.6`.
+
+**Tested.** 166 unit tests with Postgres (6 new in `tests/unit/test_world_gather_fx.gd`), 8-bot 180 s websocket bot test passed (new behaviour `world_gather_fx.gd`: 45 hits played, 308 bits followed through their whole life, all 4 kinds, 8/8 characters persisted), client smoke test passed (day 0.727, night 0.124). I rendered close-ups of every kind lit, just after a hit and half a second later on the real (software GL) renderer and looked at them: the rim reads, leaves/needles/chips/droplets are visible.
+
+**Known / not done.** Nothing calls this yet: the client wires it to `GatherPrompt.target` and `s2c_gather_result` (request filed in the client backlog). No tool-contact flash; that needs the client's swing (follow-up in my backlog). Pine needle bits are small and dark against a dark forest floor.
+
+**Next run.** Close-up read for the action camera (second backlog item), then item icons.
