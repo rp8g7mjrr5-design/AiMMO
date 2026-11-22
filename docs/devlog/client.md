@@ -82,3 +82,47 @@ smoke run covers the real avatar; checked its world screenshot: tag sits above t
   quiet procedural thud from `Sfx` for your own avatar only (added to backlog).
 - If #8 and #9 are on `main`, do the sky-clock wiring next (director's #1). If prediction's
   `ack_seq` lands, prediction must keep the wrapper: animate `Body`, move the root.
+
+## 2026-11-22: Sky on the server clock + time dial (ws/client/time-dial)
+
+**Why this item:** gameplay's world clock (#8) and world's shared-clock sky (#13) are both on
+`main` now, so the top backlog item (wire the server clock to the sky) was finally unblocked.
+On its own it is three lines, so I shipped it together with the time-of-day dial (backlog
+item 3), which is the visible half of the same feature: the sky and the HUD agree with the
+server. Prediction is still blocked on gameplay's `ack_seq`.
+
+**Built:**
+- `client.gd`: `net.world_time` -> `_on_world_time` -> `DayNight.set_world_seconds` (exactly
+  world's requested entry point). `DayNight.clear_sync()` on disconnect, so the login-screen
+  sky falls back to the local wall clock (same epoch, no jump).
+- `game/client/time_dial.gd` (`TimeDial`): a 40 px disk above the chat. Upper half is the sky
+  in the phase's colour, lower half ground; the sun rides the rim by day (rises left, top at
+  noon, sets right) and a crescent moon takes over at night (top at midnight). Readout next to
+  it: `Day 86 · 04:46 · Night`. Redraws every 0.5 s (an in-game minute is ~1.7 s) and on every
+  sync. All maths in static `TimeDial.state(world_seconds)`.
+- `TimeDial.current_seconds()` honours `AIMMO_TIME_OF_DAY` pinning so screenshot dial and sky
+  agree.
+- Tests: 5 unit tests in `tests/unit/test_client_time_dial.gd` (sun/moon placement over a whole
+  day, readout and phase labels, 23:59 edge, pinning, and the client's world_time handler
+  driving DayNight, including a NaN). Bot behaviour `client_time_dial.gd` checks every real
+  `s2c_world_time` against the clock and that each login got at least one sync. Bot run: all 8
+  bots ok, 5 syncs each, Postgres verify 8/8. Smoke test passed; checked the world screenshot:
+  night dial with the moon, sitting cleanly above the chat.
+
+**Decisions:**
+- The dial reads time through `DayNight` rather than keeping its own synced copy, so there is
+  exactly one client-side clock (world's note asked for that).
+- Phase colours are local constants in the dial rather than palette.gd, since palette.gd is
+  world-owned; if world adds UI sky colours there, switch to them.
+- No 12-hour clock option: 24-hour is unambiguous and matches `WorldClock.describe`.
+
+**What didn't work at first:** nothing broke; I'd worried the dial's `Label` child would
+inherit the anchored parent's size oddly, but placing it by position inside a fixed-size
+Control is fine.
+
+**Notes to next run:**
+- Next unblocked items: gather interaction / inventory still need gameplay PRs; chat polish
+  (timestamps could reuse `TimeDial.state(...).text` style in-game time) or the compass strip
+  are good picks.
+- The dial sits at a fixed offset above the chat panel (offset_top -316). If chat panel size
+  changes, move the dial with it.
