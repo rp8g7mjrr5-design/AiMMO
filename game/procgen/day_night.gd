@@ -91,6 +91,8 @@ func apply(frac: float) -> void:
 		sun.light_color = s.light_color
 		sun.light_energy = s.light_energy
 		sun.visible = s.light_energy > 0.01
+	# Lanterns, ember-ash leaves and sap seeps glow from the same clock (siblings under World).
+	Lamps.apply_glow(get_parent(), Lamps.night_glow(frac))
 
 
 ## The sky itself: a code-only shader with a colour gradient, a sun disk, a moon, and stars.

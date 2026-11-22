@@ -1,7 +1,7 @@
 class_name WorldBuilder
 ## Assembles the visible world: terrain chunks, water, trees, rocks, resource nodes, sky, sun, and fog.
 ## Everything is generated here from code and the shared world seed.
-## A DayNight child moves the sun and repaints the sky with the time of day.
+## A DayNight child moves the sun, repaints the sky, and lights the lamps with the time of day.
 
 
 static func build() -> Node3D:
@@ -23,6 +23,8 @@ static func build() -> Node3D:
 	for n in _props():
 		root.add_child(n)
 	root.add_child(NodeProps.build())
+	root.add_child(Lamps.build())
+	dn.apply(DayNight.now_fraction()) # light the lamps and leaves now that they exist
 	return root
 
 
@@ -163,5 +165,7 @@ static func _multimesh(node_name: String, mesh: Mesh, instances: Array) -> Multi
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = node_name
 	mmi.multimesh = mm
+	if node_name == "AshCrowns":
+		Lamps.add_ember_emission(mat) # ember leaves glow faintly after dark
 	mmi.material_override = mat
 	return mmi

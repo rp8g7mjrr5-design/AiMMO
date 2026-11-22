@@ -198,6 +198,8 @@ static func _multimesh(node_name: String, mesh: Mesh, instances: Array, glow: bo
 		mat.emission_enabled = true
 		mat.emission = SAP_GLOW
 		mat.emission_energy_multiplier = 0.9
+	elif node_name == "NodeAshCrowns":
+		Lamps.add_ember_emission(mat) # lit at night by Lamps.apply_glow
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = node_name
 	mmi.multimesh = mm
