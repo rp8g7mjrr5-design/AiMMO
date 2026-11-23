@@ -16,6 +16,9 @@ var _volume_value: Label
 var _shadows: OptionButton
 var _draw: HSlider
 var _draw_value: Label
+var _fov: HSlider
+var _fov_value: Label
+var _shoulder: OptionButton
 
 
 func setup(p_settings: ClientSettings, theme_res: Theme) -> void:
@@ -28,8 +31,8 @@ func setup(p_settings: ClientSettings, theme_res: Theme) -> void:
 	anchor_bottom = 0.5
 	offset_left = -220
 	offset_right = 220
-	offset_top = -145
-	offset_bottom = 145
+	offset_top = -190
+	offset_bottom = 190
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 18)
@@ -57,6 +60,18 @@ func setup(p_settings: ClientSettings, theme_res: Theme) -> void:
 	_invert = CheckBox.new()
 	_invert.toggled.connect(_on_invert)
 	grid.add_child(_invert)
+	grid.add_child(Control.new())
+
+	_fov = _slider(grid, "Field of view", ClientSettings.FOV_MIN, ClientSettings.FOV_MAX, 1.0)
+	_fov_value = grid.get_child(grid.get_child_count() - 1)
+	_fov.value_changed.connect(_on_fov)
+
+	_label(grid, "Camera shoulder")
+	_shoulder = OptionButton.new()
+	_shoulder.add_item("Right")
+	_shoulder.add_item("Left")
+	_shoulder.item_selected.connect(_on_shoulder)
+	grid.add_child(_shoulder)
 	grid.add_child(Control.new())
 
 	_volume = _slider(grid, "Volume", 0.0, 1.0, 0.05)
@@ -120,6 +135,17 @@ func _on_invert(on: bool) -> void:
 	changed.emit(settings)
 
 
+func _on_fov(v: float) -> void:
+	settings.field_of_view = v
+	_refresh_labels()
+	changed.emit(settings)
+
+
+func _on_shoulder(i: int) -> void:
+	settings.shoulder_right = i == 0
+	changed.emit(settings)
+
+
 func _on_volume(v: float) -> void:
 	settings.master_volume = v
 	_refresh_labels()
@@ -144,6 +170,8 @@ func _on_reset() -> void:
 	settings.master_volume = d.master_volume
 	settings.shadow_quality = d.shadow_quality
 	settings.draw_distance = d.draw_distance
+	settings.field_of_view = d.field_of_view
+	settings.shoulder_right = d.shoulder_right
 	_sync_controls()
 	changed.emit(settings)
 
@@ -154,6 +182,8 @@ func _sync_controls() -> void:
 	_volume.set_value_no_signal(settings.master_volume)
 	_shadows.select(settings.shadow_quality)
 	_draw.set_value_no_signal(settings.draw_distance)
+	_fov.set_value_no_signal(settings.field_of_view)
+	_shoulder.select(0 if settings.shoulder_right else 1)
 	_refresh_labels()
 
 
@@ -161,6 +191,7 @@ func _refresh_labels() -> void:
 	_sens_value.text = "%.2f×" % settings.mouse_sensitivity
 	_volume_value.text = "%d%%" % roundi(settings.master_volume * 100.0)
 	_draw_value.text = "%d m" % roundi(settings.draw_distance)
+	_fov_value.text = "%d°" % roundi(settings.field_of_view)
 
 
 func _label(grid: GridContainer, text: String) -> void:

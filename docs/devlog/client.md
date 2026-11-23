@@ -260,3 +260,83 @@ Ember Sap", toasts read "+2 Ash wood (6)", and the changelog no longer mentions 
 bible keeps it as a hidden debug command). Dropped my three follow-ups (v3 rewire, chop sound,
 node highlight) because the new top item covers all of them. Re-ran after the merge: 154 unit
 tests passed, bot test 8/8 with verify 8/8, smoke passed.
+
+## 2026-11-22 (late): Over-the-shoulder action camera (ws/client/action-camera)
+
+**Why this item:** the top item (gathering on protocol v3) is still blocked: v3 is not on main
+(`PROTOCOL_VERSION` is 2) and building against a stub of messages gameplay hasn't written yet
+risks a rewrite. The crafting window request is real, but the director placed the camera (owner
+direction 2) above it and the roadmap orders "camera, then chat-to-UI, then crafting". So:
+the camera, next unblocked owner direction.
+
+**Built:**
+- `game/client/action_camera.gd` (`ActionCamera`): pivot 1.65 m up, 0.6 m over the shoulder,
+  3.5 m arm (wheel 1.5 to 6 m), pitch -1.25..0.85. Pure static maths for forward/right/look_dir,
+  shoulder point, camera point, camera-relative `move_vector`, `facing_yaw`, `clear_arm`
+  (samples the arm every 0.1 m against `Terrain.height` and rough columns for each resource
+  node prop, `PROP_COLUMNS`), `ease_arm`, `follow`, `aimed_node`, `wants_capture`. `step()` is
+  the one stateful bit: eased pivot (rate 16, frame-rate independent), shoulder swap slides over,
+  arm snaps in instantly when blocked and eases out at rate 4, free-look keeps `heading` and the
+  camera swings back on release.
+- Facing: the server already takes the client's yaw in `c2s_input` (`s.yaw = yaw`), so while
+  moving the client now sends `facing_yaw(camera heading)` instead of the move direction. That's
+  real server-side facing for everyone, no gameplay change needed (backlog said "needs gameplay's
+  facing-yaw input"; it turned out to already be there). Strafing and backing up keep facing
+  forward.
+- `client.gd`: cursor captured while playing, freed while typing, in Settings, or when the
+  window loses focus (`get_window().has_focus()`); Esc still opens Settings, which frees it.
+  New actions `free_look` (Alt) and `swap_shoulder` (V, saved to settings). Own name tag is
+  hidden (it hung right in front of the camera in the first smoke shot). Help line shortened so
+  it no longer runs into the top-left HUD at 1280 px.
+- `game/client/reticle.gd`: thin ring and dot, turns ember orange when E would gather something.
+- Look-to-interact: `GatherPrompt.target/update` take the camera eye and look direction;
+  `GatherPrompt.pick` prefers the node within 28° of the reticle ray, else the nearest. Because
+  the server's `/gather <kind>` takes the nearest node of a kind, an aimed node only wins if no
+  closer node of the same kind is in reach (so the prompt never names a node the server won't
+  take). Today nodes are 6 m apart with 3 m reach, so this almost never changes the pick; it is
+  ready for v3's gather-by-id.
+- Settings: field of view (55 to 100, default 70) and camera shoulder (right/left).
+- World's gather-feedback PR landed on main while this was in progress, so after merging main
+  the client now calls `NodeProps.set_highlight` for the prompt's target every frame (off while
+  typing, on disconnect). It follows the reticle, so the node that glows is the one E takes.
+  `play_hit` still waits for v3's `s2c_gather_result`.
+- Tests: 12 unit tests in `tests/unit/test_client_action_camera.gd`. Bot behaviour
+  `client_action_camera.gd` runs the camera behind every bot on real positions with a sweeping
+  "mouse", checking never under ground, never inside a node prop, arm in limits, W along the
+  look, aimed targets in reach.
+
+**Didn't work first time:** `clear_arm` only kept vertical clearance, so against a cliff face the
+camera sat exactly on the face (unit test caught it: arm 2.0 with a wall at x=2). Now it also
+probes CLEARANCE further along the arm.
+
+**Second thing that didn't work:** the first bot run failed with ~200 "camera inside ash/pine
+node" frames out of ~200k: a bot gathering within 1.5 m of a tree and the "mouse" nodding down
+lifts the camera into the crown even at the shortest arm. Pulling in can't fix that (only fading
+the occluder could), so the behaviour now counts it as `unavoidable_inside_frames` (0 to 124 per
+bot) and fails only when a shorter arm would have avoided the prop. From inside a crown you see
+out through it (back faces are culled), so it reads as "leaves around the camera".
+
+**Results (after merging main):** 191 unit tests passed (12 new). Bot test (8 bots, 180 s, websocket, Postgres):
+8/8 ok, verify 8/8, ~25k camera frames per bot, ~36% of frames pulled in (mostly looking up
+against the ground), min arm 0.35 to 1.1 m, look-to-interact target on 1.2k to 3k frames per
+bot, all in reach. Client smoke passed; world shot shows the character left of centre with the
+reticle (copied to the project's week-00 folder).
+
+**Known gaps / notes to next run:**
+- Flora that isn't a resource node (birches, boulders, the Props forest) doesn't pull the camera
+  in yet; follow-up logged. Camera may clip a birch crown.
+- Follow-up idea: fade a node's crown when the camera is inside it (needs a per-instance alpha
+  from world's NodeProps, ask world).
+- Prop columns are hand-measured from `node_props.gd` meshes; if world resizes props, update
+  `PROP_COLUMNS`.
+- Mouse capture under xvfb: the window never has focus, so the smoke shot runs with a visible
+  cursor; the capture rule itself is unit tested.
+- Next: the top gathering item as soon as v3 lands, else the pack window (chat-to-UI).
+
+## 2026-11-23: keep PR #47 (action camera) current
+
+PR #47 was green but one commit behind `main` (the integrator's changelog fold, docs only).
+Per "finish before starting" I merged `main` into the branch and stopped, no new feature this
+run. The merge touched no code (CHANGELOG.md, week-00 devlog, workstreams.md, deleted two other
+streams' fragments), so I left the full unit/bot/smoke run to CI on the pushed head rather than
+spending a local 3-minute bot run on an unchanged game. No review comments to address.

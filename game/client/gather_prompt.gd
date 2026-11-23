@@ -31,14 +31,15 @@ var _last_press := -INF
 var _toast_age := INF
 
 
-## What the prompt shows for a player at `pos` at world time `world_seconds`: the nearest
-## node within ResourceNodes.GATHER_RANGE, or an empty Dictionary for none.
+## What the prompt shows for a player at `pos` at world time `world_seconds`: the node within
+## ResourceNodes.GATHER_RANGE under the reticle (look-to-interact, when `look` is given: the
+## camera's eye and look direction), else the nearest one in reach, or {} for none.
 ## {id, kind, label, can: bool (false for a seep in daylight), text, command}.
-static func target(pos: Vector3, world_seconds: float) -> Dictionary:
+static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look := Vector3.ZERO) -> Dictionary:
 	var in_reach := ResourceNodes.near(pos, ResourceNodes.GATHER_RANGE)
 	if in_reach.is_empty():
 		return {}
-	var n: Dictionary = in_reach[0]
+	var n: Dictionary = pick(in_reach, eye, look)
 	var info := ResourceNodes.kind_info(n.kind)
 	var can: bool = not (bool(info.get("night_only", false)) and not WorldClock.is_night(world_seconds))
 	var label := str(info.get("label", n.kind))
@@ -51,6 +52,22 @@ static func target(pos: Vector3, world_seconds: float) -> Dictionary:
 		"text": ("[%s] %s %s" % [KEY_LABEL, VERBS.get(n.kind, "Gather"), what]) if can else ("%s only seeps at night" % label),
 		"command": "/gather %s" % n.kind,
 	}
+
+
+## Look-to-interact: from `in_reach` (nearest first), the node under the reticle, falling
+## back to the nearest. Until protocol v3 gathers by node id, the server picks the nearest node
+## of the asked kind, so an aimed node only wins if no closer node of its kind is in reach
+## (otherwise the prompt would name one node and the server would take another).
+static func pick(in_reach: Array, eye: Vector3, look: Vector3) -> Dictionary:
+	if look == Vector3.ZERO:
+		return in_reach[0]
+	var aimed := ActionCamera.aimed_node(eye, look.normalized(), in_reach)
+	if aimed.is_empty():
+		return in_reach[0]
+	for n in in_reach:
+		if n.kind == aimed.kind:
+			return aimed if int(n.id) == int(aimed.id) else in_reach[0]
+	return in_reach[0]
 
 
 ## True if a press at real time `now` may send a gather (one per PRESS_INTERVAL).
@@ -133,10 +150,11 @@ func _make_label(font_size: int, color: Color) -> Label:
 	return l
 
 
-## Called every logged-in frame with where you stand and whether E is held. Returns the
+## Called every logged-in frame with where you stand, whether E is held, and (optionally) the
+## camera's eye and look direction for look-to-interact. Returns the
 ## chat command to send now ("/gather pine"), or "" for nothing.
-func update(delta: float, pos: Vector3, world_seconds: float, now: float, interact_held: bool) -> String:
-	_target = target(pos, world_seconds)
+func update(delta: float, pos: Vector3, world_seconds: float, now: float, interact_held: bool, eye := Vector3.ZERO, look := Vector3.ZERO) -> String:
+	_target = target(pos, world_seconds, eye, look)
 	var since := now - _last_press
 	var busy := since < PRESS_INTERVAL
 	prompt_label.visible = not _target.is_empty()
