@@ -183,6 +183,22 @@ func on_system(text: String) -> bool:
 	return true
 
 
+## Shows `text` (for example "[E] Use Workbench") in the prompt line when no node is in
+## reach; the node prompt always wins. Call after update() each frame; "" shows nothing extra.
+func show_hint(text: String) -> void:
+	if _target.is_empty():
+		prompt_label.visible = text != ""
+		prompt_label.text = text
+		prompt_label.add_theme_color_override("font_color", Color.WHITE)
+
+
+## Pops a floating toast like "Crafted: Stone axe!".
+func show_toast(text: String) -> void:
+	toast_label.text = text
+	_toast_age = 0.0
+	toast_label.modulate.a = 1.0
+
+
 func current_target() -> Dictionary:
 	return _target
 

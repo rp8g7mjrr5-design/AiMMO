@@ -372,3 +372,57 @@ hits are those unavoidable ones (clear_arm only returns a length whose sample it
 **Notes to next run:** the gathering item as soon as v3 lands. Otherwise the crafting window
 read-only (gameplay's request) or the F1 controls overlay (chat-to-UI, needs no server data).
 A camera crown fade (world's per-instance alpha) is the real fix for standing under a tree.
+
+## 2026-11-23 (night): the workbench window (ws/client/workbench-window)
+
+**Why this item:** the top item (gathering on protocol v3) is still blocked: main is on
+protocol v2, with no `s2c_gather_*`, `s2c_inventory` or `c2s_craft` RPC on `Net`. Requests from
+other streams come first, and gameplay's crafting-window request is the only one left open.
+It also does owner direction 1 (chat is for talking) for crafting.
+
+**Fun, in one sentence:** you walk up to the bench, press E, and see at a glance how close you
+are to your first axe ("Ash wood 2/3"), then craft it with a click, a knock-knock-chime and a
+"Crafted: Stone axe!" pop-up, instead of knowing that a hidden `/craft axe` command exists.
+
+**Built:** `game/client/craft_window.gd` (`CraftWindow`): "[E] Use Workbench" in the gather
+prompt line when you are within `Crafting.BENCH_RANGE` and no node is in reach (the node prompt
+wins). E opens a centred window: every recipe in `Crafting.RECIPE_ORDER`, each part as
+have/need in green or red, a hint line (Ready / Need 1 ash wood / In your pack / craft
+anywhere), and a Craft button enabled only when `Crafting.check` on the client's view is "".
+E, Esc or Close shuts it; walking a metre past the range closes it too. Movement and the
+camera are frozen while it is open and the cursor is freed (`window_open()` in client.gd).
+New procedural `Sfx.craft()` (two wooden knocks and a rising pair), toast via
+`GatherPrompt.show_toast`.
+
+**Decision: make it work now, not read-only.** Gameplay asked for a read-only window until
+`c2s_craft` exists, but the server already runs the real craft code for the hidden `/craft`
+command, and the gather prompt set the precedent of sending a hidden chat command until v3.
+So Craft sends `/craft <recipe_id>` and opening sends `/bag`; the replies are shown in the
+window and kept out of the chat box (the window "consumes" only lines it was waiting for).
+The window queues its lines and never sends faster than `CHAT_COOLDOWN` + 0.1 s; a line the
+cooldown drops silently times out after 1.5 s (bag: asked again; craft: "The bench didn't
+answer").
+
+**The pack mirror:** with no `s2c_inventory` in v2, the client keeps a mirror only to light
+the buttons: seeded from the login character's `inventory`, then updated from "Your pack: ..."
+lines, gather successes ("(6 in your pack)") and our own craft successes. The server still
+decides; a "You need ..." reply means the mirror was stale and triggers a fresh `/bag`.
+
+**Tests:** 6 unit tests in `tests/unit/test_client_craft_window.gd` (pack text round trip for
+every item, mirror equals the server after gather and craft lines, every row's reason equals
+`Crafting.check` across packs and positions, refusals vs successes, one line per cooldown with
+timeout retry, walk-away close). Bot behaviour `client_craft_window.gd` is passive (sends no
+chat, since chat cooldown races already hurt the gameplay behaviours): it seeds the window from
+login, feeds it every system line, and fails if the mirror ever disagrees with a real
+"Your pack" answer (from gameplay_inventory's /bag) or if the axe row disagrees with the
+server's "You need ..." refusal (from gameplay_crafting).
+
+**Didn't work first time:** the Craft buttons stayed enabled for a moment after a press,
+because the craft line sits in the send queue before it becomes the awaited line; `refresh`
+now checks the queue too (`_crafting()`). The first screenshot showed the panel spilling off
+the bottom (it grows down from a centre anchor), so it now grows both ways with a solid dark
+panel.
+
+**Notes to next run:** when gameplay's v3/v4 lands, replace the `/bag` and `/craft` lines with
+`c2s_craft` and feed `s2c_inventory` to `seed_pack` (follow-up in the backlog). Then the top
+gathering item. The F1 controls overlay is still the best no-dependency item after that.
