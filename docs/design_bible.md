@@ -201,6 +201,14 @@ built in the most efficient way possible for the server, the system and the bots
 Every world and client PR that changes what's on screen follows the art bible and keeps
 inside the budget.
 
+### Studio intro (owner direction, 2026-11-23)
+The owner supplied the **Budda Games** intro video and asked for it to replace Godot's boot
+splash. It is the studio's own logo, so it is the one owner-supplied asset in the client and an
+owner-approved exception to CLAUDE.md hard rule 3 (procedural art): it lives only at
+`game/client/intro/budda_games_intro.ogv`, ships in client builds only, and nothing else may be
+imported on its back. It plays once on each normal launch, any key, click or pad button skips
+it, automated runs skip it, and the engine splash is off with the video's background colour.
+
 ### Inspired by, never copied
 We borrow genre mechanics and feel only. Mechanics and feel are free for anyone to use; the
 expression of another game is not. So, always:
@@ -272,6 +280,7 @@ milestone from the second one on.
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 00 (2026-11-23, studio intro):** The owner uploaded the Budda Games intro video and asked for it to play instead of the Godot boot splash. Added "Studio intro" under the owner directions, recording it as the single owner-approved exception to the procedural-art rule (client builds only, one file), so the integrator does not revert it and nobody reads it as permission to import other assets.
 - **Week 00 (2026-11-23, art style):** The owner asked how to make the art style unique, in the stylized or painterly realism family of their favourite modern MMO, and then for it to be done in the most efficient way for the server, the system and the bots. Added owner direction 7 and `docs/art_bible.md`: the **Emberlight** style (painted low-poly, colour in vertices and one shared shader, warm light and cool shadows, ember as signature and gameplay signal, the Dimming as our own dark layer, a concrete "what to avoid" list so we never copy), and performance as part of the style (server and bots never touch art, instancing chunked for culling, distance LODs, few lights, pooled effects, no expensive screen effects, quality tiers, and CI-enforced render budgets with a 20% ratchet plus a screenshot style check). Pillar 3 now names the style instead of "flat-shaded, colourful". Nothing already built changes meaning; existing props move onto the shared shader over the next world runs.
 - **Week 00 (2026-11-23, vision and roadmap):** The owner gave the game its direction: the New World feel for the whole game (not only the camera and gathering), the RuneScape-style long skill grind, and the goal of beating every other MMO, built by the owner and AI together. Added "The vision in one paragraph" and the core loop (gather → craft → fight → level up → explore further), owner directions 4 (the whole game feels like a modern action MMO), 5 (the long road: many skills to level 100, every level unlocks something) and 6 (take the best, then beat it: study the best version of each feature in other MMOs and build an improved, original one). Reconciled grind with fun: pillar 1 and the old "Cut boring work" bullet become "Long road, never tedium", judged per minute (every minute pays a little, the next unlock is always in sight), so a long grind is wanted and tedium still never ships. The planned order of systems is now the milestone list in `docs/roadmap.md`. "Inspired by, never copied" applies to both reference games: no skill names, XP tables or exact systems from either.
 - **Week 00 (2026-11-23, fun first):** Added "Fun comes first" at the top of the owner directions. The owner said the number one way to make the greatest MMO is to make it fun, and if it isn't fun it isn't the best. Turned that into concrete guidance (tight feedback, short loops that pay off, juice, no dead time), a lens for each stream, a "Why it's more fun" line on every worker PR, and bot-test fun metrics in qa. Directions 1 to 3 (chat is for talking, the action camera, how gathering feels) and "Inspired by, never copied" are unchanged.

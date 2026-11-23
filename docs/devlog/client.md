@@ -841,3 +841,32 @@ A first screenshot attempt failed on Vulkan; use `--rendering-driver opengl3` li
 
 **Notes to next run:** when #102 lands, hide the goal line while the banner shows (follow-up
 added). Then part 4 (level requirements in prompts) can reuse `SkillsWindow.next_goal`'s need.
+
+## 2026-11-23: Budda Games intro replaces the Godot splash (owner request)
+
+Run outside the schedule, on the owner's direct request in a project thread; took the
+`client` claim like a worker run.
+
+**Built:** `Intro` (`game/client/intro.gd`), a CanvasLayer with a `VideoStreamPlayer` in a
+16:9 `AspectRatioContainer` over the video's background colour (#1d161a). `main.gd` awaits it
+in the client branch before the updater. `project.godot` sets
+`boot_splash/show_image=false` and `boot_splash/bg_color` to the same colour, so launch goes
+background → video with no logo or flash. Any key press (not echo), mouse button or pad button
+fades it out in 0.25 s; a 10 s timer guards against a stalled stream. It never plays headless
+or with `--no-intro`, `--updated` (relaunch after a self-update already showed it),
+`--screenshot`, `--autoconnect`, `--bot`, `--server`; `--intro` forces it for tests.
+
+**Asset:** the owner's mp4 (1920x1080, 60 fps, H.264/AAC, 0.95 MB) converted with ffmpeg to
+Theora/Vorbis at 1920x1080, 30 fps, `-q:v 8 -q:a 4`: 1.15 MB, so updates stay small. 720p was
+0.7 MB but softened the pixel-art logo. Added `client/intro/*.ogv` to the three client presets'
+include filters (the server preset already excludes `client/*`). The owner-approved exception
+to the procedural rule is written into the design bible ("Studio intro").
+
+**Tests:** unit `test_client_intro.gd` (plays on a normal launch, every automated flag skips,
+`--intro` forces, skip events, the file loads as Theora and stays under 2 MB, client presets
+pack it and the server leaves it out, boot splash off with the matching colour). By hand under
+xvfb: the real client plays the whole clip and lands on login; a scripted key press ends it in
+285 ms. No bot behaviour: bots never boot the client role, and bot behaviours must stay art-free.
+
+**Known:** after the clip, its dark last frame stays up while the client builds the world
+(about 5 s on llvmpipe). Follow-up added.
