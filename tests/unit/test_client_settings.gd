@@ -9,7 +9,7 @@ func test_defaults() -> void:
 	check_near(s.mouse_sensitivity, 1.0, 0.0001, "sensitivity")
 	check_eq(s.invert_y, false)
 	check_near(s.master_volume, 0.8, 0.0001, "volume")
-	check_eq(s.shadow_quality, 2)
+	check_eq(s.shadow_quality, 1, "new installs get 60 m sun shadows (art bible Medium)")
 	check_near(s.draw_distance, 600.0, 0.0001, "draw distance")
 
 
@@ -29,6 +29,15 @@ func test_round_trip() -> void:
 	check_eq(t.shadow_quality, 1)
 	check_near(t.draw_distance, 250.0, 0.0001, "draw distance")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func test_saved_high_shadows_are_kept() -> void:
+	# Players who already chose High (the old default, saved) keep it after the default moved.
+	var cfg := ConfigFile.new()
+	cfg.set_value("settings", "shadow_quality", 2)
+	var s := ClientSettings.from_config(cfg)
+	check_eq(s.shadow_quality, 2, "saved High stays High")
+	check_near(s.shadow_distance(), 120.0, 0.0001, "High is 120 m")
 
 
 func test_missing_file_gives_defaults() -> void:

@@ -638,3 +638,49 @@ but make no sound.
 
 **Notes to next run:** the avatar swing is the natural next slice (it finishes the top item).
 Then XP (`s2c_xp`) once gameplay's v4 lands.
+
+## 2026-11-23 (morning): the gather swing (ws/client/gather-swing)
+
+**Why this item:** the top backlog items are done or in review except the XP items, which
+need gameplay's protocol v4 (PR #89, still open; the procedure says never build on an
+unmerged PR). The avatar gather swing is the last missing piece of the owner's top request
+("gathering that feels like an MMO") and needs nobody else. qa's request (Medium shadows by
+default) is a one-line fix, so it rides along as a bug fix.
+
+**Fun, in one sentence:** when you press E at a tree your wanderer now turns to it and chops,
+blow after blow, instead of standing still beside a filling bar; and you can see across the
+meadow who is mining, chopping or collecting sap.
+
+**Built:**
+- `GatherSwing` (`game/client/gather_swing.gd`): per avatar, driven from
+  `GatherWatch.running` (so it covers you and every other player in view). Three stroke
+  styles: chop (ash, pine; 0.8 s, slow wind-up over the head, accelerating bite down), mine
+  (stone; 1.0 s, higher and heavier, deeper lean into the blow), collect (sap; 1.4 s, hands
+  low and forward, dipping). Blends in at 10/s and out at 7/s over the walk pose, both arms
+  together. Only the rendered `Body` turns to face the node (root yaw stays the server's).
+- `client.gd`: one block in the avatar loop after `WalkAnim.apply`.
+- Settings: `shadow_quality` defaults to 1 (60 m) for new installs, per qa's request and the
+  art bible's Medium default. Saved values are kept (`from_config` reads the saved key first;
+  unit test `test_saved_high_shadows_are_kept`).
+
+**Tests:** unit `tests/unit/test_client_gather_swing.gd` (facing maths, styles for every node
+kind, stroke shape, blend in/out with no snap, turn relative to root yaw, no spin on top of
+the node, the real rig's arms and body). Bot `client_gather_swing.gd`: every bot poses a real
+rig for every avatar it sees from snapshots and v3 gather events, checks facing during
+settled gathers, arm range per gather, blend-out within 1.5 s, and no NaN poses.
+
+**What didn't work:** qa expected the 60 m default to cut the spawn frame's primitives. It
+didn't: the smoke run (fresh settings, so 60 m) measured 1,998,157 noon / 1,999,513 night,
+the same as the 120 m baseline plus world's ember veins. The forest is a handful of
+world-spanning MultiMeshes, so the shadow pass can't cull them by distance and draws every
+instance either way. The fix is world chunking its MultiMeshes (or casting no shadow from
+flora), not a client setting. Told qa in its backlog. The default stays at 60 m anyway: it is
+the art bible's Medium and gives sharper shadows near you.
+
+**Not done:** no tool in the hands; no sound on other players' blows; your own last blow
+isn't timed to the bar's end (follow-ups). The render ceiling in qa's `render_baseline.json`
+is qa's file and needs no change (nothing dropped).
+
+**Notes to next run:** XP floaters (`s2c_xp`) as soon as protocol v4 (PR #89) is on main.
+If it isn't, the Graphics quality setting (Low/Medium/High plus F3 overlay) is the next
+no-dependency item; it can reuse the shadow default changed here.
