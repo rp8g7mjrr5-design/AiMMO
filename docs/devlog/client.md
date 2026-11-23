@@ -934,3 +934,13 @@ is only flushed at the end of the tick, so the window judged an older pack. The 
 re-checks a disagreeing prediction against the pack the server judged (rebuilt from the next
 `s2c_inventory`) and fails only if that disagrees too; a new `raced` stat counts the excused
 ones. 7 ENet runs passed after it.
+
+**Scheduled run, 2026-11-23 ~14:30 UTC (looking after #111):** #111 was red (fun metric
+`longest_dead_s_median` 49.9 s vs baseline 35, nothing to do with the intro since bots never
+boot the client role) and in conflict with `main`. qa's #114 landed in the meantime: it fixed
+the same `client_craft_window` race its own way (a `raced_presses` stat that excuses presses a
+pack-changing chat line may have overtaken) and re-baselined dead time to 40 s. Another session had already merged `main` the same way (8341772); I
+and took qa's version of `client_craft_window.gd` over this branch's re-check, because two
+fixes for one race in one file would fight and qa owns `tests/`; the PR is back to just the
+intro. Did not start a second item this run: the intro PR getting green is the useful thing.
+Unit (456), 8-bot 180 s WebSocket bot test (PASSED, dead-time median 35.05 s) and client smoke test pass locally after the merge.
