@@ -14,6 +14,9 @@ class_name ChatCommands
 const HELP := "Commands: /bag (what you carry), /time (time of day in Ashgrove), /who (who is online), /help."
 const GATHER_NAMES := ["gather", "g", "harvest", "chop", "mine"]
 const CRAFT_NAMES := ["craft", "make", "build", "recipes"]
+## The retired timed-gather dev command. It no longer runs ("Unknown command"), but the
+## classifier stays so bot checks that hold a press after a pack-changing line still compile.
+const CHANNEL_NAMES := ["channel"]
 ## Sent to a player whose line came inside GameConfig.CHAT_COOLDOWN of their last one (talk
 ## and commands count separately), so nothing they type vanishes without a word.
 const TOO_FAST := "Slow down a moment: that line wasn't sent. Try again."
@@ -45,6 +48,11 @@ static func argument(text: String) -> String:
 ## True for /gather and its aliases, which the server runs against its world state.
 static func is_gather(text: String) -> bool:
 	return is_command(text) and name_of(text) in GATHER_NAMES
+
+
+## True for the retired /channel line (see CHANNEL_NAMES). Nothing runs it any more.
+static func is_channel(text: String) -> bool:
+	return is_command(text) and name_of(text) in CHANNEL_NAMES
 
 
 ## True for /craft and its aliases, which the server runs against the sender's pack.
