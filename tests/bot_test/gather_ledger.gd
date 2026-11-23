@@ -44,3 +44,30 @@ static func gatherers_on(channels: Dictionary, node_id: int) -> int:
 		if int(channels[peer]) == node_id:
 			n += 1
 	return n
+
+
+## The pair check (qa_gather_ledger's `--gather-pair=lead`): the node two players gather
+## together. The live node nearest `from` (spawn) that is not in `empty` (node id -> true, as
+## this client sees it) or `avoid`, never a night-only one (a seep gives nothing by day).
+## -1 when there is none.
+static func pair_node(empty: Dictionary, avoid: Array, from: Vector3) -> int:
+	var best := -1
+	var best_d := INF
+	for n in ResourceNodes.all():
+		var id := int(n.id)
+		if empty.has(id) or avoid.has(id):
+			continue
+		if bool(ResourceNodes.kind_info(str(n.kind)).get("night_only", false)):
+			continue
+		var d := Vector2(n.pos.x - from.x, n.pos.z - from.z).length()
+		if d < best_d:
+			best_d = d
+			best = id
+	return best
+
+
+## The node a player standing at `pos` is waiting at: the nearest node centre within `reach`
+## flat metres, or -1. The follower uses it to see where its leader stopped.
+static func node_at(pos: Vector3, reach: float) -> int:
+	var near := ResourceNodes.near(pos, reach)
+	return int(near[0].id) if not near.is_empty() else -1

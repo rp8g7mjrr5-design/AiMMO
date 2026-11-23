@@ -24,6 +24,15 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## that node is still empty, must see it empty, must hear s2c_node_state(node, false) when it
 ## respawns, walks there, gathers it with c2s_gather_start, gets paid, and after a reconnect
 ## still sees it full.
+##
+## Pair mode (`--gather-pair=lead [--pair-avoid=<node>]` on one fresh bot and
+## `--gather-pair=follow --pair-leader=<leader name>` on another, started by run_bot_test.py
+## with the respawn probe): two players gather one node at the same time, on purpose rather
+## than by luck. The leader walks to the live node nearest spawn and waits there; the follower
+## waits until the leader stands still at a node, walks to the same one; each starts
+## c2s_gather_start once the other player is in reach, so both channels overlap. Each must
+## see two gatherers on that node (`shared_node_max` 2) and its own gather end "done", or
+## "depleted" when the other's finish took the node's last charge.
 
 const GatherLedger := preload("res://tests/bot_test/gather_ledger.gd")
 
@@ -35,6 +44,11 @@ const ANSWER_TIMEOUT := 3.0
 const END_SLACK := 2.5
 
 enum Probe { OFF, WAIT_RESPAWN, GOTO, START, RUNNING, DONE }
+enum Pair { OFF, PICK, GOTO, WAIT_PARTNER, START, RUNNING, DONE }
+
+const PAIR_PICK_TIMEOUT := 30.0 ## leader: s2c_nodes at login; follower: the leader settles at a node
+const PAIR_PARTNER_TIMEOUT := 30.0 ## at the node, waiting for the other player to come into reach
+const PAIR_STILL := 0.8 ## the follower trusts the leader's node once it has stood still this long
 
 var _pack: Dictionary = {}
 var _skills_floor: Dictionary = {} ## skill -> least XP we know this character has
@@ -65,6 +79,22 @@ var _probe_saw_back := false
 var _probe_paid := false
 var _probe_logins := 0
 
+var _pair := Pair.OFF
+var _pair_role := ""
+var _pair_avoid: Array = []
+var _pair_leader_name := ""
+var _pair_leader_peer := -1
+var _pair_node := -1
+var _pair_since := 0.0
+var _pair_next := 0.0
+var _pair_ends_by := 0.0
+var _pair_together := false
+var _pair_end := ""
+var _pair_leader_pos := Vector3.INF
+var _pair_leader_still_since := 0.0
+var _nodes_seen := false
+var _others_pos := {} ## peer -> position, from snapshots
+
 
 func setup(net: Node) -> void:
 	net.inventory_changed.connect(_on_inventory)
@@ -73,7 +103,10 @@ func setup(net: Node) -> void:
 	net.gather_begun.connect(_on_begun)
 	net.gather_ended.connect(_on_ended)
 	net.system_message.connect(_on_system_skills)
-	net.player_left.connect(func(id: int): _channels.erase(id))
+	net.player_left.connect(func(id: int):
+		_channels.erase(id)
+		_others_pos.erase(id))
+	net.player_joined.connect(_on_joined)
 	var args: Dictionary = bot.args if "args" in bot else {}
 	if args.has("gather-probe"):
 		_probe_node = int(args["gather-probe"])
@@ -81,6 +114,33 @@ func setup(net: Node) -> void:
 		_probe = Probe.WAIT_RESPAWN
 		# Stay on the first login until the gather is done (the probe then reconnects).
 		bot.disconnect_at = float(bot.duration) - 6.0
+	if args.has("gather-pair"):
+		_pair_role = str(args["gather-pair"])
+		if _pair_role not in ["lead", "follow"]:
+			fail("--gather-pair must be lead or follow, got %s" % _pair_role)
+			_pair_role = ""
+		else:
+			for part in str(args.get("pair-avoid", "")).split(",", false):
+				_pair_avoid.append(int(part))
+			_pair_leader_name = str(args.get("pair-leader", ""))
+			if _pair_role == "follow" and _pair_leader_name == "":
+				fail("--gather-pair=follow needs --pair-leader=<name>")
+			_pair = Pair.PICK
+			bot.disconnect_at = float(bot.duration) - 6.0
+
+
+func _on_joined(id: int, player_name: String, _seed: int) -> void:
+	if player_name == _pair_leader_name:
+		_pair_leader_peer = id
+
+
+func on_snapshot(_tick: int, entries: Array) -> void:
+	var i := 0
+	while i + 4 < entries.size():
+		var id := int(entries[i])
+		if id != int(bot.my_id):
+			_others_pos[id] = Vector3(entries[i + 1], entries[i + 2], entries[i + 3])
+		i += 5
 
 
 func on_login(reconnect: bool, character: Dictionary) -> void:
@@ -89,6 +149,12 @@ func on_login(reconnect: bool, character: Dictionary) -> void:
 		_skills_floor[id] = maxi(int(_skills_floor.get(id, 0)), int(sk[id]))
 	_channels.clear()
 	_empty.clear()
+	_others_pos.clear()
+	_nodes_seen = false
+	if _pair != Pair.OFF and _pair != Pair.DONE and reconnect:
+		fail("pair: reconnected before the shared gather was done (state %s)" % Pair.keys()[_pair])
+		_pair = Pair.DONE
+	_pair_since = bot.elapsed
 	_probe_logins += 1
 	if reconnect:
 		_check_pack_at_login = _have_pack
@@ -133,6 +199,7 @@ func _on_nodes(ids: Array) -> void:
 	_empty.clear()
 	for id in ids:
 		_empty[int(id)] = true
+	_nodes_seen = true
 	if _probe != Probe.OFF:
 		var listed := _empty.has(_probe_node)
 		var now := Time.get_unix_time_from_system()
@@ -164,6 +231,11 @@ func _on_begun(peer: int, node_id: int, seconds: float) -> void:
 		fail("peer %d started gathering node %d, which this client shows empty" % [peer, node_id])
 	_channels[peer] = node_id
 	shared_node_max = maxi(shared_node_max, GatherLedger.gatherers_on(_channels, node_id))
+	if node_id == _pair_node and _pair in [Pair.START, Pair.RUNNING] and GatherLedger.gatherers_on(_channels, node_id) >= 2:
+		_pair_together = true
+	if peer == int(bot.my_id) and _pair == Pair.START and node_id == _pair_node:
+		_pair = Pair.RUNNING
+		_pair_ends_by = bot.elapsed + seconds + END_SLACK
 	if peer == int(bot.my_id):
 		_mine_running = node_id
 		if _probe == Probe.START and node_id == _probe_node:
@@ -178,6 +250,13 @@ func _on_ended(peer: int, node_id: int, reason: String) -> void:
 	_mine_running = -1
 	if reason == "done":
 		my_done += 1
+	if node_id == _pair_node and _pair in [Pair.START, Pair.RUNNING]:
+		_pair_end = reason
+		_pair = Pair.DONE
+		if reason not in ["done", "depleted"]:
+			fail("pair: my gather on the shared node %d ended '%s'" % [node_id, reason])
+		bot.disconnect_at = bot.elapsed + 1.5
+		return
 	if node_id != _probe_node or _probe not in [Probe.START, Probe.RUNNING]:
 		return
 	if reason == "done":
@@ -194,7 +273,9 @@ func _on_ended(peer: int, node_id: int, reason: String) -> void:
 		_probe = Probe.DONE
 
 
-func on_play(_delta: float) -> void:
+func on_play(delta: float) -> void:
+	if _pair != Pair.OFF:
+		_play_pair(delta)
 	match _probe:
 		Probe.WAIT_RESPAWN:
 			bot.move = Vector2.ZERO
@@ -235,6 +316,80 @@ func on_play(_delta: float) -> void:
 			pass
 
 
+## Pair mode, one frame. See the header.
+func _play_pair(delta: float) -> void:
+	match _pair:
+		Pair.PICK:
+			bot.move = Vector2.ZERO
+			if _pair_role == "lead":
+				if _nodes_seen:
+					_pair_node = GatherLedger.pair_node(_empty, _pair_avoid, GameConfig.SPAWN_POINT)
+					if _pair_node < 0:
+						fail("pair: no live node to gather together")
+						_pair = Pair.DONE
+						return
+					_pair = Pair.GOTO
+					_pair_since = bot.elapsed
+			elif _others_pos.has(_pair_leader_peer):
+				var at: Vector3 = _others_pos[_pair_leader_peer]
+				if _pair_leader_pos == Vector3.INF or at.distance_to(_pair_leader_pos) > 0.05:
+					_pair_leader_pos = at
+					_pair_leader_still_since = bot.elapsed
+				elif bot.elapsed - _pair_leader_still_since >= PAIR_STILL:
+					var id := GatherLedger.node_at(at, STOP_AT + 0.6)
+					if id >= 0 and not _empty.has(id):
+						_pair_node = id
+						_pair = Pair.GOTO
+						_pair_since = bot.elapsed
+			if _pair == Pair.PICK and bot.elapsed - _pair_since > PAIR_PICK_TIMEOUT:
+				fail("pair (%s): no node picked after %.0f s (leader peer %d)" % [_pair_role, PAIR_PICK_TIMEOUT, _pair_leader_peer])
+				_pair = Pair.DONE
+		Pair.GOTO:
+			var off: Vector3 = ResourceNodes.get_by_id(_pair_node).pos - bot.my_pos
+			var flat := Vector2(off.x, off.z)
+			if bot.elapsed - _pair_since > WALK_TIMEOUT:
+				fail("pair: could not walk to node %d (%.1f m left)" % [_pair_node, flat.length()])
+				_pair = Pair.DONE
+			elif flat.length() > STOP_AT:
+				bot.move = flat.normalized()
+				bot.yaw = atan2(bot.move.x, bot.move.y)
+			else:
+				bot.move = Vector2.ZERO
+				_pair = Pair.WAIT_PARTNER
+				_pair_since = bot.elapsed
+		Pair.WAIT_PARTNER:
+			bot.move = Vector2.ZERO
+			var node_pos: Vector3 = ResourceNodes.get_by_id(_pair_node).pos
+			var partner_in_reach := false
+			for peer in _others_pos:
+				var p: Vector3 = _others_pos[peer]
+				if Vector2(p.x - node_pos.x, p.z - node_pos.z).length() <= ResourceNodes.GATHER_RANGE - 0.3:
+					partner_in_reach = true
+			if partner_in_reach:
+				_pair = Pair.START
+				_pair_next = bot.elapsed + SETTLE
+				_pair_ends_by = INF
+			elif bot.elapsed - _pair_since > PAIR_PARTNER_TIMEOUT:
+				fail("pair: nobody else came to node %d within %.0f s" % [_pair_node, PAIR_PARTNER_TIMEOUT])
+				_pair = Pair.DONE
+		Pair.START:
+			bot.move = Vector2.ZERO
+			if _pair_next > 0.0 and bot.elapsed >= _pair_next:
+				_pair_next = 0.0
+				_pair_ends_by = bot.elapsed + ANSWER_TIMEOUT
+				bot.net.play.c2s_gather_start.rpc_id(1, _pair_node)
+			elif bot.elapsed > _pair_ends_by:
+				fail("pair: c2s_gather_start(%d) was never answered" % _pair_node)
+				_pair = Pair.DONE
+		Pair.RUNNING:
+			bot.move = Vector2.ZERO
+			if bot.elapsed > _pair_ends_by:
+				fail("pair: gather on node %d never ended" % _pair_node)
+				_pair = Pair.DONE
+		Pair.DONE:
+			pass
+
+
 func on_finish() -> void:
 	stat("final_pack", _pack)
 	stat("skills_floor", _skills_floor)
@@ -252,5 +407,9 @@ func on_finish() -> void:
 			fail("probe: never saw node %d empty at login" % _probe_node)
 		if not _probe_paid:
 			fail("probe: never gathered the respawned node %d" % _probe_node)
+	if _pair_role != "":
+		stat("pair", {"role": _pair_role, "node": _pair_node, "together": _pair_together, "end": _pair_end})
+		if not _pair_together:
+			fail("pair (%s): never saw two players gathering node %d at the same time" % [_pair_role, _pair_node])
 	if reconnect_checks == 0 and int(bot.stats.logins) >= 2:
 		fail("no s2c_inventory after the reconnect")
