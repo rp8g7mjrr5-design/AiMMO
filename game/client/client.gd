@@ -43,6 +43,11 @@ var craft_window: CraftWindow
 var sfx_craft: AudioStreamPlayer
 var reticle: Reticle
 var controls_overlay: ControlsOverlay
+var skills_window: SkillsWindow
+var skills_button: Button
+var goal_label: Label
+var _goal_key := "" ## which unlock the goal line names ("felling:5")
+var _goal_flash := 0.0 ## seconds left on the goal line's gold flash after a new goal
 var controls_button: Button
 var perf_overlay: PerfOverlay
 ## Item icons, drawn on a background thread from the moment the game starts.
@@ -104,6 +109,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 		perf_overlay.toggle() # test hook: the F3 overlay in a screenshot
 	if args.has("open-controls"):
 		_open_controls_after_login.call_deferred()
+	if args.has("open-skills"):
+		_open_skills_after_login.call_deferred()
 	if args.has("autoconnect"):
 		_on_connect_pressed.call_deferred()
 	_args = args
@@ -125,6 +132,14 @@ func _open_controls_after_login() -> void:
 		await get_tree().process_frame
 	await get_tree().create_timer(1.0).timeout
 	controls_overlay.open()
+
+
+## Test hook (--open-skills): opens the K skills window once logged in, as K would.
+func _open_skills_after_login() -> void:
+	while not logged_in:
+		await get_tree().process_frame
+	await get_tree().create_timer(1.0).timeout
+	skills_window.open()
 
 
 func _screenshot_later(path: String, wait: float) -> void:
@@ -164,6 +179,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		if controls_overlay.visible:
 			controls_overlay.close()
+		elif skills_window.visible:
+			skills_window.close()
 		elif craft_window.visible:
 			craft_window.close()
 		elif chat_edit.has_focus():
@@ -179,14 +196,18 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not logged_in or settings_menu.visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_controls"):
-		if not craft_window.visible:
+		if not craft_window.visible and not skills_window.visible:
 			controls_overlay.toggle()
 			if controls_overlay.visible:
 				chat_edit.release_focus()
 				sfx_chime.play()
 		get_viewport().set_input_as_handled()
 		return
-	if controls_overlay.visible:
+	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_skills"):
+		_toggle_skills()
+		get_viewport().set_input_as_handled()
+		return
+	if controls_overlay.visible or skills_window.visible:
 		return
 	if craft_window.visible:
 		if event is InputEventKey and event.pressed and not event.echo and event.is_action("interact"):
@@ -233,7 +254,17 @@ func _apply_settings(s: ClientSettings) -> void:
 
 ## True while a window that frees the cursor is open (Settings, the workbench, the F1 controls).
 func window_open() -> bool:
-	return settings_menu.visible or craft_window.visible or controls_overlay.visible
+	return settings_menu.visible or craft_window.visible or controls_overlay.visible or skills_window.visible
+
+
+## K or the Skills button: open or shut the skills window (not over another window).
+func _toggle_skills() -> void:
+	if craft_window.visible or controls_overlay.visible or settings_menu.visible:
+		return
+	skills_window.toggle()
+	if skills_window.visible:
+		chat_edit.release_focus()
+		sfx_chime.play()
 
 
 func _move_vector() -> Vector2:
@@ -247,6 +278,7 @@ func _move_vector() -> Vector2:
 func _process(delta: float) -> void:
 	perf_overlay.step(delta)
 	xp_meter.step(delta)
+	_step_goal(delta)
 	var t := 1.0 - exp(-14.0 * delta)
 	for id in avatars:
 		var a: Dictionary = avatars[id]
@@ -429,6 +461,8 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	hud_label.visible = true
 	help_label.visible = true
 	controls_button.visible = true
+	skills_button.visible = true
+	goal_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
 	cam.place(Vector3(character.x, character.y, character.z), character.yaw + PI)
 	craft_window.seed_pack(character.get("inventory"))
@@ -457,6 +491,11 @@ func _on_server_disconnected() -> void:
 	help_label.visible = false
 	controls_button.visible = false
 	controls_overlay.visible = false
+	skills_window.reset()
+	skills_button.visible = false
+	goal_label.visible = false
+	goal_label.text = ""
+	_goal_key = ""
 	reticle.visible = false
 	reticle.active = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -538,12 +577,33 @@ func _on_gather_result(item_id: String, count: int) -> void:
 
 func _on_skills(skills: Dictionary) -> void:
 	xp_meter.on_skills(skills)
+	skills_window.on_skills(skills)
+	_update_goal(false)
 
 
 ## s2c_xp arrives right after the gather/craft result, so the "+10 Felling" pops in the same
 ## frame as the haul toast.
 func _on_xp(skill: String, gained: int, total_xp: int) -> void:
 	xp_meter.on_gain(skill, gained, total_xp)
+	skills_window.on_gain(skill, total_xp)
+	_update_goal(true)
+
+
+## The goal line under the compass: the closest named unlock. When it moves on to a new goal
+## (you just reached the old one), it flashes gold for a moment.
+func _update_goal(flash: bool) -> void:
+	var before := _goal_key
+	_goal_key = SkillsWindow.goal_key(skills_window.skills)
+	goal_label.text = SkillsWindow.goal_text(skills_window.skills)
+	if flash and before != "" and before != _goal_key:
+		_goal_flash = SkillsWindow.GOAL_FLASH_SECONDS
+
+
+func _step_goal(delta: float) -> void:
+	if _goal_flash <= 0.0:
+		return
+	_goal_flash = maxf(0.0, _goal_flash - delta)
+	goal_label.add_theme_color_override("font_color", SkillsWindow.goal_colour(_goal_flash / SkillsWindow.GOAL_FLASH_SECONDS))
 
 
 ## The bench's answer to a Craft press: the window shows the server's words; a success also
@@ -739,6 +799,24 @@ func _build_ui() -> void:
 	ui.add_child(compass)
 	compass.setup(theme)
 
+	# The next goal, just under the compass: "Next: Felling 5 unlocks Old ember ash (240 XP)".
+	goal_label = Label.new()
+	goal_label.theme = theme
+	goal_label.anchor_left = 0.5
+	goal_label.anchor_right = 0.5
+	goal_label.offset_left = -CompassStrip.WIDTH * 0.5 - 60
+	goal_label.offset_right = CompassStrip.WIDTH * 0.5 + 60
+	goal_label.offset_top = 76
+	goal_label.offset_bottom = 96
+	goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	goal_label.add_theme_font_size_override("font_size", 14)
+	goal_label.add_theme_color_override("font_color", SkillsWindow.goal_colour(0.0))
+	goal_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	goal_label.add_theme_constant_override("outline_size", 5)
+	goal_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	goal_label.visible = false
+	ui.add_child(goal_label)
+
 	# Gather prompt and "+2 ash wood" toasts, bottom centre.
 	gather_prompt = GatherPrompt.new()
 	gather_prompt.anchor_left = 0.5
@@ -788,7 +866,7 @@ func _build_ui() -> void:
 	help_label.anchor_left = 1.0
 	help_label.anchor_right = 1.0
 	help_label.offset_left = -460
-	help_label.offset_right = -52
+	help_label.offset_right = -120
 	help_label.offset_top = 12
 	help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	help_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
@@ -810,10 +888,26 @@ func _build_ui() -> void:
 	controls_button.offset_bottom = 38
 	controls_button.visible = false
 	controls_button.pressed.connect(func():
-		if not craft_window.visible and not settings_menu.visible:
+		if not craft_window.visible and not settings_menu.visible and not skills_window.visible:
 			controls_overlay.toggle()
 			sfx_chime.play())
 	ui.add_child(controls_button)
+
+	# "Skills" button left of the "?": the same window as K, for mouse players.
+	skills_button = Button.new()
+	skills_button.theme = theme
+	skills_button.text = "Skills"
+	skills_button.tooltip_text = "Skills (%s)" % ControlsOverlay.key_text("toggle_skills")
+	skills_button.focus_mode = Control.FOCUS_NONE
+	skills_button.anchor_left = 1.0
+	skills_button.anchor_right = 1.0
+	skills_button.offset_left = -112
+	skills_button.offset_right = -52
+	skills_button.offset_top = 10
+	skills_button.offset_bottom = 38
+	skills_button.visible = false
+	skills_button.pressed.connect(_toggle_skills)
+	ui.add_child(skills_button)
 
 	# The F1 controls overlay, centre screen.
 	perf_overlay = PerfOverlay.new()
@@ -823,6 +917,12 @@ func _build_ui() -> void:
 	controls_overlay.setup(theme)
 	controls_overlay.closed.connect(func(): sfx_chime.play())
 	ui.add_child(controls_overlay)
+
+	# The K skills window, centre screen.
+	skills_window = SkillsWindow.new()
+	skills_window.setup(theme)
+	skills_window.closed.connect(func(): sfx_chime.play())
+	ui.add_child(skills_window)
 
 	# The workbench window, centre screen (E at the Spawn Meadow workbench).
 	craft_window = CraftWindow.new()
