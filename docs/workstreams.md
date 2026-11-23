@@ -163,7 +163,10 @@ the branch before opening the PR is fine; open the PR as soon as the branch is r
    restart. Never push to `main` directly. At most one PR of your own per run.
 5. Confirm CI passes, the server redeploys, and the `Week NN` release updates. Railway
    deploys the server itself from `main` when server files change (`railway.json`
-   `watchPatterns`); CI no longer deploys a second time. If the deploy breaks, revert and
+   `watchPatterns`), and waits for that commit's CI to pass first ("Wait for CI" is on in
+   Railway, set by the owner 2026-11-23); CI no longer deploys a second time. A red `main`
+   therefore never reaches players, but fix or revert it at once: nothing else deploys
+   until `main` is green again. If the deploy breaks, revert and
    confirm the previous version is live.
 6. Triage `docs/playtest.md`: tag new reports and add them to the right stream's backlog.
 7. If a stream's backlog has fewer than 3 items, add the next ones from the roadmap.
