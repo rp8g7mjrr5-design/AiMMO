@@ -112,7 +112,7 @@ func _on_ended(peer: int, node_id: int, reason: String) -> void:
 		return
 	if _w.on_ended(node_id, reason) != "":
 		notices += 1
-		if _w.toast_label.text != PromptScript.notice_text(reason):
+		if _w.toast_label.text != PromptScript.notice_for(reason, node_id):
 			fail("notice for %s shows %s" % [reason, _w.toast_label.text])
 	if _w.gathering() and int(_w.channel().node_id) == node_id:
 		fail("bar still up after its end (%s)" % reason)
