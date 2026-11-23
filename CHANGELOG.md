@@ -5,6 +5,16 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- Your game now hears about every bit of XP the moment you earn it, every level-up with the unlock it gives, and every level-up of the players around you, so XP pops, level-up banners and that ember burst over a friend's head can show up as they happen. (This update brings protocol v4: your game updates itself the next time you launch it.)
+- New **Graphics** setting in Settings: Low, Medium or High. Low trims shadows and view distance so older laptops stay smooth; High stretches sun shadows out to 120 m.
+- Press **F3** for a small frame-rate panel (fps, frame time, draw calls, triangles) in the corner. Press it again to hide it.
+- Gathering now looks like work: your wanderer turns to the tree, rock or seep and gets stuck in. A two-handed chop for ash and pine, heavier blows into stone, a gentle dip of both hands at an ember-sap seep. Everyone else's gathering shows the same, so a busy meadow looks busy.
+- New installs start with medium-range sun shadows (60 m), which look crisper up close. If you already picked a shadow setting, it stays as you set it.
+- Your skill levels are now guarded like your pack: every update is checked to make sure old characters load at level 1, saved XP comes back exactly, and a level-up you earned is never lost when you log off.
+- Every update now also times how long a fresh player has to gather before their first level-up, and fails if it takes more than 90 seconds.
+- Everything you can gather now carries glowing ember cracks: up the bark of gatherable ash and pine, along the outcrop's stone, over the seep's rim stones. They pulse with the valley's slow heartbeat, so a node you can use stands out from plain scenery by day and by night, and an emptied node goes dark until it grows back.
+- Resource nodes, birches, mossy boulders and wildflowers now share the painted Emberlight look with the rest of the forest: warm light, blue-leaning shade, darker where they meet the ground.
+- Every update is now checked for how hard it makes your computer work at spawn, day and night, so new trees, glows and props can't quietly cost you frames.
 - The long road begins: every log you fell, rock you split and seep you tap now earns XP in **Felling**, **Quarrying** or **Tapping**, and every craft at the bench trains **Toolcraft**. Your first level comes within about a minute of gathering.
 - Each level makes that skill's gathers a little quicker, and named unlocks are on the way: at Felling 10 every chop gives an extra log, at Tapping 5 every seep an extra drop of sap. A line in chat cheers each level and tells you what's next.
 - Better together: gather or craft within a stone's throw of another settler and you learn a quarter faster.
