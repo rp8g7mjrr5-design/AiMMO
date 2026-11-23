@@ -1,2 +1,0 @@
-- A full pack no longer stops you levelling: when your stack of wood or stone is full, the swing still finishes and the XP still lands (you just leave the haul behind). Before this, a new woodcutter filled both wood stacks around Felling 4 and hit a wall.
-- We now play a fresh character through the real gather timings on every build: Felling 2 arrives in under a minute and Felling 5 inside ten minutes, even bare-handed, and the build fails if that ever slips.

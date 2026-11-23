@@ -1,3 +1,0 @@
-- Lost behind a ridge or wedged against a rock? The server can now send you straight back to Spawn Meadow, once a minute. The button is on its way to the Esc menu.
-- The server now keeps a live list of everyone online with their total skill level, ready for the players panel (it updates the moment someone joins, leaves or levels up).
-- This update needs the new client (protocol v5). Your game updates itself when you start it.

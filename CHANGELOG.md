@@ -5,6 +5,21 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- Golden hour lasts: the sun now spends most of the day in warm, low light, with a golden haze in the valley floors that glows when you look toward the sun.
+- Nights are moonlit blue instead of green-black, so the ember ash crowns, veins and lanterns really glow against them.
+- From dusk to dawn, ember motes drift up out of every ember ash and sap seep: follow the sparks to find something worth gathering (fewer on Low graphics, more on High).
+- Hover the sun/moon dial above the chat (open chat or any window to free the cursor) to see the exact time and how long until dusk, night or dawn. No more typing /time.
+- In the last minute and a half before the light changes, the dial warns you: "· Night soon". Time to head back to the bench lantern, or to stay out and watch the ember glow come up.
+- Your ember axe and ember pickaxe now sit right next to your stone tools in the pack, with their own icons, instead of trailing behind the campfires.
+- Press O (or the new "Players" button, which always shows how many are online) to see everyone in the valley with their total level. No more typing /who.
+- Someone who just walked in glows gold with "just arrived", and when anyone levels up their row lights up with "+1", so you can put a name to that burst of ember light across the meadow.
+- A full pack no longer stops you levelling: when your stack of wood or stone is full, the swing still finishes and the XP still lands (you just leave the haul behind). Before this, a new woodcutter filled both wood stacks around Felling 4 and hit a wall.
+- We now play a fresh character through the real gather timings on every build: Felling 2 arrives in under a minute and Felling 5 inside ten minutes, even bare-handed, and the build fails if that ever slips.
+- Lost behind a ridge or wedged against a rock? The server can now send you straight back to Spawn Meadow, once a minute. The button is on its way to the Esc menu.
+- The server now keeps a live list of everyone online with their total skill level, ready for the players panel (it updates the moment someone joins, leaves or levels up).
+- This update needs the new client (protocol v5). Your game updates itself when you start it.
+- Every press of E and every Craft press is now timed in our automated playtests: if the game ever takes more than a blink to answer one, the build doesn't ship.
+- The first reward for a brand-new player is now held to 90 seconds at worst (it's about 8 today), so a slow start can't sneak back in.
 - The valley runs lighter: trees, stones and seeps you can gather from are now drawn in chunks, so your machine only draws the ones you can see. About a quarter fewer triangles per frame at spawn, with every node looking exactly as before.
 - Press **I** (or the new **Pack** button) to open your pack: every item as an icon with its count, no more typing /bag.
 - Whatever you just picked up glows gold in your pack with a "+2", and hovering an item tells you what it's used to make.
