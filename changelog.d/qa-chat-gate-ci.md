@@ -1,0 +1,1 @@
+- Chat stays chat: every build now plays a round where settlers type old commands into chat and checks the only thing that happens is the friendly "Chat is for talking. Press F1 for controls." nudge. Nothing gets gathered, nothing gets shouted to everyone, and plain talk still goes through.
