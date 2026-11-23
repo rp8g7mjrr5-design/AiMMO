@@ -68,13 +68,16 @@ var _toast_age := INF
 ## A tier-2 node above your level (`skills`: skill id -> XP) shows what it needs, greyed:
 ## "Old Ember Ash · Felling 5 (1,205 XP to go)".
 ## {id, kind, label, can: bool (false for a spent node, a seep in daylight or a node above
-## your level), needs_level: bool, text, doing}.
+## your level), needs_level: bool, aimed: bool (the reticle is on it, so a left-click takes
+## it; false for the nearest-node fallback), text, doing}.
 static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look := Vector3.ZERO, spent_ids := {}, skills := {}) -> Dictionary:
 	var in_reach := ResourceNodes.near(pos, ResourceNodes.GATHER_RANGE)
 	if in_reach.is_empty():
 		return {}
 	var live: Array = in_reach.filter(func(n): return not spent_ids.has(int(n.id)))
 	var n: Dictionary = pick(live, eye, look) if not live.is_empty() else in_reach[0]
+	var aimed := not live.is_empty() and look != Vector3.ZERO \
+		and int(ActionCamera.aimed_node(eye, look.normalized(), live).get("id", -1)) == int(n.id)
 	var info := ResourceNodes.info(n)
 	var label := str(info.get("label", n.kind))
 	var what := _what(str(n.kind), label)
@@ -95,6 +98,7 @@ static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look
 		"label": label,
 		"can": not is_spent and not night_only and not too_low,
 		"needs_level": too_low,
+		"aimed": aimed,
 		"text": text,
 		"doing": doing_for(n),
 	}
@@ -147,14 +151,20 @@ static func pick(in_reach: Array, eye: Vector3, look: Vector3) -> Dictionary:
 
 ## What E does this frame. `held` / `pressed` (just pressed) for E, `moving` for any movement
 ## key, `target` from target(), `gathering` while your own gather runs, `waiting` while a
-## start is unanswered, `blocked` after a refusal until E is let go.
+## start is unanswered, `blocked` after a refusal until E (and the mouse button) is let go.
+## `click_held` / `click_pressed` are the left mouse button (action camera: "E or left-click").
+## A click only takes the node under the reticle (`target.aimed`), never the nearest-node
+## fallback, so clicking at the sky doesn't start chopping the tree beside you. And a click
+## never stops a gather: hammering the button while you chop keeps chopping (E or moving stops).
 ## {"op": "start", "node": id}, {"op": "cancel"}, or {} for nothing.
-static func decide(held: bool, pressed: bool, moving: bool, target: Dictionary, gathering: bool, waiting: bool, blocked: bool) -> Dictionary:
+static func decide(held: bool, pressed: bool, moving: bool, target: Dictionary, gathering: bool, waiting: bool, blocked: bool, click_held: bool = false, click_pressed: bool = false) -> Dictionary:
 	if gathering:
 		return {"op": "cancel"} if pressed or moving else {}
 	if waiting or moving or target.is_empty() or not bool(target.get("can", false)):
 		return {}
 	if pressed or (held and not blocked):
+		return {"op": "start", "node": int(target.id)}
+	if bool(target.get("aimed", false)) and (click_pressed or (click_held and not blocked)):
 		return {"op": "start", "node": int(target.id)}
 	return {}
 
@@ -275,17 +285,18 @@ func _make_label(font_size: int, color: Color) -> Label:
 
 
 ## Called every logged-in frame with where you stand, E held / just pressed, whether you are
-## moving, and (optionally) the camera's eye and look direction for look-to-interact.
+## moving, (optionally) the camera's eye and look direction for look-to-interact, and the
+## left mouse button held / just pressed (click-to-gather on the aimed node).
 ## Returns what to send now: {"op": "start", "node": id} (c2s_gather_start), {"op": "cancel"}
 ## (c2s_gather_cancel), or {}.
-func update(delta: float, pos: Vector3, world_seconds: float, now: float, held: bool, pressed: bool = false, moving: bool = false, eye := Vector3.ZERO, look := Vector3.ZERO) -> Dictionary:
+func update(delta: float, pos: Vector3, world_seconds: float, now: float, held: bool, pressed: bool = false, moving: bool = false, eye := Vector3.ZERO, look := Vector3.ZERO, click_held: bool = false, click_pressed: bool = false) -> Dictionary:
 	_target = target(pos, world_seconds, eye, look, spent, skills)
-	if not held:
+	if not held and not click_held:
 		_hold_blocked = false
 	var waiting := _asked_node >= 0 and now - _asked_at < ASK_TIMEOUT
 	if not waiting:
 		_asked_node = -1
-	var op := decide(held, pressed, moving, _target, not _channel.is_empty(), waiting, _hold_blocked)
+	var op := decide(held, pressed, moving, _target, not _channel.is_empty(), waiting, _hold_blocked, click_held, click_pressed)
 	if op.get("op", "") == "start":
 		_asked_node = int(op.node)
 		_asked_at = now

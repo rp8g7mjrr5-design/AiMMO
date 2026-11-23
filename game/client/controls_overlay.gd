@@ -27,6 +27,11 @@ const DEFAULT_BINDS := {
 	"toggle_players": [KEY_O],
 	"toggle_perf": [KEY_F3],
 }
+## The game's default mouse button for every rebindable mouse action (same rules as above).
+## Left-click gathers the node under the reticle (action camera: "E or left-click").
+const DEFAULT_MOUSE := {
+	"click_use": [MOUSE_BUTTON_LEFT],
+}
 
 ## What the overlay lists, in order: [section title, [[what it does, keys], ...]].
 ## A key entry is an InputMap action name (shown as its first bound key), or "=Text" for a
@@ -40,7 +45,7 @@ const SECTIONS := [
 		["Zoom the camera", ["=Wheel"]],
 	]],
 	["Doing", [
-		["Gather what you look at", ["interact"]],
+		["Gather what you look at", ["interact", "click_use"]],
 		["Use the workbench", ["interact"]],
 	]],
 	["Talking and menus", [
@@ -67,6 +72,14 @@ static func install_input() -> void:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = k
 			InputMap.action_add_event(action, ev)
+	for action in DEFAULT_MOUSE:
+		if InputMap.has_action(action):
+			continue
+		InputMap.add_action(action)
+		for b in DEFAULT_MOUSE[action]:
+			var mb := InputEventMouseButton.new()
+			mb.button_index = b
+			InputMap.action_add_event(action, mb)
 
 
 ## The name of the first key bound to `action` ("W", "Alt", "F1"), "=Text" entries as their
@@ -83,8 +96,20 @@ static func key_text(entry: String) -> String:
 			if s != "":
 				return s
 		elif ev is InputEventMouseButton:
-			return "Mouse %d" % ev.button_index
+			return mouse_text(ev.button_index)
 	return "?"
+
+
+## A mouse button's name on a keycap: "Left click", "Right click", "Middle click", "Mouse 4".
+static func mouse_text(button: int) -> String:
+	match button:
+		MOUSE_BUTTON_LEFT:
+			return "Left click"
+		MOUSE_BUTTON_RIGHT:
+			return "Right click"
+		MOUSE_BUTTON_MIDDLE:
+			return "Middle click"
+	return "Mouse %d" % button
 
 
 ## Every row as [section, what it does, [key names]], in display order (unit tested).
