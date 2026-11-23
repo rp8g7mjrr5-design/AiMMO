@@ -1,0 +1,1 @@
+- Every update now boots the exact server package that goes live and has two test players log in, play, log out and back in before it ships, so an update can't leave the world offline.
