@@ -280,6 +280,7 @@ func _on_chat(id: int, text: String) -> void:
 	if ChatCommands.is_gather(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [gather(id, ChatCommands.argument(clean))])
+		_send_queued_lines(id)
 		return
 	if ChatCommands.is_channel(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
@@ -288,13 +289,14 @@ func _on_chat(id: int, text: String) -> void:
 	if ChatCommands.is_craft(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [craft(id, "" if ChatCommands.name_of(clean) == "recipes" else ChatCommands.argument(clean))])
+		_send_queued_lines(id)
 		return
 	if ChatCommands.is_command(clean):
 		var online: Array = []
 		for other in sessions:
 			if sessions[other].logged_in:
 				online.append(sessions[other].character.name)
-		var reply := ChatCommands.run(clean, {"world_seconds": world_seconds(), "online": online, "inventory": s.character.inventory})
+		var reply := ChatCommands.run(clean, {"world_seconds": world_seconds(), "online": online, "inventory": s.character.inventory, "skills": s.character.get("skills", {})})
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [reply])
 		return
@@ -353,13 +355,14 @@ func gather(id: int, kind_word: String = "") -> String:
 		return Gathering.refusal(why, gathering, node_id, pos, now, ws, kind)
 	var tool := Gathering.tool_for(node_kind, inv)
 	var got := Gathering.take(gathering, node_id, now)
-	var added := give_item(id, got.item, Gathering.amount_for(node_kind, inv))
+	var added := give_item(id, got.item, Gathering.amount_for(node_kind, inv, skill_level(id, Skills.skill_for_kind(node_kind))))
 	if added <= 0:
 		Gathering.give_back(gathering, node_id)
 		return Gathering.refusal("full", gathering, node_id, pos, now, ws, kind)
 	s.last_gather = now
 	if got.depleted:
 		_node_changed(node_id, true, got.respawn)
+	award_xp(id, Skills.skill_for_kind(node_kind), Skills.gather_xp(node_kind, has_company(id)))
 	return Gathering.success(node_id, added, Inventory.count(s.character.inventory, got.item), got.depleted, tool)
 
 
@@ -389,7 +392,7 @@ func gather_start(id: int, node_id: int) -> Dictionary:
 		why = "full"
 	if why != "":
 		return {"ok": false, "reason": why, "seconds": 0.0}
-	var secs := GatherChannel.seconds_for(kind, inv)
+	var secs := GatherChannel.seconds_for(kind, inv, skill_level(id, Skills.skill_for_kind(kind)))
 	s.channel = GatherChannel.start(node_id, pos, now, secs)
 	_gather_event(id, "begin", node_id, {"seconds": secs})
 	return {"ok": true, "reason": "", "seconds": secs}
@@ -443,7 +446,7 @@ func _finish_channel(id: int, now: float) -> void:
 	var inv: Dictionary = s.character.inventory
 	var tool := Gathering.tool_for(kind, inv)
 	var got := Gathering.take(gathering, node_id, now)
-	var added := give_item(id, got.item, Gathering.amount_for(kind, inv))
+	var added := give_item(id, got.item, Gathering.amount_for(kind, inv, skill_level(id, Skills.skill_for_kind(kind))))
 	if added <= 0:
 		Gathering.give_back(gathering, node_id)
 		_gather_event(id, "cancelled", node_id, {"reason": "full", "audience": audience})
@@ -451,6 +454,7 @@ func _finish_channel(id: int, now: float) -> void:
 	s.last_gather = now
 	if got.depleted:
 		_node_changed(node_id, true, got.respawn)
+	award_xp(id, Skills.skill_for_kind(kind), Skills.gather_xp(kind, has_company(id)))
 	_gather_event(id, "done", node_id, {"item": got.item, "count": added, "tool": tool, "depleted": got.depleted, "audience": audience})
 
 
@@ -500,6 +504,7 @@ func _gather_event(id: int, event: String, node_id: int, info: Dictionary) -> vo
 				_send(other, "s2c_gather_end", [id, node_id, reason])
 	if text != "":
 		_send(id, "s2c_system", [text])
+	_send_queued_lines(id)
 
 
 ## What protocol v3's c2s_gather_start(node_id) does: start a timed gather on that node.
@@ -573,6 +578,7 @@ func _send_world_state(id: int) -> void:
 func _flush_inventories() -> void:
 	for id in sessions:
 		var s: Dictionary = sessions[id]
+		_send_queued_lines(id)
 		if s.logged_in and s.get("inv_dirty", false):
 			s.inv_dirty = false
 			_send(id, "s2c_inventory", [Inventory.to_wire(s.character.inventory)])
@@ -638,6 +644,7 @@ func craft_request(id: int, recipe_id: String) -> Dictionary:
 	else:
 		r = _craft(id, recipe_id)
 	_send(id, "s2c_craft_result", [recipe_id.substr(0, 32), bool(r.ok), str(r.text)])
+	_send_queued_lines(id)
 	return r
 
 
@@ -663,7 +670,68 @@ func _craft(id: int, recipe: String) -> Dictionary:
 			give_item(id, back, int(taken[back]))
 		return {"ok": false, "reason": "full", "text": Crafting.refusal("full", inv, recipe, pos)}
 	print("[craft] %s made %d %s" % [s.character.name, made, recipe])
+	award_xp(id, "toolcraft", Skills.craft_xp(recipe, has_company(id)))
 	return {"ok": true, "reason": "", "text": Crafting.success(recipe, made, inv)}
+
+
+## Player `id`'s level in `skill` (1 for an unknown skill or a player who is not here).
+func skill_level(id: int, skill: String) -> int:
+	if skill == "" or not sessions.has(id) or not sessions[id].logged_in:
+		return 1
+	return Skills.level_of(sessions[id].character.get("skills", {}), skill)
+
+
+## True when another logged-in player is within Skills.TOGETHER_RANGE of player `id`
+## (better together: their gathers and crafts pay Skills.TOGETHER_BONUS more XP).
+func has_company(id: int) -> bool:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return false
+	var p := CharacterData.position(sessions[id].character)
+	var here := Vector2(p.x, p.z)
+	for other in sessions:
+		if other == id or not sessions[other].logged_in:
+			continue
+		var o := CharacterData.position(sessions[other].character)
+		if here.distance_to(Vector2(o.x, o.z)) <= Skills.TOGETHER_RANGE:
+			return true
+	return false
+
+
+## Server-authoritative XP. Every system that teaches a skill (gathering, crafting, later
+## combat) goes through this, never edits CharacterData.skills itself. Saved with the
+## character like the pack. A level-up queues a system line ("Felling is now level 2! ...")
+## that goes out right after the reply it came with (_send_queued_lines), so it always reads
+## after "You gather ...". Protocol v4 adds s2c_xp / s2c_level_up for the client to show.
+## Returns Skills.gain()'s result.
+func award_xp(id: int, skill: String, amount: int) -> Dictionary:
+	if not sessions.has(id) or not sessions[id].logged_in or skill == "":
+		return {}
+	var s: Dictionary = sessions[id]
+	if typeof(s.character.get("skills")) != TYPE_DICTIONARY:
+		s.character.skills = {}
+	var r := Skills.gain(s.character.skills, skill, amount)
+	if int(r.gained) <= 0:
+		return r
+	print("[xp] %s +%d %s (%d total, level %d)" % [s.character.name, int(r.gained), skill, int(r.xp), int(r.level)])
+	if int(r.level) > int(r.level_before):
+		print("[xp] %s reached %s %d" % [s.character.name, skill, int(r.level)])
+		var queued: Array = s.get("queued_lines", [])
+		queued.append(Skills.level_up_text(r))
+		s.queued_lines = queued
+	return r
+
+
+## Sends player `id` the system lines award_xp queued, in order.
+func _send_queued_lines(id: int) -> void:
+	if not sessions.has(id):
+		return
+	var s: Dictionary = sessions[id]
+	var queued: Array = s.get("queued_lines", [])
+	if queued.is_empty():
+		return
+	s.queued_lines = []
+	for line in queued:
+		_send(id, "s2c_system", [line])
 
 
 ## Server-authoritative inventory changes. Every system that hands out or uses up items
