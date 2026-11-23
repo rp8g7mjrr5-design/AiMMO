@@ -211,3 +211,25 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Known / not done.** Nothing calls `set_highlight` until the client wires it. No flicker yet (follow-up).
 
 **Next run.** Decoration camera clearance (scatter trees, rocks, flora, lanterns, workbench) or roots on scatter trees, unless a request comes in.
+
+## 2026-11-23: camera clearance for decoration
+**Why this.** Next in my backlog, and a real thing players see: the client's camera keeps out of resource nodes now, but walk through the forest and it still swings straight through the 1,800 scatter trees and rocks, the birches and boulders, the meadow lanterns and the workbench, and you stare at the inside of a trunk. After this, once the client passes the new solids, the camera slides in in front of a tree the same way it already does for a node.
+
+**Built.**
+- New `game/procgen/world_solids.gd` (`WorldSolids`): a solid per decorative thing (2,219 in all: scatter ash/pine/rock, birches, boulders, 8 lanterns, the bench), each one column per drawn part, `[radius, y_from, y_to, offset_x, offset_z]` around that part's own centre. Columns are worked out from the very parts and meshes the world draws (upright, evenly scaled parts from the mesh's own profile; tilted or squashed ones from every vertex), so they can't drift from the art. `near(pos, radius)` reads a 16 m grid (~20 µs per call); `inside(p, solid, margin)`.
+- `NodeProps.inside_solid` now accepts these solids too (anything with `columns`), so the client's existing `ActionCamera.clear_arm` works with them as-is; the client only has to add `WorldSolids.near()` to the list it passes (request filed in the client backlog, I didn't touch client files).
+- The scatter forest's parts are now pure data: `WorldBuilder.scatter_meshes()` and `scatter_parts(items)`, which `_props()` uses. Same rng, same draw order, so the forest is unchanged.
+- `WorldBuilder.build()` warms the solids (~0.15 s on this machine) so the first camera frame doesn't hitch.
+
+**Decisions.**
+- Derived columns, not hand-made like the nodes': there are seven kinds of decoration and the vertex test would have to chase every tweak. Derived is exact for the widest vertex and needs no upkeep.
+- One column per part rather than stepped bands inside a part: banding by vertex isn't safe (a face between two bands pokes out of the narrower one).
+- Wildflowers get no solid: 40 cm stems near the ground, which the camera already keeps clear of.
+
+**Didn't work.** My first fast path treated every upright part as round in plan and took the widest horizontal scale, but a scatter rock is squashed (1.3 x 1.0) and then turned, so its axes skew and a vertex poked out. The every-vertex test caught it on the first run; squashed parts now take the vertex path.
+
+**Tested.** 266 unit tests with Postgres (7 new in `tests/unit/test_world_deco_solids.gd`: a solid per decoration, every vertex of every part inside (over 200k checked), not much fatter than the meshes, near() matches brute force, NodeProps agrees, the client's own clear_arm keeps out of them from beside 300 trees, scatter unchanged and deterministic). 8-bot 180 s websocket bot test passed. New bot behaviour `world_deco_solids.gd` looks round in 8 directions every second with the client's own `clear_arm`, nodes only and nodes plus decoration: with decoration the camera never ended inside anything; nodes only, it ended inside decoration 54 times in 1,392 looks for one bot (about 4%), which is the bug the client's one-line change fixes. Client smoke test passed (day 0.695, night 0.105, same as before).
+
+**Known / not done.** Nothing changes for players until the client passes the solids. The bench's planks get round 0.9 m columns (see the follow-up). Decorative trees still have no roots.
+
+**Next run.** Roots on the scatter trees, or the lantern flame flicker, unless a request comes in.
