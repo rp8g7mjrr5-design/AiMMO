@@ -65,8 +65,8 @@ func _index_of_line(srv: Node, id: int, prefix: String) -> int:
 
 
 func test_v4_rpcs_live_on_play_and_v3_is_frozen() -> void:
-	check_eq(GameConfig.PROTOCOL_VERSION, 4)
-	var play := ProtocolCompat.rpc_names("res://shared/net_play.gd")
+	check(GameConfig.PROTOCOL_VERSION >= 4, "v4 or later")
+	var play := ProtocolCompat.rpc_names("res://tests/protocol/net_play_v4.gd") # as v4 shipped
 	var v3_play := ProtocolCompat.rpc_names("res://tests/protocol/net_play_v3.gd")
 	for m in V4_RPCS:
 		check(play.has(m), "Play has %s" % m)
@@ -242,6 +242,11 @@ func test_every_message_the_server_sends_has_a_matching_rpc() -> void:
 	srv.craft_request(2, "stone_axe")
 	srv.craft_request(2, "stone_axe")
 	srv.craft_request(2, "no_such_thing")
+	# v5: Return to Spawn Meadow (ok, then too soon); the level-up above already dirtied the roster.
+	srv.sessions[2].character.x = 40.0
+	srv.sessions[2].character.z = 40.0
+	srv.unstuck_request(2)
+	srv.unstuck_request(2)
 	# The node comes back; a snapshot goes out.
 	srv.test_now += 3600.0
 	srv._respawn_nodes(srv.test_now)
@@ -256,6 +261,7 @@ func test_every_message_the_server_sends_has_a_matching_rpc() -> void:
 			check_eq((m[2] as Array).size(), int(arity[method]), "%s argument count" % method)
 	for must in ["s2c_inventory", "s2c_nodes", "s2c_skills", "s2c_world_time", "s2c_system", "s2c_chat",
 			"s2c_gather_begin", "s2c_gather_end", "s2c_gather_result", "s2c_node_state", "s2c_craft_result",
-			"s2c_xp", "s2c_level_up", "s2c_level_up_seen", "s2c_snapshot", "s2c_login_result"]:
+			"s2c_xp", "s2c_level_up", "s2c_level_up_seen", "s2c_snapshot", "s2c_login_result",
+			"s2c_roster", "s2c_unstuck_result"]:
 		check(seen.has(must), "the scenario covered %s (sent: %s)" % [must, seen.keys()])
 	srv.free()

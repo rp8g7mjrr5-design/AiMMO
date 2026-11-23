@@ -22,6 +22,14 @@ extends RefCounted
 ##   gather_s         all seconds spent in timed gathers
 ##   level_ups, levels_per_10_min  every level-up line, and per 10 minutes of play
 ##
+## Where the numbers come from (protocol v3/v4): a press of E, a cancel and a Craft press
+## (bot.play_sent) are actions like a slash command; s2c_gather_begin/end for us, s2c_xp and a
+## failed s2c_craft_result are feedback; s2c_gather_result and an ok s2c_craft_result are
+## rewards; s2c_level_up is the level-up. The server also sends a text line for most of
+## these ("You gather 2 ash wood ...", "Felling is now level 2!"), right after the RPC, for
+## the chat feed. echo() drops that line so nothing is counted twice; the dev commands'
+## text-only answers (/gather, /craft) still count from the text.
+##
 ## Other bots' chat and join/leave notices are not feedback here: they are bot chatter, and
 ## a player alone in the world would not get them.
 
@@ -43,6 +51,11 @@ var level_ups := 0
 var rewards := 0
 var loops := 0
 var feedback_events := 0
+## Text lines still expected after an RPC already counted them: [kind, at, count] (see echo()).
+var _echoes: Array = []
+## Seconds within which a text line after its RPC counts as the same answer. The server sends
+## both in the same tick on the same reliable channel; the window only covers a frame split.
+const ECHO_WINDOW := 0.5
 
 
 ## A play stretch starts (login). The dead-time clock starts here too.
@@ -124,6 +137,24 @@ func level_up(t: float) -> void:
 	if _first_level < 0.0 and _first_login >= 0.0:
 		_first_level = t - _first_login
 		_first_level_gather = gather_time(t)
+
+
+## An RPC counted an answer the server will also send as text ("gather" with the item count,
+## "level"): remember it so echo() can drop that line.
+func expect_echo(kind: String, t: float, count: int = 0) -> void:
+	_echoes = _echoes.filter(func(e: Array) -> bool: return t - float(e[1]) <= ECHO_WINDOW)
+	_echoes.append([kind, t, count])
+
+
+## True (and forgets it) when this text line repeats an answer an RPC already counted:
+## same kind, same count, at most ECHO_WINDOW later. A text line nobody expected counts.
+func echo(kind: String, t: float, count: int = 0) -> bool:
+	for i in _echoes.size():
+		var e: Array = _echoes[i]
+		if e[0] == kind and int(e[2]) == count and t - float(e[1]) >= 0.0 and t - float(e[1]) <= ECHO_WINDOW:
+			_echoes.remove_at(i)
+			return true
+	return false
 
 
 func _close_gap(t: float) -> void:

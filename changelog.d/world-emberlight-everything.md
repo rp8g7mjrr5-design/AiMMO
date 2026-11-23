@@ -1,2 +1,0 @@
-- The meadow lanterns, the workbench and every wanderer (you included) are now painted in the same warm Emberlight style as the forest around them, with soft shading and cool blue shadows instead of flat plastic.
-- Lantern glass now breathes gently with the valley's slow ember heartbeat, and the sparks and sap droplets that fly when you gather glow in true ember orange.

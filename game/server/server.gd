@@ -34,6 +34,9 @@ var _respawn_timer := 0.0
 ## Messages the server already produces but the current protocol has no RPC for yet (see
 ## _send). Logged once each so the gap is visible, never an error.
 var _not_in_protocol := {}
+## Someone joined, left or levelled up since the last tick: send everyone the new roster
+## (once per tick, so eight players logging in at once is eight rosters, not 36).
+var _roster_dirty := false
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -75,6 +78,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.gather_start_requested.connect(_on_gather_start)
 	net.gather_cancel_requested.connect(_on_gather_cancel)
 	net.craft_requested.connect(_on_craft)
+	net.unstuck_requested.connect(_on_unstuck)
 	get_tree().set_auto_accept_quit(false)
 	print("[server] listening on port %d via %s, protocol v%d" % [port, transport, GameConfig.PROTOCOL_VERSION])
 	print("[server] world clock: ", WorldClock.describe(world_seconds()))
@@ -132,6 +136,7 @@ func _tick() -> void:
 		entries.append_array([id, p.x, p.y, p.z, s.yaw])
 	_tick_channels(now_seconds())
 	_flush_inventories()
+	_flush_roster()
 	if entries.is_empty():
 		return
 	for id in sessions:
@@ -158,6 +163,7 @@ func _on_peer_disconnected(id: int) -> void:
 			if sessions[other].logged_in:
 				_send(other, "s2c_player_left", [id])
 				_send(other, "s2c_system", ["%s has left." % s.character.name])
+		_roster_dirty = true
 		print("[server] %s (peer %d) left, saved at %s" % [s.character.name, id, CharacterData.position(s.character)])
 	else:
 		print("[server] peer %d disconnected before logging in" % id)
@@ -227,6 +233,7 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 		_send(id, "s2c_player_joined", [other, o.character.name, o.character.appearance_seed])
 		_send(other, "s2c_player_joined", [id, ch.name, ch.appearance_seed])
 		_send(other, "s2c_system", ["%s has arrived." % ch.name])
+	_roster_dirty = true
 	print("[server] %s logged in as peer %d (%s) at %s" % [ch.name, id, "new" if is_new else "returning", CharacterData.position(ch)])
 
 
@@ -326,6 +333,13 @@ func _on_gather_cancel(id: int) -> void:
 	if not sessions.has(id) or not sessions[id].logged_in:
 		return
 	gather_cancel(id, "stopped")
+
+
+## c2s_unstuck(): the Esc menu's "Return to Spawn Meadow".
+func _on_unstuck(id: int) -> void:
+	if not _play_allowed(id, "_last_unstuck"):
+		return
+	unstuck_request(id)
 
 
 ## c2s_craft(recipe_id): the crafting window's Make button.
@@ -745,6 +759,7 @@ func award_xp(id: int, skill: String, amount: int) -> Dictionary:
 			if other != id:
 				queued.append([other, "s2c_level_up_seen", [id, skill, int(r.level)]])
 		queued.append([id, "s2c_system", [Skills.level_up_text(r)]])
+		_roster_dirty = true # the players panel shows everyone's level
 	s.queued_lines = queued
 	return r
 
@@ -762,6 +777,76 @@ func _send_queued_lines(id: int) -> void:
 	for m in queued:
 		if int(m[0]) == id or (sessions.has(int(m[0])) and sessions[int(m[0])].logged_in):
 			_send(int(m[0]), StringName(m[1]), m[2])
+
+
+## Everyone online for the players panel (s2c_roster): [{id, name, level}, ...] sorted by
+## name, case-insensitively. level is the total of every skill's level (4 for a new
+## character), the one number that says how far along someone is.
+func roster() -> Array:
+	var out: Array = []
+	for id in sessions:
+		var s: Dictionary = sessions[id]
+		if s.logged_in:
+			out.append({"id": int(id), "name": str(s.character.name), "level": total_level(s.character.get("skills", {}))})
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.name.nocasecmp_to(b.name) < 0)
+	return out
+
+
+## The sum of every skill's level (unknown ids in an old save don't count).
+static func total_level(skills: Variant) -> int:
+	var src := Skills.normalize(skills)
+	var total := 0
+	for skill in Skills.ORDER:
+		total += Skills.level_of(src, skill)
+	return total
+
+
+func _flush_roster() -> void:
+	if not _roster_dirty:
+		return
+	_roster_dirty = false
+	var r := roster()
+	for id in sessions:
+		if sessions[id].logged_in:
+			_send(id, "s2c_roster", [r])
+
+
+## "Return to Spawn Meadow" (c2s_unstuck): puts a player who is stuck, lost or far from the
+## bench back at spawn, once every GameConfig.UNSTUCK_COOLDOWN seconds. A running gather is
+## cancelled ("moved"). Players already near spawn are told so and keep their cooldown.
+## Always answers with s2c_unstuck_result. Returns {ok, text, wait}.
+func unstuck_request(id: int) -> Dictionary:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return {}
+	var s: Dictionary = sessions[id]
+	var now := now_seconds()
+	var wait := float(s.get("unstuck_at", -1000.0)) + GameConfig.UNSTUCK_COOLDOWN - now
+	var pos := CharacterData.position(s.character)
+	var r := {}
+	if wait > 0.0:
+		r = {"ok": false, "text": "You can return to Spawn Meadow again in %d s." % ceili(wait), "wait": wait}
+	elif Vector2(pos.x - GameConfig.SPAWN_POINT.x, pos.z - GameConfig.SPAWN_POINT.z).length() < GameConfig.UNSTUCK_NEAR:
+		r = {"ok": false, "text": "You're already in Spawn Meadow.", "wait": 0.0}
+	else:
+		if GatherChannel.is_active(s.channel):
+			gather_cancel(id, "moved")
+		var spot := unstuck_spot(id)
+		s.character.x = spot.x
+		s.character.y = spot.y
+		s.character.z = spot.z
+		s.move = Vector2.ZERO
+		s.unstuck_at = now
+		r = {"ok": true, "text": "Back in Spawn Meadow.", "wait": GameConfig.UNSTUCK_COOLDOWN}
+		print("[server] %s returned to Spawn Meadow from %s" % [s.character.name, pos])
+	_send(id, "s2c_unstuck_result", [bool(r.ok), str(r.text), float(r.wait)])
+	return r
+
+
+## Where "Return to Spawn Meadow" puts player `id`: on a 3 m arc south of spawn, away from
+## the workbench (3, -2), spread by peer id so a crowd doesn't land in one spot.
+static func unstuck_spot(id: int) -> Vector3:
+	var a := PI / 6.0 + float(absi(id) % 5) * (PI * 2.0 / 3.0) / 4.0 # PI/6 .. 5PI/6
+	return Terrain.clamp_to_world(GameConfig.SPAWN_POINT + Vector3(cos(a), 0.0, sin(a)) * 3.0)
 
 
 ## Server-authoritative inventory changes. Every system that hands out or uses up items

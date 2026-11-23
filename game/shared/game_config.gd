@@ -2,7 +2,7 @@ class_name GameConfig
 ## Constants shared by server, client, and bots. Changing world constants changes the world
 ## for everyone, so treat WORLD_SEED as permanent.
 
-const PROTOCOL_VERSION := 4 ## v4: skills on Net/Play (s2c_skills, s2c_xp, s2c_level_up, s2c_level_up_seen). v3: Net/Play (timed gather, pack, nodes, crafting), ack_seq in snapshots
+const PROTOCOL_VERSION := 5 ## v5: s2c_roster, c2s_unstuck / s2c_unstuck_result on Net/Play. v4: skills on Net/Play (s2c_skills, s2c_xp, s2c_level_up, s2c_level_up_seen). v3: Net/Play (timed gather, pack, nodes, crafting), ack_seq in snapshots
 const DEFAULT_PORT := 7777
 const TICK_RATE := 20
 const TICK_DT := 1.0 / TICK_RATE
@@ -10,6 +10,8 @@ const TICK_DT := 1.0 / TICK_RATE
 const WORLD_SEED := 20261127
 const WORLD_HALF_SIZE := 256.0 ## The playable world is a square from -256 to +256 metres.
 const SPAWN_POINT := Vector3(0, 0, 0)
+const UNSTUCK_COOLDOWN := 60.0 ## seconds between "Return to Spawn Meadow" uses, per player
+const UNSTUCK_NEAR := 12.0 ## metres: closer than this to spawn, the button says you are already there
 
 const VIEW_RANGE := 120.0 ## metres: how far away players see others gather (and later fight, build)
 

@@ -15,6 +15,10 @@ const MAX_QUEUED_COMMANDS := 16
 
 ## Emitted the moment a queued command goes out (qa_fun_metrics times answers from here).
 signal command_sent(text: String)
+## Emitted as a Net/Play request (c2s_gather_start, c2s_gather_cancel, c2s_craft) goes out
+## through send_play: the player pressed E, walked a cancel or pressed Craft. qa_fun_metrics
+## times the game's answer from here, like command_sent for slash commands.
+signal play_sent(method: String, args: Array)
 
 var net: Node
 var behaviours: Array = []
@@ -51,7 +55,7 @@ var stats := {
 	"logins": 0, "snapshots": 0, "chats_sent": 0, "chats_from_others": 0,
 	"max_peers_seen": 0, "distance_walked": 0.0, "position_restored": false,
 	"spawn_before_disconnect": [], "spawn_after_reconnect": [],
-	"commands_sent": 0, "max_command_wait": 0.0,
+	"commands_sent": 0, "max_command_wait": 0.0, "play_sent": 0,
 }
 var _pos_at_disconnect := Vector3.ZERO
 var _others := {}
@@ -256,6 +260,19 @@ func send_command(text: String, on_sent: Callable = Callable()) -> void:
 		_fail("command queue full (%d), dropping %s" % [_commands.size(), text])
 		return
 	_commands.append([text, on_sent, elapsed])
+
+
+## Send a protocol v3+ Net/Play request to the server, e.g. send_play("c2s_gather_start",
+## [node_id]). Behaviours call this instead of `net.play.<method>.rpc_id(1, ...)` so the fun
+## metrics see every press (tests/unit/test_qa_fun_metrics.gd fails a direct call).
+## Does nothing while disconnected. Returns false then.
+func send_play(method: String, call_args: Array = []) -> bool:
+	if net == null or net.play == null or not is_inside_tree() or multiplayer.multiplayer_peer == null:
+		return false
+	stats.play_sent += 1
+	play_sent.emit(method, call_args)
+	net.play.callv("rpc_id", [1, method] + call_args)
+	return true
 
 
 func _pump_commands() -> void:
