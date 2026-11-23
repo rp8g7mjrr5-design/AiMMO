@@ -240,3 +240,54 @@ func test_sparks_now_follows_what_is_drawn() -> void:
 	LevelUpFx.play(avatar, 5, 0.0)
 	check(fx.sparks_now.is_empty(), "a restart clears them")
 	avatar.free()
+
+
+## Other players' level-ups are seen from 80 to 105 m (bot test, `farthest_level_up_seen_m`).
+## Past ~45 m the beam must stop thinning on screen, so it never becomes a hairline.
+func test_far_beam_keeps_a_steady_width_on_screen() -> void:
+	for d in [5.0, 15.0, 40.0]:
+		check_eq(LevelUpFx.drawn_radius(LevelUpFx.BEAM_RADIUS, d), LevelUpFx.BEAM_RADIUS, "beam drawn at its true width up close (%.0f m)" % d)
+	var day_column: float = LevelUpFx.column_at(0.3, 1.0).radius
+	check_eq(LevelUpFx.drawn_radius(day_column, 100.0), day_column, "the day column is wide enough at 100 m and stays as it is")
+	var widths: Array = []
+	for d in [100.0, 150.0, 200.0]:
+		var r := LevelUpFx.drawn_radius(LevelUpFx.BEAM_RADIUS, d)
+		var deg := rad_to_deg(2.0 * atan(r / d))
+		widths.append(deg)
+		check(deg >= 0.75, "beam at least 0.75 degrees wide from %.0f m (%.2f)" % [d, deg])
+	check_near(widths[0], widths[2], 0.01, "same width on screen from 100 m and 200 m")
+	check(rad_to_deg(2.0 * atan(LevelUpFx.BEAM_RADIUS / 100.0)) < 0.4, "(without the rule it would be under 0.4 degrees: the hairline)")
+	check_eq(LevelUpFx.drawn_radius(0.5, -3.0), 0.5, "no negative distances")
+
+
+func test_far_beam_fades_gently_and_ignores_the_haze() -> void:
+	check_eq(LevelUpFx.far_fade(0.0), 1.0, "full strength up close")
+	check_eq(LevelUpFx.far_fade(LevelUpFx.FAR_FADE_START), 1.0, "full strength to FAR_FADE_START")
+	check_near(LevelUpFx.far_fade(1000.0), LevelUpFx.FAR_FADE_MIN, 0.0001, "never fades below FAR_FADE_MIN")
+	var last := 1.0
+	var d := 0.0
+	while d < 300.0:
+		var f := LevelUpFx.far_fade(d)
+		check(f <= last + 0.00001, "fade only falls with distance (%.0f m)" % d)
+		last = f
+		d += 5.0
+	check(LevelUpFx.beam_at(0.45, 1.0).strength * LevelUpFx.far_fade(100.0) > 0.75, "noon beam still strong from 100 m")
+	check(LevelUpFx.FAR_FADE_START >= 45.0, "the 45 m look the beam was tuned for is untouched")
+
+
+func test_column_shader_carries_the_far_rules() -> void:
+	var avatar := AvatarBuilder.rig()
+	var fx := LevelUpFx.play(avatar, 1, 1.0)
+	var col := fx.get_node("Column") as MultiMeshInstance3D
+	var mat := col.material_override as ShaderMaterial
+	check_eq(float(mat.get_shader_parameter("min_spread")), LevelUpFx.MIN_SPREAD, "shader widens by MIN_SPREAD")
+	check_eq(float(mat.get_shader_parameter("fade_start")), LevelUpFx.FAR_FADE_START, "shader fade starts where far_fade does")
+	check_eq(float(mat.get_shader_parameter("fade_end")), LevelUpFx.FAR_FADE_END, "shader fade ends where far_fade does")
+	check_eq(float(mat.get_shader_parameter("fade_min")), LevelUpFx.FAR_FADE_MIN, "shader fade floor matches far_fade")
+	var code := mat.shader.code
+	check(code.contains("fog_disabled"), "the beam is light: the haze does not paint over it")
+	check(code.contains("VERTEX.xz *= max(1.0, min_spread * dist / radius)"), "the vertex shader applies drawn_radius")
+	check(col.extra_cull_margin >= LevelUpFx.drawn_radius(LevelUpFx.BEAM_RADIUS, 170.0) - LevelUpFx.BEAM_RADIUS, "widened far beams are not culled at their old bounds")
+	var ring_code := ((fx.get_node("Ring") as MultiMeshInstance3D).material_override as ShaderMaterial).shader.code
+	check(ring_code.contains("fog_disabled"), "the additive ring ignores fog (else it draws as a pale square from afar)")
+	avatar.free()
