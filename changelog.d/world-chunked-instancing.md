@@ -1,0 +1,1 @@
+- Ashgrove draws about a third as many triangles at the Spawn Meadow as before: the forest, birches, boulders and wildflowers are now split into patches the camera can skip when they're behind you or deep in the haze. Same trees in the same places, smoother frames on laptops.

@@ -61,6 +61,9 @@ static func _sun() -> DirectionalLight3D:
 	sun.light_energy = 1.0
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 120.0
+	# Two cascades, not Godot's default four: every cascade draws each shadow-casting chunk
+	# again, and at 60 to 120 m of shadow two are plenty for chunky low-poly shapes.
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	return sun
 
 
@@ -177,31 +180,23 @@ static func scatter_parts(items: Array) -> Array:
 	return out
 
 
-static func _props() -> Array:
-	var meshes := scatter_meshes()
+## The scatter forest's instances per layer: {layer: Array of [Transform3D, Color]}.
+static func scatter_layout() -> Dictionary:
 	var layers := {}
 	for l in SCATTER_LAYERS:
 		layers[l] = []
 	for parts in scatter_parts(Props.scatter()):
 		for p in parts:
 			layers[p.layer].append([p.xform, p.color])
+	return layers
+
+
+## One chunked node per scatter layer (`Chunks`: the camera and the shadow passes cull by area,
+## and far chunks fade into the haze).
+static func _props() -> Array:
+	var meshes := scatter_meshes()
+	var layers := scatter_layout()
 	var out: Array = []
 	for l in SCATTER_LAYERS:
-		out.append(_multimesh(l, meshes[l], layers[l]))
+		out.append(Chunks.build(l, meshes[l], layers[l], scatter_material(l)))
 	return out
-
-
-static func _multimesh(node_name: String, mesh: Mesh, instances: Array) -> MultiMeshInstance3D:
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = mesh
-	mm.instance_count = instances.size()
-	for i in instances.size():
-		mm.set_instance_transform(i, instances[i][0])
-		mm.set_instance_color(i, (instances[i][1] as Color).srgb_to_linear())
-	var mmi := MultiMeshInstance3D.new()
-	mmi.name = node_name
-	mmi.multimesh = mm
-	mmi.material_override = scatter_material(node_name)
-	return mmi
