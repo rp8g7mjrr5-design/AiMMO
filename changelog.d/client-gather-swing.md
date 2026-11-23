@@ -1,2 +1,0 @@
-- Gathering now looks like work: your wanderer turns to the tree, rock or seep and gets stuck in. A two-handed chop for ash and pine, heavier blows into stone, a gentle dip of both hands at an ember-sap seep. Everyone else's gathering shows the same, so a busy meadow looks busy.
-- New installs start with medium-range sun shadows (60 m), which look crisper up close. If you already picked a shadow setting, it stays as you set it.

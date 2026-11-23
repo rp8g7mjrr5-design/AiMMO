@@ -1,1 +1,0 @@
-- Every update is now checked for how hard it makes your computer work at spawn, day and night, so new trees, glows and props can't quietly cost you frames.
