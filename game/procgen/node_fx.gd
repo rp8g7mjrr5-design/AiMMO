@@ -356,6 +356,11 @@ func _apply_shake(id: int, t: float) -> void:
 		_write_shell()
 
 
+## The soft ember-gold rim glow, shared with the workbench's highlight (strength 0..1).
+static func rim_shader() -> Shader:
+	return _rim_shader()
+
+
 static func _rim_shader() -> Shader:
 	var sh := Shader.new()
 	sh.code = """

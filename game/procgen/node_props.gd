@@ -172,7 +172,11 @@ static func solid_columns(kind: String, scale: float = 1.0) -> Array:
 ## True if `p` is inside node's prop, or within `margin` of it (by its solid columns). For
 ## the action camera: keep it outside every nearby node with a margin and it never sees
 ## inside a trunk, crown, pine tier or stone.
+## Decorative solids from `WorldSolids` (kind "deco") work here too, so the camera can be
+## handed nodes and decoration in one list.
 static func inside_solid(p: Vector3, node: Dictionary, margin: float = 0.0) -> bool:
+	if node.has("columns"):
+		return WorldSolids.inside(p, node, margin)
 	var base: Vector3 = node.pos
 	var dx := p.x - base.x
 	var dz := p.z - base.z

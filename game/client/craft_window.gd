@@ -14,7 +14,7 @@ extends PanelContainer
 
 signal closed
 
-const WIDTH := 520.0
+const WIDTH := 600.0 ## room for a part icon before each "Ash wood 2/3"
 const REPLY_TIMEOUT := 1.5 ## seconds to wait for an answer (the chat cooldown drops lines silently)
 const SEND_GAP := GameConfig.CHAT_COOLDOWN + 0.1 ## never send faster than the server listens
 const CLOSE_SLACK := 1.0 ## m past BENCH_RANGE before walking away closes the window
@@ -27,6 +27,8 @@ var pack := {} ## the client's mirror of the pack
 var pack_known := false
 var pos := Vector3.ZERO ## where you stand, for the bench check
 var status_label: Label
+## Where the icons come from (set by the client; without one, world's cache draws them).
+var icons: IconShelf
 var _rows := {} ## recipe id -> {needs: RichTextLabel, button: Button}
 var _awaiting := "" ## "bag", "craft:<id>" or ""
 var _awaiting_age := 0.0
@@ -77,7 +79,8 @@ static func item_for_label(label: String) -> String:
 
 ## The pack after a server line, or null if the line says nothing about the pack.
 ## Knows "Your pack: ...", gather successes ("(6 in your pack)") and, when `crafted` names the
-## recipe just sent, "You craft ..." (ingredients used up, product added).
+## recipe just sent (or, if it doesn't, the recipe the line itself names: a craft typed as a dev
+## command or sent by something else), "You craft ..." (ingredients used up, product added).
 static func apply_line(inv: Dictionary, text: String, crafted: String = "") -> Variant:
 	var listed: Variant = parse_pack(text)
 	if listed != null:
@@ -87,6 +90,8 @@ static func apply_line(inv: Dictionary, text: String, crafted: String = "") -> V
 		var out := inv.duplicate()
 		out[str(gain.item)] = int(gain.in_pack)
 		return out
+	if text.begins_with("You craft") and not Crafting.is_recipe(crafted):
+		crafted = crafted_in(text)
 	if text.begins_with("You craft") and Crafting.is_recipe(crafted):
 		var r: Dictionary = Crafting.RECIPES[crafted]
 		var out := inv.duplicate()
@@ -96,6 +101,18 @@ static func apply_line(inv: Dictionary, text: String, crafted: String = "") -> V
 		out[crafted] = m.get_string(1).to_int() if m else mini(Inventory.MAX_STACK, Inventory.count(out, crafted) + int(r.makes))
 		return out
 	return null
+
+
+## The recipe a "You craft ..." line (Crafting.success) is about, or "" if none matches:
+## "You craft a stone axe. ..." -> "stone_axe", "You craft 3 torches (6 in your pack)." -> "torch".
+static func crafted_in(text: String) -> String:
+	for id in Crafting.RECIPE_ORDER:
+		var label: String = Crafting.RECIPES[id].label
+		if text.begins_with("You craft a %s." % label) or text.begins_with("You craft a %s (" % label):
+			return id
+		if RegEx.create_from_string("^You craft \\d+ %ses \\(" % label).search(text):
+			return id
+	return ""
 
 
 ## One recipe as the window shows it, for a pack and a position:
@@ -113,7 +130,7 @@ static func row(inv: Dictionary, id: String, p: Vector3) -> Dictionary:
 			var need := int(r.needs[item])
 			var have := Inventory.count(inv, item)
 			var item_label := Inventory.label(item)
-			parts.append({"label": item_label.left(1).to_upper() + item_label.substr(1), "have": have, "need": need, "ok": have >= need})
+			parts.append({"item": item, "label": item_label.left(1).to_upper() + item_label.substr(1), "have": have, "need": need, "ok": have >= need})
 	var reason := Crafting.check(inv, id, p)
 	var hint := ""
 	match reason:
@@ -209,6 +226,13 @@ func setup(theme_res: Theme) -> void:
 		var line := HBoxContainer.new()
 		line.add_theme_constant_override("separation", 12)
 		box.add_child(line)
+		var product := TextureRect.new()
+		product.custom_minimum_size = Vector2(IconShelf.ROW_SIZE, IconShelf.ROW_SIZE)
+		product.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		product.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		product.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		product.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_child(product)
 		var col := VBoxContainer.new()
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		col.add_theme_constant_override("separation", 2)
@@ -220,7 +244,7 @@ func setup(theme_res: Theme) -> void:
 		needs.bbcode_enabled = true
 		needs.fit_content = true
 		needs.scroll_active = false
-		needs.custom_minimum_size = Vector2(WIDTH - 160, 0)
+		needs.custom_minimum_size = Vector2(WIDTH - 160 - IconShelf.ROW_SIZE - 12, 0)
 		col.add_child(needs)
 		var hint := Label.new()
 		hint.add_theme_font_size_override("font_size", 13)
@@ -231,7 +255,7 @@ func setup(theme_res: Theme) -> void:
 		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		button.pressed.connect(craft.bind(id))
 		line.add_child(button)
-		_rows[id] = {"name": name_label, "needs": needs, "hint": hint, "button": button}
+		_rows[id] = {"icon": product, "name": name_label, "needs": needs, "hint": hint, "button": button}
 	box.add_child(HSeparator.new())
 	status_label = Label.new()
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -287,12 +311,38 @@ func refresh() -> void:
 		var w: Dictionary = _rows[id]
 		var r := row(pack, id, pos)
 		w.name.text = r.title
-		w.needs.text = parts_bbcode(r.parts) if pack_known else "[color=#%s]...[/color]" % DIM.to_html(false)
+		(w.icon as TextureRect).texture = _icon(id, IconShelf.ROW_SIZE)
+		_fill_needs(w.needs, r.parts)
 		w.hint.text = r.hint if pack_known else ""
 		var button: Button = w.button
 		button.text = r.button
 		button.disabled = not pack_known or r.reason != "" or _crafting()
 		button.tooltip_text = r.hint
+
+
+func _icon(item: String, size: int) -> Texture2D:
+	return icons.texture(item, size) if icons else ItemIcons.texture(item, size)
+
+
+## "[icon] Ash wood 2/3  ·  [icon] Stone 0/2", each part in green or red (same words as
+## parts_bbcode, with each item's little icon in front).
+func _fill_needs(needs: RichTextLabel, parts: Array) -> void:
+	needs.clear()
+	if not pack_known:
+		needs.push_color(DIM)
+		needs.add_text("...")
+		needs.pop()
+		return
+	for i in parts.size():
+		var p: Dictionary = parts[i]
+		if i > 0:
+			needs.add_text("  ·  ")
+		needs.add_image(_icon(str(p.item), IconShelf.PART_SIZE), IconShelf.PART_SIZE, IconShelf.PART_SIZE,
+			Color.WHITE, INLINE_ALIGNMENT_CENTER)
+		needs.add_text(" ")
+		needs.push_color(OK_COLOR if bool(p.ok) else SHORT_COLOR)
+		needs.add_text("%s %d/%d" % [p.label, int(p.have), int(p.need)])
+		needs.pop()
 
 
 ## Every frame while logged in. Returns the chat line to send now, or "".

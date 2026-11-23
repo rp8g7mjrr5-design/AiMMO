@@ -14,6 +14,12 @@ timeout "$TIMEOUT" bash -c '
   exec 3<>"/dev/tcp/$0/$1" || exit 1
   printf "GET / HTTP/1.1\r\nHost: %s:%s\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: YWltbW8td2F0Y2hkb2cxMg==\r\nSec-WebSocket-Version: 13\r\n\r\n" "$0" "$1" >&3 || exit 1
   IFS= read -r line <&3 || exit 1
+  case "$line" in "HTTP/1.1 101"*) ;; *) exit 1 ;; esac
+  # Stay until the server has sent its first frame (the peer ID Godot sends right after the
+  # handshake). Hanging up before it does makes the server log
+  # "ERROR: Failed to send ID to newly connected peer." on about 1 probe in 300.
+  while IFS= read -r line <&3; do [ "$line" = $'"'"'\r'"'"' ] && break; done
+  read -r -t 2 -N 2 _ <&3 || true
   exec 3>&-
-  case "$line" in "HTTP/1.1 101"*) exit 0 ;; *) exit 1 ;; esac
+  exit 0
 ' "$HOST" "$PORT" 2>/dev/null

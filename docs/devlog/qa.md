@@ -346,3 +346,111 @@ shots); bot test 8 bots x 180s WebSocket + Postgres passed in 185s.
 
 **Next run:** v3 gathering in CI if `c2s_gather_start` is on main, otherwise build the Docker
 image in CI (watchdog follow-up).
+
+## 2026-11-23 — Fun metrics in the bot test, and one command queue per bot
+
+Playtest inbox still empty, no open qa PR, budget 9/40. `main` is still protocol v2 (no
+`c2s_gather_start`) and nobody has added `--dev-commands`, so the first two backlog items are
+still blocked. Took the client's flaky `/time` request first (requests before backlog), then
+the next unblocked item, fun metrics.
+
+**Flake fix (bot harness, qa paths):** `bot.send_command(text, on_sent)` queues slash commands
+and sends one every `CHAT_COOLDOWN + 0.15` s. All six behaviours that typed commands
+(`client_gather_prompt`, `gameplay_chat_commands`, `_crafting`, `_gather_channel`, `_gathering`,
+`_inventory`) now go through it; I edited those files because they are under `tests/`, which qa
+owns, and the change is one line each. `gameplay_crafting` judges its distance to the bench in
+the `on_sent` callback, because the line can now wait up to ~1.4 s (max seen) behind others.
+The queue is cleared on login (a line queued before a disconnect belongs to the old session),
+and overflow (16) is a bot failure. Root cause of the flake: the server answers only one
+`TOO_FAST` per cooldown window, so when two behaviours collided, the second line was dropped
+with no answer at all; 4 unlucky tries in a row failed the run. Bot stats now include
+`commands_sent` and `max_command_wait`.
+
+**Fun metrics:** `tests/bot_test/fun_metrics.gd` (pure maths), behaviour `qa_fun_metrics`
+(watches `system_message` and the new `bot.command_sent` signal), `tests/bot_test/fun_report.py`
+(roll-up, table, limits, baseline). Every run prints a per-bot table and writes
+`fun_metrics.json` into the bot-test work dir, which is now kept after a pass so the CI artifact
+has it. The 180 s CI run has `--fun-check`; the 45 s ENet run only prints.
+
+Definitions I chose, and why:
+- Feedback = any system line to this bot except "X has arrived/left", plus items. Other bots'
+  `hello from` chatter is not feedback: a player alone wouldn't get it, and with 8 bots it would
+  make dead time ~0 forever.
+- `longest_dead_s` (no feedback at all, per play stretch, offline excluded) came out 41-69 s
+  median and up to 91 s worst: bots gather once per login and then wander. That's a bot-script
+  artefact more than the game, so it's reported and in the JSON, not gated.
+- `longest_wait_s` is the "dead time while acting" the backlog asked for: from the first
+  unanswered command to the next feedback. Limited to 45 s on the worst bot, baseline median
+  0.05 s. On v2 every command is answered at once, so it's ~0.01 s; it starts mattering with
+  timed gathering.
+- First reward: median 7.4-8.5 s over six runs, but the worst bot hit 67 s and 82 s in two runs
+  (8 bots, ~14 nodes near spawn, all spent). A 90 s limit would flake, so the limit is 120 s for
+  now; follow-up to tighten.
+- Regression rule: a median that is >20% worse than `fun_baseline.json` **and** worse by more than
+  its slack (3 s first reward, 2 s wait, 1.0 items/min) fails. The slack is there because bot
+  names (and so routes) change every run.
+- `loops_completed` counts crafts. It's 0 today: bots never hold 3 ash + 2 stone.
+
+**Didn't work:** first version marked an action from `on_play` by watching `commands_sent`.
+Behaviours run before the harness sends, and on localhost the reply landed before the next
+frame, so the action was recorded *after* its answer and "waited" until the next feedback
+(70-80 s fake waits). Fixed by emitting `command_sent` at the send itself.
+
+**Tests:** 246 unit tests pass with Postgres (new `test_qa_fun_metrics.gd`: metric maths, the
+command queue spacing/order/callback/overflow, and a lint that no behaviour calls `c2s_chat`);
+7 Python tests for `fun_report.py` (new CI step); bot test 8 bots x 180 s WebSocket + Postgres
+with `--fun-check` passed twice on the final code (four earlier runs used to pick the numbers);
+45 s ENet bot test passed. Client smoke not run: nothing the client loads changed.
+
+**Next run:** v3 gathering in CI if `c2s_gather_start` is on main (and fold it into
+`qa_fun_metrics`), otherwise build the Docker image in CI.
+
+## 2026-11-23 — CI tests the real server image before Railway runs it
+
+Playtest inbox still empty, no open qa PR, budget 10/40. `main` is still protocol v2 (no
+`c2s_gather_start`, no `--dev-commands`), so the top two backlog items stay blocked. Took the
+next item named in my last note: build the Docker image in CI.
+
+**Fun it protects:** a broken image means the world is down after a deploy until someone
+notices. Every other test runs the server from the repo with the host's Godot, so the image
+Railway actually runs was never tested.
+
+**Built:** `tests/ops/run_image_test.py --image <tag>` after a new CI step `docker build -t
+aimmo-server:ci .`. Scenarios: `contents` (tools the entrypoint/probe use, imported class
+cache, migrations identical to the repo's, ENV and CMD), `plays` (container boots with its
+own CMD on `--network host`, reaches the CI Postgres, answers the host's probe; 2 real bots
+from `tests/bot_test` play 40 s each against it, reconnect, positions restored; `docker stop`
+exits 0 with a clean save; no ERROR lines), `frozen` (`docker exec kill -STOP` the server, the
+watchdog kills it, container exits 70). Also `tests/ops/test_dockerfile.py` (no Docker needed):
+every COPY source exists and isn't `.dockerignore`d, every `docker/*.sh` is copied and checked.
+Two bots, not one: with one bot, `client_compass`, `world_avatar_limbs` and `world_closeup`
+fail because they need to see another player.
+
+**Proved it catches it:** an image with `docker/probe.sh` left out of the COPY and the wrong
+folder copied to `/app/db` failed `contents` with all four problems. Worth noting what that
+image would have done live: no probe, so the watchdog never sees the server answer and kills a
+healthy server after 180 s, forever. Nothing else in CI would have caught it.
+
+**Didn't work / caveat:** this sandbox's proxy blocks `deb.debian.org`, so I could not build
+the real `debian:bookworm-slim` image locally. I verified the test against a stand-in built
+from the same Dockerfile with `FROM ubuntu:24.04` and the proxy CA added (same packages, same
+COPY/ENV/CMD). The real build runs for the first time on this PR's CI; GitHub's runners reach
+Debian fine. Expect the build step to add about a minute and the image test about 65 s.
+
+**Tests:** 259 unit tests pass with Postgres; 6 new Dockerfile tests and 7 fun-report tests
+pass; bot test 8 bots x 180 s WebSocket + Postgres with `--fun-check` passed (186 s); watchdog
+and protocol tests pass; image test passed on Postgres and JSON storage. Client smoke not run:
+nothing the client loads changed.
+
+**Next run:** if this PR's CI shows the Debian build failing, fix that first. Then v3 gathering
+in CI if `c2s_gather_start` is on main, otherwise the server performance check in the bot test.
+
+**CI found a real bug on the first run (fixed in this PR):** the real Debian image built fine,
+but the image test failed on `ERROR: Failed to send ID to newly connected peer.` in the
+container log. Cause: `docker/probe.sh` hung up as soon as it read `101 Switching Protocols`,
+and Godot's WebSocket server sends the new peer its ID right after the handshake; when the probe
+had already closed, that send failed and logged an ERROR. It happened on 1 of 300 probes
+against the container here, 0 of 200 straight on the host, which is why the watchdog test
+never saw it. Live, the watchdog probes every 20 s, so Railway's log would have collected one
+of these every couple of hours. The probe now reads the rest of the headers and waits (up to
+2 s) for that first frame before closing: 0 errors in 600 probes, about 33 ms each.

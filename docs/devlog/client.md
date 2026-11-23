@@ -426,3 +426,127 @@ panel.
 **Notes to next run:** when gameplay's v3/v4 lands, replace the `/bag` and `/craft` lines with
 `c2s_craft` and feed `s2c_inventory` to `seed_pack` (follow-up in the backlog). Then the top
 gathering item. The F1 controls overlay is still the best no-dependency item after that.
+
+## 2026-11-23 (early morning): item icons on toasts and the workbench (ws/client/item-icons)
+
+**Why this item:** the top item (gathering on protocol v3) is still blocked: main is still on
+protocol v2 (`GameConfig.PROTOCOL_VERSION := 2`, no `s2c_gather_*` RPCs). Requests from other
+streams come first, and world's item-icons request was the only one still open.
+
+**Fun, in one sentence:** every gather now pops a little picture of the log, stone or glowing
+sap drop you just got next to "+2 Ash wood (6)", and every craft pops the tool you made, so the
+reward reads at a glance instead of as a line of text; the workbench shows each recipe's
+picture and an icon by every part.
+
+**Built:** `game/client/icon_shelf.gd` (`IconShelf`). World's `ItemIcons.image` is slow (I
+measured 12 ms at 24 px, 20 ms at 32 px, 74 ms at 64 px per icon here), so the client draws
+every item at the two sizes it uses (32 px for toasts and recipe rows, 18 px for parts) on a
+low-priority `Thread` that starts in `client.start()`, i.e. while you're on the login screen.
+Drawing an `Image` touches no shared state; only `ImageTexture.create_from_image` runs on the
+main thread, lazily, in `texture()`. If an icon isn't drawn yet `texture()` falls back to
+`ItemIcons.texture` (draws it now), so it never returns null and the worst case is the old cost.
+`client._exit_tree` joins the thread. I used my own cache rather than writing into world's
+`ItemIcons._cache`, which is world's file and not thread-safe.
+`GatherPrompt.show_toast(text, item)` puts a 32 px icon left of the text and centres the pair
+(`icon_x`); gather toasts take the item from `parse_gain`, craft toasts from the recipe id.
+`CraftWindow` rows get a product icon, and the parts line is built with `RichTextLabel.add_image`
+instead of bbcode (`parts_bbcode` stays for tests and the bot); parts now carry `item`.
+New test hook `--show-toast=<item>` shows a gather toast just before `--screenshot`.
+
+**Didn't work first time:** the campfire's three parts wrapped onto a second line once each
+had an icon; the window is 600 px wide now (was 520).
+
+**Tests:** 7 unit tests in `tests/unit/test_client_item_icons.gd` (every item at every size,
+same pixels as world's `ItemIcons.image`, threaded draw completes and joins, never null incl.
+unknown items and an early stop, every resource kind's real gather line gets its item's icon,
+icon/text centring, workbench rows). Bot behaviour `client_item_icons.gd` is passive: it starts
+the shelf like the client and checks every real gather success gets its own icon (not the
+bundle). Bot run: 4 to 9 iconed toasts per bot, shelf ready in 0.6 to 1.1 s with 8 bots and a
+server sharing the CPU. Smoke passed.
+
+**Notes to next run:** still the v3 gathering item first. When the inventory window is built,
+use `IconShelf` and add its slot size to `SIZES`. The F1 controls overlay remains the best
+no-dependency item.
+
+## 2026-11-23: self-updating client (owner request)
+
+**Why:** the owner had to download a new zip from the Releases page every time the client
+changed. Now they install once and every launch plays the newest build.
+
+**How:** the exported binary stays fixed; only the game pack changes. CI now also exports
+`AiMMO-<os>.pck` per platform (about 260 KB, since all art is procedural) and `update.json`
+(`build` = the CI run number, `engine` = `GODOT_VERSION`, per-file size and SHA-256), uploaded
+last so a half-uploaded release is never offered. It bakes `client/build_id.txt` and
+`client/update_url.txt` (`https://github.com/<repo>/releases/latest/download`) into the client.
+At startup `main.gd` shows `Updater` (only in exported builds with a build number, never in
+tests, bots, the editor or the server). It fetches `update.json` (6 s timeout), and if the build is
+newer it downloads the pack to `user://updates/`, checks the SHA-256 and restarts the same
+executable with `--main-pack <pack> -- --updated`. Godot then boots that pack as the whole game,
+including the global class cache and autoloads.
+
+**Tried first and dropped:** loading the new pack in-process with `ProjectSettings.load_resource_pack`.
+New `class_name` scripts are not registered after startup in Godot 4, and we add classes almost
+every PR, so the in-process route would break on the first new class. Replacing the exe itself
+was also out (Windows locks a running exe; macOS app bundles need permission bits).
+
+**Safety:** never downgrades (build numbers only go up). A pack that fails to reach the game
+8 s after launch three times is skipped and not downloaded again until a newer build exists.
+Offline, it boots the newest pack already downloaded. If `update.json` names a different engine
+version, the player gets a "new installer, just this once" screen with a button to the
+download page and can keep playing what they have. When the server refuses a login as "out of
+date", an installed client restarts itself to update.
+
+**Tested:** 10 unit tests in `tests/unit/test_client_updater.gd` (manifest parsing incl. path
+tricks, every decide() branch, relaunch args). End to end by hand with a real Linux export:
+build 1 binary + a local server offering build 2: it downloaded, restarted into build 2 (login
+screen rendered), marked it good; second launch relaunched without downloading; offline launch
+still booted build 2; a 30 MB slow download showed the progress screen. Packs export for all
+three platforms with no errors. Windows and macOS were not run (no machines here); they use
+the same `--main-pack` engine flag.
+
+**Notes:** `OS.get_cmdline_args()` is empty in exported builds, so engine flags (like
+`--rendering-driver`) are not carried over on the restart; players don't pass any. Bumping
+`GODOT_VERSION` means everyone needs one new download (the engine is in the exe), so do it rarely.
+
+## 2026-11-23 (morning): camera keeps out of decoration, bench glows, craft-window flake (ws/client/camera-clears-decoration)
+
+**Why this item:** the top item (gathering on protocol v3) is still blocked: main is on
+protocol v2. Three requests from other streams were open, all small and all from world (plus
+one flake), so they come first. I shipped them as one PR: one feature (camera clearance for
+decoration) plus the bench highlight wiring (one line) and a bug fix (the flake).
+
+**Fun, in one sentence:** walking through the forest or past the lanterns and workbench, the
+camera now slides in front of trunks and boulders instead of putting you inside a wall of bark,
+and the bench lights up warm the moment you can use it, the same "this is ready" cue as a node
+in reach.
+
+**Built:**
+- `ActionCamera.camera_solids(pos, radius = DIST_MAX + 3)`: `ResourceNodes.near + WorldSolids.near`,
+  exactly as world asked. `client.gd` passes it to `cam.step`. Gathering and look-to-interact
+  still use `ResourceNodes.near` only. `clear_arm` needed no change: `NodeProps.inside_solid`
+  already dispatches on `columns`.
+- `_update_bench` calls `Workbench.set_highlight(world.get_node_or_null("Workbench"), at_bench and free)`
+  every frame, so it is lit exactly while the prompt shows (hidden while typing or a window is open).
+- **Flake root cause:** not a race. The bot's window mirror never sends "/craft" itself (it
+  only listens), while `gameplay_crafting` sends "/craft axe" on the same bot. `apply_line`
+  only applied a "You craft ..." line when `crafted` named the recipe the window had sent, so
+  another sender's successful craft was ignored and the next "Your pack" line disagreed. A
+  unit test even asserted "a craft we didn't ask for changes nothing", which was the wrong
+  call: "You craft" lines are only ever about your own pack. New `CraftWindow.crafted_in(text)`
+  reads the recipe from the server's own success wording (`Crafting.success`), and
+  `apply_line` uses it when nothing was sent. In the real client this also fixes a dev-command
+  `/craft` leaving the window stale.
+
+**Tests:** `test_client_action_camera::test_camera_solids_include_decoration` (workbench and
+nodes are in the set, an arm backing straight into the widest decorative column pulls in before
+it, both via `clear_arm` and a settled `step`), `test_client_craft_window::test_mirror_follows_crafts_it_did_not_send`
+(every recipe, the exact flake numbers, axe vs pickaxe). New bot behaviour
+`client_camera_solids.gd`: 8 looks a second through the client's own `camera_solids`, fails if
+the camera ends inside anything.
+
+**Not tested directly:** the bench highlight call has no unit test of its own (it is one line in
+`client.gd` calling world's tested `Workbench.set_highlight`); the smoke run still loads the
+client with it and fails on any script error.
+
+**Notes to next run:** still the v3 gathering item first. If v3 is not on main, the F1 controls
+overlay (third item, replaces `/help`) is the best no-dependency item.

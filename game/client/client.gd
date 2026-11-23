@@ -39,11 +39,15 @@ var gather_prompt: GatherPrompt
 var craft_window: CraftWindow
 var sfx_craft: AudioStreamPlayer
 var reticle: Reticle
+## Item icons, drawn on a background thread from the moment the game starts.
+var icon_shelf := IconShelf.new()
+var _args := {} ## command-line test hooks
 
 
 func start(p_net: Node, args: Dictionary) -> void:
 	net = p_net
 	settings = ClientSettings.load_from()
+	icon_shelf.start() # draws while you're on the login screen, so the first toast never hitches
 	_setup_input()
 	_build_ui()
 	_build_audio()
@@ -83,6 +87,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 		_open_workbench_after_login.call_deferred()
 	if args.has("autoconnect"):
 		_on_connect_pressed.call_deferred()
+	_args = args
 	if args.has("screenshot"):
 		_screenshot_later(str(args.screenshot), float(args.get("quit-after", "8")))
 
@@ -96,7 +101,14 @@ func _open_workbench_after_login() -> void:
 
 
 func _screenshot_later(path: String, wait: float) -> void:
-	await get_tree().create_timer(wait).timeout
+	if _args.has("show-toast"):
+		# Test hook (--show-toast=ash_wood): a "+2 Ash wood" toast with its icon, just before the shot.
+		await get_tree().create_timer(maxf(0.0, wait - 0.4)).timeout
+		var item := str(_args["show-toast"])
+		gather_prompt.show_toast(GatherPrompt.toast_text({"qty": 2, "label": Inventory.label(item), "in_pack": 6}), item)
+		await get_tree().create_timer(0.4).timeout
+	else:
+		await get_tree().create_timer(wait).timeout
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(path)
 	print("[client] screenshot saved to ", path)
@@ -232,8 +244,7 @@ func _process(delta: float) -> void:
 			seq += 1
 	if avatars.has(my_id):
 		var me: Node3D = avatars[my_id].node
-		var props := ResourceNodes.near(me.position, ActionCamera.DIST_MAX + 3.0)
-		var xf := cam.step(me.position, delta, Callable(Terrain, "height"), props)
+		var xf := cam.step(me.position, delta, Callable(Terrain, "height"), ActionCamera.camera_solids(me.position))
 		camera.transform = xf
 		if compass.due(delta):
 			compass.feed(cam.yaw, me.position, other_positions())
@@ -261,6 +272,8 @@ func _update_bench(delta: float, my_pos: Vector3) -> void:
 	var at_bench := CraftWindow.near_bench(my_pos) and gather_prompt.current_target().is_empty()
 	var free := not chat_edit.has_focus() and not window_open()
 	gather_prompt.show_hint("[E] Use Workbench" if at_bench and free else "")
+	# The bench glows warm exactly while its prompt shows (a no-op when nothing changes).
+	Workbench.set_highlight(world.get_node_or_null("Workbench"), at_bench and free)
 	if at_bench and free and Input.is_action_just_pressed("interact"):
 		craft_window.open(my_pos)
 		sfx_chime.play()
@@ -349,6 +362,9 @@ func _on_connected() -> void:
 
 func _on_login_result(ok: bool, message: String, id: int, character: Dictionary) -> void:
 	if not ok:
+		if message.contains("out of date") and Updater.restart_for_update(get_tree()):
+			_set_status("A new version is out. Restarting to update...", false)
+			return
 		_set_status(message, true)
 		connect_button.disabled = false
 		multiplayer.multiplayer_peer.close()
@@ -439,7 +455,7 @@ func _on_system(text: String) -> void:
 	if craft_window:
 		var r := craft_window.on_system(text)
 		if str(r.crafted) != "":
-			gather_prompt.show_toast(CraftWindow.toast_text(str(r.crafted)))
+			gather_prompt.show_toast(CraftWindow.toast_text(str(r.crafted)), str(r.crafted))
 			sfx_craft.play()
 		if r.consumed:
 			return # the window's own answers stay in the window (chat is for talking)
@@ -601,6 +617,7 @@ func _build_ui() -> void:
 	gather_prompt.offset_top = -170
 	gather_prompt.offset_bottom = -170 + GatherPrompt.HEIGHT
 	gather_prompt.visible = false
+	gather_prompt.icons = icon_shelf
 	ui.add_child(gather_prompt)
 	gather_prompt.setup(theme)
 
@@ -634,6 +651,7 @@ func _build_ui() -> void:
 
 	# The workbench window, centre screen (E at the Spawn Meadow workbench).
 	craft_window = CraftWindow.new()
+	craft_window.icons = icon_shelf
 	craft_window.setup(theme)
 	craft_window.closed.connect(func(): sfx_chime.play())
 	ui.add_child(craft_window)
@@ -668,3 +686,7 @@ func _build_audio() -> void:
 	sfx_arrive.stream = Sfx.arrive()
 	sfx_arrive.volume_db = -6.0
 	add_child(sfx_arrive)
+
+
+func _exit_tree() -> void:
+	icon_shelf.finish() # join the icon thread so quitting never leaves it running

@@ -10,15 +10,36 @@ class_name Workbench
 ## an axe-split log at one end, and two cut logs stacked at the back. It reads as "a place to
 ## make things" from the edge of the meadow and holds up close to the action camera (3.5 m).
 ##
-## Split like Lamps: `spot()`, `parts()` and `layout()` are pure data (safe headless, in unit
-## tests and bots); `build()` makes the "Workbench" node from three MultiMesh layers.
+## A small iron lantern stands on the back corner of the top. By day it is just a lantern; at
+## night its glass glows and a short-range warm light pools over the bench, so a player who
+## comes back to the meadow after dark can walk straight to it (`apply_glow`, called by
+## `Lamps.apply_glow` from the one shared clock).
+##
+## `set_highlight(bench, on)` gives the whole bench the same soft ember-gold rim glow that a
+## resource node in reach gets (NodeFx's rim shader), so "[E] Use Workbench" has something to
+## point at. Calling it every frame with the same value is a no-op.
+##
+## Split like Lamps: `spot()`, `parts()`, `layout()`, `light_position()` and `glow_values()`
+## are pure data (safe headless, in unit tests and bots); `build()` makes the "Workbench" node
+## from MultiMesh layers, the lantern's light and a hidden highlight shell.
 
 const TOP_HEIGHT := 0.92 ## metres from the ground to the top of the planks (a good standing height)
 const TOP_LENGTH := 1.8
 const TOP_DEPTH := 0.84
 const FOOTPRINT := 2.0 ## metres from the bench's centre that its parts (block, logs) reach
 const CLEARANCE := 2.5 ## nothing else (lanterns, nodes, trees, flowers) stands this close
-const LAYERS := ["BenchWood", "BenchStone", "BenchLogs"]
+const LAYERS := ["BenchWood", "BenchStone", "BenchLogs", "BenchGlass"]
+const GLASS_LAYER := "BenchGlass"
+
+## The bench lantern: stands on the top's back-left corner, clear of the hammer and chips.
+const LANTERN_SPOT := Vector2(-0.68, -0.25) ## local x, z on the top
+const LANTERN_GLASS := Vector3(0.15, 0.2, 0.15)
+const LIGHT_ENERGY := 1.1 ## at full night; softer than a meadow lantern, it only has to light the bench
+const LIGHT_RANGE := 6.0
+const GLASS_DAY := 0.15 ## the same as the meadow lanterns, so they read as one family
+const GLASS_NIGHT := 1.5
+const HIGHLIGHT_FADE := 0.15 ## seconds, like NodeFx.FADE_IN
+const HIGHLIGHT_STRENGTH := 0.8 ## a touch softer than a node's: the bench is big and close
 
 const ASH_WOOD := Color(0.74, 0.58, 0.42) ## planed ash: pale and warm, lighter than bark
 const ASH_WOOD_DARK := Color(0.58, 0.43, 0.30) ## rails, handle and end grain
@@ -109,7 +130,40 @@ static func parts(s: Dictionary = {}) -> Array:
 		put.call("log", "BenchLogs", c, Vector3(l[3], l[4], l[3]), l[5], lie)
 		for side in [-1.0, 1.0]: # cut faces just proud of each end
 			put.call("log_end", "BenchLogs", c + Vector3(side * (l[4] * 0.5 + 0.008), 0, 0), Vector3(l[3] - 0.04, 0.02, l[3] - 0.04), CUT_FACE, lie)
+	# The lantern on the back-left corner (appended last, so every older part keeps its index):
+	# an iron foot, the glowing glass held by four thin corner rods, a cap and a carry handle.
+	var lp := Vector3(LANTERN_SPOT.x, top_y, LANTERN_SPOT.y)
+	var gl := LANTERN_GLASS
+	put.call("lantern_foot", "BenchStone", lp + Vector3(0, 0.025, 0), Vector3(0.21, 0.05, 0.21), Lamps.IRON)
+	put.call("lantern_glass", GLASS_LAYER, lp + Vector3(0, 0.05 + gl.y * 0.5, 0), gl, Lamps.FLAME)
+	for cx in [-1.0, 1.0]:
+		for cz in [-1.0, 1.0]:
+			put.call("lantern_rod", "BenchStone", lp + Vector3(cx * gl.x * 0.5, 0.05 + gl.y * 0.5, cz * gl.z * 0.5), Vector3(0.025, gl.y, 0.025), Lamps.IRON)
+	var cap_y := 0.05 + gl.y
+	put.call("lantern_cap", "BenchStone", lp + Vector3(0, cap_y + 0.025, 0), Vector3(0.23, 0.05, 0.23), Lamps.IRON)
+	put.call("lantern_top", "BenchStone", lp + Vector3(0, cap_y + 0.07, 0), Vector3(0.12, 0.04, 0.12), Lamps.IRON.lightened(0.05))
+	for hx in [-1.0, 1.0]:
+		put.call("lantern_handle", "BenchStone", lp + Vector3(hx * 0.07, cap_y + 0.12, 0), Vector3(0.02, 0.08, 0.02), Lamps.IRON)
+	put.call("lantern_handle", "BenchStone", lp + Vector3(0, cap_y + 0.165, 0), Vector3(0.16, 0.02, 0.02), Lamps.IRON)
 	return out
+
+
+## Where the bench lantern's light sits, in world space (the middle of its glass).
+static func light_position(s: Dictionary = {}) -> Vector3:
+	if s.is_empty():
+		s = spot()
+	var local := Vector3(LANTERN_SPOT.x, TOP_HEIGHT + 0.05 + LANTERN_GLASS.y * 0.5, LANTERN_SPOT.y)
+	return s.pos + Basis(Vector3.UP, s.rot) * local
+
+
+## The values apply_glow() sets for a night-glow level (Lamps.night_glow), as plain numbers.
+static func glow_values(glow: float) -> Dictionary:
+	var g := clampf(glow, 0.0, 1.0)
+	return {
+		"light_energy": LIGHT_ENERGY * g,
+		"light_on": g > 0.01,
+		"glass": lerpf(GLASS_DAY, GLASS_NIGHT, g),
+	}
 
 
 ## {layer: Array of [Transform3D, Color]}.
@@ -129,8 +183,107 @@ static func build() -> Node3D:
 	var lay := layout()
 	var meshes := _meshes()
 	for l in LAYERS:
-		root.add_child(_multimesh(l, meshes[l], lay[l]))
+		root.add_child(_multimesh(l, meshes[l], lay[l], l == GLASS_LAYER))
+	var omni := OmniLight3D.new()
+	omni.name = "Light"
+	omni.position = light_position()
+	omni.light_color = Lamps.FLAME
+	omni.light_energy = 0.0
+	omni.omni_range = LIGHT_RANGE
+	omni.omni_attenuation = 1.2
+	omni.shadow_enabled = false
+	omni.visible = false
+	root.add_child(omni)
+	root.add_child(_highlight_shell(meshes))
 	return root
+
+
+## Light the bench lantern for a night-glow level (0 by day, 1 at night). Safe on null.
+static func apply_glow(bench: Node, glow: float) -> void:
+	if bench == null:
+		return
+	var v := glow_values(glow)
+	var omni := bench.get_node_or_null("Light") as OmniLight3D
+	if omni:
+		omni.light_energy = v.light_energy
+		omni.visible = v.light_on
+	var gi := bench.get_node_or_null(GLASS_LAYER) as GeometryInstance3D
+	if gi and gi.material_override is StandardMaterial3D:
+		(gi.material_override as StandardMaterial3D).emission_energy_multiplier = v.glass
+
+
+## Turn the bench's warm rim glow on or off (the client calls this while "[E] Use Workbench"
+## shows). Fades over HIGHLIGHT_FADE when the bench is in the tree, else switches at once.
+## Calling it again with the same value does nothing. Returns false if `bench` has no shell.
+static func set_highlight(bench: Node, on: bool) -> bool:
+	if bench == null:
+		return false
+	var shell := bench.get_node_or_null("Highlight") as Node3D
+	if shell == null:
+		return false
+	if bool(bench.get_meta("lit", false)) == on:
+		return true
+	bench.set_meta("lit", on)
+	var mat := shell.get_meta("material") as ShaderMaterial
+	var target := HIGHLIGHT_STRENGTH if on else 0.0
+	if bench.has_meta("fade"):
+		var old := bench.get_meta("fade") as Tween
+		if old and old.is_valid():
+			old.kill()
+		bench.remove_meta("fade")
+	if on:
+		shell.visible = true
+	if not bench.is_inside_tree():
+		mat.set_shader_parameter("strength", target)
+		shell.visible = on
+		return true
+	var tw := bench.create_tween()
+	tw.tween_method(func(v: float) -> void: mat.set_shader_parameter("strength", v),
+		float(mat.get_shader_parameter("strength")), target, HIGHLIGHT_FADE)
+	if not on:
+		tw.tween_callback(func() -> void: shell.visible = false)
+	bench.set_meta("fade", tw)
+	return true
+
+
+## True while the bench is highlighted.
+static func highlighted(bench: Node) -> bool:
+	return bench != null and bool(bench.get_meta("lit", false))
+
+
+## Every highlight-shell transform: each part grown about its own centre, like a node's shell.
+## {"box": Array of Transform3D, "log": Array of Transform3D}.
+static func shell_layout(s: Dictionary = {}) -> Dictionary:
+	var out := {"box": [], "log": []}
+	for p in parts(s):
+		out["log" if p.layer == "BenchLogs" else "box"].append(NodeFx.shell_xform(p.xform))
+	return out
+
+
+static func _highlight_shell(meshes: Dictionary) -> Node3D:
+	var shell := Node3D.new()
+	shell.name = "Highlight"
+	shell.visible = false
+	var mat := ShaderMaterial.new()
+	mat.shader = NodeFx.rim_shader()
+	mat.set_shader_parameter("rim_color", NodeFx.HIGHLIGHT)
+	mat.set_shader_parameter("strength", 0.0)
+	shell.set_meta("material", mat)
+	var sl := shell_layout()
+	for key in ["box", "log"]:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = meshes["BenchLogs" if key == "log" else "BenchWood"]
+		mm.instance_count = sl[key].size()
+		for i in sl[key].size():
+			mm.set_instance_transform(i, sl[key][i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "Shell" + key.capitalize()
+		mmi.multimesh = mm
+		mmi.material_override = mat
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		shell.add_child(mmi)
+	return shell
 
 
 static func _meshes() -> Dictionary:
@@ -141,10 +294,10 @@ static func _meshes() -> Dictionary:
 	cyl.height = 1.0
 	cyl.radial_segments = 7
 	cyl.rings = 1
-	return {"BenchWood": box, "BenchStone": box, "BenchLogs": cyl}
+	return {"BenchWood": box, "BenchStone": box, "BenchLogs": cyl, "BenchGlass": box}
 
 
-static func _multimesh(node_name: String, mesh: Mesh, instances: Array) -> MultiMeshInstance3D:
+static func _multimesh(node_name: String, mesh: Mesh, instances: Array, glow: bool = false) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
@@ -156,8 +309,15 @@ static func _multimesh(node_name: String, mesh: Mesh, instances: Array) -> Multi
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 0.85
+	if glow: # the lantern glass: lit from the shared clock by apply_glow
+		mat.roughness = 0.3
+		mat.emission_enabled = true
+		mat.emission = Lamps.FLAME
+		mat.emission_energy_multiplier = GLASS_DAY
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = node_name
 	mmi.multimesh = mm
 	mmi.material_override = mat
+	if glow:
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mmi

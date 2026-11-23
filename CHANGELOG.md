@@ -5,6 +5,15 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- The game now updates itself! Open it and it grabs the newest version of Ashgrove before you log in, with a little ember progress bar. Download the client one last time and you never have to again.
+- Got turned away for an old version? The game now restarts and updates on its own instead of sending you to the Releases page.
+- The world now knows the true shape of every forest tree, rock, birch, mossy boulder, meadow lantern and the workbench, so the camera can slide in smoothly in front of them instead of ending up inside a trunk or a boulder. It switches on as soon as the camera picks it up.
+- Every "+2 Ash wood" pop-up now shows a little picture of what you got: the cut log, the quartz-seamed stone, the glowing drop of ember sap. Crafting pops up the axe, pickaxe, torch or campfire you just made.
+- The workbench shows each recipe's picture and a tiny icon by every part, so you can tell at a glance which pile you still need.
+- The Spawn Meadow workbench now has its own little iron lantern. After dark it pools warm light over the planks, so you can walk straight back to the bench at night.
+- The workbench can now glow with the same soft ember-gold edge as a tree or stone in reach, ready to light up when you step up to use it.
+- Every build is now playtested for fun: robot players time how long a brand-new character waits for their first item, how long anything you do waits for an answer, and how many items a minute come in. A change that makes those worse can't ship.
+- Every item now has its own hand-drawn (well, code-drawn) icon: stacked logs with growth rings for ash and pine wood, a stone chunk with its pale quartz seam, a glowing drop of ember sap, the stone axe and pickaxe, a lit torch and a crackling campfire. They'll show up in your pack and on gather pop-ups as the UI picks them up.
 - The Spawn Meadow workbench works like a real crafting station: walk up to it, press **E**, and a window shows every recipe with what you have against what you need ("Ash wood 2/3"). When the parts are in your pack, hit **Craft** for a satisfying knock-knock-chime and a "Crafted: Stone axe!" pop-up.
 - Typing too fast no longer makes your words vanish without a trace: if a line comes in too quickly, Ashgrove tells you it wasn't sent so you can try again.
 - Talking and pressing E no longer get in each other's way: a gather press can't swallow the line you just typed, and the other way round.

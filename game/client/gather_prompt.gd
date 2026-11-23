@@ -22,10 +22,14 @@ const TOAST_SECONDS := 2.2
 const TOAST_RISE := 26.0 ## px the toast floats up while it fades
 const ACCENT := Color(1.0, 0.56, 0.24) ## ember orange, the ash leaves
 const DIM := Color(0.85, 0.85, 0.85, 0.75)
+const ICON_GAP := 6.0 ## px between a toast's icon and its text
 
 var prompt_label: Label
 var bar: ProgressBar
 var toast_label: Label
+var toast_icon: TextureRect
+## Where toast icons come from (set by the client; without one, toasts fall back to world's cache).
+var icons: IconShelf
 var _target := {}
 var _last_press := -INF
 var _toast_age := INF
@@ -100,6 +104,11 @@ static func toast_text(gain: Dictionary) -> String:
 	return "+%d %s  (%d)" % [int(gain.qty), label.left(1).to_upper() + label.substr(1), int(gain.in_pack)]
 
 
+## Left edge of a toast's icon so icon + gap + text sit centred in WIDTH, for text `text_w` px wide.
+static func icon_x(text_w: float, icon_size: float = IconShelf.TOAST_SIZE) -> float:
+	return (WIDTH - (icon_size + ICON_GAP + text_w)) * 0.5
+
+
 ## Toast opacity `age` seconds after it appeared: holds, then fades over the last third.
 static func toast_alpha(age: float) -> float:
 	if age < 0.0 or age >= TOAST_SECONDS:
@@ -117,6 +126,13 @@ func setup(theme: Theme) -> void:
 	toast_label = _make_label(18, ACCENT)
 	toast_label.position = Vector2(0, 0)
 	toast_label.modulate.a = 0.0
+	toast_icon = TextureRect.new()
+	toast_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	toast_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	toast_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	toast_icon.size = Vector2(IconShelf.TOAST_SIZE, IconShelf.TOAST_SIZE)
+	toast_icon.visible = false
+	add_child(toast_icon)
 	prompt_label = _make_label(16, Color.WHITE)
 	prompt_label.position = Vector2(0, 26)
 	bar = ProgressBar.new()
@@ -166,6 +182,8 @@ func update(delta: float, pos: Vector3, world_seconds: float, now: float, intera
 	_toast_age += delta
 	toast_label.modulate.a = toast_alpha(_toast_age)
 	toast_label.position.y = -TOAST_RISE * clampf(_toast_age / TOAST_SECONDS, 0.0, 1.0)
+	toast_icon.modulate.a = toast_label.modulate.a
+	toast_icon.position.y = toast_label.position.y + (24.0 - IconShelf.TOAST_SIZE) * 0.5
 	if interact_held and not _target.is_empty() and _target.can and can_press(now, _last_press):
 		_last_press = now
 		return str(_target.command)
@@ -177,9 +195,7 @@ func on_system(text: String) -> bool:
 	var gain := parse_gain(text)
 	if gain.is_empty():
 		return false
-	toast_label.text = toast_text(gain)
-	_toast_age = 0.0
-	toast_label.modulate.a = 1.0
+	show_toast(toast_text(gain), str(gain.item))
 	return true
 
 
@@ -192,11 +208,26 @@ func show_hint(text: String) -> void:
 		prompt_label.add_theme_color_override("font_color", Color.WHITE)
 
 
-## Pops a floating toast like "Crafted: Stone axe!".
-func show_toast(text: String) -> void:
+## Pops a floating toast like "Crafted: Stone axe!", with `item`'s icon beside it ("" = no icon).
+func show_toast(text: String, item: String = "") -> void:
 	toast_label.text = text
 	_toast_age = 0.0
 	toast_label.modulate.a = 1.0
+	toast_icon.visible = item != ""
+	toast_icon.modulate.a = 1.0
+	toast_icon.set_meta("item", item)
+	if item != "":
+		toast_icon.texture = icons.texture(item, IconShelf.TOAST_SIZE) if icons else ItemIcons.texture(item, IconShelf.TOAST_SIZE)
+		var text_w := toast_label.get_minimum_size().x
+		toast_icon.position = Vector2(icon_x(text_w), (24.0 - IconShelf.TOAST_SIZE) * 0.5)
+		# Shift the text right by half the icon so the pair, not the text, is centred.
+		toast_label.position.x = (IconShelf.TOAST_SIZE + ICON_GAP) * 0.5
+	else:
+		toast_label.position.x = 0.0
+
+
+func toast_item() -> String:
+	return "" if not toast_icon.visible else str(toast_icon.get_meta("item", ""))
 
 
 func current_target() -> Dictionary:
@@ -209,3 +240,4 @@ func hide_all() -> void:
 	bar.visible = false
 	_toast_age = INF
 	toast_label.modulate.a = 0.0
+	toast_icon.visible = false

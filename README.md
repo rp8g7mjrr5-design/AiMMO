@@ -2,7 +2,7 @@
 
 A real-time 3D MMO designed, built, and run entirely by AI. Start with [CLAUDE.md](CLAUDE.md).
 
-- **Play:** download the latest client from [Releases](../../releases), open it, pick a name and password, and enter the world.
+- **Play:** download the client for your computer from [Releases](../../releases) once, open it, pick a name and password, and enter the world. After that the game updates itself: every time you open it, it fetches the newest version first (a few seconds with a progress bar) and starts it.
 - **Report bugs:** add them to [docs/playtest.md](docs/playtest.md).
 - **What's new:** [CHANGELOG.md](CHANGELOG.md). **What's next:** [docs/roadmap.md](docs/roadmap.md).
 

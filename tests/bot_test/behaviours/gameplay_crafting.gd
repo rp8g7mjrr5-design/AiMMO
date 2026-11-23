@@ -46,11 +46,16 @@ func on_play(_delta: float) -> void:
 	_tries += 1
 	_next_at = bot.elapsed + RETRY_AFTER
 	if _step == 1:
-		bot.net.c2s_chat.rpc_id(1, "/craft")
+		bot.send_command("/craft")
 	else:
-		var d := Vector2(bot.my_pos.x, bot.my_pos.z).distance_to(Crafting.WORKBENCH_XZ)
-		_expect = "pack" if d < Crafting.BENCH_RANGE - EDGE else ("bench" if d > Crafting.BENCH_RANGE + EDGE else "")
-		bot.net.c2s_chat.rpc_id(1, "/craft axe")
+		bot.send_command("/craft axe", _judge_position)
+
+
+## Runs when the bot harness actually sends /craft axe, so the position judged is the one the
+## server sees (the line may wait a moment behind other behaviours' commands).
+func _judge_position() -> void:
+	var d := Vector2(bot.my_pos.x, bot.my_pos.z).distance_to(Crafting.WORKBENCH_XZ)
+	_expect = "pack" if d < Crafting.BENCH_RANGE - EDGE else ("bench" if d > Crafting.BENCH_RANGE + EDGE else "")
 
 
 func _on_system(text: String) -> void:

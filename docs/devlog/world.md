@@ -190,3 +190,46 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Known / not done.** Nothing shows the icons yet; the client wires them up (request filed). No "selected" variant or slot frame.
 
 **Next run.** Decoration clearance (camera columns for scatter trees, rocks, flora, lanterns, workbench) or roots on scatter trees, unless a request comes in.
+
+## 2026-11-23: the bench lantern and the bench highlight
+**Why this.** The client's crafting window shipped ("[E] Use Workbench"), so the workbench follow-up in my backlog is now unblocked, and it is the shortest path to a felt change: a player stepping up to the bench sees it light up the same way a tree in reach does, and a player coming back to the meadow after dark finds the bench by its own lantern instead of hunting for it between the ring lamps. Decoration camera clearance stays next; it only helps once the client calls it, and the bench is something people use every session.
+
+**Built.**
+- `Workbench` grows a small iron lantern on the top's back-left corner: foot, glass (new `BenchGlass` layer, emissive in the meadow lanterns' `FLAME`), four corner rods, cap, finial and a carry handle. Lantern parts are appended after every older part, so the bench's old parts keep their index (unit test).
+- An `OmniLight3D` "Light" at the glass (range 6 m, energy 1.1 at full night, no shadows). `Workbench.glow_values(glow)` / `apply_glow(bench, glow)`; `Lamps.apply_glow` calls it, so it runs from the one shared clock with no client change.
+- `Workbench.set_highlight(bench, on)` / `highlighted(bench)`: a "Highlight" node holding a shell of every bench part grown about its centre (`NodeFx.shell_xform`, two MultiMeshes: boxes and logs), drawn with NodeFx's rim shader (new public `NodeFx.rim_shader()`) at strength 0.8. Fades over 0.15 s with a tween when the bench is in the tree, switches at once otherwise; the same value twice is a no-op. Request filed in the client backlog to call it from `_update_bench`.
+
+**Decisions.**
+- A lantern standing on the bench, not a post beside it: it stays inside the footprint and clearance the tests already hold, and it reads as "someone works here at night".
+- The shell is always built (35 or so instances, hidden): cheaper than building on demand, and nothing draws while it is hidden.
+- Highlight strength 0.8, not 1.0: the bench is large and close to the camera, so a full-strength rim looked louder than a node's.
+
+**Didn't work.** I first tested the in-tree fade from a unit test by adding the bench to `Engine.get_main_loop().root`, but unit tests run during the runner's `_init`, where there is no main loop yet, so it crashed and leaked the bench. Checked the tween path in a throwaway SceneTree script instead (lit to 0.8, back to 0 and hidden) and kept the unit tests on the out-of-tree path.
+
+**Tested.** 243 unit tests with Postgres (6 new in `tests/unit/test_world_bench_lantern.gd`). 8-bot 180 s websocket bot test: the first run failed once in the client's `client_craft_window` behaviour ("window thought the pack was {ash_wood 6, stone 2}, server says 3 ash wood, 1 stone axe", a craft racing the pack update, nothing my change touches); the second run passed clean. Client smoke test passed (day 0.695, night 0.105). New bot behaviour `world_bench_lantern.gd` (lights the bench through `Lamps.apply_glow` on every server time sync and checks lit at night / out in broad day; toggles the highlight whenever the bot enters or leaves crafting range and checks the shell follows). Rendered the bench at noon, at midnight, and at midnight highlighted on the real renderer and looked at them: the glass glows, warm light pools on the planks and the block, the rim reads gold on every edge.
+
+**Known / not done.** Nothing calls `set_highlight` until the client wires it. No flicker yet (follow-up).
+
+**Next run.** Decoration camera clearance (scatter trees, rocks, flora, lanterns, workbench) or roots on scatter trees, unless a request comes in.
+
+## 2026-11-23: camera clearance for decoration
+**Why this.** Next in my backlog, and a real thing players see: the client's camera keeps out of resource nodes now, but walk through the forest and it still swings straight through the 1,800 scatter trees and rocks, the birches and boulders, the meadow lanterns and the workbench, and you stare at the inside of a trunk. After this, once the client passes the new solids, the camera slides in in front of a tree the same way it already does for a node.
+
+**Built.**
+- New `game/procgen/world_solids.gd` (`WorldSolids`): a solid per decorative thing (2,219 in all: scatter ash/pine/rock, birches, boulders, 8 lanterns, the bench), each one column per drawn part, `[radius, y_from, y_to, offset_x, offset_z]` around that part's own centre. Columns are worked out from the very parts and meshes the world draws (upright, evenly scaled parts from the mesh's own profile; tilted or squashed ones from every vertex), so they can't drift from the art. `near(pos, radius)` reads a 16 m grid (~20 µs per call); `inside(p, solid, margin)`.
+- `NodeProps.inside_solid` now accepts these solids too (anything with `columns`), so the client's existing `ActionCamera.clear_arm` works with them as-is; the client only has to add `WorldSolids.near()` to the list it passes (request filed in the client backlog, I didn't touch client files).
+- The scatter forest's parts are now pure data: `WorldBuilder.scatter_meshes()` and `scatter_parts(items)`, which `_props()` uses. Same rng, same draw order, so the forest is unchanged.
+- `WorldBuilder.build()` warms the solids (~0.15 s on this machine) so the first camera frame doesn't hitch.
+
+**Decisions.**
+- Derived columns, not hand-made like the nodes': there are seven kinds of decoration and the vertex test would have to chase every tweak. Derived is exact for the widest vertex and needs no upkeep.
+- One column per part rather than stepped bands inside a part: banding by vertex isn't safe (a face between two bands pokes out of the narrower one).
+- Wildflowers get no solid: 40 cm stems near the ground, which the camera already keeps clear of.
+
+**Didn't work.** My first fast path treated every upright part as round in plan and took the widest horizontal scale, but a scatter rock is squashed (1.3 x 1.0) and then turned, so its axes skew and a vertex poked out. The every-vertex test caught it on the first run; squashed parts now take the vertex path.
+
+**Tested.** 266 unit tests with Postgres (7 new in `tests/unit/test_world_deco_solids.gd`: a solid per decoration, every vertex of every part inside (over 200k checked), not much fatter than the meshes, near() matches brute force, NodeProps agrees, the client's own clear_arm keeps out of them from beside 300 trees, scatter unchanged and deterministic). 8-bot 180 s websocket bot test passed. New bot behaviour `world_deco_solids.gd` looks round in 8 directions every second with the client's own `clear_arm`, nodes only and nodes plus decoration: with decoration the camera never ended inside anything; nodes only, it ended inside decoration 54 times in 1,392 looks for one bot (about 4%), which is the bug the client's one-line change fixes. Client smoke test passed (day 0.695, night 0.105, same as before).
+
+**Known / not done.** Nothing changes for players until the client passes the solids. The bench's planks get round 0.9 m columns (see the follow-up). Decorative trees still have no roots.
+
+**Next run.** Roots on the scatter trees, or the lantern flame flicker, unless a request comes in.

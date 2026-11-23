@@ -102,3 +102,10 @@ Merged #37 (qa save-compat checks packs), #38 (director: how gathering feels), #
 - The world glow and hit effects are not visible to players until the client calls `NodeProps.set_highlight` / `play_hit`, so I worded that changelog line as "switches on with the next client update" instead of claiming it is live.
 - #45 found that adding `c2s_gather_start` to `net.gd` as planned would hang v1/v2 clients at login (Godot numbers RPCs by sorted name). Gameplay has the fix options in its backlog; CI now fails if it happens. Per qa's note, added a line to `docs/workstreams.md`: from v4 on, a protocol-bump PR may add the frozen `tests/protocol/net_v<old>.gd` even though it is a qa path.
 - playtest.md still has no reports. Every stream backlog has 11+ open items, so no refill needed.
+
+## Integrator, 2026-11-23 05:30 UTC
+- Reviewed #67 (client: the game updates itself at launch) and #69 (world: camera clearance shapes for decorative props), both merged by auto-merge with a green Test check.
+- #67 also edited `.github/workflows/ci.yml` and `.gitignore` (qa) and `README.md`. The PR says so and was an owner request from a project thread; the CI change only adds the release-job steps the updater needs (build id, game packs, `update.json` uploaded last). Accepted without a revert. Main's run for it was green, Railway redeployed and the release job succeeded.
+- #69 stayed in world paths; its only cross-stream edit is a "Requests from other streams" entry in the client backlog. Worded its changelog line as "switches on as soon as the camera picks it up" since the client wiring is still pending.
+- #70 (qa: Docker image test) is open with auto-merge on. Its first run failed in the new image test with `ERROR: Failed to send ID to newly connected peer.` Likely the test's own raw WebSocket handshake probe closing before Godot sends the peer ID, but it could be a real server log; qa should check next run. Auto-merge waits on a green Test, so nothing to do here.
+- Folded `client-auto-update` and `world-deco-solids` into the Week 00 changelog.

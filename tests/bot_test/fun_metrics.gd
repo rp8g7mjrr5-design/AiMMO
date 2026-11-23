@@ -1,0 +1,132 @@
+extends RefCounted
+## Fun metrics for one bot, worked out from what the server tells it (owner direction 1,
+## "fun comes first"). Pure maths on timestamps so tests/unit/test_qa_fun_metrics.gd can
+## check it without a server; tests/bot_test/behaviours/qa_fun_metrics.gd feeds it.
+##
+##   first_reward_s   seconds from the first login to the first item landing in the pack
+##   longest_dead_s   longest stretch of play with no feedback from the game (a system line
+##                    answering the player, an item, gather progress). Offline time and the
+##                    gap across a disconnect do not count: each play stretch starts fresh.
+##                    Includes time a bot just wanders, so it is reported, not limited.
+##   longest_wait_s   "dead time while acting": longest time from the player doing something
+##                    (a command or a press of E) to the game's next feedback. This is the one
+##                    held to a limit: nobody should press a key and hear nothing.
+##   rewards_per_min  items received per minute of play
+##   loops_completed  crafts that used gathered items (gather -> craft); "use" joins it once
+##                    tools do something players can see
+##
+## Other bots' chat and join/leave notices are not feedback here: they are bot chatter, and
+## a player alone in the world would not get them.
+
+var _first_login := -1.0
+var _first_reward := -1.0
+var _playing := false
+var _last_feedback := 0.0
+var _longest_dead := 0.0
+var _longest_dead_at := 0.0
+var _play_time := 0.0
+var _play_started := 0.0
+var _act_since := -1.0 ## first unanswered action since the last feedback, or -1
+var _longest_wait := 0.0
+var rewards := 0
+var loops := 0
+var feedback_events := 0
+
+
+## A play stretch starts (login). The dead-time clock starts here too.
+func start_play(t: float) -> void:
+	if _first_login < 0.0:
+		_first_login = t
+	_playing = true
+	_play_started = t
+	_last_feedback = t
+
+
+## A play stretch ends (disconnect or end of test). The open gap counts up to here.
+func stop_play(t: float) -> void:
+	if not _playing:
+		return
+	_close_gap(t)
+	_close_wait(t)
+	_play_time += t - _play_started
+	_playing = false
+
+
+func feedback(t: float) -> void:
+	if not _playing:
+		return
+	feedback_events += 1
+	_close_gap(t)
+	_close_wait(t)
+	_last_feedback = t
+
+
+## The player did something that should get an answer (sent a command, pressed E).
+func act(t: float) -> void:
+	if _playing and _act_since < 0.0:
+		_act_since = t
+
+
+func reward(t: float, count: int) -> void:
+	if count <= 0:
+		return
+	feedback(t)
+	rewards += count
+	if _first_reward < 0.0 and _first_login >= 0.0:
+		_first_reward = t - _first_login
+
+
+## A craft finished: what it made is a reward, and a gather -> craft loop is done.
+func crafted(t: float, count: int) -> void:
+	reward(t, maxi(count, 1))
+	loops += 1
+
+
+func _close_gap(t: float) -> void:
+	var gap := t - _last_feedback
+	if gap > _longest_dead:
+		_longest_dead = gap
+		_longest_dead_at = _last_feedback
+
+
+func _close_wait(t: float) -> void:
+	if _act_since >= 0.0:
+		_longest_wait = maxf(_longest_wait, t - _act_since)
+	_act_since = -1.0
+
+
+## Play time so far, including an open stretch up to `now`.
+func play_time(now: float) -> float:
+	return _play_time + ((now - _play_started) if _playing else 0.0)
+
+
+## The bot's numbers. first_reward_s is -1 when nothing was ever received.
+func result() -> Dictionary:
+	var minutes := _play_time / 60.0
+	return {
+		"first_reward_s": snappedf(_first_reward, 0.01) if _first_reward >= 0.0 else -1.0,
+		"longest_dead_s": snappedf(_longest_dead, 0.01),
+		"longest_dead_from_s": snappedf(_longest_dead_at - maxf(_first_login, 0.0), 0.01),
+		"longest_wait_s": snappedf(_longest_wait, 0.01),
+		"rewards": rewards,
+		"rewards_per_min": snappedf(rewards / minutes, 0.01) if minutes > 0.0 else 0.0,
+		"loops_completed": loops,
+		"feedback_events": feedback_events,
+		"play_s": snappedf(_play_time, 0.01),
+	}
+
+
+## How many items a server line gave, or 0. "You gather 2 ash wood ..." gives 2; a craft
+## line ("You craft ...") gives what it made (1 for a tool).
+static func items_in(text: String) -> int:
+	var m := RegEx.create_from_string("^You (gather|craft) (\\d+) ").search(text)
+	if m:
+		return m.get_string(2).to_int()
+	if text.begins_with("You craft a"):
+		return 1
+	return 0
+
+
+## True for server lines that are other players coming and going, not feedback to us.
+static func is_notice(text: String) -> bool:
+	return text.ends_with(" has arrived.") or text.ends_with(" has left.")
