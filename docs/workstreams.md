@@ -63,6 +63,13 @@ CLAIM release <stream> "<PR link or why>" # last thing you do, whether you shipp
 A claim nobody refreshed for 150 minutes belongs to a run that died and the next run takes it
 over. Never take or release another stream's claim.
 
+**No private follow-up runs.** Never schedule a reminder, wake-up or one-off task to finish
+your stream's work later (for example "open the PR after midnight"). Leave the branch pushed
+and a note at the top of your devlog; the next hourly run of your stream picks it up. A
+reminder runs outside the claim and builds the same thing as the next scheduled run (that
+is how protocol v3 was built twice on 2026-11-23). If some session does run stream work
+outside the schedule, it takes that stream's claim first like any worker run.
+
 **Older scheduled prompts.** The scheduled tasks that start the workers and the integrator
 can't be edited, and some still say "keep at most one open PR" or "squash-merge". The owner
 replaced those rules on 2026-11-23: this file wins. Take your claim as soon as you've read
