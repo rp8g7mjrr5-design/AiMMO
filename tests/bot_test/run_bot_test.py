@@ -255,6 +255,8 @@ def main() -> int:
     if fun_rows:
         summary = fun_report.summarise(fun_rows)
         print(fun_report.table(fun_rows, summary))
+        # One machine-readable line for tools/fun_trend.py (the director reads CI job logs, not artifacts).
+        print("[bot-test] fun summary: " + json.dumps(summary, separators=(",", ":")))
         baseline = fun_report.load_baseline(Path(a.fun_baseline))
         verdict = fun_report.check(summary, baseline)
         (work / "fun_metrics.json").write_text(json.dumps(
