@@ -1,1 +1,0 @@
-- Every skill now has its own badge: a green felling stump, a slate quarrying pick, a glowing red tapping drop and a wooden toolcraft bench. They're ready for the skills window and level-up toasts, so you'll know which road just moved before you read a word.

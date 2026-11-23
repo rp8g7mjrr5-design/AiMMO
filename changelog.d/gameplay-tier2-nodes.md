@@ -1,0 +1,2 @@
+- Reach Felling 5 or Quarrying 5 and a new goal opens just past the meadow: eight **old ember ashes** and **rich stone seams** ring Spawn Meadow, and they pay double XP per swing and give new materials, **ember heartwood** and **veinstone**.
+- Not there yet? Try one anyway and it tells you exactly how far you have to go ("Needs Felling 5. You're Felling 3.").

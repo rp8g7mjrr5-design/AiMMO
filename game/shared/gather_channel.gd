@@ -29,6 +29,14 @@ static func seconds_for(kind: String, inv: Dictionary, level: int = 1) -> float:
 	return base * Skills.speed_factor(level)
 
 
+## seconds_for, for one node: a tier-2 node's bar is ResourceNodes.TIER2's seconds_scale
+## longer.
+static func seconds_at(id: int, inv: Dictionary, level: int = 1) -> float:
+	var node := ResourceNodes.get_by_id(id)
+	var scale := float(ResourceNodes.info(node).get("seconds_scale", 1.0))
+	return seconds_for(str(node.get("kind", "")), inv, level) * scale
+
+
 ## A new channel on node `id`, started at `now` from `pos`, lasting `seconds`.
 static func start(id: int, pos: Vector3, now: float, seconds: float) -> Dictionary:
 	return {"node_id": id, "from": pos, "started": now, "ends": now + seconds, "seconds": seconds}
@@ -69,14 +77,15 @@ static func progress(ch: Dictionary, now: float) -> float:
 ## Why a finished channel gives nothing after all, re-checked at the end because another
 ## player may have emptied the node, or dawn dried the seep, meanwhile. The cooldown was
 ## checked when the channel started, so it is not checked again. "" means take it.
-static func finish_check(state: Dictionary, ch: Dictionary, pos: Vector3, now: float, world_seconds: float) -> String:
-	return Gathering.check(state, int(ch.node_id), pos, now, world_seconds, -INF)
+## `skills` is the player's (levels never go down, so it only matters for tier-2 nodes).
+static func finish_check(state: Dictionary, ch: Dictionary, pos: Vector3, now: float, world_seconds: float, skills: Dictionary = {}) -> String:
+	return Gathering.check(state, int(ch.node_id), pos, now, world_seconds, -INF, Gathering.COOLDOWN, skills)
 
 
 ## "You start gathering the pine (2.0 s)."
 static func begin_text(id: int, seconds: float) -> String:
 	var node := ResourceNodes.get_by_id(id)
-	var label := str(ResourceNodes.kind_info(node.kind).get("label", "node")).to_lower() if not node.is_empty() else "node"
+	var label := str(ResourceNodes.info(node).get("label", "node")).to_lower() if not node.is_empty() else "node"
 	return "You start gathering the %s (%.1f s)." % [label, seconds]
 
 

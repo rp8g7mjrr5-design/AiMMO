@@ -1,14 +1,17 @@
 extends TestCase
 ## Resource node placement (game/shared/resource_nodes.gd).
 
-## Pinned fingerprint of the node list. Node ids become permanent once gathering ships, so
-## this must only change on purpose: if you deliberately change placement before then,
-## update it here and say why in docs/devlog/gameplay.md. After gathering ships, never.
-const FINGERPRINT := "397-661be157d592b82ad460e8b5154aa417"
+## Pinned fingerprints of the node list. Node ids are permanent (gathering has shipped), so
+## the first 397 (passes 1 and 2) must never change; new passes only append. FINGERPRINT is
+## the whole list today: when a pass is appended, pin the old whole list as another prefix
+## here and update FINGERPRINT, and say why in docs/devlog/gameplay.md.
+const FINGERPRINT_397 := "397-661be157d592b82ad460e8b5154aa417" ## starter ring + wild
+const FINGERPRINT := "405-413500cecfbb07c82c21389af3f8a317" ## + the tier-2 ring (2026-11-23)
 
 
 func test_list_is_pinned() -> void:
-	check_eq(ResourceNodes.fingerprint(), FINGERPRINT, "node list unchanged (ids are permanent)")
+	check_eq(ResourceNodes.fingerprint(397), FINGERPRINT_397, "the first 397 nodes never change (ids are permanent)")
+	check_eq(ResourceNodes.fingerprint(), FINGERPRINT, "node list unchanged")
 
 
 func test_deterministic() -> void:

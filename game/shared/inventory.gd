@@ -27,14 +27,27 @@ const ITEMS := {
 	"campfire": {"label": "campfire"},
 }
 const ITEM_ORDER := ["ash_wood", "pine_wood", "stone", "ember_sap", "stone_axe", "stone_pickaxe", "torch", "campfire"]
+## Items that are real (gathered, saved, named) but not in ITEMS yet, because everything in
+## ITEMS must already have its own icon (world's ItemIcons; tests/unit/test_world_item_icons
+## checks it). The two tier-2 materials (ResourceNodes.TIER2) wait here until world draws
+## them; then gameplay moves them into ITEMS and ITEM_ORDER (after ember_sap). Ids are
+## PERMANENT like ITEMS'. Until then a client shows them with the fallback bundle icon.
+const NEW_ITEMS := {
+	"ember_heartwood": {"label": "ember heartwood"},
+	"veinstone": {"label": "veinstone"},
+}
 
 
 static func is_item(item: String) -> bool:
-	return ITEMS.has(item)
+	return ITEMS.has(item) or NEW_ITEMS.has(item)
 
 
 static func label(item: String) -> String:
-	return str(ITEMS[item].label) if ITEMS.has(item) else item.replace("_", " ")
+	if ITEMS.has(item):
+		return str(ITEMS[item].label)
+	if NEW_ITEMS.has(item):
+		return str(NEW_ITEMS[item].label)
+	return item.replace("_", " ")
 
 
 ## Turns anything stored or received into a clean inventory: String keys, int quantities

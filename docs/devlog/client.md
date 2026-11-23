@@ -762,6 +762,47 @@ remembered progress, not the bar's current position; at ~1 gain per 1.6 s that n
 banner with the unlock, `LevelUpFx.play(avatar)`; `level_up_seen` -> the burst on that avatar.
 Then tell gameplay (its backlog) the banner shows so it can drop the chat line for v4 clients.
 
+## 2026-11-23: the workbench on c2s_craft (ws/client/workbench-c2s-craft)
+
+**Why this item:** top of the backlog, and the last thing holding gameplay's chat gate
+(owner direction 1, Milestone 0 "no chat command anywhere"). No dependency: `c2s_craft`,
+`craft_result` and `s2c_inventory` have been on `main` since protocol v3.
+
+**Fun, in one sentence:** the window opens already knowing your pack and answers a Craft
+press in one round trip (toast with the icon, craft sound, "+N Toolcraft"), instead of
+waiting out the 0.5 s chat cooldown for "/bag" and then "/craft", so crafting feels like a
+button, not a command.
+
+**Built:** `CraftWindow` lost every chat path: `parse_pack`, `apply_line`, `crafted_in`,
+`item_for_label`, `craft_reply`, the send queue and `on_system` are gone (about 150 lines).
+`craft(id)` now emits `craft_requested(id)` (one request in flight; refuses with the pack
+unknown or an unknown id) and `client.gd` sends it as `net.play.c2s_craft`. `on_craft_result`
+shows the server's text (accent on success, red on a refusal) and returns the recipe for the
+toast. The pack comes from `seed_pack` on login and every `inventory_changed` (already wired).
+`tick()` no longer returns a line; it closes on walking away and gives up on an answer after
+`REPLY_TIMEOUT` (3 s) with "The bench didn't answer. Try again." `client._on_system` no longer
+routes lines through the window. Also fixed gameplay's request: the `client_xp_meter` bot
+resets `_pending`/`_age` on login.
+
+**Tests:** unit `test_client_craft_window.gd` rewritten (one request per press, answer
+handling, refusals in the window, timeout, late answers for another recipe, walk-away, and a
+check that the script contains no "/bag", "/craft", c2s_chat or on_system). Bot
+`client_craft_window.gd` now presses Craft through the real window up to 4 times per login at
+quiet moments (no gather running or just ended, 6 s clear of a disconnect, torches or a
+campfire only so gameplay_crafting's "/craft axe" answers stay as it expects), and checks each
+answer: right recipe, the row predicted it, a "missing" refusal in the server's exact words,
+the window shows the text, and Toolcraft XP for every success. Unit 396 passed (with
+Postgres), bot test passed (8 bots, 180 s; 8 presses and 8 answers per bot), client smoke
+passed. Screenshot by hand with `--open-workbench`: rows counted at once, nothing in chat.
+
+**What didn't work / not done:** every bot press was a refusal (bots don't hold pine wood
+and ember sap together), so the success path is proven by unit tests only; follow-up added.
+`gather_prompt.on_system` still parses gather echo lines from the `/gather` dev path; that is
+for bots and goes away with gameplay's gate.
+
+**Notes to next run:** part 2, the level-up moment (`level_up` -> chord, banner,
+`LevelUpFx.play`; `level_up_seen` -> burst on that avatar). Then the skills window (K).
+
 ## 2026-11-23: the level-up moment (ws/client/level-up-moment)
 
 **First, PR #101 (workbench on `c2s_craft`):** it had a merge conflict in the client and

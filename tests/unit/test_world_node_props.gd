@@ -40,7 +40,8 @@ func test_props_stand_on_their_node() -> void:
 			for p in NodeProps.parts(n, depleted):
 				var o: Vector3 = p.xform.origin
 				var flat := Vector2(o.x - n.pos.x, o.z - n.pos.z).length()
-				if flat > 1.6 * n.scale:
+				# A tier-2 node (the old ash, 3 m in radius) spreads wider than tier 1.
+				if flat > (1.6 if NodeProps.tier_of(n) == 1 else 3.2) * n.scale:
 					check(false, "node %d part strays %.2f m from its spot" % [n.id, flat])
 					return
 				if o.y < n.pos.y - 0.05 or o.y > n.pos.y + 7.5:

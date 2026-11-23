@@ -82,6 +82,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.inventory_changed.connect(_on_inventory)
 	net.nodes_depleted.connect(_on_nodes_depleted)
 	net.node_state.connect(_on_node_state)
+	net.craft_result.connect(_on_craft_result)
 	net.skills_changed.connect(_on_skills)
 	net.xp_gained.connect(_on_xp)
 	net.level_up.connect(_on_level_up)
@@ -321,7 +322,7 @@ func _update_gather(delta: float, my_pos: Vector3, eye: Vector3, look: Vector3) 
 
 
 ## The workbench: "[E] Use Workbench" when you stand at it (and no node is in reach), E opens
-## the crafting window. The window's chat lines ("/bag", "/craft <id>") go out from here.
+## the crafting window. Its Craft presses go out as c2s_craft (see _setup_ui).
 func _update_bench(delta: float, my_pos: Vector3) -> void:
 	var at_bench := CraftWindow.near_bench(my_pos) and gather_prompt.current_target().is_empty()
 	var free := not chat_edit.has_focus() and not window_open()
@@ -331,9 +332,7 @@ func _update_bench(delta: float, my_pos: Vector3) -> void:
 	if at_bench and free and Input.is_action_just_pressed("interact"):
 		craft_window.open(my_pos)
 		sfx_chime.play()
-	var line := craft_window.tick(delta, my_pos)
-	if line != "":
-		net.c2s_chat.rpc_id(1, line)
+	craft_window.tick(delta, my_pos)
 
 
 ## World's warm glow on the node E would gather (the one under the reticle, else the nearest).
@@ -516,13 +515,6 @@ func _on_system(text: String) -> void:
 	if level_up_banner != null and level_up_banner.consume_system(text):
 		return # the banner already said it (chat is for talking)
 	var echo := gather_prompt != null and gather_prompt.on_system(text)
-	if craft_window:
-		var r := craft_window.on_system(text)
-		if str(r.crafted) != "":
-			gather_prompt.show_toast(CraftWindow.toast_text(str(r.crafted)), str(r.crafted))
-			sfx_craft.play()
-		if r.consumed:
-			return # the window's own answers stay in the window (chat is for talking)
 	if echo:
 		return # the bar and the toast already said it
 	chat_feed.append(chat_log, ChatFeed.system_line(TimeDial.current_seconds(), text))
@@ -577,6 +569,16 @@ func _on_level_up(skill: String, level: int, unlocks: Array) -> void:
 func _on_level_up_seen(peer_id: int, _skill: String, level: int) -> void:
 	if avatars.has(peer_id) and peer_id != my_id:
 		LevelUpFx.play(avatars[peer_id].node, peer_id * 31 + level)
+
+
+## The bench's answer to a Craft press: the window shows the server's words; a success also
+## gets the toast with the product's icon and the craft sound (the Toolcraft "+N" floater
+## comes from s2c_xp, sent with it).
+func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
+	var r := craft_window.on_craft_result(recipe_id, ok, text)
+	if str(r.crafted) != "":
+		gather_prompt.show_toast(CraftWindow.toast_text(str(r.crafted)), str(r.crafted))
+		sfx_craft.play()
 
 
 func _on_inventory(items: Dictionary) -> void:
@@ -861,6 +863,9 @@ func _build_ui() -> void:
 	craft_window.icons = icon_shelf
 	craft_window.setup(theme)
 	craft_window.closed.connect(func(): sfx_chime.play())
+	craft_window.craft_requested.connect(func(id: String):
+		if multiplayer.multiplayer_peer != null and logged_in:
+			net.play.c2s_craft.rpc_id(1, id))
 	ui.add_child(craft_window)
 
 	settings_menu = SettingsMenu.new()
