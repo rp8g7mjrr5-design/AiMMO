@@ -925,3 +925,49 @@ seconds the roadmap gates, so left as is.
 
 **Next run:** check #119 and this PR landed (both append to this devlog and the backlog,
 so the second may need `main` merged in). Then the screenshot style check.
+
+## 2026-11-23 — Emberlight screenshot style check (`ws/qa/style-check`)
+
+**Picked:** the top backlog item (owner direction 7). Fun: the warm valley with rare ember
+glow is what makes the world feel like ours and tells you "this glows, you can use it"; a
+PR that floods the screen with ember, turns the grass neon or the night grey now can't
+ship without someone noticing. The two other open PRs (#118 gameplay, #125 integrator's
+red-`main` fix) don't touch my paths.
+
+**Built:** `tests/client_smoke/style_check.gd` (GDScript, like `image_stats.gd`, so the
+unit tests run on flat `Image`s). Per shot, HUD masked (top 14% and the bottom-left clock
+and chat box), sampled every 4 px: `luma`, `sat_mean`, `neon_share` (HSV s > 0.65, v >
+0.25, not ember), `ember_share` (hue 15-50 deg, s >= 0.5, v >= 0.55), `warmth` (mean
+r - b) and `blue_minus_green` (mean b - g). Three layers:
+- hard fails: ember over 10% (the 60/30/10 rule), a black frame, a grey night (mean
+  saturation under 0.12);
+- baseline drift (`style_baseline.json`): each measure has a direction toward the art
+  bible; a move beyond `big` the wrong way fails, a move beyond `small` either way is a
+  note ("toward the art bible: update the baseline" or "small drift");
+- art-bible targets (night bluer than green, night cool, neon under 10%): notes only.
+`--write-baseline` rewrites the numbers for a world PR that changes the look on purpose.
+`run.sh` runs it after the brightness check and writes `style_stats.json` and
+`contact_sheet.html` (every PNG in the folder, the style shots with their numbers) into
+the artifact, which also closes the "contact sheet" half of the parked dusk item.
+
+**Found:** the night shot misses three targets: the ground is lit *green* (b - g -0.13),
+the frame leans warm (+0.05) and 62% of it is saturated dark green; mean saturation 0.81
+at night vs 0.43 at noon. Noon is on target (ember 2.6%, neon 1.1%, warmth +0.09). I set
+the baseline to today's world (same as the render budget did) and filed the night colours
+with world, with the rerun command. Two local smoke runs gave identical numbers to three
+decimals (llvmpipe is deterministic here), so the `small` tolerances are generous rather
+than measured; if CI disagrees with local, the first `main` run's `style.log` says by how
+much.
+
+**Didn't do:** the camera shots (hill shot is mostly sky, needs its own baseline; follow-up
+added), and dusk (no dusk shot yet).
+
+**Tests:** 511 unit tests with Postgres, all pass except
+`test_qa_fun_metrics::test_behaviours_send_play_requests_through_the_bot`, which is the
+red `main` from #124 that the integrator's #125 fixes; this PR's CI stays red until #125
+lands, then auto-merge takes it. Client smoke passed twice with the style check.
+Bot test 8 x 180 s WebSocket + Postgres `--fun-check` PASSED in 277 s (8/8 levelled, first
+reward median 7.3 s, wait worst 0.16 s, rewards/min 10.36).
+
+**Next run:** check this PR landed once #125 turns `main` green; read the first `main`
+run's `style.log` and compare with the local baseline. Then the tier-2 level gate item.

@@ -159,3 +159,22 @@ func test_level_up_names_a_real_unlock() -> void:
 	check(not u.get("soon", false), "no longer 'coming soon'")
 	var r := Skills.gain({"toolcraft": Skills.xp_for_level(5) - 1}, "toolcraft", 1)
 	check(not Skills.level_up_text(r).contains("coming soon"), Skills.level_up_text(r))
+
+
+## World drew the ember tools (PR #112), so they are ordinary items now: in ITEMS and in pack
+## order right after the stone tools, not trailing after the campfires as unknown extras.
+func test_ember_tools_sit_with_the_stone_tools() -> void:
+	check(Inventory.UNDRAWN.is_empty(), "nothing waits for an icon: %s" % [Inventory.UNDRAWN.keys()])
+	for id in ["ember_axe", "ember_pickaxe"]:
+		check(Inventory.ITEMS.has(id) and Inventory.ITEM_ORDER.has(id), "%s is a full item" % id)
+		check(ItemIcons.has_icon(id), "%s has its own icon" % id)
+	var o: Array = Inventory.ITEM_ORDER
+	check_eq(o.find("ember_axe"), o.find("stone_pickaxe") + 1, "ember axe right after the stone tools")
+	check_eq(o.find("ember_pickaxe"), o.find("ember_axe") + 1)
+	var inv := {"campfire": 1, "torch": 2, "ember_pickaxe": 1, "ember_axe": 1, "ash_wood": 3}
+	check_eq(Inventory.held(inv), ["ash_wood", "ember_axe", "ember_pickaxe", "torch", "campfire"], "pack order")
+	check_eq(Inventory.to_wire(inv).keys(), ["ash_wood", "ember_axe", "ember_pickaxe", "torch", "campfire"], "wire order")
+	# Saved before this change, the same ids load and count the same.
+	var saved := Inventory.normalize({"ember_axe": 1, "ember_pickaxe": 1})
+	check_eq(Inventory.count(saved, "ember_axe"), 1)
+	check_eq(Inventory.label("ember_pickaxe"), "ember pickaxe")
