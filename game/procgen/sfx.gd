@@ -14,6 +14,33 @@ static func arrive() -> AudioStreamWAV:
 	return _tones([[523.25, 0.12], [659.25, 0.12], [783.99, 0.3]], 0.3)
 
 
+## A crafted item: two soft wooden knocks on the bench, then a bright rising pair.
+static func craft() -> AudioStreamWAV:
+	var data := PackedByteArray()
+	var knocks := [[0.0, 180.0], [0.11, 150.0]]
+	var length := 0.62
+	for i in int(RATE * length):
+		var t := float(i) / RATE
+		var v := 0.0
+		for k in knocks:
+			var dt: float = t - float(k[0])
+			if dt >= 0.0:
+				v += sin(TAU * float(k[1]) * dt) * exp(-dt * 38.0) * 0.9
+		for n in [[0.24, 659.25], [0.34, 987.77]]:
+			var dn: float = t - float(n[0])
+			if dn >= 0.0:
+				v += (sin(TAU * float(n[1]) * dn) * 0.8 + sin(TAU * float(n[1]) * 2.0 * dn) * 0.2) * minf(1.0, dn * 80.0) * exp(-dn * 7.0) * 0.5
+		var s16 := int(clampf(v * 0.32, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = RATE
+	wav.stereo = false
+	wav.data = data
+	return wav
+
+
 static func _tones(notes: Array, volume: float) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	for n in notes:

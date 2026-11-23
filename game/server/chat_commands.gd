@@ -15,6 +15,9 @@ const CRAFT_NAMES := ["craft", "make", "build", "recipes"]
 ## The timed gather (GatherChannel) as a hidden dev/bot command until protocol v3's
 ## c2s_gather_start: never listed in HELP or patch notes.
 const CHANNEL_NAMES := ["channel"]
+## Sent to a player whose line came inside GameConfig.CHAT_COOLDOWN of their last one (talk
+## and commands count separately), so nothing they type vanishes without a word.
+const TOO_FAST := "Slow down a moment: that line wasn't sent. Try again."
 const WHO_MAX_NAMES := 20 ## cap the /who list so one line stays readable
 
 
