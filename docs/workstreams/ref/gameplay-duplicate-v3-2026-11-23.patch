@@ -1,0 +1,1120 @@
+From f270ca59d5fd2863dab129eb4e23b87d6d07efa6 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 23 Nov 2026 06:11:24 +0000
+Subject: [PATCH] Protocol v3: real gathering, pack, node and craft RPCs,
+ ack_seq
+
+New RPCs on the Net/Play child so old clients still get the update message.
+Server wires c2s_gather_start/cancel and c2s_craft to the existing paths,
+snapshots carry each receiver's ack_seq, /gather leaves /help.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01WaJye6dBPavsMS5p5p6LDy
+---
+ changelog.d/gameplay-protocol-v3.md           |   2 +
+ docs/devlog/gameplay.md                       |  48 ++++
+ docs/workstreams/client.md                    |   5 +
+ docs/workstreams/gameplay.md                  |  15 +-
+ game/server/chat_commands.gd                  |   2 +-
+ game/server/server.gd                         |  42 ++-
+ game/shared/game_config.gd                    |   4 +-
+ game/shared/net.gd                            |  35 ++-
+ game/shared/net_play.gd                       |  79 ++++++
+ .../behaviours/gameplay_gather_channel.gd     | 193 -------------
+ .../bot_test/behaviours/gameplay_gather_v3.gd | 268 ++++++++++++++++++
+ tests/unit/test_gameplay_gathering.gd         |   2 +-
+ tests/unit/test_gameplay_protocol_v3.gd       | 202 +++++++++++++
+ tests/unit/test_gameplay_v3_hooks.gd          |  14 +-
+ 14 files changed, 696 insertions(+), 215 deletions(-)
+ create mode 100644 changelog.d/gameplay-protocol-v3.md
+ create mode 100644 game/shared/net_play.gd
+ delete mode 100644 tests/bot_test/behaviours/gameplay_gather_channel.gd
+ create mode 100644 tests/bot_test/behaviours/gameplay_gather_v3.gd
+ create mode 100644 tests/unit/test_gameplay_protocol_v3.gd
+
+diff --git a/changelog.d/gameplay-protocol-v3.md b/changelog.d/gameplay-protocol-v3.md
+new file mode 100644
+index 0000000..f5553ce
+--- /dev/null
++++ b/changelog.d/gameplay-protocol-v3.md
+@@ -0,0 +1,2 @@
++- The game updates itself to version 3 of the network protocol on launch: the groundwork for real gathering, where pressing E starts a short timed swing you can cancel by stepping away, everyone nearby sees you work, and emptied trees and rocks look emptied for everyone.
++- "/help" no longer lists gathering: gathering is a key press, not a chat command.
+diff --git a/docs/devlog/gameplay.md b/docs/devlog/gameplay.md
+index c1734b4..9092d57 100644
+--- a/docs/devlog/gameplay.md
++++ b/docs/devlog/gameplay.md
+@@ -476,3 +476,51 @@ by walking away), 8 x 45 s ENet passed.
+ 
+ **Notes to next run (v3).** Unchanged from the eighth run, plus: the bot behaviours that
+ parse system lines ignore TOO_FAST already; keep it that way in `gameplay_gather_v3.gd`.
++
++## 2026-11-23 (tenth run, 00:00 Chicago): protocol v3, real gathering
++
++**What I built.** The bump the last three runs were waiting for (first run of the owner's
++new day; workstreams.md also dropped the one-bump-a-day rule this morning).
++- `game/shared/net_play.gd`, created by `net.gd` as the child `Net/Play` in `_init` (not
++  `_ready`, so `net.play` exists before any role connects). It carries `c2s_gather_start`,
++  `c2s_gather_cancel`, `c2s_craft`, `s2c_gather_begin/end/result`, `s2c_inventory`,
++  `s2c_nodes`, `s2c_node_state`, `s2c_craft_result`, and each one re-emits a signal on Net,
++  so callers keep connecting to `net.<signal>`. `Net`'s own RPC list is unchanged apart
++  from the argument below, so v1/v2 clients still get "out of date" (protocol test passes
++  for v1, v2, 2 and 4 over websocket and ENet).
++- `ack_seq`: a third argument on `s2c_snapshot`, the receiver's last applied input seq (-1
++  before any). Snapshots were already sent per peer, so it costs one int. I kept the
++  `snapshot(tick, entries)` signal as it was and added `input_acked(tick, ack_seq)`, emitted
++  just before it, so client.gd and every bot behaviour that connects to `snapshot` keeps
++  working untouched. Changing an existing RPC's arguments is safe here: snapshots only go
++  to logged-in peers, and only current clients get past login.
++- Server: `_on_gather_start` -> `gather_request`, `_on_gather_cancel` -> `gather_cancel(id,
++  "stopped")`, `_on_craft` -> `craft_request`. Logged-out peers are ignored. Gather start
++  and craft are each taken at most once per 0.1 s (`PLAY_REQUEST_GAP`), because each one
++  makes the server answer and a flooding client shouldn't make it spam back.
++- `/gather` is gone from `HELP` (still works, for bots and the current client's press-E).
++- `PROTOCOL_VERSION` 3.
++
++**Tests.** `tests/unit/test_gameplay_protocol_v3.gd` (10 tests): Play child exists from the
++start and Net has none of its RPCs; every message a full scenario sends has an RPC with the
++same argument count (this catches a server/net mismatch that `_send` would otherwise only
++log once); RPCs re-emit; ack before snapshot; per-receiver ack in `_tick`; start, cancel,
++logged-out and flood paths. Updated the v3-hooks routing test and the /help test. 288 unit
++tests pass with Postgres. Bot test 8 x 180 s websocket passed; new
++`gameplay_gather_v3.gd` (replaces `gameplay_gather_channel.gd`, which used `/channel`):
++checks `s2c_inventory` and `s2c_nodes` on every login, then walk-away ("moved"), explicit
++cancel ("stopped") and hold to "done" with result and pack, all through the RPCs. Protocol
++test (websocket and ENet) and client smoke passed.
++
++**What didn't fit / known gaps.**
++- "Two bots share one node" is counted (`shared_node`), not asserted: 8 bots spread over
++  40 m rarely pick the same node in the same second. The contested case is in the unit tests.
++- Players see no difference until client switches press-E and the craft window to the RPCs
++  (request in client's backlog). The server still sends the system lines, so the switch can
++  land whenever.
++- Frozen copies for v4: `net_v3.gd` will preload `res://shared/net_play.gd`, which will
++  change. Freeze a `net_play_v3.gd` with it (follow-up in the backlog).
++
++**Notes to next run.** Next up: skills data and XP server side (Milestone 1 part 1, no
++bump), unless client has switched to `c2s_gather_start`, in which case do the chat gate
++first. Write the "which MMO does skills best" devlog lines before building it.
+diff --git a/docs/workstreams/client.md b/docs/workstreams/client.md
+index f27bc5c..6436c78 100644
+--- a/docs/workstreams/client.md
++++ b/docs/workstreams/client.md
+@@ -66,6 +66,11 @@ Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
+ - [ ] Follow-up (camera solids): if profiling ever shows `clear_arm` hot with many solids in reach, narrow `camera_solids` to the current arm length plus a margin instead of DIST_MAX + 3 m.
+ 
+ ## Requests from other streams
++- **From gameplay (2026-11-23): protocol v3 is on `main` once PR `ws/gameplay/protocol-v3` lands.** New RPCs are on the child node `net.play` (never add RPCs to `Net` itself), and each one re-emits a signal on `net`:
++  - send `net.play.c2s_gather_start.rpc_id(1, node_id)` on press E (instead of `/gather`), `net.play.c2s_gather_cancel.rpc_id(1)` on Esc/second press, `net.play.c2s_craft.rpc_id(1, recipe_id)` from the craft window (instead of `/craft`);
++  - listen to `net.gather_began(peer, node, seconds)` (bar for you, swing for others), `net.gather_ended(peer, node, reason)` ("done", "moved", "far", "stopped", "disconnected", "depleted", "full", "cooldown", "night_only", ...), `net.gather_result(item, count)` (haul toast), `net.inventory(items)` (whole pack, replaces `/bag`), `net.nodes(depleted_ids)` on login and `net.node_state(node, depleted)` for `NodeProps.set_depleted`, `net.craft_result(recipe, ok, text)`;
++  - `net.input_acked(tick, ack_seq)` arrives just before `net.snapshot` for the same tick, for predicting your own character. The `snapshot` signal itself is unchanged.
++  The server still sends the old system lines too, so nothing breaks before you switch.
+ - **(Done, ws/client/camera-clears-decoration: `ActionCamera.camera_solids`)** **From world (decoration clearance PR):** the camera still flies into decorative trees, rocks, birches, boulders, the meadow lanterns and the workbench, because only resource nodes are passed to it. `WorldSolids.near(pos, radius)` (in `game/procgen/world_solids.gd`) now returns their solids, and `NodeProps.inside_solid` (so `ActionCamera.inside_prop`/`clear_arm`) already understands them. In `client.gd` where the camera steps, please pass both: `var props := ResourceNodes.near(me.position, r) + WorldSolids.near(me.position, r)`. Nothing else changes. `aimed_node` and the gather prompt should keep using `ResourceNodes.near` only (decoration isn't gatherable). The solids are built once (~0.15 s) when `WorldBuilder.build()` runs, and `near()` costs about 20 µs. My bot behaviour `world_deco_solids` counts how often today's nodes-only camera ends inside decoration (`camera_inside_decoration_nodes_only`).
+ - **(Fixed, ws/client/camera-clears-decoration: the mirror now reads crafts it didn't send, `CraftWindow.crafted_in`)** **From world (bench lantern PR), flake seen:** one 8-bot run failed in `client_craft_window`: "window thought the pack was { "ash_wood": 6, "stone": 2 }, server says Your pack: 3 ash wood, 1 stone axe." It looks like the window's pack view racing a craft's `s2c_inventory`; the rerun passed. Worth a look before it reddens someone's CI.
+ - **(Done, ws/client/camera-clears-decoration)** **From world (bench lantern PR):** the workbench now has the same warm rim glow as a node in reach. In `_update_bench`, please call `Workbench.set_highlight(world.get_node_or_null("Workbench"), at_bench and free)` every frame (a no-op when the value doesn't change; it fades over 0.15 s), so the bench lights up exactly while "[E] Use Workbench" shows. `Workbench.highlighted(bench)` tells you if it is lit. The bench's night lantern needs nothing from you: it lights from `Lamps.apply_glow`, which DayNight already calls.
+diff --git a/docs/workstreams/gameplay.md b/docs/workstreams/gameplay.md
+index b4623a8..a58bb6b 100644
+--- a/docs/workstreams/gameplay.md
++++ b/docs/workstreams/gameplay.md
+@@ -3,7 +3,7 @@
+ Owns the rules of the world. See `docs/workstreams.md` for ownership.
+ 
+ ## Backlog (top = next)
+-- [ ] **Top priority (director, owner request 2026-11-22): protocol v3, real gathering.** One bump on 2026-11-23 carrying everything below plus the existing `ack_seq` and `s2c_inventory` items. Follow "How gathering feels" in `docs/design_bible.md`.
++- [x] **Top priority (director, owner request 2026-11-22): protocol v3, real gathering.** *Done 2026-11-23 00:00 Chicago (PR on `ws/gameplay/protocol-v3`): every RPC below plus `c2s_craft`/`s2c_craft_result` on `Net/Play`, `ack_seq` as a third `s2c_snapshot` argument (signal `input_acked`), `/gather` hidden from `/help`, bot behaviour `gameplay_gather_v3.gd` replaces `gameplay_gather_channel.gd`. Client wiring requested in client's backlog.* One bump on 2026-11-23 carrying everything below plus the existing `ack_seq` and `s2c_inventory` items. Follow "How gathering feels" in `docs/design_bible.md`.
+   - `c2s_gather_start(node_id)`: same `Gathering.check` as `/gather` (reach, night-only, full pack, cooldown). On success start a server-timed channel (`Gathering.CHANNEL_SECONDS`, about 2.0 s, per-kind value allowed) and send `s2c_gather_begin(peer_id, node_id, seconds)` to the gatherer and every player within view range, so others see the motion.
+   - Cancel when the player moves more than 0.5 m, leaves reach, sends `c2s_gather_cancel()`, or disconnects: `s2c_gather_end(peer_id, node_id, "cancelled")` to the same audience, no charge used, no cooldown spent.
+   - On completion re-check (another player may have emptied it), then `give_item`, `s2c_gather_end(peer_id, node_id, "done")`, `s2c_gather_result(item_id, count)` to the gatherer for the toast, and `s2c_inventory`.
+@@ -21,21 +21,24 @@ Owns the rules of the world. See `docs/workstreams.md` for ownership.
+ - [ ] **Milestone 1 (director, owner vision 2026-11-23: skills and XP, see `docs/roadmap.md` and owner direction 5 in the design bible), part 4: Toolcraft unlocks.** One or two recipes that need a Toolcraft level and use the tier-2 materials (better axe and pickaxe that gather faster), so the first unlocks are things you can hold.
+ - [x] Shared world clock: `WorldClock`, `s2c_world_time`, protocol v2 (merged, PR #8)
+ - [x] **Fix the clock bot behaviour to fit qa's hook.** *Integrator: ported while merging #8 (#7 merged first).* qa's hook (PR #7) loads behaviours that extend `tests/bot_test/bot_behaviour.gd` and calls `setup` / `on_login` / `on_play` / `on_snapshot` / `on_finish`, and reports any other script as a failure. `gameplay_world_clock.gd` extends `RefCounted` with `setup(bot, net)` / `finish(...)`. Whichever of #7 and #8 merges second must port it, or the bot test goes red. Director's call: qa's interface is the standard; gameplay adapts.
+-- [ ] Acked input seq in snapshots (`ack_seq` for the receiving player) so client can predict your own character. Protocol v3: **not on 2026-11-22** (v2 already bumped today). Client is waiting on this.
++- [x] Acked input seq in snapshots (`ack_seq` for the receiving player): shipped in v3 (`net.input_acked(tick, ack_seq)`, emitted just before `snapshot`).
+ - [x] `/time` chat command (also `/who`, `/help`): `game/server/chat_commands.gd`, replies to the sender only via `s2c_system`, no protocol change (PR on `ws/gameplay/chat-commands`)
+ - [x] Resource nodes, data only (PR on `ws/gameplay/resource-nodes`; `ResourceNodes` in `game/shared/resource_nodes.gd`, 397 nodes, ids permanent): deterministic placement of ash, pine, stone and ember-sap nodes from the world seed in `game/shared/` (pure function, unit tested), so world can draw them and the server can own them from the same list
+ - [x] Inventory: add-only migration `0002_inventory_items`, `CharacterData.inventory` default, `Inventory` in `game/shared/inventory.gd`, server `give_item`/`take_item`, `/bag`, fixture `week00_inventory.sql` (PR on `ws/gameplay/inventory`). `s2c_inventory` deferred to protocol v3 (once-a-day bump already used).
+-- [ ] (folded into the top item) Protocol v3 (2026-11-23 or later): `ack_seq` in snapshots (item above) plus `s2c_inventory(items)` after login and after every `give_item`/`take_item`, so the client can show the pack. One bump for both.
++- [x] (folded into the top item, shipped) Protocol v3 (2026-11-23 or later): `ack_seq` in snapshots (item above) plus `s2c_inventory(items)` after login and after every `give_item`/`take_item`, so the client can show the pack. One bump for both.
+ - [x] Gathering, server side, via `/gather [kind]` (PR on `ws/gameplay/gathering`): `Gathering` in `game/shared/gathering.gd`, 3 charges per wood/stone node then respawn timer, per-player 1.5 s cooldown, reach checked from the server's position, full pack never wastes a node, direction hint to the nearest live node. No protocol change.
+ - [x] Ember sap is night-only (shipped with gathering: `night_only` refused by day)
+-- [ ] (superseded by the top item) Protocol v3 additions for gathering: `c2s_gather(node_id)` (client's interact key, same `Gathering.check`), and `s2c_nodes(depleted_ids)` on login plus a change message when a node depletes or respawns (`Gathering.respawn_due` already returns the ids that came back), so client can call `NodeProps.set_depleted`. Put in v3 with `ack_seq` and `s2c_inventory` if it fits one run, else v4 the next day.
++- [x] (superseded by the top item, shipped) Protocol v3 additions for gathering: `c2s_gather(node_id)` (client's interact key, same `Gathering.check`), and `s2c_nodes(depleted_ids)` on login plus a change message when a node depletes or respawns (`Gathering.respawn_due` already returns the ids that came back), so client can call `NodeProps.set_depleted`. Put in v3 with `ack_seq` and `s2c_inventory` if it fits one run, else v4 the next day.
+ - [x] Crafting rules and server side (PR on `ws/gameplay/crafting`): `Crafting` in `game/shared/crafting.gd`, workbench at `Crafting.workbench_pos()` (x 3, z -2), 4 recipes (stone axe, stone pickaxe, torch x3, campfire), server `craft()`, tools in the pack give +1 per gather and halve the gather cooldown (`Gathering.tool_for` / `amount_for` / `cooldown_for`). No protocol change, no migration. `/craft` exists only as a hidden debug/bot command (owner direction 1), never in `/help` or patch notes.
+-- [ ] Follow-up (v3 run): ~~the timed gather channel should scale its duration by `Gathering.TOOL_SPEED`~~ (done in `GatherChannel.seconds_for`), and `s2c_inventory` should go out after every craft too (`craft()` uses `give_item`/`take_item`, so hooking those two covers it).
+-- [ ] **Crafting UI-first (owner direction 1): `c2s_craft(recipe_id)`** calling the existing `craft()` path (validate the id with `Crafting.is_recipe`, same `Crafting.check` from the server's position), answered by `s2c_craft_result(recipe_id, ok, text)` plus `s2c_inventory`. Put it in v3 tomorrow if it fits next to gathering, else v4 on 2026-11-24. Client builds the window (request filed in client's backlog).
++- [x] Follow-up (v3 run): ~~the timed gather channel should scale its duration by `Gathering.TOOL_SPEED`~~ (done in `GatherChannel.seconds_for`), and `s2c_inventory` should go out after every craft too (`craft()` uses `give_item`/`take_item`, so hooking those two covers it).
++- [x] *(shipped in v3; client wiring requested)* **Crafting UI-first (owner direction 1): `c2s_craft(recipe_id)`** calling the existing `craft()` path (validate the id with `Crafting.is_recipe`, same `Crafting.check` from the server's position), answered by `s2c_craft_result(recipe_id, ok, text)` plus `s2c_inventory`. Put it in v3 tomorrow if it fits next to gathering, else v4 on 2026-11-24. Client builds the window (request filed in client's backlog).
+ - [ ] Follow-up: once press-E sends `c2s_gather_start` (v3), the gather prompt no longer uses chat at all; then consider whether the command cooldown can go back to sharing the talk one.
+ - [ ] Placed campfires: a crafted campfire can be set down, burns for a few world hours, other players see it (ties to Week 05 "torches keep danger away")
+ - [ ] Follow-up (not chat commands, owner direction 1): "Return to Spawn Meadow" as a button in the Esc menu (`c2s_unstuck`, with a cooldown), and time played / zone name shown in a character panel the client can build
+ - [ ] Wildlife AI on the server: wandering grazers that flee players (Week 04)
++- [ ] Follow-up (v3): once client's press-E uses `c2s_gather_start` and the bot test's `client_gather_prompt` no longer sends `/gather`, turn on the "chat is for talking" gate (second item) and retire `/channel` (no behaviour uses it since v3).
++- [ ] Follow-up (v4 bump): freeze `tests/protocol/net_v3.gd` **and** a copy of `net_play.gd` it preloads (e.g. `tests/protocol/net_play_v3.gd`, with the frozen `net_v3.gd` preloading that copy), or the frozen v3 client changes whenever `net_play.gd` does. Check with qa's `old_client.gd` first.
++- [ ] Follow-up: the facing-yaw half of the third item is already true (`c2s_input` carries yaw since v1 and the server sets facing from it); what remains is `s2c_roster(names)` for v4.
+ 
+ ## Requests from other streams
+ - *Done 2026-11-22 night (PR on `ws/gameplay/chat-cooldown-feedback`): talk and commands have separate cooldowns, a dropped line gets `ChatCommands.TOO_FAST`, the command behaviours resend on it, and `gameplay_gather_channel` waits until `gameplay_gathering` stops steering. See the devlog.*
+diff --git a/game/server/chat_commands.gd b/game/server/chat_commands.gd
+index 77f905c..9b20de6 100644
+--- a/game/server/chat_commands.gd
++++ b/game/server/chat_commands.gd
+@@ -9,7 +9,7 @@ class_name ChatCommands
+ ## for talking): it is never listed in HELP or patch notes. Players craft from a window at
+ ## the workbench once c2s_craft exists. Names are case-insensitive; extra words are ignored.
+ 
+-const HELP := "Commands: /gather (take from the tree, rock or seep you stand at; /gather pine for one kind), /bag (what you carry), /time (time of day in Ashgrove), /who (who is online), /help."
++const HELP := "Commands: /bag (what you carry), /time (time of day in Ashgrove), /who (who is online), /help."
+ const GATHER_NAMES := ["gather", "g", "harvest", "chop", "mine"]
+ const CRAFT_NAMES := ["craft", "make", "build", "recipes"]
+ ## The timed gather (GatherChannel) as a hidden dev/bot command until protocol v3's
+diff --git a/game/server/server.gd b/game/server/server.gd
+index 82214d5..d4030c4 100644
+--- a/game/server/server.gd
++++ b/game/server/server.gd
+@@ -65,6 +65,9 @@ func start(p_net: Node, args: Dictionary) -> void:
+ 	net.login_requested.connect(_on_login)
+ 	net.input_received.connect(_on_input)
+ 	net.chat_requested.connect(_on_chat)
++	net.gather_start_requested.connect(_on_gather_start)
++	net.gather_cancel_requested.connect(_on_gather_cancel)
++	net.craft_requested.connect(_on_craft)
+ 	get_tree().set_auto_accept_quit(false)
+ 	print("[server] listening on port %d via %s, protocol v%d" % [port, transport, GameConfig.PROTOCOL_VERSION])
+ 	print("[server] world clock: ", WorldClock.describe(world_seconds()))
+@@ -126,7 +129,7 @@ func _tick() -> void:
+ 		return
+ 	for id in sessions:
+ 		if sessions[id].logged_in:
+-			_send(id, "s2c_snapshot", [tick, entries])
++			_send(id, "s2c_snapshot", [tick, entries, int(sessions[id].seq)])
+ 
+ 
+ func _on_peer_connected(id: int) -> void:
+@@ -481,6 +484,43 @@ func gather_request(id: int, node_id: int) -> Dictionary:
+ 	return r
+ 
+ 
++## c2s_gather_start(node_id) (protocol v3: press E at a node). Not logged in: ignored.
++func _on_gather_start(id: int, node_id: int) -> void:
++	if not _play_allowed(id, "last_play_gather"):
++		return
++	gather_request(id, node_id)
++
++
++## c2s_gather_cancel(): the player stopped on purpose.
++func _on_gather_cancel(id: int) -> void:
++	if sessions.has(id) and sessions[id].logged_in:
++		gather_cancel(id, "stopped")
++
++
++## c2s_craft(recipe_id) from the crafting window.
++func _on_craft(id: int, recipe_id: String) -> void:
++	if not _play_allowed(id, "last_play_craft"):
++		return
++	craft_request(id, recipe_id)
++
++
++## Requests that can make the server reply (gather start, craft) are taken at most once
++## every PLAY_REQUEST_GAP per kind, so a flooding client can't make the server spam back.
++## A real key press or button click is never that fast.
++const PLAY_REQUEST_GAP := 0.1
++
++
++func _play_allowed(id: int, key: String) -> bool:
++	if not sessions.has(id) or not sessions[id].logged_in:
++		return false
++	var s: Dictionary = sessions[id]
++	var now := now_seconds()
++	if now - float(s.get(key, -1000.0)) < PLAY_REQUEST_GAP:
++		return false
++	s[key] = now
++	return true
++
++
+ ## Logged-in players close enough to `pos` to see something happen there (flat distance,
+ ## GameConfig.VIEW_RANGE), sorted by peer id.
+ func players_in_view(pos: Vector3) -> Array:
+diff --git a/game/shared/game_config.gd b/game/shared/game_config.gd
+index a91d30f..e6f7252 100644
+--- a/game/shared/game_config.gd
++++ b/game/shared/game_config.gd
+@@ -2,7 +2,9 @@ class_name GameConfig
+ ## Constants shared by server, client, and bots. Changing world constants changes the world
+ ## for everyone, so treat WORLD_SEED as permanent.
+ 
+-const PROTOCOL_VERSION := 2 ## v2: s2c_world_time (shared day/night clock)
++## v2: s2c_world_time (shared day/night clock)
++## v3: timed gathering, pack, node state and crafting RPCs (Net/Play), ack_seq in snapshots
++const PROTOCOL_VERSION := 3
+ const DEFAULT_PORT := 7777
+ const TICK_RATE := 20
+ const TICK_DT := 1.0 / TICK_RATE
+diff --git a/game/shared/net.gd b/game/shared/net.gd
+index 7351880..39cb0f7 100644
+--- a/game/shared/net.gd
++++ b/game/shared/net.gd
+@@ -2,6 +2,8 @@ extends Node
+ ## The one RPC endpoint. It lives at /root/Main/Net on every peer, carries no logic, and
+ ## re-emits each RPC as a signal so the server, client, and bots can handle them.
+ ## Clients call c2s_* on the server (peer 1). The server calls s2c_* on clients.
++## Protocol v3 RPCs live on the child `Play` (net_play.gd, reached as `net.play`), never on
++## this node: adding an RPC here can renumber c2s_login for old clients (tests/protocol).
+ 
+ signal login_requested(peer_id: int, protocol: int, username: String, password: String)
+ signal input_received(peer_id: int, seq: int, move: Vector2, yaw: float)
+@@ -14,6 +16,34 @@ signal snapshot(tick: int, entries: Array)
+ signal chat_message(from_name: String, text: String)
+ signal system_message(text: String)
+ signal world_time(world_seconds: float)
++## v3: the newest input seq the server applied for you, sent with every snapshot (emitted
++## just before `snapshot` for the same tick) so the client can predict its own character.
++signal input_acked(tick: int, ack_seq: int)
++
++# v3, emitted by the Play child (net_play.gd)
++signal gather_start_requested(peer_id: int, node_id: int)
++signal gather_cancel_requested(peer_id: int)
++signal craft_requested(peer_id: int, recipe_id: String)
++signal gather_began(peer_id: int, node_id: int, seconds: float)
++signal gather_ended(peer_id: int, node_id: int, reason: String)
++signal gather_result(item_id: String, count: int)
++signal inventory(items: Dictionary)
++signal nodes(depleted_ids: Array)
++signal node_state(node_id: int, depleted: bool)
++signal craft_result(recipe_id: String, ok: bool, text: String)
++
++const PlayScript := preload("res://shared/net_play.gd")
++
++## The Play child with the v3 RPCs (see net_play.gd).
++var play: Node
++
++
++func _init() -> void:
++	# In _init, not _ready, so `play` exists as soon as main.gd creates Net, before any
++	# role connects or sends.
++	play = PlayScript.new()
++	play.name = "Play"
++	add_child(play)
+ 
+ 
+ # --- client to server ---
+@@ -51,8 +81,11 @@ func s2c_player_left(id: int) -> void:
+ 
+ 
+ ## entries: flat array [id, x, y, z, yaw, id, x, y, z, yaw, ...]
++## ack_seq (v3): the newest c2s_input seq the server applied for the receiving player
++## (-1 before the first one).
+ @rpc("authority", "call_remote", "unreliable_ordered")
+-func s2c_snapshot(tick: int, entries: Array) -> void:
++func s2c_snapshot(tick: int, entries: Array, ack_seq: int) -> void:
++	input_acked.emit(tick, ack_seq)
+ 	snapshot.emit(tick, entries)
+ 
+ 
+diff --git a/game/shared/net_play.gd b/game/shared/net_play.gd
+new file mode 100644
+index 0000000..4c5cd2e
+--- /dev/null
++++ b/game/shared/net_play.gd
+@@ -0,0 +1,79 @@
++extends Node
++## Protocol v3's play RPCs: gathering, the pack, node state, crafting. Lives at
++## /root/Main/Net/Play on every peer (net.gd creates it in _ready), so the RPCs on Net itself
++## keep their numbers and old clients still reach the "out of date" reply (see
++## tests/protocol/README.md). Carries no logic: every RPC re-emits a signal on Net, so the
++## server, client and bots connect to `net.<signal>` as before and call
++## `net.play.<rpc>.rpc_id(...)` to send.
++
++
++func _net() -> Node:
++	return get_parent()
++
++
++# --- client to server ---
++
++## Press E at a node: start a timed gather on it (the server checks reach, night-only, pack
++## room and cooldown, and answers with s2c_gather_begin or s2c_gather_end with the reason).
++@rpc("any_peer", "call_remote", "reliable")
++func c2s_gather_start(node_id: int) -> void:
++	_net().gather_start_requested.emit(multiplayer.get_remote_sender_id(), node_id)
++
++
++## Stop the running gather (no charge used, no cooldown spent).
++@rpc("any_peer", "call_remote", "reliable")
++func c2s_gather_cancel() -> void:
++	_net().gather_cancel_requested.emit(multiplayer.get_remote_sender_id())
++
++
++## Craft one batch of `recipe_id` (an exact Crafting.RECIPES id) at the workbench.
++@rpc("any_peer", "call_remote", "reliable")
++func c2s_craft(recipe_id: String) -> void:
++	_net().craft_requested.emit(multiplayer.get_remote_sender_id(), recipe_id)
++
++
++# --- server to client ---
++
++## Player `peer_id` started gathering node `node_id`; it takes `seconds`. Sent to everyone in
++## view (GameConfig.VIEW_RANGE), the gatherer included.
++@rpc("authority", "call_remote", "reliable")
++func s2c_gather_begin(peer_id: int, node_id: int, seconds: float) -> void:
++	_net().gather_began.emit(peer_id, node_id, seconds)
++
++
++## Player `peer_id`'s gather on `node_id` ended: "done", or why not ("moved", "far",
++## "stopped", "disconnected", "depleted", "full", "cooldown", "night_only", ...). A refused
++## start goes to the requester only.
++@rpc("authority", "call_remote", "reliable")
++func s2c_gather_end(peer_id: int, node_id: int, reason: String) -> void:
++	_net().gather_ended.emit(peer_id, node_id, reason)
++
++
++## What your finished gather put in your pack, for the haul toast.
++@rpc("authority", "call_remote", "reliable")
++func s2c_gather_result(item_id: String, count: int) -> void:
++	_net().gather_result.emit(item_id, count)
++
++
++## Your whole pack, {item_id: count}: after login and whenever it changes (once per tick).
++@rpc("authority", "call_remote", "reliable")
++func s2c_inventory(items: Dictionary) -> void:
++	_net().inventory.emit(items)
++
++
++## Ids of every node that is used up right now. Sent once after login.
++@rpc("authority", "call_remote", "reliable")
++func s2c_nodes(depleted_ids: Array) -> void:
++	_net().nodes.emit(depleted_ids)
++
++
++## One node emptied (`depleted` true) or came back. Sent to everyone online.
++@rpc("authority", "call_remote", "reliable")
++func s2c_node_state(node_id: int, depleted: bool) -> void:
++	_net().node_state.emit(node_id, depleted)
++
++
++## The answer to c2s_craft: `text` says what happened, for the window's status line.
++@rpc("authority", "call_remote", "reliable")
++func s2c_craft_result(recipe_id: String, ok: bool, text: String) -> void:
++	_net().craft_result.emit(recipe_id, ok, text)
+diff --git a/tests/bot_test/behaviours/gameplay_gather_channel.gd b/tests/bot_test/behaviours/gameplay_gather_channel.gd
+deleted file mode 100644
+index 15e8583..0000000
+--- a/tests/bot_test/behaviours/gameplay_gather_channel.gd
++++ /dev/null
+@@ -1,193 +0,0 @@
+-extends "res://tests/bot_test/bot_behaviour.gd"
+-## Bot behaviour (gameplay): the timed gather (GatherChannel) through the hidden "/channel"
+-## dev command, the server path protocol v3's press-E will use.
+-##
+-## Starts once gameplay_gathering.gd is done for the login (its first good "/gather", or it
+-## gave up): that behaviour runs after this one each frame and sets bot.move while it is
+-## active, so starting earlier let it hold the bot still during the walk-away test and the
+-## gather paid out (the flaky "walked away but the gather still paid out"). Then the bot walks to the nearest wood or stone node and:
+-##   1. sends "/channel" and walks away as soon as it starts: the server must cancel it
+-##      ("You stop gathering: you moved.") and must not hand anything over;
+-##   2. sends "/channel" again and holds still: the items must come only at the end
+-##      ("You gather ..."), never a cancel.
+-## Only in long bot tests (LONG_RUN; CI's 180 s run): in CI's 45 s run every node near spawn
+-## is needed by bots still looking for their first gather, and a bot standing at a node for
+-## this lets the client's gather prompt drain it.
+-## With 8 bots (and the client's gather prompt "holding E" whenever a bot stands still) nodes
+-## run dry fast, so a refusal just sends the bot on to the next nearest node. Replies can't be
+-## told apart from the prompt's, so only "You start gathering" / "You stop gathering" and a
+-## "You gather" while our own gather runs move the steps on; the server refuses every other
+-## gather while one is running, which the unit tests check.
+-
+-const SETTLE := 1.0
+-const LONG_RUN := 120.0 ## bot.duration from which this behaviour runs
+-const SEARCH_RADIUS := 40.0
+-const MAX_NODES := 8 ## nodes tried per login before giving up
+-const STOP_AT := 1.2 ## metres from the node centre (reach is ResourceNodes.GATHER_RANGE)
+-const WALK_TIMEOUT := 20.0
+-const RETRY_AFTER := 1.2 ## no answer (shared chat cooldown dropped the line): send again
+-const MAX_TRIES := 6
+-const END_SLACK := 2.5 ## a running gather must end within its time plus this
+-const REFUSALS := ["This ", "Nothing to gather", "Your pack can't", "The "]
+-
+-enum Step { WAIT_FIRST, GOTO, START, HOLDING, WALKING, IDLE }
+-
+-var _step := Step.IDLE
+-var _second := false ## false: the walk-away test, true: the hold-still test
+-var _targets: Array = []
+-var _target := -1
+-var _last_node := -1
+-var _login_nodes := 0
+-var _since := 0.0
+-var _next_at := 0.0
+-var _tries := 0
+-var _ends_by := 0.0
+-var _walk := Vector2.ZERO
+-var started := 0
+-var completed := 0
+-var cancelled := 0
+-var nodes_tried := 0
+-var gave_up := 0
+-var answered := 0
+-
+-
+-func setup(net: Node) -> void:
+-	net.system_message.connect(_on_system)
+-
+-
+-func on_login(_reconnect: bool, _character: Dictionary) -> void:
+-	_step = Step.WAIT_FIRST if float(bot.duration) >= LONG_RUN else Step.IDLE
+-	_second = false
+-
+-
+-func _plan() -> void:
+-	_targets.clear()
+-	_login_nodes = 0
+-	for n in ResourceNodes.near(bot.my_pos, SEARCH_RADIUS):
+-		if not ResourceNodes.kind_info(n.kind).get("night_only", false):
+-			_targets.append(n.id)
+-	_next_node()
+-
+-
+-func _next_node() -> void:
+-	if _targets.is_empty() or _login_nodes >= MAX_NODES:
+-		gave_up += 1
+-		_step = Step.IDLE
+-		return
+-	_target = _targets.pop_front()
+-	_last_node = _target
+-	_login_nodes += 1
+-	nodes_tried += 1
+-	_since = bot.elapsed
+-	_step = Step.GOTO
+-
+-
+-## gameplay_gathering.gd's instance on this bot, or null when it isn't loaded.
+-func _gathering() -> Object:
+-	for b in bot.behaviours:
+-		if b.name == "gameplay_gathering":
+-			return b
+-	return null
+-
+-
+-func on_play(_delta: float) -> void:
+-	match _step:
+-		Step.WAIT_FIRST:
+-			var g = _gathering()
+-			if g != null and not g._active and g._phase_gathered:
+-				_plan()
+-		Step.GOTO:
+-			var node := ResourceNodes.get_by_id(_target)
+-			var off: Vector3 = node.pos - bot.my_pos
+-			var flat := Vector2(off.x, off.z)
+-			if bot.elapsed - _since > WALK_TIMEOUT:
+-				_next_node()
+-			elif flat.length() > STOP_AT:
+-				bot.move = flat.normalized()
+-				bot.yaw = atan2(bot.move.x, bot.move.y)
+-			else:
+-				bot.move = Vector2.ZERO
+-				_step = Step.START
+-				_tries = 0
+-				_next_at = bot.elapsed + SETTLE
+-		Step.START:
+-			bot.move = Vector2.ZERO
+-			if bot.elapsed >= _next_at:
+-				if _tries >= MAX_TRIES:
+-					_next_node()
+-				else:
+-					_tries += 1
+-					_next_at = bot.elapsed + RETRY_AFTER
+-					bot.send_command("/channel")
+-		Step.HOLDING:
+-			bot.move = Vector2.ZERO
+-			if bot.elapsed > _ends_by:
+-				fail("timed gather never ended (at %s)" % bot.my_pos)
+-				_step = Step.IDLE
+-		Step.WALKING:
+-			bot.move = _walk
+-			bot.yaw = atan2(_walk.x, _walk.y)
+-			if bot.elapsed > _ends_by:
+-				fail("walked away but the gather was never cancelled")
+-				_step = Step.IDLE
+-
+-
+-func _on_system(text: String) -> void:
+-	match _step:
+-		Step.WAIT_FIRST:
+-			if _gathering() == null and text.begins_with("You gather"):
+-				_plan()
+-		Step.START:
+-			if text.begins_with("You start gathering"):
+-				answered += 1
+-				started += 1
+-				var m := RegEx.create_from_string("\\((\\d+\\.\\d) s\\)").search(text)
+-				var secs: float = m.get_string(1).to_float() if m else 0.0
+-				if secs <= 0.0:
+-					fail("start line without a duration: %s" % text)
+-				_ends_by = bot.elapsed + secs + END_SLACK
+-				if not _second:
+-					var a: float = bot.rng.randf() * TAU
+-					_walk = Vector2(cos(a), sin(a))
+-					_step = Step.WALKING
+-				else:
+-					_step = Step.HOLDING
+-			elif text.begins_with("Easy;"):
+-				answered += 1
+-				_next_at = bot.elapsed + 0.6 # a gather cooldown (ours or the prompt's): soon
+-			else:
+-				for p in REFUSALS:
+-					if text.begins_with(p):
+-						answered += 1
+-						_next_node() # spent, or not quite in reach: next node
+-						return
+-		Step.HOLDING:
+-			if text.begins_with("You gather"):
+-				completed += 1
+-				if not RegEx.create_from_string("\\((\\d+) in your pack\\)").search(text):
+-					fail("timed gather success without a pack count: %s" % text)
+-				_step = Step.IDLE
+-			elif text.begins_with("You stop gathering"):
+-				fail("gather cancelled while standing still at %s: %s" % [bot.my_pos, text])
+-				_step = Step.IDLE
+-			elif text.begins_with("This "):
+-				_next_node() # emptied by another bot while we gathered: the contested case
+-		Step.WALKING:
+-			if text.begins_with("You stop gathering"):
+-				cancelled += 1
+-				_second = true
+-				_targets.push_front(_last_node) # it still has the charge we didn't take
+-				_next_node()
+-			elif text.begins_with("You gather"):
+-				fail("walked away but the gather still paid out: %s" % text)
+-				_step = Step.IDLE
+-
+-
+-func on_finish() -> void:
+-	stat("started", started)
+-	stat("completed", completed)
+-	stat("cancelled", cancelled)
+-	stat("nodes_tried", nodes_tried)
+-	stat("gave_up", gave_up)
+-	if bot.elapsed > 60.0 and answered == 0 and nodes_tried > 0:
+-		fail("/channel was never answered")
+diff --git a/tests/bot_test/behaviours/gameplay_gather_v3.gd b/tests/bot_test/behaviours/gameplay_gather_v3.gd
+new file mode 100644
+index 0000000..5d74f09
+--- /dev/null
++++ b/tests/bot_test/behaviours/gameplay_gather_v3.gd
+@@ -0,0 +1,268 @@
++extends "res://tests/bot_test/bot_behaviour.gd"
++## Bot behaviour (gameplay): protocol v3's real gathering, through the RPCs a player's
++## press of E uses (Net/Play), never chat.
++##
++## Every login: the server must send the pack (s2c_inventory) and the depleted-node list
++## (s2c_nodes) right away.
++## Long runs only (LONG_RUN, CI's 180 s run), once gameplay_gathering.gd is done for the
++## login (it runs after this behaviour each frame and steers the bot while active), the bot
++## walks to the nearest day node and:
++##   1. c2s_gather_start, then walks away as soon as s2c_gather_begin names it: the gather
++##      must end "moved" (or "far"), never "done";
++##   2. c2s_gather_start, then c2s_gather_cancel: must end "stopped";
++##   3. c2s_gather_start and holds still: must end "done", with s2c_gather_result and an
++##      s2c_inventory that holds the haul.
++## Other bots' gathers in view (s2c_gather_begin for another peer) are counted, and a node
++## another bot empties under us (the contested case) sends this bot on to the next node.
++## Refusals ("cooldown" from the client gather prompt's /gather, "depleted", "far") move on
++## or retry; only the three checks above can fail the run.
++
++const SETTLE := 1.0
++const LONG_RUN := 120.0
++const SEARCH_RADIUS := 40.0
++const MAX_NODES := 10
++const STOP_AT := 1.2
++const WALK_TIMEOUT := 20.0
++const NO_ANSWER := 2.0 ## reliable RPCs always get an answer; this is only a safety net
++const MAX_TRIES := 8
++const END_SLACK := 2.5
++
++enum Step { WAIT_FIRST, GOTO, START, WALKING, STOPPING, HOLDING, IDLE }
++enum Test { WALK_AWAY, CANCEL, HOLD, DONE }
++
++var _step := Step.IDLE
++var _test := Test.WALK_AWAY
++var _targets: Array = []
++var _target := -1
++var _login_nodes := 0
++var _since := 0.0
++var _next_at := 0.0
++var _tries := 0
++var _ends_by := 0.0
++var _walk := Vector2.ZERO
++var _got_inventory := false
++var _got_nodes := false
++var _logins := 0
++var _haul_item := ""
++var _haul_count := 0
++var started := 0
++var completed := 0
++var walked_off := 0
++var stopped := 0
++var contested := 0
++var refused := 0
++var others_seen := 0
++var shared_node := 0
++var node_states := 0
++var nodes_tried := 0
++var answered := 0
++
++
++func setup(net: Node) -> void:
++	net.gather_began.connect(_on_began)
++	net.gather_ended.connect(_on_ended)
++	net.gather_result.connect(_on_result)
++	net.inventory.connect(_on_inventory)
++	net.nodes.connect(func(_ids): _got_nodes = true)
++	net.node_state.connect(func(_n, _d): node_states += 1)
++
++
++func on_login(_reconnect: bool, _character: Dictionary) -> void:
++	if _logins > 0:
++		_check_login_state()
++	_logins += 1
++	_got_inventory = false
++	_got_nodes = false
++	_haul_item = ""
++	_step = Step.WAIT_FIRST if float(bot.duration) >= LONG_RUN else Step.IDLE
++	_test = Test.WALK_AWAY
++
++
++func _check_login_state() -> void:
++	if not _got_inventory:
++		fail("no s2c_inventory after login %d" % _logins)
++	if not _got_nodes:
++		fail("no s2c_nodes after login %d" % _logins)
++
++
++func _plan() -> void:
++	_targets.clear()
++	_login_nodes = 0
++	for n in ResourceNodes.near(bot.my_pos, SEARCH_RADIUS):
++		if not ResourceNodes.kind_info(n.kind).get("night_only", false):
++			_targets.append(n.id)
++	_next_node()
++
++
++func _next_node() -> void:
++	if _targets.is_empty() or _login_nodes >= MAX_NODES:
++		_step = Step.IDLE
++		return
++	_target = _targets.pop_front()
++	_login_nodes += 1
++	nodes_tried += 1
++	_since = bot.elapsed
++	_step = Step.GOTO
++
++
++func _gathering() -> Object:
++	for b in bot.behaviours:
++		if b.name == "gameplay_gathering":
++			return b
++	return null
++
++
++func _send_start() -> void:
++	_tries += 1
++	_next_at = bot.elapsed + NO_ANSWER
++	bot.net.play.c2s_gather_start.rpc_id(1, _target)
++
++
++func on_play(_delta: float) -> void:
++	match _step:
++		Step.WAIT_FIRST:
++			var g = _gathering()
++			if g == null or (not g._active and g._phase_gathered):
++				_plan()
++		Step.GOTO:
++			var node := ResourceNodes.get_by_id(_target)
++			var off: Vector3 = node.pos - bot.my_pos
++			var flat := Vector2(off.x, off.z)
++			if bot.elapsed - _since > WALK_TIMEOUT:
++				_next_node()
++			elif flat.length() > STOP_AT:
++				bot.move = flat.normalized()
++				bot.yaw = atan2(bot.move.x, bot.move.y)
++			else:
++				bot.move = Vector2.ZERO
++				_step = Step.START
++				_tries = 0
++				_next_at = bot.elapsed + SETTLE
++		Step.START:
++			bot.move = Vector2.ZERO
++			if bot.elapsed >= _next_at:
++				if _tries >= MAX_TRIES:
++					_next_node()
++				else:
++					_send_start()
++		Step.WALKING:
++			bot.move = _walk
++			bot.yaw = atan2(_walk.x, _walk.y)
++			if bot.elapsed > _ends_by:
++				fail("walked away but the gather never ended")
++				_step = Step.IDLE
++		Step.STOPPING, Step.HOLDING:
++			bot.move = Vector2.ZERO
++			if bot.elapsed > _ends_by:
++				fail("timed gather never ended (%s at %s)" % [Step.keys()[_step], bot.my_pos])
++				_step = Step.IDLE
++
++
++func _on_began(peer: int, node_id: int, seconds: float) -> void:
++	if peer != bot.my_id:
++		others_seen += 1
++		if node_id == _target and _step in [Step.HOLDING, Step.STOPPING, Step.WALKING]:
++			shared_node += 1
++		return
++	if _step != Step.START or node_id != _target:
++		fail("s2c_gather_begin for node %d we did not ask for (step %s)" % [node_id, Step.keys()[_step]])
++		return
++	answered += 1
++	started += 1
++	if seconds <= 0.0:
++		fail("gather began without a duration")
++	_ends_by = bot.elapsed + seconds + END_SLACK
++	match _test:
++		Test.WALK_AWAY:
++			var a: float = bot.rng.randf() * TAU
++			_walk = Vector2(cos(a), sin(a))
++			_step = Step.WALKING
++		Test.CANCEL:
++			_step = Step.STOPPING
++			bot.net.play.c2s_gather_cancel.rpc_id(1)
++		_:
++			_step = Step.HOLDING
++
++
++func _on_ended(peer: int, node_id: int, reason: String) -> void:
++	if peer != bot.my_id or node_id != _target:
++		return
++	match _step:
++		Step.START:
++			answered += 1
++			refused += 1
++			if reason == "cooldown":
++				_next_at = bot.elapsed + 0.6 # the gather prompt's /gather just ran: soon
++			else:
++				_next_node()
++		Step.WALKING:
++			if reason == "done":
++				fail("walked away but the gather still paid out")
++				_step = Step.IDLE
++			elif reason in ["moved", "far"]:
++				walked_off += 1
++				_test = Test.CANCEL
++				_targets.push_front(_target) # it still has the charge we didn't take
++				_next_node()
++			else:
++				_contested()
++		Step.STOPPING:
++			if reason == "stopped":
++				stopped += 1
++				_test = Test.HOLD
++				_step = Step.START
++				_tries = 0
++				_next_at = bot.elapsed + 0.3
++			elif reason == "done":
++				fail("cancelled but the gather still paid out")
++				_step = Step.IDLE
++			else:
++				_contested()
++		Step.HOLDING:
++			if reason == "done":
++				completed += 1
++				_test = Test.DONE
++				_step = Step.IDLE
++			elif reason in ["moved", "far"]:
++				fail("gather cancelled (%s) while standing still at %s" % [reason, bot.my_pos])
++				_step = Step.IDLE
++			else:
++				_contested()
++
++
++## Another bot emptied the node while we gathered (or our pack filled): try the next one.
++func _contested() -> void:
++	contested += 1
++	_next_node()
++
++
++func _on_result(item: String, count: int) -> void:
++	if count <= 0 or item == "":
++		fail("empty gather result %s x%d" % [item, count])
++	_haul_item = item
++	_haul_count = count
++
++
++func _on_inventory(items: Dictionary) -> void:
++	_got_inventory = true
++	if _haul_item != "":
++		if int(items.get(_haul_item, 0)) < _haul_count:
++			fail("pack after the haul has %d %s, expected at least %d" % [int(items.get(_haul_item, 0)), _haul_item, _haul_count])
++		_haul_item = ""
++
++
++func on_finish() -> void:
++	if _logins > 0:
++		_check_login_state()
++	stat("started", started)
++	stat("completed", completed)
++	stat("walked_off", walked_off)
++	stat("stopped", stopped)
++	stat("contested", contested)
++	stat("refused", refused)
++	stat("others_seen", others_seen)
++	stat("shared_node", shared_node)
++	stat("node_states", node_states)
++	stat("nodes_tried", nodes_tried)
++	if bot.elapsed > 60.0 and answered == 0 and nodes_tried > 0:
++		fail("c2s_gather_start was never answered")
+diff --git a/tests/unit/test_gameplay_gathering.gd b/tests/unit/test_gameplay_gathering.gd
+index f431271..1276af1 100644
+--- a/tests/unit/test_gameplay_gathering.gd
++++ b/tests/unit/test_gameplay_gathering.gd
+@@ -118,7 +118,7 @@ func test_parse_kind_and_command() -> void:
+ 	check(not ChatCommands.is_gather("gather"), "plain chat is not a command")
+ 	check_eq(ChatCommands.argument("/gather  ember sap "), "ember sap")
+ 	check_eq(ChatCommands.argument("/gather"), "")
+-	check(ChatCommands.HELP.contains("/gather"), "listed in /help")
++	check(not ChatCommands.HELP.contains("/gather"), "hidden from /help since v3: press E gathers (chat is for talking)")
+ 
+ 
+ func test_success_line() -> void:
+diff --git a/tests/unit/test_gameplay_protocol_v3.gd b/tests/unit/test_gameplay_protocol_v3.gd
+new file mode 100644
+index 0000000..bd02776
+--- /dev/null
++++ b/tests/unit/test_gameplay_protocol_v3.gd
+@@ -0,0 +1,202 @@
++extends TestCase
++## Protocol v3 end to end on one machine without a network: the Play child's RPCs exist for
++## every message the server sends, with matching argument counts; the RPCs re-emit Net's
++## signals; c2s_gather_start / c2s_gather_cancel / c2s_craft reach the server's handlers
++## (with the flood guard); and every snapshot carries the receiver's ack_seq.
++
++const ServerScript := preload("res://server/server.gd")
++const NetScript := preload("res://shared/net.gd")
++
++
++func _server(positions: Dictionary) -> Node:
++	var srv: Node = ServerScript.new()
++	srv.test_now = 100.0
++	for id in positions:
++		var ch := CharacterData.normalize({"name": "P%d" % id})
++		var p: Vector3 = positions[id]
++		ch.x = p.x
++		ch.y = p.y
++		ch.z = p.z
++		srv.sessions[id] = {"logged_in": true, "character": ch, "move": Vector2.ZERO, "yaw": 0.0, "seq": -1,
++			"last_chat": -1000.0, "last_gather": -1000.0, "channel": {}, "login_attempts": 0, "inv_dirty": false}
++	return srv
++
++
++func _day_node() -> Dictionary:
++	for n in ResourceNodes.all():
++		if n.kind == "ash":
++			return n
++	return {}
++
++
++func _sent(srv: Node, method: String) -> Array:
++	var out: Array = []
++	for m in srv.test_outbox:
++		if m[1] == method:
++			out.append([m[0], m[2]])
++	return out
++
++
++func _run(srv: Node, seconds: float) -> void:
++	var t := 0.0
++	while t < seconds:
++		srv.test_now += GameConfig.TICK_DT
++		t += GameConfig.TICK_DT
++		srv._tick()
++
++
++func _arg_count(node: Object, method: String) -> int:
++	for m in node.get_script().get_script_method_list():
++		if m.name == method:
++			return m.args.size()
++	return -1
++
++
++func test_version_is_three() -> void:
++	check_eq(GameConfig.PROTOCOL_VERSION, 3)
++
++
++func test_net_has_a_play_child_from_the_start() -> void:
++	var net: Node = NetScript.new()
++	check(net.play != null, "play exists before entering the tree")
++	check_eq(str(net.play.name), "Play", "path is Net/Play on every peer")
++	check(net.play.get_parent() == net, "child of Net")
++	for m in ["c2s_gather_start", "c2s_gather_cancel", "c2s_craft", "s2c_gather_begin", "s2c_gather_end",
++			"s2c_gather_result", "s2c_inventory", "s2c_nodes", "s2c_node_state", "s2c_craft_result"]:
++		check(net.play.has_method(m), "Play has %s" % m)
++		check(not net.has_method(m), "%s is not on Net itself (would renumber c2s_login)" % m)
++	net.free()
++
++
++func test_every_message_the_server_sends_has_a_matching_rpc() -> void:
++	# Drive a session through login state, a timed gather to the end, a cancel, a refused
++	# start, a craft and a snapshot, then check every captured message against the RPCs.
++	var node := _day_node()
++	var srv := _server({2: node.pos, 3: node.pos + Vector3(2, 0, 0)})
++	srv._send_world_state(2)
++	srv.test_now = 100.0
++	srv.gather_request(2, int(node.id))
++	_run(srv, 6.0)
++	srv.gather_request(3, int(node.id))
++	srv.gather_cancel(3, "stopped")
++	srv.gather_request(2, 999999)
++	srv.craft_request(2, "stone_axe")
++	srv._node_changed(int(node.id), false)
++	var net: Node = NetScript.new()
++	var seen := {}
++	for m in srv.test_outbox:
++		var method: String = m[1]
++		seen[method] = true
++		var target: Node = net if net.has_method(method) else (net.play if net.play.has_method(method) else null)
++		check(target != null, "%s has an RPC" % method)
++		if target != null:
++			check_eq(m[2].size(), _arg_count(target, method), "%s argument count" % method)
++	for want in ["s2c_snapshot", "s2c_gather_begin", "s2c_gather_end", "s2c_gather_result", "s2c_inventory",
++			"s2c_nodes", "s2c_node_state", "s2c_craft_result"]:
++		check(seen.has(want), "scenario covered %s" % want)
++	net.free()
++	srv.free()
++
++
++func test_play_rpcs_reemit_on_net() -> void:
++	var net: Node = NetScript.new()
++	var got: Array = []
++	net.gather_began.connect(func(p, n, s): got.append(["began", p, n, s]))
++	net.gather_ended.connect(func(p, n, r): got.append(["ended", p, n, r]))
++	net.gather_result.connect(func(i, c): got.append(["result", i, c]))
++	net.inventory.connect(func(items): got.append(["inv", items]))
++	net.nodes.connect(func(ids): got.append(["nodes", ids]))
++	net.node_state.connect(func(n, d): got.append(["state", n, d]))
++	net.craft_result.connect(func(r, ok, t): got.append(["craft", r, ok, t]))
++	net.play.s2c_gather_begin(2, 7, 2.0)
++	net.play.s2c_gather_end(2, 7, "done")
++	net.play.s2c_gather_result("ash_wood", 2)
++	net.play.s2c_inventory({"ash_wood": 2})
++	net.play.s2c_nodes([7, 9])
++	net.play.s2c_node_state(7, true)
++	net.play.s2c_craft_result("torch", true, "You make 3 torches.")
++	check_eq(got, [["began", 2, 7, 2.0], ["ended", 2, 7, "done"], ["result", "ash_wood", 2], ["inv", {"ash_wood": 2}],
++		["nodes", [7, 9]], ["state", 7, true], ["craft", "torch", true, "You make 3 torches."]])
++	net.free()
++
++
++func test_snapshot_carries_ack_seq_and_acks_first() -> void:
++	var net: Node = NetScript.new()
++	var order: Array = []
++	net.input_acked.connect(func(t, a): order.append(["ack", t, a]))
++	net.snapshot.connect(func(t, _e): order.append(["snap", t]))
++	net.s2c_snapshot(5, [2, 0.0, 0.0, 0.0, 0.0], 41)
++	check_eq(order, [["ack", 5, 41], ["snap", 5]], "ack arrives before the snapshot it belongs to")
++	net.free()
++
++
++func test_server_snapshot_has_each_receivers_own_seq() -> void:
++	var srv := _server({2: Vector3.ZERO, 3: Vector3(4, 0, 0)})
++	srv._on_input(2, 17, Vector2(1, 0), 0.0)
++	srv._on_input(2, 12, Vector2(0, 1), 0.0) # old seq: ignored, the ack stays at 17
++	srv._tick()
++	var acks := {}
++	for m in _sent(srv, "s2c_snapshot"):
++		acks[m[0]] = m[1][2]
++		check_eq(m[1].size(), 3, "tick, entries, ack_seq")
++	check_eq(acks, {2: 17, 3: -1}, "each player gets their own seq, -1 before any input")
++	srv.free()
++
++
++func test_gather_start_rpc_runs_the_timed_gather() -> void:
++	var node := _day_node()
++	var srv := _server({2: node.pos})
++	srv._on_gather_start(2, int(node.id))
++	var begins := _sent(srv, "s2c_gather_begin")
++	check_eq(begins.size(), 1, "began")
++	check_eq(begins[0][1][0], 2)
++	check_eq(begins[0][1][1], int(node.id))
++	_run(srv, float(begins[0][1][2]) + 0.2)
++	var ends := _sent(srv, "s2c_gather_end")
++	check_eq(ends.size(), 1)
++	check_eq(ends[0][1][2], "done")
++	check_eq(_sent(srv, "s2c_gather_result").size(), 1, "haul toast")
++	check(_sent(srv, "s2c_inventory").size() >= 1, "pack sent")
++	srv.free()
++
++
++func test_gather_cancel_rpc_stops_without_charge() -> void:
++	var node := _day_node()
++	var srv := _server({2: node.pos})
++	srv._on_gather_start(2, int(node.id))
++	srv._on_gather_cancel(2)
++	var ends := _sent(srv, "s2c_gather_end")
++	check_eq(ends.size(), 1)
++	check_eq(ends[0][1][2], "stopped")
++	check(not GatherChannel.is_active(srv.sessions[2].channel), "channel cleared")
++	check_eq(Inventory.total(srv.sessions[2].character.inventory), 0, "nothing paid")
++	check(srv.sessions[2].last_gather < 0.0, "no cooldown spent")
++	srv._on_gather_cancel(2) # nothing running: silent
++	check_eq(_sent(srv, "s2c_gather_end").size(), 1)
++	srv.free()
++
++
++func test_requests_from_logged_out_peers_are_ignored() -> void:
++	var node := _day_node()
++	var srv := _server({2: node.pos})
++	srv.sessions[2].logged_in = false
++	srv._on_gather_start(2, int(node.id))
++	srv._on_craft(2, "torch")
++	srv._on_gather_cancel(2)
++	srv._on_gather_start(99, int(node.id)) # never connected
++	check(srv.test_outbox.is_empty(), "nothing answered")
++	srv.free()
++
++
++func test_flooded_requests_are_dropped() -> void:
++	var srv := _server({2: Vector3(500, 0, 500)})
++	for i in 20:
++		srv._on_craft(2, "torch")
++	check_eq(_sent(srv, "s2c_craft_result").size(), 1, "one answer inside the gap")
++	srv.test_now += srv.PLAY_REQUEST_GAP + 0.01
++	srv._on_craft(2, "torch")
++	check_eq(_sent(srv, "s2c_craft_result").size(), 2, "answered again after the gap")
++	for i in 20:
++		srv._on_gather_start(2, 999999)
++	check_eq(_sent(srv, "s2c_gather_end").size(), 1, "gather start has its own gap")
++	srv.free()
+diff --git a/tests/unit/test_gameplay_v3_hooks.gd b/tests/unit/test_gameplay_v3_hooks.gd
+index 35a0167..5a9c674 100644
+--- a/tests/unit/test_gameplay_v3_hooks.gd
++++ b/tests/unit/test_gameplay_v3_hooks.gd
+@@ -184,17 +184,9 @@ func test_send_routes_to_net_or_child_and_skips_unknown() -> void:
+ 	var net: Node = NetScript.new()
+ 	srv.net = net
+ 	check(srv._rpc_node(&"s2c_system") == net, "v2 RPCs live on Net")
+-	check(srv._rpc_node(&"s2c_gather_begin") == null, "v3 RPCs are not there yet")
+-	var gs := GDScript.new()
+-	gs.source_code = "extends Node\nfunc s2c_gather_begin(_a, _b, _c):\n\tpass\n"
+-	gs.reload()
+-	var play := Node.new()
+-	play.set_script(gs)
+-	play.name = "Play"
+-	net.add_child(play)
+-	check(srv._rpc_node(&"s2c_gather_begin") == play, "found on a child node")
+-	srv._send(2, &"s2c_node_state", [1, true]) # not in this protocol: skipped, logged once
+-	check(srv._not_in_protocol.has(&"s2c_node_state"), "noted as not sent")
++	check(srv._rpc_node(&"s2c_gather_begin") == net.play, "v3 RPCs live on the Play child")
++	srv._send(2, &"s2c_skills_not_yet", [1]) # not in this protocol: skipped, logged once
++	check(srv._not_in_protocol.has(&"s2c_skills_not_yet"), "noted as not sent")
+ 	check(srv.test_outbox.is_empty(), "nothing captured with a real net")
+ 	srv.net = null
+ 	net.free()
+-- 
+2.43.0
+
