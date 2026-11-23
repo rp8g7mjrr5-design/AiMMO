@@ -545,3 +545,25 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tested.** Unit suite with Postgres: 587 pass. 8-bot 180 s websocket bot test passed (7 of 8 bots levelled; 1 to 4 level-ups seen per bot). Client smoke test passed.
 
 **Next run.** The gather-swing impact puff, or the far-away level-up look check.
+
+## 2026-11-23, run: level-up beam seen from afar (ws/world/level-up-far-beam)
+
+**Open PRs.** None of world's open. Budget: 28 of 40 world PRs this week before this one.
+
+**Picked** the top unticked backlog item: the bot test sees other players' level-ups from 80 to 105 m, but the daylight beam was tuned at 45 m. Fun: when anyone in the valley levels up at noon you now see a gold stroke over the trees from 100 m and know someone just got stronger, which is the "you see others progress" pull of Milestone 1.
+
+**Looked first, on main** (llvmpipe, 1280x720, bursts at 15, 45, 100 and 150 m, 0.45 s in): at 100 m the noon beam is a faint, haze-coloured 1 px line (0.6 m wide is 0.34 degrees); the 150 m one sat behind a hill. Also found a real bug: the ground ring is an additive quad with fog on, and Godot adds the fog colour over the whole quad, so from ~15 m on the ring drew as a pale flat **square** on the grass (and a white line at 45 m).
+
+**Built.**
+- Column shader (shared by column and beam, still one draw call): in the vertex stage it widens the unit cylinder so it is never thinner on screen than `MIN_SPREAD` = 0.007 rad (about 0.8 degrees, 8 px at 720p, 12 px at 1080p). The beam (0.3 m) starts widening at ~43 m; the day column (1.1 m) only past ~160 m, so the close-up look is unchanged. `MODEL_MATRIX` already holds the MultiMesh instance transform in 4.3 (compatibility too), so the radius is its x scale.
+- `fog_disabled` on the column, with its own gentle fade (`far_fade`: 1.0 to 60 m, down to 0.65 at 220 m), so a far beam stays ember gold instead of turning haze-coloured. `extra_cull_margin` 1.2 m so a widened beam isn't culled at its old bounds.
+- `fog_disabled` on the ring: it is a ring again from any distance.
+- `LevelUpFx.drawn_radius` and `far_fade` mirror the shader for tests; the shader's uniforms are set from the same constants.
+
+**Tests.** Three new unit tests: steady on-screen width from 100/150/200 m (and untouched below 40 m and for the day column), the fade only falls and never under its floor, and the column/ring shaders carry the rules (uniforms match the constants, `fog_disabled` on both, cull margin covers 170 m). Mutation check: `MIN_SPREAD` 0.002 fails 3 checks. Unit suite with Postgres: 593 pass. 8-bot 180 s websocket bot test passed (8 of 8 levelled). Client smoke test passed (render budget unchanged). No new bot behaviour: nothing new on the network, and art checks belong in unit tests (art bible section 7, qa's art lint).
+
+**Looked at after.** Same shots: the 100 m beam is a clear gold stroke over the tree line at noon, the 45 m one is a deeper gold (no haze on it), and the ring is a ring. Before/after in the project files (`world/level-up-far-noon-*`, `world/level-up-far-night-*`).
+
+**Didn't do.** The bigger burst for named unlocks and every 10th level still needs the client to pass the level (the backlog item stays). At night the far beam reads pale grey rather than ember; follow-up added.
+
+**Next run.** The gather-swing impact puff, or the milestone burst once the client passes a level.
