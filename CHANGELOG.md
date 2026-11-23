@@ -5,6 +5,13 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- A brand-new over-the-shoulder camera: the mouse always looks around (no button to hold), W walks where you look and your character turns to face it, and a small reticle marks the centre of the screen. Hold Alt to glance around without turning, press V to swap shoulders, and roll the wheel to zoom from 1.5 to 6 m.
+- The camera slides in when a hill, tree or rock gets in the way and eases back out, so it never ends up inside the scenery.
+- Whatever you look at is what E gathers, and it glows so you know. Two new Settings: field of view and which shoulder the camera sits on.
+- The Spawn Meadow finally has its workbench: a sturdy ash-plank table on stone legs, a few steps from where you arrive, with a hammer left on top and a woodpile round the back. It's where your first stone axe gets made.
+- The chopping block next to it has seen some use. Nobody remembers who split the first log.
+- Gathering is about to slow down in the best way: the server now times every pull from a tree, rock or seep (about two seconds, quicker with the right tool) and calls it off if you walk away, so nothing is lost. You'll feel it when press-E switches over in the next update.
+- If the world server ever freezes, it now notices on its own, saves everyone it can, and restarts in about a minute instead of staying down until someone spots it.
 - **Gathering is getting a glow-up.** The tree, rock or seep in reach will glow with a soft ember-gold rim, and every gather gets a reaction: ash trees shudder and shed glowing leaves, pines drop needles, outcrops spit stone chips, and sap seeps splash bright droplets. The effects are built and switch on with the next client update.
 - Haven't updated yet? Every build is now tested against older clients, so an out-of-date game gets a clear "please update" message instead of a login screen that spins forever.
 - **Press E to gather.** Walk up to an ember ash, a pine, a stone outcrop or (at night) an ember-sap seep and a prompt like "[E] Chop Ember Ash" appears. Tap E, or just hold it, and a short ember bar fills while you work.

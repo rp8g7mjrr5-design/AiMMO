@@ -1,3 +1,0 @@
-- A brand-new over-the-shoulder camera: the mouse always looks around (no button to hold), W walks where you look and your character turns to face it, and a small reticle marks the centre of the screen. Hold Alt to glance around without turning, press V to swap shoulders, and roll the wheel to zoom from 1.5 to 6 m.
-- The camera slides in when a hill, tree or rock gets in the way and eases back out, so it never ends up inside the scenery.
-- Whatever you look at is what E gathers, and it glows so you know. Two new Settings: field of view and which shoulder the camera sits on.
