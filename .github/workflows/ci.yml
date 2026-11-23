@@ -144,6 +144,13 @@ jobs:
             echo "::warning::AIMMO_PUBLIC_SERVER variable not set; clients will default to 127.0.0.1"
           fi
 
+      - name: Bake the build number and update address into the client
+        # The installed game checks update.json on the latest release at startup and
+        # downloads a newer game pack when this build number is behind (game/client/updater.gd).
+        run: |
+          echo "$GITHUB_RUN_NUMBER" > game/client/build_id.txt
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/latest/download" > game/client/update_url.txt
+
       - name: Export clients
         run: |
           set -euo pipefail
@@ -156,6 +163,23 @@ jobs:
           (cd build/client-linux && zip -q -r ../../dist/AiMMO-linux.zip .)
           (cd build/client-windows && zip -q -r ../../dist/AiMMO-windows.zip .)
           cp build/client-macos/AiMMO.zip dist/AiMMO-macos.zip
+          # Self-update packs: the whole game minus the engine, one per platform.
+          for os in linux windows macos; do
+            godot --headless --path game --export-pack "client-$os" "$PWD/dist/AiMMO-$os.pck" 2>&1 | tee "build/pack-$os.log"
+            if grep -q "ERROR" "build/pack-$os.log" || [ ! -s "dist/AiMMO-$os.pck" ]; then echo "pack $os failed"; exit 1; fi
+          done
+          mkdir -p manifest
+          python3 - <<'PY'
+          import hashlib, json, os
+          files = {}
+          for o in ("linux", "windows", "macos"):
+              name = f"AiMMO-{o}.pck"
+              data = open(f"dist/{name}", "rb").read()
+              files[o] = {"name": name, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+          manifest = {"build": int(os.environ["GITHUB_RUN_NUMBER"]), "engine": os.environ["GODOT_VERSION"], "files": files}
+          json.dump(manifest, open("manifest/update.json", "w"), indent=2)
+          print(json.dumps(manifest, indent=2))
+          PY
           ls -la dist
 
       - name: Publish GitHub Release
@@ -169,5 +193,7 @@ jobs:
             gh release edit "$TAG" --title "$TITLE" --notes-file release-notes.md
             gh release upload "$TAG" dist/* --clobber
           else
-            gh release create "$TAG" dist/* --title "$TITLE" --notes-file release-notes.md --target "$GITHUB_SHA"
+            gh release create "$TAG" dist/* --title "$TITLE" --notes-file release-notes.md --target "$GITHUB_SHA" --latest
           fi
+          # update.json goes up last, so installed games only see a build once its packs are there.
+          gh release upload "$TAG" manifest/update.json --clobber

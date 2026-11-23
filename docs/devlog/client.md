@@ -467,3 +467,43 @@ server sharing the CPU. Smoke passed.
 **Notes to next run:** still the v3 gathering item first. When the inventory window is built,
 use `IconShelf` and add its slot size to `SIZES`. The F1 controls overlay remains the best
 no-dependency item.
+
+## 2026-11-23: self-updating client (owner request)
+
+**Why:** the owner had to download a new zip from the Releases page every time the client
+changed. Now they install once and every launch plays the newest build.
+
+**How:** the exported binary stays fixed; only the game pack changes. CI now also exports
+`AiMMO-<os>.pck` per platform (about 260 KB, since all art is procedural) and `update.json`
+(`build` = the CI run number, `engine` = `GODOT_VERSION`, per-file size and SHA-256), uploaded
+last so a half-uploaded release is never offered. It bakes `client/build_id.txt` and
+`client/update_url.txt` (`https://github.com/<repo>/releases/latest/download`) into the client.
+At startup `main.gd` shows `Updater` (only in exported builds with a build number, never in
+tests, bots, the editor or the server). It fetches `update.json` (6 s timeout), and if the build is
+newer it downloads the pack to `user://updates/`, checks the SHA-256 and restarts the same
+executable with `--main-pack <pack> -- --updated`. Godot then boots that pack as the whole game,
+including the global class cache and autoloads.
+
+**Tried first and dropped:** loading the new pack in-process with `ProjectSettings.load_resource_pack`.
+New `class_name` scripts are not registered after startup in Godot 4, and we add classes almost
+every PR, so the in-process route would break on the first new class. Replacing the exe itself
+was also out (Windows locks a running exe; macOS app bundles need permission bits).
+
+**Safety:** never downgrades (build numbers only go up). A pack that fails to reach the game
+8 s after launch three times is skipped and not downloaded again until a newer build exists.
+Offline, it boots the newest pack already downloaded. If `update.json` names a different engine
+version, the player gets a "new installer, just this once" screen with a button to the
+download page and can keep playing what they have. When the server refuses a login as "out of
+date", an installed client restarts itself to update.
+
+**Tested:** 10 unit tests in `tests/unit/test_client_updater.gd` (manifest parsing incl. path
+tricks, every decide() branch, relaunch args). End to end by hand with a real Linux export:
+build 1 binary + a local server offering build 2: it downloaded, restarted into build 2 (login
+screen rendered), marked it good; second launch relaunched without downloading; offline launch
+still booted build 2; a 30 MB slow download showed the progress screen. Packs export for all
+three platforms with no errors. Windows and macOS were not run (no machines here); they use
+the same `--main-pack` engine flag.
+
+**Notes:** `OS.get_cmdline_args()` is empty in exported builds, so engine flags (like
+`--rendering-driver`) are not carried over on the restart; players don't pass any. Bumping
+`GODOT_VERSION` means everyone needs one new download (the engine is in the exe), so do it rarely.
