@@ -309,7 +309,7 @@ func _on_chat(id: int, text: String) -> void:
 ## c2s_gather_start(node_id): press E at a node. Only logged-in players; a bad id is
 ## answered like any refusal (gather_request).
 func _on_gather_start(id: int, node_id: int) -> void:
-	if not sessions.has(id) or not sessions[id].logged_in:
+	if not _play_allowed(id, "_last_gather_start"):
 		return
 	gather_request(id, node_id)
 
@@ -323,9 +323,27 @@ func _on_gather_cancel(id: int) -> void:
 
 ## c2s_craft(recipe_id): the crafting window's Make button.
 func _on_craft(id: int, recipe_id: String) -> void:
-	if not sessions.has(id) or not sessions[id].logged_in:
+	if not _play_allowed(id, "_last_craft"):
 		return
 	craft_request(id, recipe_id)
+
+
+## Requests that make the server answer (gather start, craft; gather start also tells
+## everyone in view) are taken at most once every PLAY_REQUEST_GAP per player and kind, and
+## the rest are dropped silently, so a flooding client can't make the server spam back. A
+## real key press or button click is never that fast.
+const PLAY_REQUEST_GAP := 0.1
+
+
+func _play_allowed(id: int, key: String) -> bool:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return false
+	var s: Dictionary = sessions[id]
+	var now := now_seconds()
+	if now - float(s.get(key, -1000.0)) < PLAY_REQUEST_GAP:
+		return false
+	s[key] = now
+	return true
 
 
 ## A player gathers from the node they stand at ("/gather", or "/gather pine" for one kind).
