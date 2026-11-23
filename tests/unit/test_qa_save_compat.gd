@@ -210,7 +210,7 @@ func test_pack_checks() -> void:
 	check_eq(changed.ash_wood, 0, "first sorted item used up")
 	check_eq(changed.relic, 2, "others +1")
 	check_eq(changed.stone, 5, "others +1")
-	check_eq(changed_pack({"ash_wood": 99, "pine_wood": 99}).pine_wood, Inventory.MAX_STACK, "capped at a full stack")
+	check_eq(changed_pack({"ash_wood": Inventory.MAX_STACK, "pine_wood": Inventory.MAX_STACK}).pine_wood, Inventory.MAX_STACK, "capped at a full stack, whatever the cap is")
 	check_eq(changed.get("pine_wood"), 3, "a new real item stack is added")
 	check_eq(changed_pack({}), {"ash_wood": 3}, "empty pack gets one stack")
 

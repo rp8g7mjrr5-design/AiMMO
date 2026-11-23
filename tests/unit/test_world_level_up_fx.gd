@@ -85,3 +85,58 @@ func test_play_restarts_one_burst_and_finishes() -> void:
 	check(not fx.visible and not (fx.get_node("Light") as OmniLight3D).visible, "nothing left showing")
 	check(fx.advance(0.1), "stays finished")
 	avatar.free()
+
+
+func test_daylight_widens_lifts_and_bounds_the_column() -> void:
+	var t := 0.05
+	while t < LevelUpFx.DURATION:
+		var night := LevelUpFx.column_at(t, 0.0)
+		var day := LevelUpFx.column_at(t, 1.0)
+		check(day.radius >= night.radius * 1.45, "day column wider at %.2f (%.2f vs %.2f m)" % [t, day.radius, night.radius])
+		check(day.height >= night.height * 1.15, "day column taller at %.2f" % t)
+		check(day.radius <= LevelUpFx.COLUMN_RADIUS * (1.0 + LevelUpFx.DAY_WIDEN), "day column still hugs the avatar at %.2f" % t)
+		check_eq(day.strength, night.strength, "same timing by day and night at %.2f" % t)
+		t += 0.05
+	check_eq(LevelUpFx.column_at(0.3).radius, LevelUpFx.column_at(0.3, 0.0).radius, "no day argument means tonight's look")
+
+
+func test_sky_beam_shoots_high_by_day_and_stays_faint_at_night() -> void:
+	check_eq(LevelUpFx.beam_at(0.0, 1.0).strength, 0.0, "no beam before the burst")
+	check_eq(LevelUpFx.beam_at(LevelUpFx.BEAM_TIME, 1.0).strength, 0.0, "beam gone at BEAM_TIME")
+	check(LevelUpFx.BEAM_TIME < LevelUpFx.DURATION, "beam ends inside the burst")
+	var up := LevelUpFx.beam_at(0.4, 1.0)
+	check(up.height > 20.0, "beam clears the trees within 0.4 s (%.1f m)" % up.height)
+	check(up.strength > 0.9, "beam full by day (%.2f)" % up.strength)
+	check(up.radius < LevelUpFx.COLUMN_RADIUS * 0.5, "beam slimmer than the column")
+	var night := LevelUpFx.beam_at(0.4, 0.0)
+	check(night.strength < 0.5 and night.strength > 0.0, "beam faint at night (%.2f)" % night.strength)
+	check(LevelUpFx.beam_at(1.3, 1.0).strength < LevelUpFx.beam_at(0.6, 1.0).strength, "beam fades")
+	# 24 m at 45 m away is ~28 degrees of sky: well above the tree line from the meadow edge.
+	check(rad_to_deg(atan(LevelUpFx.BEAM_HEIGHT / 45.0)) > 20.0, "beam tall enough to see from 45 m")
+
+
+func test_play_reads_the_sky_and_draws_the_beam_in_the_column_multimesh() -> void:
+	var saved := DayNight.pinned_fraction
+	var avatar := AvatarBuilder.rig()
+	DayNight.pinned_fraction = 0.5
+	var fx := LevelUpFx.play(avatar)
+	check_near(fx.daylight, 1.0, 0.01, "noon reads as full day")
+	DayNight.pinned_fraction = 0.0
+	LevelUpFx.play(avatar)
+	check_near(fx.daylight, 0.0, 0.01, "midnight reads as night")
+	DayNight.pinned_fraction = saved
+	LevelUpFx.play(avatar, 2, 1.0)
+	check_eq(fx.daylight, 1.0, "an explicit day wins over the sky")
+	var mm := (fx.get_node("Column") as MultiMeshInstance3D).multimesh
+	check_eq(mm.instance_count, 2, "column and beam share one MultiMesh (one draw call)")
+	check(mm.use_custom_data, "each instance carries its own strength")
+	fx.advance(0.45)
+	check(fx.beam_now.height > 20.0, "beam drawn tall (%.1f m)" % fx.beam_now.height)
+	check(fx.beam_now.strength > 0.9, "beam at full strength by day")
+	check(fx.column_now.radius > LevelUpFx.COLUMN_RADIUS, "day column drawn wider than the night one")
+	check_eq(float((fx.get_node("Column") as MultiMeshInstance3D).material_override.get_shader_parameter("day")), 1.0, "shader told it is day")
+	fx.advance(LevelUpFx.BEAM_TIME - 0.4)
+	check_eq(fx.beam_now.strength, 0.0, "beam over")
+	check(fx.column_now.strength > 0.0, "column still finishing")
+	check((fx.get_node("Column") as MultiMeshInstance3D).visible, "column still showing")
+	avatar.free()

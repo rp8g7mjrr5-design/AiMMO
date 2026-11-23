@@ -1,0 +1,1 @@
+- Every build now proves the old ember ashes and rich stone seams stay shut until you reach level 5: a brand-new player is turned away with a clear "Needs Felling 5" hint and loses nothing, while a level-5 veteran works the same tree empty and keeps their level after logging back in.
