@@ -1,1 +1,0 @@
-- Past the meadow, look for the **old ember ashes**: taller and wider than any tree around them, with a bright gold crown and glowing ember pods hanging beneath it that shine all night. And the **rich stone seams**: wide plum-dark outcrops flecked with gold, ember crystals breaking out of the top. They're the trees and rocks your Felling and Quarrying are building toward.

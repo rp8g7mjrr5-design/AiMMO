@@ -1,1 +1,0 @@
-- Graphics set to **Low** now draws half the wildflower patches, so older laptops get smoother frames in the grasslands. Switch it in Settings and the meadows thin or fill back in on the spot, no restart.

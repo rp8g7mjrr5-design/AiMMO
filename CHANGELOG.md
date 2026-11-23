@@ -5,6 +5,14 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- Past the meadow, look for the **old ember ashes**: taller and wider than any tree around them, with a bright gold crown and glowing ember pods hanging beneath it that shine all night. And the **rich stone seams**: wide plum-dark outcrops flecked with gold, ember crystals breaking out of the top. They're the trees and rocks your Felling and Quarrying are building toward.
+- Every gather and craft now pays out XP you can see: a gold "+10 Felling" floats up beside your haul, and that skill's bar slides forward ("Felling 2 · 215 XP to 3"), then fades out of your way.
+- Every skill now has its own badge: a green felling stump, a slate quarrying pick, a glowing red tapping drop and a wooden toolcraft bench. They're ready for the skills window and level-up toasts, so you'll know which road just moved before you read a word.
+- Ashgrove draws about a third as many triangles at the Spawn Meadow as before: the forest, birches, boulders and wildflowers are now split into patches the camera can skip when they're behind you or deep in the haze. Same trees in the same places, smoother frames on laptops.
+- Graphics set to **Low** now draws half the wildflower patches, so older laptops get smoother frames in the grasslands. Switch it in Settings and the meadows thin or fill back in on the spot, no restart.
+- Mashing E or the Make button no longer makes the server shout back a hundred times a second, so a busy grove stays smooth for everyone standing in it.
+- Behind the scenes: every build now checks that the game server never builds any graphics (so it stays lean and fast for everyone online), and that the valley's colours come from one shared palette, so the Emberlight look stays warm and consistent as the world grows.
+- Behind the scenes: our test players now meet at the same tree on purpose and chop it together every build, so gathering side by side with a friend keeps working (and the build no longer fails at random when they didn't happen to meet).
 - Your game now hears about every bit of XP the moment you earn it, every level-up with the unlock it gives, and every level-up of the players around you, so XP pops, level-up banners and that ember burst over a friend's head can show up as they happen. (This update brings protocol v4: your game updates itself the next time you launch it.)
 - New **Graphics** setting in Settings: Low, Medium or High. Low trims shadows and view distance so older laptops stay smooth; High stretches sun shadows out to 120 m.
 - Press **F3** for a small frame-rate panel (fps, frame time, draw calls, triangles) in the corner. Press it again to hide it.
