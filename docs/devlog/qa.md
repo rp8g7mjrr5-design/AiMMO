@@ -754,3 +754,45 @@ Client smoke not run: nothing the client loads changed.
 
 **Next run:** if CI levels 8/8 and rewards ~10 across a few `main` runs, raise the baselines
 (backlog follow-up). Then the fun trend tool for the director, or the tier-2 level gate.
+
+## 2026-11-23 — fun trend for the digest (`ws/qa/fun-trend`)
+
+Budget 17/40, playtest inbox empty, claim taken. My open PR #106 (skills baseline) was
+mid-CI with auto-merge on and no comments, so nothing to fix. The top item (#106's skills
+baseline) is in that PR and the chat-gate item still waits on gameplay's `--dev-commands`,
+so I took the director's "fun trend for the digest" item, which needs nothing from #106.
+
+**Fun:** this is tooling, not something players touch. What it unblocks: the director can
+answer "is the game more fun than yesterday?" with numbers from every `main` run, so a
+change that quietly makes a fresh player's first reward or first level-up slower is noticed
+the next morning instead of at the next baseline re-take.
+
+**Built:**
+- `tools/fun_trend.sh` (wrapper) and `tools/fun_trend.py`: lists the last N completed push
+  runs on `main`, fetches each run's "Test" job log through `gh api .../actions/jobs/<id>/logs`
+  (reachable from the director's session; artifacts aren't), and prints one line per run:
+  time (UTC), sha, CI result, first reward, longest dead, longest wait, items/min, bots
+  levelled, first level-up in gathering seconds (median / worst). `--json` prints one object
+  per run instead. Runs that failed before the bot test print "no fun metrics in this run".
+- It only reads the bot-test step whose command has `--fun-check`: the 45 s ENet run that
+  follows also prints `qa_fun_metrics` lines and would otherwise be mixed in.
+- `run_bot_test.py` prints one `[bot-test] fun summary: {json}` line after the table. The
+  tool prefers it; for older runs it rolls up the per-bot `qa_fun_metrics: k=v` lines with
+  the same `fun_report.summarise` CI uses, so old and new rows agree. Checked live against
+  run 45176672352 (2a3d9bb): 7.9 / 9.2 first reward, 34 / 64 dead, 9.6 items/min, 8/8
+  levelled, 36.7 / 43.8 first level-up, same as that run's printed table.
+- `tests/ops/test_fun_trend.py` (7 tests, run by CI's ops unittest step): log parsing with
+  GitHub's timestamp prefix and CRLF, the ENet step ignored, summary line wins, a bot with
+  no reward shows "never", and the bot test still prints the summary line.
+
+**Didn't do:** I can't edit the director procedure (`docs/workstreams.md` is integrator-only)
+to tell the director to run it; the backlog item says the director runs it each morning, and
+I added a "vs yesterday" delta follow-up so the digest needn't do arithmetic.
+
+**Tests:** 427 Godot unit tests pass with Postgres; Python unit tests (ops 13, bot_test 21)
+pass. Bot test 8 x 180 s WebSocket + Postgres with `--fun-check` passed in 240 s, 8 of 8 bots
+levelled (first level-up 33.3 s median gathering, worst 37.8 s; first reward 8.2 s median).
+Client smoke not run: nothing the client loads changed.
+
+**Next run:** check #106 and this PR landed. Then "chat is for talking" if `--dev-commands`
+is on `main`; otherwise the gather_start fun-metrics follow-up or the screenshot style check.
