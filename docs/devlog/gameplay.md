@@ -892,6 +892,24 @@ Also dropped `gameplay_roster_v5._tell_fun_metrics` (qa's `qa_fun_metrics` hears
 
 **Next run:** stack raise if client unpinned 99, else the lantern if client and world answered, else `Vitals` wiring once the client sends sprint/dodge (or pair it with a v6 bump that needs one anyway).
 
+## 2026-11-23 (late): gentle wildlife, server side (`ws/gameplay/wildlife-grazers`)
+
+**Fun, in one sentence:** the hills past the meadow come alive: walk out and a herd lifts its heads, rush it and the whole herd bolts over the rise, creep in and freeze when they look up and you can get close enough to watch them graze, and at night they lie down at home and let you walk right up. (Players see it once the next bump sends them and world draws them; this run is the rules.)
+
+**First, #139** (chat-gate default off) is red only on qa's Docker image test, which starts its container without `AIMMO_DEV_COMMANDS=1`; the integrator filed the fix in qa's backlog. Nothing gameplay can fix in its own paths, auto-merge is on, so I left it.
+
+**Picked.** Top items, in order: Toolcraft/tier-2 follow-ups are "watch the numbers"; the level-up line stays (noted last run); the v3 system-line follow-up is already handled client side (`gather_prompt.on_system` swallows the echo); `MAX_STACK` 999 is still blocked on client's `test_client_pack_window` ("12 of 99"); Bench sense lantern still blocked on client (`test_client_pack_window` pins `used_in("stone")`, `test_client_skills_window` pins "coming soon"; world's icon has landed); the chat-gate HELP trim and `/time` behind the gate both edit `chat_commands.gd` next to open #139, so they wait for it. `Vitals` wiring changes nothing a player sees until client sends sprint/dodge. Wildlife (the roadmap's "gentle wildlife outside the meadow", Week 01 forecast) was unblocked and standalone, so it went in as build-ahead, like the gather channel did before v3.
+
+**Take the best, then beat it (owner direction 6).** Open-world survival and hunting games do skittish wildlife best: herds that graze, notice you, and scatter make a landscape feel alive. What players hate: animals that bolt the instant you are seen with no warning, so hunting turns into chasing; and animals that never come back, leaving the land empty. Ours: a readable 1 s look-up (head up, facing you) before any bolt, freezing during it settles them (they then only react if you close another 1.5 m), they are faster than you (8.5 m/s vs 6) so chasing is pointless but stalking works, and they always come home within ~10 s of you leaving.
+
+**Built.** `game/shared/wildlife.gd` (`Wildlife`): `spawns()` from `WORLD_SEED + 307` (6 herds, 3-4 each, 44-110 m out, dry, gentle ground under 14 m, homes 30 m apart; ids append only); `new_state()`; `step(state, players, now, dt, night)` with states graze/amble/alert/flee/return/rest, herd contagion within 16 m, a 40 m leash that swings fleeing grazers home, water/cliff/edge avoidance by trying turned headings, a calm grazer never ambles within 6.5 m of a player (without that, a herd-mate wandering into a frozen stalker spooked the whole herd); `to_wire()` (`[id, x, z, yaw, state]`). Server: `wildlife` state, `_tick_wildlife` every tick, `player_positions()`, a start-up log line. Not saved (positions reset on restart, which is fine), not sent.
+
+**Didn't do.** No bot behaviour: bots can't see grazers until they are on the wire, and a behaviour that only walks would steal gathering time from the fun metrics. It comes with the bump (backlog follow-up). The 8-bot bot test still runs the wildlife tick every frame, so its perf budget covers the cost.
+
+**Tests.** `test_gameplay_wildlife.gd` (11): placement and determinism, grazing at home alone, look-up then bolt with the herd, creep-and-freeze gets within ~6 m without a startle, bolting at once inside 4.5 m, outrunning a walker and coming home, every creature on good ground while fleeing, night rest and the shorter alert ring, wire form, server stepping them. Unit 595/595 with Postgres. Bot test 8 x 180 s websocket PASSED (8 of 8 levelled, first reward median 9.0 s, server CPU 1.71 ms per tick avg, 3.4 worst). Client smoke PASSED.
+
+**Next run:** if #139 or this PR is red, fix what is ours. Then the next protocol bump: `s2c_wildlife` (5 Hz, in view only) plus `s2c_vitals` if wiring is done, frozen `net_v5.gd`, and a bot behaviour that stalks and spooks a herd.
+
 ## 2026-11-23 (late night): Bench sense, the ember lantern, and 999 stacks (`ws/gameplay/bench-sense-lantern`)
 
 **First, #145** (grazers) had a conflict with main in `docs/devlog/gameplay.md` and `docs/workstreams/client.md` after #139's devlog entry landed; merged main in keeping both sides, pushed, auto-merge still on.
