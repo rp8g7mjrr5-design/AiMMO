@@ -37,6 +37,22 @@ const SAP_DRY := Color(0.22, 0.19, 0.17)
 const STUMP_CUT := Color(0.74, 0.60, 0.42) ## the pale cut face on top of a stump
 const SEAM_STUD := Color(0.84, 0.80, 0.70) ## quartz studs along the outcrop's seam
 
+## Tier 2 (node "tier" 2, gameplay's level-gated nodes: Felling 5 and Quarrying 5). Each is
+## built to be a landmark seen from the meadow: an old ember ash is taller and wider than any
+## tree around it, gnarled boughs, a brighter gold crown and glowing ember pods hanging under
+## it (the sap glow, so it shines at night and beats with the heartbeat); a rich stone seam is
+## a wide, deep plum-grey outcrop flecked with bright gold, with ember crystals breaking out
+## of its top. Both keep the tier-1 layers and materials (no new material, art bible 7).
+const OLD_ASH_LEAF := Color(1.0, 0.64, 0.28)
+const OLD_ASH_BARK := Color(0.50, 0.42, 0.36) ## older, greyer bark than Palette.TRUNK
+const RICH_STONE := Color(0.58, 0.50, 0.57) ## a deeper colour than the grey outcrops
+const RICH_FLECK := Color(1.0, 0.86, 0.52) ## bright gold flecks: "this rock is rich"
+const OLD_ASH_TRUNK := Vector2(1.5, 1.25) ## trunk mesh scale (width, height) against tier 1
+## The big stone of each outcrop: world-axis ellipsoid half sizes and centre height. Veins
+## and seam studs sit on its surface.
+const STONE_HALF := {1: Vector3(1.1, 0.9, 0.9), 2: Vector3(1.5, 1.15, 1.2)}
+const STONE_CENTRE_Y := {1: 0.6, 2: 0.8}
+
 ## The solid shape of each kind of prop, as vertical columns [radius, bottom, top] in metres
 ## at scale 1, relative to the node's ground position (multiply by the node's scale; see
 ## solid_columns()). Every part of both looks (live and depleted) fits inside them, which a
@@ -46,6 +62,8 @@ const SOLID_COLUMNS := {
 	"pine": [[0.8, 0.0, 0.4], [0.42, 0.0, 1.15], [1.62, 1.15, 2.2], [1.3, 2.2, 3.25], [0.98, 3.25, 4.3], [0.66, 4.3, 6.8]],
 	"stone": [[1.95, 0.0, 0.85], [1.15, 0.85, 1.56]],
 	"ember_sap": [[1.3, 0.0, 0.45], [0.42, 0.45, 1.32]],
+	"ash:2": [[1.15, 0.0, 0.25], [0.62, 0.0, 2.65], [3.05, 2.65, 5.1], [1.8, 5.1, 6.2], [1.25, 6.2, 7.1]],
+	"stone:2": [[2.4, 0.0, 0.9], [1.65, 0.9, 1.75], [0.8, 1.75, 2.9]],
 }
 
 ## A collapsed basis hides a MultiMesh instance without resizing the MultiMesh.
@@ -73,7 +91,18 @@ static func parts(node: Dictionary, depleted: bool = false) -> Array:
 	var drng := RandomNumberGenerator.new()
 	drng.seed = GameConfig.WORLD_SEED + 227 + int(node.id) * 7919
 	var rim_angles: Array = []
-	match node.kind:
+	var look_tier := tier_of(node)
+	if look_tier >= 2:
+		# Tier 2 has its own looks; tier 1 below is untouched, part for part.
+		var put_b := func(layer: String, local_basis: Basis, local_pos: Vector3, size: Vector3, color: Color) -> void:
+			var b := turn * local_basis * Basis.from_scale(size * s)
+			out.append({"layer": layer, "xform": Transform3D(b, origin + turn * (local_pos * s)), "color": color})
+		match node.kind:
+			"ash":
+				_old_ash(put, put_b, put_detail, rng, drng, depleted)
+			"stone":
+				_rich_seam(put, put_b, put_detail, rng, drng, node.rot, depleted)
+	match "" if look_tier >= 2 else node.kind:
 		"ash":
 			if depleted:
 				_stump(put, Palette.TRUNK)
@@ -114,7 +143,7 @@ static func parts(node: Dictionary, depleted: bool = false) -> Array:
 					var a := TAU * i / 3.0 + rng.randf() * 0.8
 					var tall := 0.8 + rng.randf() * 0.5
 					put.call("NodeSapPools", Vector3(cos(a) * 0.3, tall * 0.5, sin(a) * 0.3), Vector3(0.18, tall, 0.18), SAP_GLOW.lightened(0.15), a)
-	match node.kind:
+	match "" if look_tier >= 2 else node.kind:
 		"ash", "pine":
 			var bark: Color = Palette.TRUNK if node.kind == "ash" else Palette.TRUNK.darkened(0.2)
 			_roots(put_detail, drng, bark)
@@ -130,8 +159,105 @@ static func parts(node: Dictionary, depleted: bool = false) -> Array:
 		var put_vein := func(local_basis: Basis, local_pos: Vector3, size: Vector3) -> void:
 			var b := turn * local_basis * Basis.from_scale(size * s)
 			out.append({"layer": VEIN_LAYER, "xform": Transform3D(b, origin + turn * (local_pos * s)), "color": VEIN})
-		_veins(put_vein, vrng, str(node.kind), node.rot, vein_cracks(str(node.kind), int(node.get("tier", 1))), rim_angles)
+		_veins(put_vein, vrng, str(node.kind), node.rot, vein_cracks(str(node.kind), int(node.get("tier", 1))), rim_angles, look_tier)
 	return out
+
+
+## A node's tier: 1 unless its data says more. Only ash and stone have a tier-2 look so far
+## (gameplay's tier-2 nodes); any other kind draws its tier-1 look with the extra veins.
+static func tier_of(node: Dictionary) -> int:
+	var t := int(node.get("tier", 1))
+	if t >= 2 and not SOLID_COLUMNS.has("%s:2" % node.get("kind", "")):
+		return 1
+	return clampi(t, 1, 2)
+
+
+## The old ember ash: a thick grey trunk, two gnarled boughs, a big bright crown with two
+## side crowns and a top knot, ember pods hanging under the crown. Depleted: a wide stump.
+static func _old_ash(put: Callable, put_b: Callable, put_detail: Callable, rng: RandomNumberGenerator, drng: RandomNumberGenerator, depleted: bool) -> void:
+	var tw := OLD_ASH_TRUNK.x
+	var th := OLD_ASH_TRUNK.y
+	if depleted:
+		put.call("NodeStumps", Vector3(0, 0.3, 0), Vector3(1.6, 1.2, 1.6), OLD_ASH_BARK)
+		put.call("NodeStumps", Vector3(0, 0.61, 0), Vector3(1.36, 0.04, 1.36), STUMP_CUT.lightened(0.05))
+	else:
+		put.call("NodeTrunks", Vector3(0, 1.4 * th, 0), Vector3(tw, th, tw), OLD_ASH_BARK)
+		put.call("NodeAshCrowns", Vector3(0, 4.6, 0), Vector3.ONE * 1.3, OLD_ASH_LEAF)
+		var bough_a := rng.randf() * TAU
+		for i in 2:
+			# A bough leaning out of the trunk at about 40 degrees, a side crown at its end.
+			var a := bough_a + PI * i + rng.randf_range(-0.4, 0.4)
+			var out_dir := Vector3(cos(a), 0.0, -sin(a))
+			var lean := Basis(Vector3.UP, a) * Basis(Vector3.BACK, -0.7)
+			put_b.call("NodeTrunks", lean, Vector3(0, 2.9, 0) + out_dir * 0.5, Vector3(0.7, 0.55, 0.7), OLD_ASH_BARK.darkened(0.05))
+			put.call("NodeAshCrowns", out_dir * 1.55 + Vector3(0, 3.9, 0), Vector3.ONE * 0.75, OLD_ASH_LEAF.lightened(0.06 + rng.randf() * 0.06))
+		put.call("NodeAshCrowns", Vector3(0.35, 6.15, -0.25), Vector3.ONE * 0.6, OLD_ASH_LEAF.lightened(0.14))
+		var pod_a := rng.randf() * TAU
+		for i in 5:
+			# Ember pods: glowing seed husks hanging just under the crown's rim.
+			var a := pod_a + TAU * i / 5.0 + rng.randf_range(-0.25, 0.25)
+			var r := rng.randf_range(1.75, 2.1)
+			put.call("NodeSapPools", Vector3(cos(a) * r, rng.randf_range(3.05, 3.35), -sin(a) * r), Vector3(0.24, 0.42, 0.24), SAP_GLOW.lightened(0.1))
+	# Close up: five long root flares (stump too) and five bark fissures.
+	var start := drng.randf() * TAU
+	for i in 5:
+		var a := start + TAU * i / 5.0 + drng.randf_range(-0.3, 0.3)
+		var out_dir := Vector3(cos(a), 0.0, sin(a))
+		var b := Basis(Vector3.UP, atan2(out_dir.x, out_dir.z)) * Basis(Vector3.RIGHT, deg_to_rad(22.0))
+		put_detail.call(b, out_dir * 0.62 + Vector3(0, 0.12, 0), Vector3(0.3, 0.28, drng.randf_range(0.75, 0.9)), OLD_ASH_BARK.darkened(0.1))
+	if not depleted:
+		var ridge_start := drng.randf() * TAU
+		for i in 5:
+			var a := ridge_start + TAU * i / 5.0 + drng.randf_range(-0.25, 0.25)
+			var y := 0.7 + (i % 3) * 0.8 + drng.randf_range(-0.15, 0.15)
+			var r := trunk_radius(y, 2)
+			put_detail.call(Basis(Vector3.UP, a + PI * 0.5), Vector3(cos(a), 0.0, -sin(a)) * (r - 0.005) + Vector3(0, y, 0), Vector3(0.08, drng.randf_range(0.8, 1.1), 0.12), OLD_ASH_BARK.darkened(0.32))
+
+
+## The rich stone seam: a wide plum-grey outcrop of four stones, gold flecks over the big one,
+## three ember crystals breaking out of its top. Depleted: a wide ring of dark rubble.
+static func _rich_seam(put: Callable, put_b: Callable, put_detail: Callable, rng: RandomNumberGenerator, drng: RandomNumberGenerator, rot: float, depleted: bool) -> void:
+	var half: Vector3 = STONE_HALF[2]
+	var cy: float = STONE_CENTRE_Y[2]
+	if depleted:
+		for i in 5:
+			var a := TAU * i / 5.0 + rng.randf() * 0.5
+			put.call("NodeStones", Vector3(cos(a) * 1.3, 0.1, sin(a) * 1.3), Vector3(1.0, 0.38, 0.85), RICH_STONE.darkened(0.3), a)
+		return
+	put.call("NodeStones", Vector3(0, cy, 0), half * 2.0, RICH_STONE)
+	put.call("NodeStones", Vector3(1.5, 0.45, 0.6), Vector3(1.7, 1.4, 1.4), RICH_STONE.darkened(0.08), 0.9)
+	put.call("NodeStones", Vector3(-1.4, 0.38, 0.75), Vector3(1.4, 1.1, 1.2), RICH_STONE.darkened(0.04 + rng.randf() * 0.06), 2.1)
+	put.call("NodeStones", Vector3(0.2, 0.3, -1.3), Vector3(1.1, 0.8, 1.0), RICH_STONE.darkened(0.12), 3.7)
+	# Ember crystals: long thin glowing shards leaning out of the top of the big stone.
+	var unturn := Basis(Vector3.UP, -rot)
+	var ca := rng.randf() * TAU
+	for i in 3:
+		var a := ca + TAU * i / 3.0 + rng.randf_range(-0.3, 0.3)
+		var d := Vector3(sin(a) * 0.35, 0.94, cos(a) * 0.35).normalized()
+		var surf := Vector3(half.x * d.x, half.y * d.y, half.z * d.z)
+		var tall := 0.9 + rng.randf() * 0.4
+		var tilt := Basis(Vector3(cos(a), 0.0, -sin(a)), rng.randf_range(0.2, 0.4))
+		put_b.call(GLOW_LAYER, unturn * tilt, unturn * surf + Vector3(0, cy + tall * 0.25, 0), Vector3(0.2, tall, 0.2), SAP_GLOW.lightened(0.2))
+	# Close up: ten gold flecks scattered over the big stone's upper faces.
+	for k in 10:
+		var phi := drng.randf() * TAU
+		var theta := drng.randf_range(0.0, 0.75)
+		var d := Vector3(sin(phi) * cos(theta), sin(theta), cos(phi) * cos(theta))
+		var surf := Vector3(half.x * d.x, half.y * d.y, half.z * d.z)
+		var normal := Vector3(d.x / half.x, d.y / half.y, d.z / half.z).normalized()
+		var tangent := Vector3.UP.cross(normal)
+		tangent = Vector3.RIGHT if tangent.length() < 0.01 else tangent.normalized()
+		var b := unturn * Basis(tangent, normal, tangent.cross(normal)) * Basis(Vector3.UP, drng.randf() * TAU)
+		var c := drng.randf_range(0.1, 0.16)
+		put_detail.call(b, unturn * (surf - normal * 0.012) + Vector3(0, cy, 0), Vector3(c, 0.045, c * 0.7), RICH_FLECK.darkened(drng.randf() * 0.1))
+
+
+## The radius of a node tree's trunk `y` metres up (at scale 1): tier 1's trunk, or the old
+## ember ash's wider, taller one.
+static func trunk_radius(y: float, tier: int = 1) -> float:
+	if tier >= 2:
+		return OLD_ASH_TRUNK.x * (0.36 - 0.12 * y / (2.8 * OLD_ASH_TRUNK.y))
+	return 0.36 - 0.12 * y / 2.8
 
 
 ## How many ember cracks a live node of `kind` and `tier` shows: richer tiers glow more.
@@ -139,12 +265,14 @@ static func vein_cracks(kind: String, tier: int = 1) -> int:
 	return VEIN_CRACKS.get(kind, 0) + maxi(tier - 1, 0)
 
 
-static func _veins(put_vein: Callable, rng: RandomNumberGenerator, kind: String, rot: float, cracks: int, rim_angles: Array) -> void:
+static func _veins(put_vein: Callable, rng: RandomNumberGenerator, kind: String, rot: float, cracks: int, rim_angles: Array, tier: int = 1) -> void:
 	var budget := MAX_VEIN_PARTS
 	match kind:
 		"ash", "pine":
 			# Zig-zag cracks running up the trunk between the root flares and the crown.
 			var top := 1.8 if kind == "ash" else 1.05
+			if tier >= 2:
+				top = 2.5 # the old ash's taller trunk, below its boughs
 			var start := rng.randf() * TAU
 			for c in cracks:
 				if budget < 2:
@@ -157,14 +285,15 @@ static func _veins(put_vein: Callable, rng: RandomNumberGenerator, kind: String,
 				for k in 3:
 					var y: float = [y0, y1, y2][k]
 					var ak: float = a + [0.0, rng.randf_range(0.12, 0.22) * (1 if c % 2 == 0 else -1), rng.randf_range(-0.05, 0.05)][k]
-					var r := 0.36 - 0.12 * y / 2.8 # the trunk's radius at this height
+					var r := trunk_radius(y, tier)
 					var out_dir := Vector3(cos(ak), 0.0, -sin(ak))
 					pts.append([out_dir * r + Vector3(0, y, 0), (out_dir + Vector3(0, 0.043, 0)).normalized()])
 				budget -= _crack(put_vein, pts, 0.045, 0.03)
 		"stone":
 			# Ember lines along the big stone (world-axis ellipsoid, half sizes (1.1, 0.9, 0.9)
 			# round local (0, 0.6, 0)), on the faces the quartz seam leaves free.
-			var half := Vector3(1.1, 0.9, 0.9)
+			var half: Vector3 = STONE_HALF[tier]
+			var cy: float = STONE_CENTRE_Y[tier]
 			var unturn := Basis(Vector3.UP, -rot)
 			var start := rng.randf() * TAU
 			for c in cracks:
@@ -178,7 +307,7 @@ static func _veins(put_vein: Callable, rng: RandomNumberGenerator, kind: String,
 					var d := Vector3(sin(ph) * cos(th), sin(th), cos(ph) * cos(th))
 					var surf := Vector3(half.x * d.x, half.y * d.y, half.z * d.z)
 					var normal := Vector3(d.x / half.x, d.y / half.y, d.z / half.z).normalized()
-					pts.append([unturn * surf + Vector3(0, 0.6, 0), unturn * normal])
+					pts.append([unturn * surf + Vector3(0, cy, 0), unturn * normal])
 				budget -= _crack(put_vein, pts, 0.06, 0.035)
 		"ember_sap":
 			# A crack over the top of some rim stones, running in towards the glowing pool.
@@ -268,9 +397,10 @@ static func _seam_studs(put_detail: Callable, rng: RandomNumberGenerator, rot: f
 
 ## The solid columns of `kind` at `scale`: [[radius, bottom, top], ...] relative to the
 ## node's ground position. Covers the live and the depleted look.
-static func solid_columns(kind: String, scale: float = 1.0) -> Array:
+static func solid_columns(kind: String, scale: float = 1.0, tier: int = 1) -> Array:
 	var out: Array = []
-	for c in SOLID_COLUMNS.get(kind, []):
+	var key := "%s:%d" % [kind, tier] if tier >= 2 else kind
+	for c in SOLID_COLUMNS.get(key, SOLID_COLUMNS.get(kind, [])):
 		out.append([c[0] * scale, c[1] * scale, c[2] * scale])
 	return out
 
@@ -287,7 +417,7 @@ static func inside_solid(p: Vector3, node: Dictionary, margin: float = 0.0) -> b
 	var dx := p.x - base.x
 	var dz := p.z - base.z
 	var h := p.y - base.y
-	for c in solid_columns(str(node.kind), float(node.get("scale", 1.0))):
+	for c in solid_columns(str(node.kind), float(node.get("scale", 1.0)), tier_of(node)):
 		var r: float = c[0] + margin
 		if h >= c[1] - margin and h <= c[2] + margin and dx * dx + dz * dz <= r * r:
 			return true
@@ -301,7 +431,7 @@ static func _stump(put: Callable, bark: Color) -> void:
 
 ## Both looks of every node, ready for MultiMeshes:
 ## {layers: {layer: Array of [Transform3D, Color]}, slots: {id: {live: [[layer, index]...],
-## depleted: [[layer, index]...], kind, pos, scale}}}. Every node starts live, so its depleted parts begin
+## depleted: [[layer, index]...], kind, pos, scale, tier}}}. Every node starts live, so its depleted parts begin
 ## hidden (their transforms are kept in `layers`; build() hides them).
 static func layout(nodes: Array) -> Dictionary:
 	var layers := {}
@@ -309,7 +439,7 @@ static func layout(nodes: Array) -> Dictionary:
 		layers[l] = []
 	var slots := {}
 	for n in nodes:
-		var slot := {"live": [], "depleted": [], "kind": n.kind, "pos": n.pos, "scale": n.scale}
+		var slot := {"live": [], "depleted": [], "kind": n.kind, "pos": n.pos, "scale": n.scale, "tier": tier_of(n)}
 		for look in ["live", "depleted"]:
 			for p in parts(n, look == "depleted"):
 				slot[look].append([p.layer, layers[p.layer].size()])
