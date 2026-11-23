@@ -49,6 +49,8 @@ var skills_window: SkillsWindow
 var pack_window: PackWindow
 var pack_button: Button
 var skills_button: Button
+var players_panel: PlayersPanel
+var players_button: Button
 var goal_label: Label
 var _goal_key := "" ## which unlock the goal line names ("felling:5")
 var _goal_flash := 0.0 ## seconds left on the goal line's gold flash after a new goal
@@ -94,6 +96,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.xp_gained.connect(_on_xp)
 	net.level_up.connect(_on_level_up)
 	net.level_up_seen.connect(_on_level_up_seen)
+	net.roster_changed.connect(_on_roster)
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _set_status("Could not reach the server.", true))
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -119,6 +122,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 		_open_skills_after_login.call_deferred()
 	if args.has("open-pack"):
 		_open_pack_after_login.call_deferred()
+	if args.has("open-players"):
+		_open_players_after_login.call_deferred()
 	if args.has("autoconnect"):
 		_on_connect_pressed.call_deferred()
 	_args = args
@@ -164,6 +169,36 @@ func _open_pack_after_login() -> void:
 	pack_window.open()
 
 
+## Test hook (--open-players): opens the O players panel once logged in, as O would.
+## --open-players=Ash:9,Wren:14 adds those names to the real roster (display only), and just
+## before a --screenshot the first of them levels up, so the shot catches the gold "+1".
+func _open_players_after_login() -> void:
+	while not logged_in:
+		await get_tree().process_frame
+	await get_tree().create_timer(1.0).timeout
+	var spec := str(_args.get("open-players", ""))
+	if spec.contains(":"):
+		players_panel.on_roster(_players_spec(spec, players_panel.entries, false))
+	players_panel.open()
+
+
+## The real roster plus "Ash:9,Wren:14" as made-up players (negative ids, which no real peer
+## has), for the test hook; `level_first` adds one level to the first made-up player.
+static func _players_spec(spec: String, real: Array, level_first: bool) -> Array:
+	var out: Array = []
+	for r in real:
+		if int(r.id) > 0:
+			out.append({"id": int(r.id), "name": str(r.name), "level": int(r.level)})
+	var i := 0
+	for part in spec.split(","):
+		var kv := part.split(":")
+		if kv.size() == 2:
+			out.append({"id": -1 - i, "name": kv[0], "level": kv[1].to_int() + (1 if level_first and i == 0 else 0)})
+			i += 1
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.name).nocasecmp_to(str(b.name)) < 0)
+	return out
+
+
 ## "ash_wood:12,stone:4" -> {"ash_wood": 12, "stone": 4} (the --open-pack test hook).
 static func _pack_spec(spec: String) -> Dictionary:
 	var inv := {}
@@ -182,6 +217,10 @@ func _screenshot_later(path: String, wait: float) -> void:
 			var first := str(inv.keys()[0])
 			inv[first] = int(inv[first]) + 1
 			pack_window.seed_pack(inv)
+		await get_tree().create_timer(0.4).timeout
+	elif str(_args.get("open-players", "")).contains(":"):
+		await get_tree().create_timer(maxf(0.0, wait - 0.4)).timeout
+		players_panel.on_roster(_players_spec(str(_args["open-players"]), players_panel.entries, true))
 		await get_tree().create_timer(0.4).timeout
 	elif _args.has("show-toast"):
 		# Test hook (--show-toast=ash_wood): a "+2 Ash wood" toast with its icon, just before the shot.
@@ -226,6 +265,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			skills_window.close()
 		elif pack_window.visible:
 			pack_window.close()
+		elif players_panel.visible:
+			players_panel.close()
 		elif craft_window.visible:
 			craft_window.close()
 		elif chat_edit.has_focus():
@@ -241,7 +282,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not logged_in or settings_menu.visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_controls"):
-		if not craft_window.visible and not skills_window.visible and not pack_window.visible:
+		if not craft_window.visible and not skills_window.visible and not pack_window.visible and not players_panel.visible:
 			controls_overlay.toggle()
 			if controls_overlay.visible:
 				chat_edit.release_focus()
@@ -256,7 +297,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_pack()
 		get_viewport().set_input_as_handled()
 		return
-	if controls_overlay.visible or skills_window.visible or pack_window.visible:
+	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_players"):
+		_toggle_players()
+		get_viewport().set_input_as_handled()
+		return
+	if controls_overlay.visible or skills_window.visible or pack_window.visible or players_panel.visible:
 		return
 	if craft_window.visible:
 		if event is InputEventKey and event.pressed and not event.echo and event.is_action("interact"):
@@ -303,12 +348,12 @@ func _apply_settings(s: ClientSettings) -> void:
 
 ## True while a window that frees the cursor is open (Settings, the workbench, the F1 controls).
 func window_open() -> bool:
-	return settings_menu.visible or craft_window.visible or controls_overlay.visible or skills_window.visible or pack_window.visible
+	return settings_menu.visible or craft_window.visible or controls_overlay.visible or skills_window.visible or pack_window.visible or players_panel.visible
 
 
 ## K or the Skills button: open or shut the skills window (not over another window).
 func _toggle_skills() -> void:
-	if craft_window.visible or controls_overlay.visible or settings_menu.visible or pack_window.visible:
+	if craft_window.visible or controls_overlay.visible or settings_menu.visible or pack_window.visible or players_panel.visible:
 		return
 	skills_window.toggle()
 	if skills_window.visible:
@@ -318,10 +363,20 @@ func _toggle_skills() -> void:
 
 ## I or the Pack button: open or shut the pack window (not over another window).
 func _toggle_pack() -> void:
-	if craft_window.visible or controls_overlay.visible or settings_menu.visible or skills_window.visible:
+	if craft_window.visible or controls_overlay.visible or settings_menu.visible or skills_window.visible or players_panel.visible:
 		return
 	pack_window.toggle()
 	if pack_window.visible:
+		chat_edit.release_focus()
+		sfx_chime.play()
+
+
+## O or the Players button: open or shut the players panel (not over another window).
+func _toggle_players() -> void:
+	if craft_window.visible or controls_overlay.visible or settings_menu.visible or skills_window.visible or pack_window.visible:
+		return
+	players_panel.toggle()
+	if players_panel.visible:
 		chat_edit.release_focus()
 		sfx_chime.play()
 
@@ -339,6 +394,7 @@ func _process(delta: float) -> void:
 	xp_meter.step(delta)
 	level_up_banner.step(delta)
 	pack_window.step(delta)
+	players_panel.step(delta)
 	_step_goal(delta)
 	var t := 1.0 - exp(-14.0 * delta)
 	for id in avatars:
@@ -524,6 +580,8 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	controls_button.visible = true
 	skills_button.visible = true
 	pack_button.visible = true
+	players_button.visible = true
+	players_panel.set_me(id)
 	goal_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
 	cam.place(Vector3(character.x, character.y, character.z), character.yaw + PI)
@@ -559,6 +617,9 @@ func _on_server_disconnected() -> void:
 	skills_button.visible = false
 	pack_window.reset()
 	pack_button.visible = false
+	players_panel.reset()
+	players_button.visible = false
+	players_button.text = PlayersPanel.button_text(0)
 	goal_label.visible = false
 	goal_label.text = ""
 	_goal_key = ""
@@ -661,6 +722,12 @@ func _on_xp(skill: String, gained: int, total_xp: int) -> void:
 
 ## The gather prompt and the workbench read your levels too: a tier-2 node or an ember tool
 ## above your level says what it needs instead of offering E or Craft.
+## s2c_roster: everyone online, for the players panel and the count on its button.
+func _on_roster(entries: Array) -> void:
+	players_panel.on_roster(entries)
+	players_button.text = PlayersPanel.button_text(players_panel.entries.size())
+
+
 func _share_skills() -> void:
 	gather_prompt.skills = skills_window.skills.duplicate()
 	craft_window.on_skills(skills_window.skills)
@@ -966,8 +1033,8 @@ func _build_ui() -> void:
 	help_label.text = ControlsOverlay.corner_hint()
 	help_label.anchor_left = 1.0
 	help_label.anchor_right = 1.0
-	help_label.offset_left = -520
-	help_label.offset_right = -180
+	help_label.offset_left = -610
+	help_label.offset_right = -270
 	help_label.offset_top = 12
 	help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	help_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
@@ -989,7 +1056,7 @@ func _build_ui() -> void:
 	controls_button.offset_bottom = 38
 	controls_button.visible = false
 	controls_button.pressed.connect(func():
-		if not craft_window.visible and not settings_menu.visible and not skills_window.visible and not pack_window.visible:
+		if not craft_window.visible and not settings_menu.visible and not skills_window.visible and not pack_window.visible and not players_panel.visible:
 			controls_overlay.toggle()
 			sfx_chime.play())
 	ui.add_child(controls_button)
@@ -1026,6 +1093,22 @@ func _build_ui() -> void:
 	pack_button.pressed.connect(_toggle_pack)
 	ui.add_child(pack_button)
 
+	# "Players 5" button left of "Pack": the same panel as O, with the live head count.
+	players_button = Button.new()
+	players_button.theme = theme
+	players_button.text = PlayersPanel.button_text(0)
+	players_button.tooltip_text = "Who is online (%s)" % ControlsOverlay.key_text("toggle_players")
+	players_button.focus_mode = Control.FOCUS_NONE
+	players_button.anchor_left = 1.0
+	players_button.anchor_right = 1.0
+	players_button.offset_left = -262
+	players_button.offset_right = -180
+	players_button.offset_top = 10
+	players_button.offset_bottom = 38
+	players_button.visible = false
+	players_button.pressed.connect(_toggle_players)
+	ui.add_child(players_button)
+
 	# The F1 controls overlay, centre screen.
 	perf_overlay = PerfOverlay.new()
 	perf_overlay.setup(theme)
@@ -1047,6 +1130,12 @@ func _build_ui() -> void:
 	pack_window.setup(theme)
 	pack_window.closed.connect(func(): sfx_chime.play())
 	ui.add_child(pack_window)
+
+	# The O players panel, centre screen.
+	players_panel = PlayersPanel.new()
+	players_panel.setup(theme)
+	players_panel.closed.connect(func(): sfx_chime.play())
+	ui.add_child(players_panel)
 
 	# The workbench window, centre screen (E at the Spawn Meadow workbench).
 	craft_window = CraftWindow.new()

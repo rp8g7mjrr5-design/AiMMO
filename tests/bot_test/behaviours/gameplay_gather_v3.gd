@@ -446,7 +446,8 @@ func _check_payout() -> void:
 	if _test == Test.FARM:
 		farmed += 1
 		_farmed += 1
-	if _result_count <= 0:
+	# A full stack still finishes "done" and pays XP, but sends no result (nothing landed).
+	if _result_count <= 0 and int(_pack.get(_item, 0)) < Inventory.MAX_STACK:
 		fail("gather done but no s2c_gather_result")
 	var item := _item
 	var before := _pack_before

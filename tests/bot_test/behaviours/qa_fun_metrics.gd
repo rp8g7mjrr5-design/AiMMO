@@ -35,6 +35,8 @@ func setup(net: Node) -> void:
 	net.gather_result.connect(_on_gather_result)
 	net.craft_result.connect(_on_craft_result)
 	net.xp_gained.connect(func(_skill: String, _gained: int, _total: int): m.feedback(bot.elapsed))
+	# Return to Spawn Meadow (protocol v5): its answer is the game responding to the press.
+	net.unstuck_result.connect(func(_ok: bool, _text: String, _wait: float): m.feedback(bot.elapsed))
 	net.level_up.connect(func(_skill: String, _level: int, _unlocks: Array):
 		m.level_up(bot.elapsed)
 		m.expect_echo("level", bot.elapsed))

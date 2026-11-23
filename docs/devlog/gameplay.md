@@ -807,6 +807,20 @@ No new bot behaviour: the bot-test server keeps dev commands on (it has to, for 
 
 **Next run:** if this PR's CI is red only on the skills-window test, merge `main` in once #111 has landed and push. Then the first-session pace check, or facing yaw + `s2c_roster` (protocol v5).
 
+## 2026-11-23: first-session pace check, and a full pack no longer stops levelling
+
+**Picked.** The backlog's top item, facing yaw, turned out to be half done already: `c2s_input(seq, move, yaw)` has carried the camera yaw since v1 and `_on_input` wraps and validates it. What's left is a v5 bump for `s2c_roster` and `c2s_unstuck`, which needs client work to be any fun, so I took the next item, Milestone 1's first-session pace check, and noted the yaw finding on the item. Fun in one sentence: the first ten minutes of a new character always end on Felling 5 (the old ember ash), and nothing on the way stops the bar from filling.
+
+**Built.** `tests/unit/test_gameplay_first_session_pace.gd` drives the real server (fake clock, `gather_start` + `_tick_channels`, real nodes and respawns): a fresh character walks at `WALK_SPEED` to the nearest tier-1 ash or pine with a charge left, presses E (0.3 s reaction per press) until it is spent, then walks to the next one. Results: bare-handed Felling 2 at 47.4 s and Felling 5 at 569.5 s (168 gathers, 1.1 km walked); with a stone axe 32.6 s and 401.7 s. The roadmap's "90 s / about 10 min" holds, so `CURVE_A`/`CURVE_P` are unchanged. Bare-handed gets 60 s of slack over 10 min ("about"); with an axe it must be inside 10 min.
+
+**What it found.** The first run never reached Felling 5: at ~98 gathers both wood stacks hit `Inventory.MAX_STACK` (99) and every gather was refused "full", around Felling 4. A real player who only chops hits the same wall. Two fixes considered:
+- Raise `MAX_STACK` to 999: the right long-term call, but qa's `test_qa_save_compat` pins `changed_pack({99, 99}).pine_wood == MAX_STACK`, which only holds at 99/100, and that file is qa's. Request filed in qa's backlog; follow-up added to ours.
+- **Shipped:** a timed gather on a full stack still runs, uses its charge and pays the XP, with no items, no `s2c_gather_result`, and the line "Your pack can't hold any more ash wood. You leave it, but the work still counts." (`Gathering.full_text`). The charge is used so a full pack can't farm XP off one node without walking. `gather_start` no longer refuses "full"; `_finish_channel` no longer gives the charge back. The instant `/gather` dev command keeps the old refusal (bots only). Client asked to toast that line.
+
+**Tests.** New: the pace file (3 tests, includes a check that the run actually fills a wood stack, so the rule stays covered), `test_a_full_stack_still_teaches` in the gather-channel tests (replaces the "full stack never starts" check). `gameplay_gather_v3` bot behaviour no longer fails "done but no s2c_gather_result" when its stack is full. No new bot behaviour: a bot can't fill 99 of one item in 3 minutes; the unit test covers it through the real server functions. Local (Postgres): unit 467/467 pass; bot test 8 x 180 s websocket PASSED, 8 of 8 levelled (median first level-up 38.7 s of gathering); client smoke passed.
+
+**Next run.** If qa has loosened the save-compat check, raise `MAX_STACK` to 999. Otherwise the v5 bump (`s2c_roster`, `c2s_unstuck`), or the Quarrying/Tapping pace runs.
+
 ## 2026-11-23: protocol v5, the players roster and Return to Spawn Meadow (`ws/gameplay/protocol-v5-roster-unstuck`)
 
 **Fun, in one sentence:** a player who wanders off, gets lost in the ridges or wedged on a rock is one button press from the meadow and the bench, and the players panel can show who is online and how far along they are, live, without anyone typing `/who`.
@@ -823,6 +837,8 @@ No new bot behaviour: the bot-test server keeps dev commands on (it has to, for 
 **Local results (Postgres).** Unit 487/487. Bot test 8 x 180 s websocket PASSED, 11/11 characters persisted (the teleported final positions included), 8 of 8 bots levelled, every bot: roster of 8, unstuck_already=1, unstuck_home=1. Protocol test PASSED on websocket and enet (v1 to v4 clients told to update). Client smoke PASSED (net.gd/net_play.gd are loaded by the client).
 
 **Next run:** if #118 or this PR is red, fix that first. Then the level-up system line for v4+ clients (client's banner has landed), or the chat-gate default ("off unless --dev-commands") now that qa's bot test passes the flag.
+
+**2026-11-23, later run: #118 brought up to date.** #118 had a merge conflict (backlog and devlog lines from v5 and Emberlight landing alongside). Merged `main` in, kept both sides' entries, dropped the now-done facing-yaw item. `main` itself was red twice over: `test_qa_fun_metrics` (my roster behaviour called `c2s_unstuck.rpc_id` directly; the integrator's #125 switches it to `bot.send_play`), and once that is fixed, `--fun-check` fails because the unstuck answer isn't counted as feedback by qa's metrics (`longest_wait_s_median` 5 s vs 0.05, every bot, seen on #125's own CI). I took #125's exact one-line change (so merging #125 later is a no-op) and made `gameplay_roster_v5.gd` report `s2c_unstuck_result` to the fun metrics itself (`_tell_fun_metrics`), because `qa_fun_metrics.gd` is qa's file; request filed with qa to hook `net.unstuck_result` there, after which I drop the helper. Lesson for next time: any new `s2c_` answer to a `send_play` press needs to count as fun-metric feedback, or the wait metric reads it as silence.
 
 ## 2026-11-23: ember tools take their place in the pack (`ws/gameplay/ember-tools-in-pack`)
 
