@@ -6,35 +6,35 @@ extends PanelContainer
 ## it all. Owner direction 1: crafting is a window, not a chat command.
 ##
 ## The server decides everything (Crafting.check on its own copy of the pack and position).
-## Until protocol v3/v4 brings c2s_craft and s2c_inventory, the window talks through the same
-## hidden chat commands the bots use: opening it sends "/bag" and Craft sends "/craft <id>",
-## and their replies are shown here instead of in chat. The client keeps a mirror of the pack
-## from those replies and from gather lines ("(6 in your pack)"), only to light the buttons.
+## The window talks protocol v3 only: Craft emits `craft_requested(recipe_id)`, which the
+## client sends as `net.play.c2s_craft`; the answer comes back as `craft_result` and goes to
+## on_craft_result(). The pack comes from the login character and every `s2c_inventory`
+## (seed_pack), so the window never sends or reads a chat line.
 ## All the rules are static functions so they are unit tested headless.
 
 signal closed
+## Craft was pressed for `recipe_id`: send it to the server (c2s_craft).
+signal craft_requested(recipe_id: String)
 
 const WIDTH := 600.0 ## room for a part icon before each "Ash wood 2/3"
-const REPLY_TIMEOUT := 1.5 ## seconds to wait for an answer (the chat cooldown drops lines silently)
-const SEND_GAP := GameConfig.CHAT_COOLDOWN + 0.1 ## never send faster than the server listens
+const REPLY_TIMEOUT := 3.0 ## seconds to wait for craft_result before the buttons light again
 const CLOSE_SLACK := 1.0 ## m past BENCH_RANGE before walking away closes the window
 const OK_COLOR := Color(0.62, 0.92, 0.55)
 const SHORT_COLOR := Color(1.0, 0.55, 0.45)
 const ACCENT := GatherPrompt.ACCENT
 const DIM := Color(0.85, 0.85, 0.85, 0.7)
+const WORKING := "Crafting..."
+const NO_ANSWER := "The bench didn't answer. Try again."
 
-var pack := {} ## the client's mirror of the pack
+var pack := {} ## the pack as the server last sent it
 var pack_known := false
 var pos := Vector3.ZERO ## where you stand, for the bench check
 var status_label: Label
 ## Where the icons come from (set by the client; without one, world's cache draws them).
 var icons: IconShelf
 var _rows := {} ## recipe id -> {needs: RichTextLabel, button: Button}
-var _awaiting := "" ## "bag", "craft:<id>" or ""
+var _awaiting := "" ## the recipe id sent and not answered yet, or ""
 var _awaiting_age := 0.0
-var _since_send := INF
-var _queue: Array = [] ## lines to send, oldest first
-var _last_crafted := ""
 
 
 # --- rules (static, unit tested) ---
@@ -47,72 +47,6 @@ static func near_bench(p: Vector3) -> bool:
 ## True once you have walked far enough from the bench that the open window closes.
 static func walked_away(p: Vector3) -> bool:
 	return Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ) > Crafting.BENCH_RANGE + CLOSE_SLACK
-
-
-## "Your pack: 4 ash wood, 2 stone." -> {"ash_wood": 4, "stone": 2}; "Your pack is empty..."
-## -> {}; any other line -> null. Unknown labels are kept by their words, like Inventory does.
-static func parse_pack(text: String) -> Variant:
-	if text.begins_with("Your pack is empty"):
-		return {}
-	if not text.begins_with("Your pack: "):
-		return null
-	var body := text.substr("Your pack: ".length()).strip_edges()
-	if body.ends_with("."):
-		body = body.left(body.length() - 1)
-	var out := {}
-	var re := RegEx.create_from_string("^(\\d+) (.+)$")
-	for part in body.split(", ", false):
-		var m := re.search(part.strip_edges())
-		if m == null:
-			return null
-		out[item_for_label(m.get_string(2))] = m.get_string(1).to_int()
-	return out
-
-
-## Item id for a label as the server writes it ("ash wood" -> "ash_wood").
-static func item_for_label(label: String) -> String:
-	for id in Inventory.ITEMS:
-		if Inventory.label(id).to_lower() == label.to_lower():
-			return id
-	return label.to_lower().replace(" ", "_")
-
-
-## The pack after a server line, or null if the line says nothing about the pack.
-## Knows "Your pack: ...", gather successes ("(6 in your pack)") and, when `crafted` names the
-## recipe just sent (or, if it doesn't, the recipe the line itself names: a craft typed as a dev
-## command or sent by something else), "You craft ..." (ingredients used up, product added).
-static func apply_line(inv: Dictionary, text: String, crafted: String = "") -> Variant:
-	var listed: Variant = parse_pack(text)
-	if listed != null:
-		return listed
-	var gain := GatherPrompt.parse_gain(text)
-	if not gain.is_empty() and str(gain.item) != "":
-		var out := inv.duplicate()
-		out[str(gain.item)] = int(gain.in_pack)
-		return out
-	if text.begins_with("You craft") and not Crafting.is_recipe(crafted):
-		crafted = crafted_in(text)
-	if text.begins_with("You craft") and Crafting.is_recipe(crafted):
-		var r: Dictionary = Crafting.RECIPES[crafted]
-		var out := inv.duplicate()
-		for item in r.needs:
-			out[item] = maxi(0, Inventory.count(out, item) - int(r.needs[item]))
-		var m := RegEx.create_from_string("\\((\\d+) in your pack\\)").search(text)
-		out[crafted] = m.get_string(1).to_int() if m else mini(Inventory.MAX_STACK, Inventory.count(out, crafted) + int(r.makes))
-		return out
-	return null
-
-
-## The recipe a "You craft ..." line (Crafting.success) is about, or "" if none matches:
-## "You craft a stone axe. ..." -> "stone_axe", "You craft 3 torches (6 in your pack)." -> "torch".
-static func crafted_in(text: String) -> String:
-	for id in Crafting.RECIPE_ORDER:
-		var label: String = Crafting.RECIPES[id].label
-		if text.begins_with("You craft a %s." % label) or text.begins_with("You craft a %s (" % label):
-			return id
-		if RegEx.create_from_string("^You craft \\d+ %ses \\(" % label).search(text):
-			return id
-	return ""
 
 
 ## One recipe as the window shows it, for a pack and a position:
@@ -157,22 +91,6 @@ static func parts_bbcode(parts: Array) -> String:
 		var c: Color = OK_COLOR if bool(p.ok) else SHORT_COLOR
 		out.append("[color=#%s]%s %d/%d[/color]" % [c.to_html(false), p.label, int(p.have), int(p.need)])
 	return "  ·  ".join(out)
-
-
-## What the window says about a server line it was waiting for: {text, ok}, or {} if the
-## line isn't an answer to `awaiting` ("craft:<id>"). Refusals and successes both count.
-static func craft_reply(text: String, awaiting: String) -> Dictionary:
-	if not awaiting.begins_with("craft:"):
-		return {}
-	if text.begins_with("You craft"):
-		return {"text": text, "ok": true}
-	for p in ["You need", "You already carry", "No room in your pack", "Unknown recipe", "Craft what?"]:
-		if text.begins_with(p):
-			return {"text": text, "ok": false}
-	var id := awaiting.substr(6)
-	if Crafting.is_recipe(id) and text.begins_with("A %s needs the workbench" % Crafting.RECIPES[id].label):
-		return {"text": text, "ok": false}
-	return {}
 
 
 ## The toast for a craft: "Crafted: Stone axe!" / "Crafted: 3 Torches!".
@@ -253,7 +171,7 @@ func setup(theme_res: Theme) -> void:
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(96, 36)
 		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		button.pressed.connect(craft.bind(id))
+		button.pressed.connect(func(): craft(id))
 		line.add_child(button)
 		_rows[id] = {"icon": product, "name": name_label, "needs": needs, "hint": hint, "button": button}
 	box.add_child(HSeparator.new())
@@ -278,8 +196,9 @@ func setup(theme_res: Theme) -> void:
 func open(p: Vector3) -> void:
 	pos = p
 	visible = true
-	status_label.text = "" if pack_known else "Checking your pack..."
-	_send("/bag", "bag")
+	if not is_waiting():
+		status_label.text = "" if pack_known else "Checking your pack..."
+		status_label.modulate = Color.WHITE
 	refresh()
 
 
@@ -290,22 +209,21 @@ func close() -> void:
 	closed.emit()
 
 
-## Craft button: asks the server to make `id`.
-func craft(id: String) -> void:
-	if _awaiting.begins_with("craft:") or not _queue.is_empty():
-		return
-	_last_crafted = id
-	status_label.text = "Crafting..."
+## Craft button: asks the server to make `id` (one request at a time). False when nothing
+## was sent: the pack isn't known yet, an answer is still due, or `id` is no recipe.
+func craft(id: String) -> bool:
+	if not pack_known or is_waiting() or not Crafting.is_recipe(id):
+		return false
+	_awaiting = id
+	_awaiting_age = 0.0
+	status_label.text = WORKING
 	status_label.modulate = Color.WHITE
-	_send("/craft %s" % id, "craft:" + id)
 	refresh()
+	craft_requested.emit(id)
+	return true
 
 
-func _send(line: String, what: String) -> void:
-	_queue.append([line, what])
-
-
-## Lights each row from the mirrored pack and where you stand.
+## Lights each row from the pack and where you stand.
 func refresh() -> void:
 	for id in _rows:
 		var w: Dictionary = _rows[id]
@@ -345,73 +263,40 @@ func _fill_needs(needs: RichTextLabel, parts: Array) -> void:
 		needs.pop()
 
 
-## Every frame while logged in. Returns the chat line to send now, or "".
-func tick(delta: float, p: Vector3) -> String:
+## Every frame while logged in: closes the window when you walk off, and gives up on an
+## answer that never came so the buttons light again.
+func tick(delta: float, p: Vector3) -> void:
 	pos = p
-	_since_send += delta
 	if _awaiting != "":
 		_awaiting_age += delta
 		if _awaiting_age > REPLY_TIMEOUT:
-			# The line was dropped (chat cooldown) or the reply got lost: ask again once.
-			var what := _awaiting
 			_awaiting = ""
-			if what == "bag" and visible:
-				_send("/bag", "bag")
-			elif what.begins_with("craft:"):
-				status_label.text = "The bench didn't answer. Try again."
-				refresh()
+			status_label.text = NO_ANSWER
+			status_label.modulate = SHORT_COLOR
+			refresh()
 	if visible and walked_away(p):
 		close()
-	if _awaiting == "" and not _queue.is_empty() and _since_send >= SEND_GAP:
-		var next: Array = _queue.pop_front()
-		_awaiting = str(next[1])
-		_awaiting_age = 0.0
-		_since_send = 0.0
-		refresh()
-		return str(next[0])
-	return ""
 
 
-## A server line. Returns {consumed: bool (keep it out of chat), crafted: id or "", ok}.
-func on_system(text: String) -> Dictionary:
-	var crafted := _awaiting.substr(6) if _awaiting.begins_with("craft:") else ""
-	var next: Variant = apply_line(pack, text, crafted)
-	var out := {"consumed": false, "crafted": "", "ok": false}
-	if next != null:
-		pack = next
-		if parse_pack(text) != null:
-			pack_known = true
-			if _awaiting == "bag":
-				_awaiting = ""
-				out.consumed = true
-				if status_label.text == "Checking your pack...":
-					status_label.text = ""
-	var reply := craft_reply(text, _awaiting)
-	if not reply.is_empty():
+## The server's craft_result. Shows its words (a success in the ember accent, a refusal in
+## red) and returns {crafted: the recipe id on a success, else "", ok}. The pack itself
+## follows as s2c_inventory on the server's next tick.
+func on_craft_result(recipe_id: String, ok: bool, text: String) -> Dictionary:
+	if recipe_id == _awaiting:
 		_awaiting = ""
-		out.consumed = true
-		out.ok = bool(reply.ok)
-		status_label.text = str(reply.text)
-		status_label.modulate = ACCENT if reply.ok else SHORT_COLOR
-		if reply.ok:
-			out.crafted = crafted
-		elif text.begins_with("You need"):
-			_send("/bag", "bag") # the mirror was stale; look again
+	status_label.text = text
+	status_label.modulate = ACCENT if ok else SHORT_COLOR
 	refresh()
-	return out
+	return {"crafted": recipe_id if ok and Crafting.is_recipe(recipe_id) else "", "ok": ok}
 
 
 ## True from a Craft press until its answer (or the timeout).
 func _crafting() -> bool:
-	if _awaiting.begins_with("craft:"):
-		return true
-	for q in _queue:
-		if str(q[1]).begins_with("craft:"):
-			return true
-	return false
+	return _awaiting != ""
 
 
-## The pack the server sent with the login character: the mirror's starting point.
+## The pack as the server sends it (the login character's `inventory`, then every
+## s2c_inventory). Anything that isn't a Dictionary is ignored.
 func seed_pack(inv: Variant) -> void:
 	if typeof(inv) == TYPE_DICTIONARY:
 		pack = Inventory.to_wire(Inventory.normalize(inv))
@@ -420,7 +305,7 @@ func seed_pack(inv: Variant) -> void:
 
 
 func is_waiting() -> bool:
-	return _awaiting != "" or not _queue.is_empty()
+	return _awaiting != ""
 
 
 func reset() -> void:
@@ -428,5 +313,6 @@ func reset() -> void:
 	pack = {}
 	pack_known = false
 	_awaiting = ""
-	_queue.clear()
-	_since_send = INF
+	_awaiting_age = 0.0
+	if status_label:
+		status_label.text = ""

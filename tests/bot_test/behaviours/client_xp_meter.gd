@@ -29,6 +29,10 @@ func on_login(_reconnect: bool, _character: Dictionary) -> void:
 		_meter.setup(Theme.new())
 	else:
 		_meter.hide_all() # as the client does on disconnect; s2c_skills seeds it again
+	# A gain that landed in the pause before the disconnect was cleared with the bar: don't
+	# check it (gameplay's request, 2026-11-23).
+	_pending = false
+	_age = 0.0
 
 
 func _on_xp(skill: String, gained: int, total_xp: int) -> void:
