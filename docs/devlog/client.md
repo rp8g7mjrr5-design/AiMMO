@@ -1227,3 +1227,49 @@ if the goal is in a skill the bot never trained (stat `goals_in_trained_skills`)
 toast is proven only by unit tests on the server's own `Gathering.full_text` lines.
 
 **Next run:** client-side prediction, or moving the art checks out of the bot behaviours.
+
+## 2026-11-23: client-side prediction (ws/client/prediction)
+
+**Why this:** top unblocked backlog item, and the biggest "feels like a modern action MMO" gain
+left in movement. No requests from other streams were waiting on client. Before this your own
+avatar was eased toward the server's snapshots like everyone else's, so every key press waited
+a round trip plus the easing before your feet moved (about 150 ms on a good connection, far
+more on a bad one). A player will feel the wanderer start, stop and turn on the frame they
+press the key.
+
+**Built:** `Prediction` (`game/client/prediction.gd`, pure, no nodes).
+- Every frame `advance(seq + 1, move, dt)` runs the shared `Movement.step` locally and keeps the
+  walk in `pending`, labelled with the input seq that will carry it (merged per seq and move,
+  so about one entry per tick; standing still isn't kept because it replays as nothing).
+- Each snapshot `reconcile(server_pos, net.last_ack_seq)` drops acked walks, replays the rest
+  on the server's position, and eases the difference out at `CORRECTION_RATE` 10/s. Past
+  `SNAP_DISTANCE` 4 m it snaps (Return to Spawn Meadow, reconnects).
+- While walking, a disagreement under `WALK_DEADZONE` (1.2 ticks of walk, 0.36 m) is left
+  alone: the server steps whole 50 ms ticks from whenever an input arrives and the client
+  steps frames, so up to a tick is timing, not error. Correcting it made the drawn position
+  shiver along the walk. Standing still it settles exactly onto the server.
+- `client.gd`: your avatar's node is placed at `prediction.position` instead of lerping;
+  others are unchanged. The login character places it; disconnect resets it. Your own yaw is
+  set when the input goes out, and the snapshot's echo of it is ignored.
+
+**Tests:** `test_client_prediction.gd` (10 tests) runs the client's real send loop against a
+server tick with 20/60/150 ms one-way delay at 30/60/144 fps: no backward step while walking
+straight, no snaps, disagreement under 2x the deadzone, exact settle after stopping, about a
+round trip of lead over the server, walls hold in the replay, bad input ignored. Bot
+behaviour `client_prediction` runs the same class on each bot against the real server (walks
+whatever bot.gd actually sent, via call_deferred after the frame's input goes out, because
+other behaviours zero `bot.move` after `on_play`). In the 8-bot run: ~3,550 reconciles per
+bot, mean disagreement 8 to 11 mm, max 0.22 to 0.48 m, one snap each (the Return to Spawn
+Meadow teleport). Unit tests: 600 passed with Postgres. 8-bot 180 s WebSocket bot test:
+PASSED. Client smoke test: passed.
+
+**Didn't work first time:** I kept standing-still frames in `pending`; unsent zero inputs
+(the client skips sending while idle) never got acked, so the list held half a second of
+nothing. Dropping zero walks fixed it.
+
+**Known gaps:** localhost bots see almost no latency, so the bot numbers prove agreement, not
+the feel on a 150 ms link (the unit sim covers that). The server applies the latest input
+per tick rather than per input, so a quick tap shorter than a tick can be walked for a whole
+tick server-side; the ease hides it (at most 0.3 m).
+
+**Next run:** the art checks out of the bot behaviours (qa's request), or the F3 prediction numbers.

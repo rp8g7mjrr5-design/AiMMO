@@ -1092,6 +1092,30 @@ while `client.gd` sends at the tick rate, so today's up number overstates a real
 above 1.25 ms that's fine (only a note), but if `tick_rate_min` is near 18 on CI, the runner is
 starved, not the server: look at the bots' clocks before loosening it.
 
+## 2026-11-23 — image test switches dev commands on for its bots (`ws/qa/image-test-dev-commands`)
+
+**Why it's more fun:** plumbing that unblocks gameplay's #139 (chat is for talking on every
+server, owner direction 1). Without it, #139 turns the image test red because its two bots
+type /time, /who and /skills and get no reply once dev commands default to off.
+
+**Built:** `tests/ops/run_image_test.py`: the `plays` container now starts with
+`AIMMO_DEV_COMMANDS=1` (the image's CMD takes no flags, so the env var is the only switch an
+operator has) and the boots step checks the log says
+`[server] dev commands: on (AIMMO_DEV_COMMANDS)`, so a broken switch fails loudly instead of as
+nine confusing bot failures. The `frozen` container keeps the image's default and only prints
+its `dev commands:` line (a note, not a check), because on `main` before #139 the default is
+`on (local default)` and after it `off (default)`; gating it would make this PR depend on #139.
+
+**Tested locally:** unit tests (Postgres), full bot test 8 x 180 s WebSocket, and the image
+test's `plays` and `frozen` scenarios against an image built from this branch, then again with
+#139's `chat_commands.gd` dropped in (not committed) to prove the fix. The sandbox can't run the
+Dockerfile's apt/curl layer through its proxy, so the local image swapped that one layer for
+the same Godot 4.3 binary copied in; CI builds the real Dockerfile. `contents` was not run
+locally for that reason (it checks the packages that layer installs).
+
+**Next run:** once #139 lands, consider making `frozen` assert `dev commands: off` so the
+public image's default is pinned by a test, not just the unit test on `dev_commands_on`.
+
 ## 2026-11-23 — smoke shots for the client's hooks (`ws/qa/smoke-client-hooks`)
 
 **Fun:** none directly; it keeps the F1 overlay, the haul toast with its XP floater (the
@@ -1121,5 +1145,4 @@ backlog to then assert Low's primitives are below noon's.
 Postgres PASSED in 276 s, client smoke passed locally (noon notes are the same drift main
 already shows: night moved toward the art bible since the baseline was taken).
 
-**Next run:** if #147 and this PR both append here, whichever lands second gets a devlog
-conflict: merge main in and keep both entries.
+**Next run:** (integrator 2026-11-23: #147 landed first; merged main in and kept both entries.)
