@@ -847,3 +847,11 @@ equals `LevelUpBanner.announcement(...)` so it would be kept out of chat.
 **Notes to next run:** merge `main` into #101 and this PR once world fixes the palette lint.
 Then part 3 (skills window on K + the next-goal line); `LevelUpBanner.next_text` already builds
 the "Next: Felling 10, Clean cuts" string the goal line wants.
+
+**Later run, 2026-11-23 (fix-up):** #101 landed, then #102 had conflicts in `client.gd` (both
+added handlers next to each other), the client devlog and the client/gameplay/world backlogs.
+Merged `main` in and kept both sides. World fixed the palette lint on `main` (#103), so I took
+my request out of world's backlog. Gameplay's #104 made the old ember ash live, so the unit test
+that expected "(coming soon)" on Felling 5 now checks the live text and tests the tag on a copy
+with `soon` set. Unit tests (431), the 8-bot 180 s WebSocket bot test (8 of 8 levelled) and the
+client smoke test pass locally.
