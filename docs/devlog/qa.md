@@ -1115,3 +1115,34 @@ locally for that reason (it checks the packages that layer installs).
 
 **Next run:** once #139 lands, consider making `frozen` assert `dev commands: off` so the
 public image's default is pinned by a test, not just the unit test on `dev_commands_on`.
+
+## 2026-11-23 — smoke shots for the client's hooks (`ws/qa/smoke-client-hooks`)
+
+**Fun:** none directly; it keeps the F1 overlay, the haul toast with its XP floater (the
+"you got something" moment) and the Low look from breaking unseen, and found that Low doesn't
+yet make the game cheaper to draw.
+
+**Built:** `tests/client_smoke/run.sh` takes three more shots at noon as SmokeTester:
+`controls.png` (`--open-controls`), `toast-xp.png` (`--show-toast=ash_wood --show-xp`) and
+`world-low.png`. They're in the "missing screenshot" list, on the contact sheet, and the login
+check now wants 5 SmokeTester logins. `style_check.gd` gained `SAME_AS = {low: noon}` (Low uses
+noon's luma floor, targets and baseline, so "the look must hold on Low" has teeth) and
+`HARD_ONLY = [controls, toast]` (ember under 10%, not black; no baseline, because what the HUD
+shows is client's to change). `--write-baseline` only writes noon and night. Two unit tests.
+
+**Decisions:** there is no `--graphics=low` hook in `client.gd`, and I can't add one (client's
+file). Low is a saved setting, so the Low run gets `XDG_DATA_HOME=$OUT/xdg-low` with a
+`settings.cfg` holding what `apply_quality(LOW)` saves (graphics 0, shadows 1, 400 m). That's the
+path a real player takes (pick Low, restart) and never touches a developer's own settings.
+Godot writes `user://logs/godot.log`, so a log in that folder proves the run read it.
+
+**Found:** `world-low.png` matches the noon shot almost exactly (style numbers within 0.001).
+`client.gd` builds the world before `_apply_settings`, so `Quality.level` is still Medium when
+flora reads its density. Filed in client's requests with a one-line fix. Follow-up in my
+backlog to then assert Low's primitives are below noon's.
+
+**Tests:** unit 592/592 (Postgres), ops tests pass, bot test 8 bots / 180 s / WebSocket /
+Postgres PASSED in 276 s, client smoke passed locally (noon notes are the same drift main
+already shows: night moved toward the art bible since the baseline was taken).
+
+**Next run:** (integrator 2026-11-23: #147 landed first; merged main in and kept both entries.)
