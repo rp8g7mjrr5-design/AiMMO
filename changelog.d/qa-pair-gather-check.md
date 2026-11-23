@@ -1,1 +1,0 @@
-- Behind the scenes: our test players now meet at the same tree on purpose and chop it together every build, so gathering side by side with a friend keeps working (and the build no longer fails at random when they didn't happen to meet).
