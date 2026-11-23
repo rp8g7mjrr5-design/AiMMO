@@ -444,3 +444,13 @@ nothing the client loads changed.
 
 **Next run:** if this PR's CI shows the Debian build failing, fix that first. Then v3 gathering
 in CI if `c2s_gather_start` is on main, otherwise the server performance check in the bot test.
+
+**CI found a real bug on the first run (fixed in this PR):** the real Debian image built fine,
+but the image test failed on `ERROR: Failed to send ID to newly connected peer.` in the
+container log. Cause: `docker/probe.sh` hung up as soon as it read `101 Switching Protocols`,
+and Godot's WebSocket server sends the new peer its ID right after the handshake; when the probe
+had already closed, that send failed and logged an ERROR. It happened on 1 of 300 probes
+against the container here, 0 of 200 straight on the host, which is why the watchdog test
+never saw it. Live, the watchdog probes every 20 s, so Railway's log would have collected one
+of these every couple of hours. The probe now reads the rest of the headers and waits (up to
+2 s) for that first frame before closing: 0 errors in 600 probes, about 33 ms each.
