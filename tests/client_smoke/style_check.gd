@@ -2,7 +2,8 @@ extends SceneTree
 ## Emberlight style check for the client smoke test's screenshots (art bible, "Colour").
 ##
 ##   godot --headless --path game -s tests/client_smoke/style_check.gd -- \
-##     --shot=noon=/abs/world.png --shot=night=/abs/world-night.png \
+##     --shot=noon=/abs/world.png --shot=night=/abs/world-night.png [--shot=low=/abs/world-low.png] \
+##     [--shot=controls=/abs/controls.png --shot=toast=/abs/toast-xp.png] \
 ##     --out=/abs/style_stats.json [--sheet=/abs/contact_sheet.html] [--write-baseline]
 ##
 ## Measures each shot's world area (the HUD bands are masked out) and compares it with
@@ -37,6 +38,15 @@ const NEON_MIN_V := 0.25
 const MAX_EMBER_SHARE := 0.10 ## 60/30/10: at most 10% of the screen is ember
 const MIN_LUMA := {"noon": 0.15, "night": 0.02} ## a black frame means the world did not render
 const MIN_NIGHT_SAT := 0.12 ## a grey night lost its moonlight blue and its ember
+
+## Shots measured with another shot's rules and baseline: the Low Graphics preset is the noon
+## spawn shot drawn cheaper, and the art bible says the look must hold on Low, so it is held to
+## noon's numbers (a big move away from them fails like it would for noon).
+const SAME_AS := {"low": "noon"}
+## Shots with the HUD open (the F1 overlay, a haul toast with its XP floater): only the hard
+## rules apply (ember stays rare, the frame is not black). No baseline: what they show is the
+## client's to change.
+const HARD_ONLY := ["controls", "toast"]
 
 ## Art-bible targets: printed when missed, never failed (the world is moving toward them).
 const TARGETS := {
@@ -107,38 +117,41 @@ static func measure(img: Image, step: int = 4) -> Dictionary:
 static func check_shot(shot: String, stats: Dictionary, baseline: Dictionary) -> Dictionary:
 	var fail: Array[String] = []
 	var note: Array[String] = []
+	var rules: String = SAME_AS.get(shot, shot) # which shot's limits, targets and baseline apply
 	if stats.is_empty():
 		fail.append("%s: screenshot could not be read" % shot)
 		return {"fail": fail, "note": note}
 	# Hard rules.
 	if float(stats.ember_share) > MAX_EMBER_SHARE:
 		fail.append("%s: %.1f%% of the screen is ember, over the art bible's 10%% (ember must stay rare to read)" % [shot, stats.ember_share * 100.0])
-	if float(stats.luma) < float(MIN_LUMA.get(shot, 0.02)):
+	if float(stats.luma) < float(MIN_LUMA.get(rules, 0.02)):
 		fail.append("%s: the frame is black (luma %.3f): did the world render?" % [shot, stats.luma])
-	if shot == "night" and float(stats.sat_mean) < MIN_NIGHT_SAT:
+	if rules == "night" and float(stats.sat_mean) < MIN_NIGHT_SAT:
 		fail.append("night: the frame is grey (mean saturation %.3f < %.2f); night is blue and ember" % [stats.sat_mean, MIN_NIGHT_SAT])
+	if shot in HARD_ONLY:
+		return {"fail": fail, "note": note}
 	# Art-bible targets: notes only.
-	var targets: Dictionary = TARGETS.get(shot, {})
+	var targets: Dictionary = TARGETS.get(rules, {})
 	for key in targets:
 		var t: Array = targets[key]
 		var v := float(stats.get(key, 0.0))
 		if (t[0] == "max" and v > float(t[1])) or (t[0] == "min" and v < float(t[1])):
 			note.append("%s: art bible target missed: %s %.3f (want %s %.2f)" % [shot, key, v, "at most" if t[0] == "max" else "at least", t[1]])
 	# Drift from the baseline.
-	var base: Dictionary = baseline.get("shots", {}).get(shot, {})
+	var base: Dictionary = baseline.get("shots", {}).get(rules, {})
 	if base.is_empty():
 		note.append("%s: no baseline yet; run with --write-baseline" % shot)
 		return {"fail": fail, "note": note}
 	var big: Dictionary = baseline.get("big", {})
 	var small: Dictionary = baseline.get("small", {})
-	var dirs: Dictionary = DIRECTION.get(shot, {})
+	var dirs: Dictionary = DIRECTION.get(rules, {})
 	for key in base:
 		if not stats.has(key):
 			continue
 		var d := float(stats[key]) - float(base[key])
 		var dir: String = dirs.get(key, "both")
 		var worse := absf(d) if dir == "both" else (d if dir == "down" else -d)
-		var line := "%s: %s %.3f vs baseline %.3f (%+.3f)" % [shot, key, stats[key], base[key], d]
+		var line := "%s: %s %.3f vs %sbaseline %.3f (%+.3f)" % [shot, key, stats[key], "" if rules == shot else rules + " ", base[key], d]
 		if worse > float(big.get(key, INF)):
 			fail.append(line + ", a big move away from the art bible")
 		elif absf(d) > float(small.get(key, INF)):
@@ -206,7 +219,8 @@ func _init() -> void:
 	if args.has("write-baseline"):
 		var new_shots := {}
 		for shot in results:
-			new_shots[shot] = results[shot].stats
+			if shot not in SAME_AS and shot not in HARD_ONLY: # they borrow noon's or have none
+				new_shots[shot] = results[shot].stats
 		baseline["shots"] = new_shots
 		var fa := FileAccess.open(ProjectSettings.globalize_path(BASELINE_PATH), FileAccess.WRITE)
 		fa.store_string(JSON.stringify(baseline, "  ", false) + "\n")
