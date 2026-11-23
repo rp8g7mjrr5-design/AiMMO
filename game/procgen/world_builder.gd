@@ -29,6 +29,7 @@ static func build() -> Node3D:
 	root.add_child(Lamps.build())
 	root.add_child(Workbench.build())
 	dn.apply(DayNight.now_fraction()) # light the lamps and leaves now that they exist
+	WorldSolids.all() # build the camera's decoration solids now (~0.15 s), not on the first camera frame
 	return root
 
 
@@ -99,8 +100,11 @@ static func _water() -> MeshInstance3D:
 	return mi
 
 
-static func _props() -> Array:
-	var items := Props.scatter()
+const SCATTER_LAYERS := ["Trunks", "AshCrowns", "PineTiers", "Rocks"]
+
+
+## The decorative scatter's meshes, one per layer.
+static func scatter_meshes() -> Dictionary:
 	var trunk_mesh := CylinderMesh.new()
 	trunk_mesh.top_radius = 0.18
 	trunk_mesh.bottom_radius = 0.28
@@ -123,35 +127,49 @@ static func _props() -> Array:
 	rock_mesh.height = 1.0
 	rock_mesh.radial_segments = 5
 	rock_mesh.rings = 2
+	return {"Trunks": trunk_mesh, "AshCrowns": crown_mesh, "PineTiers": cone_mesh, "Rocks": rock_mesh}
 
-	var trunks: Array = []
-	var crowns: Array = []
-	var cones: Array = []
-	var rocks: Array = []
+
+## Every part of every decorative scatter tree and rock, one Array of {layer, xform, color}
+## per `Props.scatter()` item, in the same order. Pure and deterministic (colours come from
+## their own seeded rng, drawn in item order, exactly as the forest has always been drawn).
+static func scatter_parts(items: Array) -> Array:
+	var out: Array = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = GameConfig.WORLD_SEED + 11
 	for it in items:
+		var parts: Array = []
 		var basis := Basis(Vector3.UP, it.rot).scaled(Vector3.ONE * it.scale)
 		var p: Vector3 = it.pos
 		match it.kind:
 			"ash":
-				trunks.append([Transform3D(basis, p + Vector3.UP * 1.2 * it.scale), Palette.TRUNK])
+				parts.append({"layer": "Trunks", "xform": Transform3D(basis, p + Vector3.UP * 1.2 * it.scale), "color": Palette.TRUNK})
 				var leaf := Palette.ASH_LEAF.lerp(Color(0.95, 0.70, 0.35), rng.randf() * 0.5)
-				crowns.append([Transform3D(basis, p + Vector3.UP * 3.2 * it.scale), leaf])
+				parts.append({"layer": "AshCrowns", "xform": Transform3D(basis, p + Vector3.UP * 3.2 * it.scale), "color": leaf})
 			"pine":
-				trunks.append([Transform3D(basis, p + Vector3.UP * 1.2 * it.scale), Palette.TRUNK.darkened(0.2)])
+				parts.append({"layer": "Trunks", "xform": Transform3D(basis, p + Vector3.UP * 1.2 * it.scale), "color": Palette.TRUNK.darkened(0.2)})
 				for tier in 3:
 					var s := 1.0 - tier * 0.25
-					cones.append([Transform3D(basis.scaled(Vector3(s, 1.0, s)), p + Vector3.UP * (2.2 + tier * 1.1) * it.scale), Palette.PINE.lightened(tier * 0.05)])
+					parts.append({"layer": "PineTiers", "xform": Transform3D(basis.scaled(Vector3(s, 1.0, s)), p + Vector3.UP * (2.2 + tier * 1.1) * it.scale), "color": Palette.PINE.lightened(tier * 0.05)})
 			_:
 				var squash := Basis(Vector3.UP, it.rot).scaled(Vector3(it.scale * 1.3, it.scale * 0.8, it.scale))
-				rocks.append([Transform3D(squash, p + Vector3.UP * 0.2), Palette.ROCK.darkened(rng.randf() * 0.15)])
-	return [
-		_multimesh("Trunks", trunk_mesh, trunks),
-		_multimesh("AshCrowns", crown_mesh, crowns),
-		_multimesh("PineTiers", cone_mesh, cones),
-		_multimesh("Rocks", rock_mesh, rocks),
-	]
+				parts.append({"layer": "Rocks", "xform": Transform3D(squash, p + Vector3.UP * 0.2), "color": Palette.ROCK.darkened(rng.randf() * 0.15)})
+		out.append(parts)
+	return out
+
+
+static func _props() -> Array:
+	var meshes := scatter_meshes()
+	var layers := {}
+	for l in SCATTER_LAYERS:
+		layers[l] = []
+	for parts in scatter_parts(Props.scatter()):
+		for p in parts:
+			layers[p.layer].append([p.xform, p.color])
+	var out: Array = []
+	for l in SCATTER_LAYERS:
+		out.append(_multimesh(l, meshes[l], layers[l]))
+	return out
 
 
 static func _multimesh(node_name: String, mesh: Mesh, instances: Array) -> MultiMeshInstance3D:
