@@ -130,3 +130,22 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Known / not done.** Nothing calls this yet: the client wires it to `GatherPrompt.target` and `s2c_gather_result` (request filed in the client backlog). No tool-contact flash; that needs the client's swing (follow-up in my backlog). Pine needle bits are small and dark against a dark forest floor.
 
 **Next run.** Close-up read for the action camera (second backlog item), then item icons.
+
+## 2026-11-23: the Spawn Meadow workbench
+**Why this, not the close-up pass.** The worker procedure puts requests from other streams first, and gameplay's workbench request was the oldest open one. It is also a real gap players hit today: `/craft` tells them "the workbench is at the heart of Spawn Meadow" and there was nothing there. The close-up read for the action camera stays next.
+
+**Built.** New `game/procgen/workbench.gd` (`Workbench`), split like `Lamps`: `spot()` (always `Crafting.workbench_pos()`, yaw so local +Z faces spawn), `parts()` and `layout()` are pure data, `build()` makes the "Workbench" node from three MultiMesh layers (wood boxes, stone boxes, log cylinders). `WorldBuilder` adds it after the lanterns.
+
+**Looks.** Three pale ash-wood planks (different tints, slight end offsets) on four squat stone legs with wider feet, side rails and a low back rail, a stone-headed hammer and three stone chips on the top, a chopping block with a pale cut top and a split log leaning on it at the right end, and a woodpile of three logs with cut ends behind. Planks top out at 0.92 m. Each leg and pile sits on the terrain under it so nothing floats on a slope.
+
+**Decisions.**
+- Placement comes only from `Crafting.workbench_pos()`, never a copy of the numbers; a unit test and the bot behaviour both check this.
+- Faces spawn so a new player sees the long side and the tools first.
+- No glow at night yet: the lantern ring is 5 to 12 m away and lights it. Small lantern on the bench is a follow-up if night players can't find it.
+- No collision, like everything else so far.
+
+**Didn't work.** First woodpile had two logs overlapping each other along their length and only one cut face; it read as two dark blobs in a close-up render. Rebuilt it as two side by side plus one on top, with cut faces on both ends, and lightened the bark a shade. The first cut-face colour was almost yellow; warmed it down. The split log poked past the 1.7 m footprint the test checks; footprint is now 2.0 m (clearance 2.5 m).
+
+**Tested.** 183 unit tests with Postgres (4 new in `tests/unit/test_world_workbench.gd`: at the crafting spot and on the ground, faces spawn, parts hold together and sit at the right heights, clear of nodes/lanterns/trees/flora/spawn, deterministic). 8-bot 180 s websocket bot test passed twice (new behaviour `world_workbench.gd`: every bot's bench matches the crafting rule, ~173 position checks per bot, all 8 bots stood in crafting range at some point, 8/8 characters persisted). Client smoke test passed (day 0.725, night 0.123); the bench is in the spawn screenshot. I rendered three close-ups (front, back three-quarter, from the lantern ring) on the real renderer and looked at them.
+
+**Next run.** Close-up read for the action camera (backlog item 2), then item icons.

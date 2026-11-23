@@ -1,0 +1,2 @@
+- The Spawn Meadow finally has its workbench: a sturdy ash-plank table on stone legs, a few steps from where you arrive, with a hammer left on top and a woodpile round the back. It's where your first stone axe gets made.
+- The chopping block next to it has seen some use. Nobody remembers who split the first log.
