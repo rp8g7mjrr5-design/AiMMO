@@ -172,8 +172,34 @@ func test_start_refusals() -> void:
 	check_eq(srv.gather_start(2, n.id).reason, "far")
 	check_eq(srv.gather_start(2, -5).reason, "unknown")
 	check_eq(srv.gather_start(99, n.id).reason, "offline")
-	srv.sessions[3].character.inventory["stone"] = Inventory.MAX_STACK
-	check_eq(srv.gather_start(3, n.id).reason, "full", "a full stack never starts")
+	srv.free()
+
+
+func test_a_full_stack_still_teaches() -> void:
+	# Milestone 1: a full pack is never a wall on the road to the next level. The gather
+	# runs, uses its charge and pays the XP; no items, no haul toast, a line saying why.
+	var n := _first("stone")
+	var srv := _server({3: n.pos})
+	var s: Dictionary = srv.sessions[3]
+	s.character.inventory["stone"] = Inventory.MAX_STACK
+	var r: Dictionary = srv.gather_start(3, n.id)
+	check(r.ok, "a full stack still starts (%s)" % r.reason)
+	srv.test_now += float(r.seconds) + GameConfig.TICK_DT
+	srv._tick_channels(srv.test_now)
+	check(not GatherChannel.is_active(s.channel), "the gather finished")
+	check_eq(Inventory.count(s.character.inventory, "stone"), Inventory.MAX_STACK, "no stone added past the cap")
+	check_eq(Skills.xp_of(s.character.skills, "quarrying"), Skills.gather_xp("stone"), "the XP still lands")
+	check_eq(Gathering.charges_left(srv.gathering, n.id, srv.test_now), Gathering.CHARGES.stone - 1, "the charge is used")
+	var ends: Array = []
+	var results := 0
+	for m in srv.test_outbox:
+		if m[1] == "s2c_gather_end" and m[0] == 3:
+			ends.append(m[2][2])
+		if m[1] == "s2c_gather_result":
+			results += 1
+	check_eq(ends, ["done"], "it ends done")
+	check_eq(results, 0, "no haul toast for nothing")
+	check(_texts(srv, 3).back().begins_with("Your pack can't hold any more stone. You leave it, but the work still counts."), "told why: %s" % [_texts(srv, 3)])
 	srv.free()
 
 
