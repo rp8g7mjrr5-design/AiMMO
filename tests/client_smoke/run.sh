@@ -9,6 +9,8 @@
 # section 7): draw calls, primitives, world materials and texture memory at the noon and night
 # spawn shots, written to render_stats.json and failed over the ceilings or the 20% ratchet in
 # tests/client_smoke/render_baseline.json.
+# The Low Graphics preset is measured too (with the Low settings.cfg below), and must be cheaper
+# than noon on Medium: a lighter world, fewer primitives, no more draw calls.
 # Then the Emberlight style check (tests/client_smoke/style_check.gd, art bible "Colour"): ember
 # share, neon, warm/cool and a not-black, not-grey night on the noon and night shots, against
 # tests/client_smoke/style_baseline.json, written to style_stats.json, plus contact_sheet.html
@@ -72,6 +74,10 @@ for shot in noon:0.5 night:0.0; do
     --path "$REPO/game" -s tests/client_smoke/render_stats.gd -- --stats-out="$OUT/render-${shot%%:*}.json" --name=SmokeRender \
     --password=smoke123 --address=127.0.0.1:$PORT --autoconnect > "$OUT/client-render-${shot%%:*}.log" 2>&1 || true
 done
+# ...and on the Low preset (same noon spawn, Low's own user folder), so "Low is cheaper" has a number.
+XDG_DATA_HOME="$LOW_HOME" AIMMO_TIME_OF_DAY=0.5 timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --rendering-driver opengl3 --audio-driver Dummy \
+  --path "$REPO/game" -s tests/client_smoke/render_stats.gd -- --stats-out="$OUT/render-low.json" --name=SmokeRender \
+  --password=smoke123 --address=127.0.0.1:$PORT --autoconnect > "$OUT/client-render-low.log" 2>&1 || true
 
 # Feedback: a fresh character every run (it must start with an empty pack and no axe),
 # after the render shots so the nodes it empties never change what they measure.
@@ -97,7 +103,7 @@ if [ $fail -eq 0 ]; then
   grep "\[style\]" "$OUT/style.log" || true
 fi
 python3 "$REPO/tests/client_smoke/render_budget.py" --shot noon="$OUT/render-noon.json" \
-  --shot night="$OUT/render-night.json" --out "$OUT/render_stats.json" || fail=1
+  --shot night="$OUT/render-night.json" --shot low="$OUT/render-low.json" --out "$OUT/render_stats.json" || fail=1
 if grep -hE "SCRIPT ERROR|Parse Error|Compile Error" "$OUT"/*.log; then fail=1; fi
 [ "$(grep -c "SmokeTester logged in" "$OUT/server.log")" -ge 5 ] || { echo "client did not log in for all five world shots"; fail=1; }
 # The camera run walks its character to a slope, so it plays a separate character and the

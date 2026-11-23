@@ -63,6 +63,42 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(rb.check({}, BASE), ["no render stats were measured"])
 
 
+class CheaperTest(unittest.TestCase):
+    B = dict(BASE, baseline={}, cheaper={"low": "noon"}, min_saving=0.05)
+
+    def pair(self, **low):
+        noon = shot(scene_triangles=600000, primitives=435000, draw_calls=270)
+        lo = shot(scene_triangles=540000, primitives=432000, draw_calls=268)
+        lo.update(low)
+        return {"noon": noon, "low": lo}
+
+    def test_lighter_low_passes(self):
+        self.assertEqual(rb.check(self.pair(), self.B), [])
+
+    def test_low_that_builds_the_same_world_fails(self):
+        # the bug this guards: Low saved in settings, but the world was built on Medium
+        p = rb.check(self.pair(scene_triangles=600000, primitives=435000, draw_calls=270), self.B)
+        self.assertEqual(len(p), 2)
+        self.assertIn("not lighter", p[0])
+        self.assertIn("not fewer", p[1])
+
+    def test_min_saving_edge(self):
+        self.assertEqual(rb.check(self.pair(scene_triangles=570000), self.B), [])
+        p = rb.check(self.pair(scene_triangles=570001), self.B)
+        self.assertEqual(len(p), 1)
+
+    def test_more_draw_calls_fails(self):
+        p = rb.check(self.pair(draw_calls=271), self.B)
+        self.assertEqual(p, ["low: 271 draw calls is more than noon's 270"])
+
+    def test_missing_shot_is_not_judged_twice(self):
+        self.assertEqual(rb.check({"noon": shot()}, self.B), [])
+
+    def test_saving_is_a_note(self):
+        n = rb.notes(self.pair(), self.B)
+        self.assertIn("low vs noon: draw calls -1%, primitives -1%, scene triangles -10%", n[0])
+
+
 class NotesTest(unittest.TestCase):
     def test_over_art_bible_target_is_a_note_not_a_failure(self):
         s = {"noon": shot(primitives=1100000)}
@@ -105,6 +141,8 @@ class MainTest(unittest.TestCase):
         for name, vals in b["baseline"].items():
             for k, v in vals.items():
                 self.assertLessEqual(v, b["ceilings"][k], f"{name} baseline {k} is over its ceiling")
+        self.assertEqual(b["cheaper"], {"low": "noon"})
+        self.assertTrue(0 < b["min_saving"] < 0.5)
 
 
 if __name__ == "__main__":
