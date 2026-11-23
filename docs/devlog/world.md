@@ -476,3 +476,22 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tested.** Unit suite with Postgres: everything passes except `test_qa_fun_metrics::test_behaviours_send_play_requests_through_the_bot`, which is red on `main` too (gameplay_roster_v5, fixed by open PR #125, not mine). New `test_world_golden_hour.gd` (9 tests: golden most of the day, warm noon, blue moonlight and haze, night paint in the shader, height haze and sun scatter, motes anchored on ember things only, quality counts and prefix layout, rise and fade maths match the shader, node hidden by day and live quality). Client smoke test passed: night 289 draw calls / 463k primitives (main 286 / 461k; the motes are one draw call and ~3k triangles), noon 272 / 435k, 12 world materials (ceiling 12), day/night luminance 0.712 / 0.214. 8-bot 180 s websocket bot test passed (first reward median 7.3 s, 8 of 8 bots levelled). No new bot behaviour: render-only, nothing on the network, and qa's lint forbids procgen in new behaviours.
 
 **Next run.** The level-up burst readable by day from 45 m (director's note on that item), or moving the `world_*` art checks out of the bot loop.
+
+## 2026-11-23, run: level-up burst readable by day (ws/world/level-up-daylight)
+
+**First, #127 (golden hour and motes).** Its CI run was red only because `main` was red at the time (`gameplay_roster_v5.gd` called a `c2s_` RPC directly; fixed on main by #125). Merged `main` in (one conflict in `docs/workstreams/qa.md`: kept both request lines), re-ran unit tests (526), the 8-bot bot test and the client smoke test locally, all green, pushed. Auto-merge stays on.
+
+**Fun.** When anyone levels up at noon you now see it from across the meadow: before, a level-up 45 m away by day was invisible (I rendered it; the column was lost against the bright grass and haze).
+
+**Built.** `LevelUpFx` reads the sky clock when a burst starts (`sky_daylight()`, from `DayNight.now_fraction()`, so the `AIMMO_TIME_OF_DAY` pin works) or takes an explicit `day` in `play(avatar, seed, day)`. The client call is unchanged.
+- `column_at(t, day)`: up to 1.5x wider and 1.2x taller by day; the shader's `day` uniform raises its opacity floor and uses less of the pale core, so it reads deep gold instead of a ghost.
+- `beam_at(t, day)`: a slim 24 m beam that shoots up in 0.35 s and fades by 1.6 s; full by day, 0.35 strength at night. It is instance 1 of the column's MultiMesh, strength per instance in custom data, so **no new draw call or material**.
+- `column_now` / `beam_now` hold what the last frame drew.
+
+**Didn't work.** First tests read the MultiMesh's instance transforms: the headless dummy renderer doesn't store MultiMesh instance data at all (every transform reads as identity), so those checks were silently meaningless. The old bot behaviour's spark checks have the same blind spot (they "pass" on identity transforms). Tests now read `column_now` / `beam_now` and the pure functions. Next run, a cheap fix for the spark checks: keep the last spark transforms on the node too.
+
+**Looked at.** Rendered main and this branch side by side at noon and midnight from 45 m and 15 m (llvmpipe). At noon from 45 m main shows nothing; the branch shows a gold beam over the treetops. Widened the beam 0.22 -> 0.3 m after the first look; it was a hairline in the haze. Copies in the project files (`world/level-up-daylight-*.png`).
+
+**Tested.** Unit suite with Postgres (520 pass; 3 new in `test_world_level_up_fx.gd`: day column wider/taller with the same timing and bounded, beam height/strength/timing by day and night, `play` reads the pinned sky and an explicit day wins, beam in the column MultiMesh). Bot behaviour `world_level_up_fx.gd` alternates day and night bursts and checks the beam passes 20 m by day and is gone by `BEAM_TIME` (11 day beams per bot). Client smoke test passed. 8-bot 180 s websocket bot test: first run failed once on `gameplay_gather_v3` ("gather ended moved while standing still", bot 2 at (73, 10, -15)), nothing this change touches; the rerun passed. Flagging it as a possible gameplay flake.
+
+**Next run.** Golden hour (#127) should land on its own. Then the milestone-level variant needs the client to pass the level; otherwise the art checks out of the bot loop, or the gather-swing impact puff.

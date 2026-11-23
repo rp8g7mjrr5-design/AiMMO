@@ -1,0 +1,1 @@
+- Level up in broad daylight and the whole meadow knows: the ember column burns wider and bolder by day, and a slim beam of gold light shoots high over the treetops, so you can spot someone's level-up from across the valley.
