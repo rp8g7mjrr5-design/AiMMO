@@ -913,7 +913,9 @@ baseline 10.0); if text echoes were counted it would be ~20.
 **Tests:** 481 Godot unit tests pass with Postgres; Python bot_test and ops unittests pass.
 Bot test 8 x 180 s WebSocket + Postgres `--fun-check` PASSED twice (240 s each; 8/8
 levelled, wait worst 0.25 / 0.23 s with E presses included, dead median 27.7 / 29.9); 8 x
-45 s ENet PASSED. Client smoke not run: nothing the client loads changed.
+45 s ENet PASSED. After merging `main` (#119's chat-gate phase): 481 unit tests, bot test
+8 x 180 s PASSED in 275 s (wait worst 0.17 s, rewards/min 10.6, chat gate 6/6 hints) and
+8 x 45 s ENet PASSED. Client smoke not run: nothing the client loads changed.
 
 **Didn't do:** re-take the medians. Local runs are not CI (the dead-time gate flaked on
 exactly that); follow-up added to re-take after three `main` runs. Also noticed
