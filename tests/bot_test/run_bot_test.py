@@ -8,8 +8,13 @@ cleanly, boots storage again, and checks every bot's final position was saved.
 Fails on: any bot failure, any server/bot crash, any ERROR line in a log, a desync
 (position off the shared terrain), or data loss (saved position missing or wrong).
 
+Every run also prints the fun metrics (tests/bot_test/fun_report.py) and writes
+fun_metrics.json into the work directory, which is kept for the CI artifact. With
+--fun-check the run also fails when they break the limits or got worse than
+tests/bot_test/fun_baseline.json allows.
+
 Usage:
-  python3 tests/bot_test/run_bot_test.py [--bots 8] [--duration 180] [--transport enet]
+  python3 tests/bot_test/run_bot_test.py [--bots 8] [--duration 180] [--transport enet] [--fun-check]
 
 Uses $DATABASE_URL when set (CI uses a real Postgres); otherwise a temp JSON store.
 Needs `godot` on PATH (or $GODOT).
@@ -23,6 +28,9 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import fun_report  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 GAME = REPO / "game"
@@ -50,6 +58,9 @@ def main() -> int:
     ap.add_argument("--duration", type=float, default=180.0, help="seconds each bot plays")
     ap.add_argument("--transport", default=os.environ.get("AIMMO_TRANSPORT", "enet"), choices=["enet", "websocket"])
     ap.add_argument("--keep", action="store_true", help="keep the work directory")
+    ap.add_argument("--fun-check", action="store_true",
+                    help="fail on fun-metric limits and regressions against the baseline")
+    ap.add_argument("--fun-baseline", default=str(fun_report.BASELINE), help="baseline JSON for --fun-check")
     a = ap.parse_args()
 
     work = Path(tempfile.mkdtemp(prefix="aimmo-bot-test-"))
@@ -111,6 +122,7 @@ def main() -> int:
     problems += scan_log(server_log, "server")
 
     expected = {}
+    fun_rows = {}
     for name, p, result, log in bots:
         problems += scan_log(log, name)
         if p.returncode not in (0, None) and not result.exists():
@@ -128,6 +140,8 @@ def main() -> int:
         for bname, bstats in sorted(s.get("behaviours", {}).items()):
             if bstats:
                 print(f"[bot-test]   {bname}: " + " ".join(f"{k}={v}" for k, v in sorted(bstats.items())))
+        if "qa_fun_metrics" in s.get("behaviours", {}):
+            fun_rows[name] = s["behaviours"]["qa_fun_metrics"]
         if "final_position" in s:
             expected[name] = s["final_position"]
 
@@ -143,6 +157,21 @@ def main() -> int:
             problems.append("persistence check failed:\n" + vlog.read_text(errors="replace"))
         problems += scan_log(vlog, "verify")
 
+    if fun_rows:
+        summary = fun_report.summarise(fun_rows)
+        print(fun_report.table(fun_rows, summary))
+        baseline = fun_report.load_baseline(Path(a.fun_baseline))
+        verdict = fun_report.check(summary, baseline)
+        (work / "fun_metrics.json").write_text(json.dumps(
+            {"bots": a.bots, "duration_s": a.duration, "transport": a.transport, "summary": summary,
+             "per_bot": fun_rows, "baseline": baseline, "problems": verdict}, indent=2))
+        for v in verdict:
+            print(f"[bot-test] fun: {v}" + ("" if a.fun_check else " (not checked: no --fun-check)"))
+        if a.fun_check:
+            problems += [f"fun metrics: {v}" for v in verdict]
+    elif a.fun_check:
+        problems.append("fun metrics: no bot reported qa_fun_metrics")
+
     took = time.time() - t0
     if took < a.duration:
         problems.append(f"test ran only {took:.0f}s")
@@ -155,7 +184,7 @@ def main() -> int:
     print(f"[bot-test] PASSED in {took:.0f}s")
     if not a.keep:
         for f in work.rglob("*"):
-            if f.is_file():
+            if f.is_file() and f.name != "fun_metrics.json":
                 f.unlink()
     return 0
 

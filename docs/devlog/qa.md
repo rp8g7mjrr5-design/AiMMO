@@ -346,3 +346,61 @@ shots); bot test 8 bots x 180s WebSocket + Postgres passed in 185s.
 
 **Next run:** v3 gathering in CI if `c2s_gather_start` is on main, otherwise build the Docker
 image in CI (watchdog follow-up).
+
+## 2026-11-23 — Fun metrics in the bot test, and one command queue per bot
+
+Playtest inbox still empty, no open qa PR, budget 9/40. `main` is still protocol v2 (no
+`c2s_gather_start`) and nobody has added `--dev-commands`, so the first two backlog items are
+still blocked. Took the client's flaky `/time` request first (requests before backlog), then
+the next unblocked item, fun metrics.
+
+**Flake fix (bot harness, qa paths):** `bot.send_command(text, on_sent)` queues slash commands
+and sends one every `CHAT_COOLDOWN + 0.15` s. All six behaviours that typed commands
+(`client_gather_prompt`, `gameplay_chat_commands`, `_crafting`, `_gather_channel`, `_gathering`,
+`_inventory`) now go through it; I edited those files because they are under `tests/`, which qa
+owns, and the change is one line each. `gameplay_crafting` judges its distance to the bench in
+the `on_sent` callback, because the line can now wait up to ~1.4 s (max seen) behind others.
+The queue is cleared on login (a line queued before a disconnect belongs to the old session),
+and overflow (16) is a bot failure. Root cause of the flake: the server answers only one
+`TOO_FAST` per cooldown window, so when two behaviours collided, the second line was dropped
+with no answer at all; 4 unlucky tries in a row failed the run. Bot stats now include
+`commands_sent` and `max_command_wait`.
+
+**Fun metrics:** `tests/bot_test/fun_metrics.gd` (pure maths), behaviour `qa_fun_metrics`
+(watches `system_message` and the new `bot.command_sent` signal), `tests/bot_test/fun_report.py`
+(roll-up, table, limits, baseline). Every run prints a per-bot table and writes
+`fun_metrics.json` into the bot-test work dir, which is now kept after a pass so the CI artifact
+has it. The 180 s CI run has `--fun-check`; the 45 s ENet run only prints.
+
+Definitions I chose, and why:
+- Feedback = any system line to this bot except "X has arrived/left", plus items. Other bots'
+  `hello from` chatter is not feedback: a player alone wouldn't get it, and with 8 bots it would
+  make dead time ~0 forever.
+- `longest_dead_s` (no feedback at all, per play stretch, offline excluded) came out 41-69 s
+  median and up to 91 s worst: bots gather once per login and then wander. That's a bot-script
+  artefact more than the game, so it's reported and in the JSON, not gated.
+- `longest_wait_s` is the "dead time while acting" the backlog asked for: from the first
+  unanswered command to the next feedback. Limited to 45 s on the worst bot, baseline median
+  0.05 s. On v2 every command is answered at once, so it's ~0.01 s; it starts mattering with
+  timed gathering.
+- First reward: median 7.4-8.5 s over six runs, but the worst bot hit 67 s and 82 s in two runs
+  (8 bots, ~14 nodes near spawn, all spent). A 90 s limit would flake, so the limit is 120 s for
+  now; follow-up to tighten.
+- Regression rule: a median that is >20% worse than `fun_baseline.json` **and** worse by more than
+  its slack (3 s first reward, 2 s wait, 1.0 items/min) fails. The slack is there because bot
+  names (and so routes) change every run.
+- `loops_completed` counts crafts. It's 0 today: bots never hold 3 ash + 2 stone.
+
+**Didn't work:** first version marked an action from `on_play` by watching `commands_sent`.
+Behaviours run before the harness sends, and on localhost the reply landed before the next
+frame, so the action was recorded *after* its answer and "waited" until the next feedback
+(70-80 s fake waits). Fixed by emitting `command_sent` at the send itself.
+
+**Tests:** 246 unit tests pass with Postgres (new `test_qa_fun_metrics.gd`: metric maths, the
+command queue spacing/order/callback/overflow, and a lint that no behaviour calls `c2s_chat`);
+7 Python tests for `fun_report.py` (new CI step); bot test 8 bots x 180 s WebSocket + Postgres
+with `--fun-check` passed twice on the final code (four earlier runs used to pick the numbers);
+45 s ENet bot test passed. Client smoke not run: nothing the client loads changed.
+
+**Next run:** v3 gathering in CI if `c2s_gather_start` is on main (and fold it into
+`qa_fun_metrics`), otherwise build the Docker image in CI.
