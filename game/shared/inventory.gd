@@ -25,22 +25,22 @@ const ITEMS := {
 	"veinstone": {"label": "veinstone"},
 	"stone_axe": {"label": "stone axe"},
 	"stone_pickaxe": {"label": "stone pickaxe"},
+	"ember_axe": {"label": "ember axe"},
+	"ember_pickaxe": {"label": "ember pickaxe"},
 	"torch": {"label": "torch"},
 	"campfire": {"label": "campfire"},
 }
-const ITEM_ORDER := ["ash_wood", "pine_wood", "stone", "ember_sap", "ember_heartwood", "veinstone", "stone_axe", "stone_pickaxe", "torch", "campfire"]
+const ITEM_ORDER := ["ash_wood", "pine_wood", "stone", "ember_sap", "ember_heartwood", "veinstone", "stone_axe", "stone_pickaxe", "ember_axe", "ember_pickaxe", "torch", "campfire"]
 ## Items that are drawn (world's ItemIcons has them) but not moved into ITEMS yet. Empty
 ## today: the tier-2 materials moved into ITEMS once world drew them (PR #108).
 ## tests/unit/test_world_item_icons checks every id here has its own icon.
 const NEW_ITEMS := {}
 ## Items that are real (crafted, saved, named) before world has drawn their icon. A client
 ## shows them with the fallback bundle until then. When ItemIcons draws one, gameplay moves
-## it into ITEMS and ITEM_ORDER (after stone_pickaxe). Ids are PERMANENT like ITEMS'.
-## The ember-hardened tools (Toolcraft 5, Crafting.RECIPES) wait here.
-const UNDRAWN := {
-	"ember_axe": {"label": "ember axe"},
-	"ember_pickaxe": {"label": "ember pickaxe"},
-}
+## it into ITEMS and ITEM_ORDER. Ids are PERMANENT like ITEMS'. Empty today: the ember
+## tools moved into ITEMS (after the stone tools) once world drew them (#118's run, world's
+## ember tool icons).
+const UNDRAWN := {}
 
 
 static func is_item(item: String) -> bool:
