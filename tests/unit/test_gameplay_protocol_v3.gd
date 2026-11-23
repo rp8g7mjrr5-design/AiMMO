@@ -53,9 +53,12 @@ func _run(srv: Node, seconds: float) -> void:
 
 
 func test_v3_rpcs_live_on_play_not_net() -> void:
-	check_eq(GameConfig.PROTOCOL_VERSION, 3)
+	check(GameConfig.PROTOCOL_VERSION >= 3, "v3 or later")
+	check_eq(Array(ProtocolCompat.rpc_names("res://tests/protocol/net_play_v3.gd")), V3_RPCS,
+		"the frozen v3 Play carries exactly the v3 RPCs")
 	var play_rpcs := ProtocolCompat.rpc_names("res://shared/net_play.gd")
-	check_eq(Array(play_rpcs), V3_RPCS, "Play carries exactly the v3 RPCs")
+	for m in V3_RPCS:
+		check(play_rpcs.has(m), "today's Play still has v3's %s" % m)
 	var net_rpcs := ProtocolCompat.rpc_names("res://shared/net.gd")
 	check_eq(net_rpcs, ProtocolCompat.rpc_names("res://tests/protocol/net_v2.gd"),
 		"Net's own RPC list is still v2's, so old clients get the update message")

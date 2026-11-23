@@ -570,7 +570,19 @@ func _node_changed(node_id: int, depleted: bool, respawn: float = 0.0) -> void:
 func _send_world_state(id: int) -> void:
 	_send(id, "s2c_inventory", [Inventory.to_wire(sessions[id].character.inventory)])
 	_send(id, "s2c_nodes", [Gathering.depleted_ids(gathering, now_seconds())])
+	_send(id, "s2c_skills", [skills_wire(sessions[id].character.get("skills", {}))])
 	sessions[id].inv_dirty = false
+
+
+## What s2c_skills carries: every known skill id -> total XP (0 for untouched skills), so
+## the client's skills window always has all four. Unknown ids kept in the save stay there
+## but are not sent (the client has no row for them).
+static func skills_wire(skills: Variant) -> Dictionary:
+	var src := Skills.normalize(skills)
+	var out := {}
+	for skill in Skills.ORDER:
+		out[skill] = Skills.xp_of(src, skill)
+	return out
 
 
 ## Sends s2c_inventory once to every player whose pack changed since the last tick, so a
@@ -701,7 +713,9 @@ func has_company(id: int) -> bool:
 ## combat) goes through this, never edits CharacterData.skills itself. Saved with the
 ## character like the pack. A level-up queues a system line ("Felling is now level 2! ...")
 ## that goes out right after the reply it came with (_send_queued_lines), so it always reads
-## after "You gather ...". Protocol v4 adds s2c_xp / s2c_level_up for the client to show.
+## after "You gather ...". Protocol v4 queues the same way, in this order: s2c_xp(skill,
+## gained, total) to the player, and on a level-up s2c_level_up(skill, level, unlocks) to
+## the player, s2c_level_up_seen(peer, skill, level) to everyone else in view, then the line.
 ## Returns Skills.gain()'s result.
 func award_xp(id: int, skill: String, amount: int) -> Dictionary:
 	if not sessions.has(id) or not sessions[id].logged_in or skill == "":
@@ -713,15 +727,21 @@ func award_xp(id: int, skill: String, amount: int) -> Dictionary:
 	if int(r.gained) <= 0:
 		return r
 	print("[xp] %s +%d %s (%d total, level %d)" % [s.character.name, int(r.gained), skill, int(r.xp), int(r.level)])
+	var queued: Array = s.get("queued_lines", [])
+	queued.append([id, "s2c_xp", [skill, int(r.gained), int(r.xp)]])
 	if int(r.level) > int(r.level_before):
 		print("[xp] %s reached %s %d" % [s.character.name, skill, int(r.level)])
-		var queued: Array = s.get("queued_lines", [])
-		queued.append(Skills.level_up_text(r))
-		s.queued_lines = queued
+		queued.append([id, "s2c_level_up", [skill, int(r.level), Array(r.unlocks).duplicate(true)]])
+		for other in players_in_view(CharacterData.position(s.character)):
+			if other != id:
+				queued.append([other, "s2c_level_up_seen", [id, skill, int(r.level)]])
+		queued.append([id, "s2c_system", [Skills.level_up_text(r)]])
+	s.queued_lines = queued
 	return r
 
 
-## Sends player `id` the system lines award_xp queued, in order.
+## Sends the messages award_xp queued for player `id`'s action, in order: [to, method, args]
+## (to is usually `id`; s2c_level_up_seen goes to the players around them).
 func _send_queued_lines(id: int) -> void:
 	if not sessions.has(id):
 		return
@@ -730,8 +750,9 @@ func _send_queued_lines(id: int) -> void:
 	if queued.is_empty():
 		return
 	s.queued_lines = []
-	for line in queued:
-		_send(id, "s2c_system", [line])
+	for m in queued:
+		if int(m[0]) == id or (sessions.has(int(m[0])) and sessions[int(m[0])].logged_in):
+			_send(int(m[0]), StringName(m[1]), m[2])
 
 
 ## Server-authoritative inventory changes. Every system that hands out or uses up items

@@ -2,7 +2,7 @@ class_name GameConfig
 ## Constants shared by server, client, and bots. Changing world constants changes the world
 ## for everyone, so treat WORLD_SEED as permanent.
 
-const PROTOCOL_VERSION := 3 ## v3: Net/Play (timed gather, pack, nodes, crafting), ack_seq in snapshots
+const PROTOCOL_VERSION := 4 ## v4: skills on Net/Play (s2c_skills, s2c_xp, s2c_level_up, s2c_level_up_seen). v3: Net/Play (timed gather, pack, nodes, crafting), ack_seq in snapshots
 const DEFAULT_PORT := 7777
 const TICK_RATE := 20
 const TICK_DT := 1.0 / TICK_RATE
