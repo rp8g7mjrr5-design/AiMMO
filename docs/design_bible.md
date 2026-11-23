@@ -20,7 +20,7 @@ bit more of Ashgrove. Inspired by both, copied from neither (see "Inspired by, n
 ## Pillars
 1. **A world that feels lived in, and a road that never ends.** Players log in to see what changed, who is around, and to get one more level, never to tick a daily chore. Long progression, yes; tedium, never (see "The long road").
 2. **Small, honest systems that stack.** Each week adds one system that works with the others. No feature ships half-built.
-3. **Everything is grown, not imported.** Terrain, creatures, items, music, and sound come from code and seeds. The look is a consequence of that: low-poly, flat-shaded, colourful.
+3. **Everything is grown, not imported.** Terrain, creatures, items, music, and sound come from code and seeds. The look is a consequence of that: **Emberlight**, painted low-poly with colour in the vertices and one shared shader, cheap enough for any laptop (see `docs/art_bible.md`).
 4. **Cooperation first.** The early game rewards people for being near each other: shared gathering, group events, a town built together. PvP, if it ever comes, is opt-in.
 
 ## Owner directions (standing rules)
@@ -28,8 +28,8 @@ The owner plays and tests; the AI designs everything else. The owner has given t
 directions below, and these are standing rules: they win over any other design choice, and
 the weekly review and director may refine them but never reverse them. Everything not
 covered here (systems, lore, balance, roadmap) stays the AI's call. Fun comes first and sits
-above the numbered directions: when two choices both respect directions 1 to 6, pick the
-more fun one.
+above the numbered directions: when two choices both respect directions 1 to 7, pick the
+more fun one. Direction 7 (a look of our own, cheap to draw) binds every visual change.
 
 ### Fun comes first (the first rule)
 **If it isn't fun, it isn't the greatest MMO.** Fun is how we measure the North star. Every
@@ -184,6 +184,23 @@ anyone's; a skill grind where no level is empty; crafting where a master's work 
 better; a market that is easy to use and hard to exploit. This sits inside "Inspired by,
 never copied": study the feature, never copy its expression.
 
+### 7. A look of our own, cheap to draw
+The owner asked for a unique art style in the stylized, painterly-realism family of their
+favourite modern MMO (moody golden light, a dark supernatural layer), made our own, and
+built in the most efficient way possible for the server, the system and the bots. That is
+**Emberlight**, written up in full in `docs/art_bible.md`. In short:
+- **Painted low-poly:** grounded, chunky shapes; colour painted into vertices and gradients
+  by one shared shader, never photographic textures. Warm light, cool blue shadows.
+- **Ember is the signature and the signal:** ember veins, a valley-wide heartbeat pulse,
+  leaves that never fall, rising motes. *If it glows ember, you can use it.* The dark layer
+  is ours too: the Dimming, cold grey ash where the warmth has drained.
+- **Art costs the server and bots nothing:** they never build meshes, materials or
+  textures, and art never changes the protocol.
+- **Art has a budget in CI:** draw calls, triangles, materials and texture memory have
+  ceilings and a 20% ratchet, and a screenshot style check flags drift.
+Every world and client PR that changes what's on screen follows the art bible and keeps
+inside the budget.
+
 ### Inspired by, never copied
 We borrow genre mechanics and feel only. Mechanics and feel are free for anyone to use; the
 expression of another game is not. So, always:
@@ -214,9 +231,10 @@ The central mystery, revealed slowly over many weeks: the ember ash trees are th
 Warm, curious, slightly melancholy. Patch notes and in-game text are friendly and a bit wry. Nothing grimdark, nothing sugary.
 
 ## Art direction
-- **Low-poly and flat-shaded.** Terrain cells are 4 m. Props use 5 to 8 radial segments.
-- **Late-afternoon palette.** Warm horizon, soft blue sky, orange ash leaves as the signature colour. The palette lives in `game/procgen/palette.gd`; new content picks from it or extends it there.
-- **Characters** are small, rounded wanderers. Their look comes from an appearance seed: tunic hue, skin tone, headwear. Later: gear changes silhouettes.
+The full art bible is `docs/art_bible.md` (**Emberlight**, owner direction 7). The essentials:
+- **Painted low-poly.** Terrain cells are 4 m. Props use 5 to 8 radial segments, flat-shaded with gradients across the faces. Colour comes from vertex colours and one shared shader, not textures.
+- **Golden late-afternoon palette.** Warm light, cool blue shadows, orange ash leaves, and `EMBER` gold reserved for what you can use. The palette lives in `game/procgen/palette.gd`; new content picks from it or extends it there.
+- **Characters** are rounded wanderers today, growing toward grounded proportions when gear arrives. Their look comes from an appearance seed: tunic hue, skin tone, headwear. Later: gear changes silhouettes.
 - **Sound** is synthesised: soft sine chimes for UI and chat now; later, procedural ambient music keyed to time of day and biome.
 
 ## Core systems (current)
@@ -254,6 +272,7 @@ milestone from the second one on.
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 00 (2026-11-23, art style):** The owner asked how to make the art style unique, in the stylized or painterly realism family of their favourite modern MMO, and then for it to be done in the most efficient way for the server, the system and the bots. Added owner direction 7 and `docs/art_bible.md`: the **Emberlight** style (painted low-poly, colour in vertices and one shared shader, warm light and cool shadows, ember as signature and gameplay signal, the Dimming as our own dark layer, a concrete "what to avoid" list so we never copy), and performance as part of the style (server and bots never touch art, instancing chunked for culling, distance LODs, few lights, pooled effects, no expensive screen effects, quality tiers, and CI-enforced render budgets with a 20% ratchet plus a screenshot style check). Pillar 3 now names the style instead of "flat-shaded, colourful". Nothing already built changes meaning; existing props move onto the shared shader over the next world runs.
 - **Week 00 (2026-11-23, vision and roadmap):** The owner gave the game its direction: the New World feel for the whole game (not only the camera and gathering), the RuneScape-style long skill grind, and the goal of beating every other MMO, built by the owner and AI together. Added "The vision in one paragraph" and the core loop (gather → craft → fight → level up → explore further), owner directions 4 (the whole game feels like a modern action MMO), 5 (the long road: many skills to level 100, every level unlocks something) and 6 (take the best, then beat it: study the best version of each feature in other MMOs and build an improved, original one). Reconciled grind with fun: pillar 1 and the old "Cut boring work" bullet become "Long road, never tedium", judged per minute (every minute pays a little, the next unlock is always in sight), so a long grind is wanted and tedium still never ships. The planned order of systems is now the milestone list in `docs/roadmap.md`. "Inspired by, never copied" applies to both reference games: no skill names, XP tables or exact systems from either.
 - **Week 00 (2026-11-23, fun first):** Added "Fun comes first" at the top of the owner directions. The owner said the number one way to make the greatest MMO is to make it fun, and if it isn't fun it isn't the best. Turned that into concrete guidance (tight feedback, short loops that pay off, juice, no dead time), a lens for each stream, a "Why it's more fun" line on every worker PR, and bot-test fun metrics in qa. Directions 1 to 3 (chat is for talking, the action camera, how gathering feels) and "Inspired by, never copied" are unchanged.
 - **Week 00 (2026-11-22, owner directions):** Added "Owner directions": chat is for talking only (slash commands move to keys and windows, debug commands only behind `--dev-commands`), an over-the-shoulder action camera with always-on mouse look and camera-relative movement, gathering that targets what the reticle is on, and an "Inspired by, never copied" section. The owner loves how New World's camera and gathering feel and asked for that feel, while the AI keeps designing everything else; the guardrails keep us to mechanics and feel, never names, lore, art, UI or text.

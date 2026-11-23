@@ -34,7 +34,7 @@ data-loss bug, or red `main`. It must say so in the PR description.
 **Integrator only:** `CHANGELOG.md`, `CLAUDE.md`, `docs/workstreams.md`, `docs/weekly_task.md`,
 `docs/devlog/week-NN.md`.
 
-**Director:** `docs/roadmap.md`, `docs/design_bible.md`, `docs/digest/`, and the "Backlog"
+**Director:** `docs/roadmap.md`, `docs/design_bible.md`, `docs/art_bible.md`, `docs/digest/`, and the "Backlog"
 sections of every `docs/workstreams/<stream>.md` (workers still tick their own items and add
 follow-ups).
 
@@ -74,7 +74,7 @@ this, if you didn't take it before cloning.
    has no open PR to fix, stop immediately. Then **take your claim** (above); if it's busy,
    stop with one line. From here on, release the claim before you stop, on every path.
 1. Attach and clone the repo. Read `CLAUDE.md`, this file, `docs/design_bible.md`
-   (especially the North star), `docs/roadmap.md`, your backlog `docs/workstreams/<stream>.md`,
+   (especially the North star), `docs/art_bible.md` (if your change shows anything on screen), `docs/roadmap.md`, your backlog `docs/workstreams/<stream>.md`,
    and the tail of `docs/devlog/<stream>.md`.
 2. **Look after your open PRs, then keep going.** List your open `ws/<stream>/` PRs. For each:
    - Checks green or still running, auto-merge on, no conflict, no unanswered review comment:
