@@ -6,3 +6,5 @@ export_credentials.cfg
 build/
 # Local data
 *.tmp
+game/client/build_id.txt
+game/client/update_url.txt

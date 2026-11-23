@@ -349,6 +349,9 @@ func _on_connected() -> void:
 
 func _on_login_result(ok: bool, message: String, id: int, character: Dictionary) -> void:
 	if not ok:
+		if message.contains("out of date") and Updater.restart_for_update(get_tree()):
+			_set_status("A new version is out. Restarting to update...", false)
+			return
 		_set_status(message, true)
 		connect_button.disabled = false
 		multiplayer.multiplayer_peer.close()

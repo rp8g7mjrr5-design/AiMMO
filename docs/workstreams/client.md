@@ -3,6 +3,7 @@
 Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
 
 ## Backlog (top = next)
+- [x] (owner request 2026-11-23, in review, ws/client/auto-update) **Self-updating client.** Install once; every launch fetches the latest release's `update.json`, downloads the newer game pack with a progress bar, and restarts into it with `--main-pack` (`game/client/updater.gd`). CI publishes `AiMMO-<os>.pck` and `update.json` with each release.
 - [ ] **Top priority (director, owner request 2026-11-22): gathering that feels like an MMO.** Needs gameplay's protocol v3 (top of its backlog, 2026-11-23). Follow "How gathering feels" in `docs/design_bible.md`. Can be built ahead against a local stub of the v3 messages, then wired once v3 is on `main`.
   - Interact prompt: when `ResourceNodes.nearest(my_pos)` is within `GATHER_RANGE`, highlight it (ask world, or a simple emissive pass yourself) and show "[E] Chop Ember Ash" / "[E] Chop Pine" / "[E] Mine Stone" / "[E] Collect Ember Sap" near the bottom centre. Hidden while typing in chat.
   - E key (new `interact` input action, rebindable later) or left-click on a node within reach sends `c2s_gather_start(node_id)`. Moving, jumping or E again sends `c2s_gather_cancel()`.
@@ -52,6 +53,9 @@ Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
 - [ ] Follow-up (workbench): switch the window to `c2s_craft` / `s2c_craft_result` / `s2c_inventory` when they are in the protocol (`CraftWindow.seed_pack` takes the s2c_inventory Dictionary as is; drop the "/bag" round trip and the text parsing).
 - [ ] Follow-up (workbench): torches are "craft anywhere"; open the same window from the pack window (I) once that exists, with bench recipes greyed out away from the bench.
 - [ ] Follow-up (workbench): a craft bot that actually gathers 3 ash and 2 stone and presses Craft (needs ~6 gathers at 1.6 s each, so a long play phase; or ask gameplay for a test-only give).
+
+- [ ] Follow-up (auto-update): when gameplay bumps the protocol, the old client restarts and updates on the "out of date" refusal; it matches that text. Ask gameplay for a dedicated refusal code if that wording ever changes.
+- [ ] Follow-up (auto-update): a "Check for updates" button in Settings for players who keep the game open across a release.
 
 ## Requests from other streams
 - **From world (bench lantern PR), flake seen:** one 8-bot run failed in `client_craft_window`: "window thought the pack was { "ash_wood": 6, "stone": 2 }, server says Your pack: 3 ash wood, 1 stone axe." It looks like the window's pack view racing a craft's `s2c_inventory`; the rerun passed. Worth a look before it reddens someone's CI.
