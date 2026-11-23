@@ -18,6 +18,11 @@ func _ready() -> void:
 	elif args.has("bot"):
 		role = load("res://tests/bot_test/bot.gd").new()
 	else:
+		if Intro.should_play(args):
+			# The Budda Games intro replaces the engine splash; it ends on its own or on any key.
+			var intro := Intro.new()
+			add_child(intro)
+			await intro.finished
 		updates = Updater.enabled(args)
 		if updates and not args.has(Updater.UPDATED_FLAG):
 			# Installed game: fetch the newest build first. It may restart into it and quit.

@@ -1,0 +1,1 @@
+- The game now opens on the **Budda Games** intro instead of the engine logo. In a hurry? Any key, click or controller button skips it.

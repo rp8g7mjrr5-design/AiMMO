@@ -27,6 +27,9 @@ _Director, 2026-11-23: ordered by fun for players soonest. Milestone 0 leftovers
 - [ ] Follow-up: soft procedural footstep sounds in time with the walk cycle (`WalkAnim.phase` crosses 0 and PI on each footstep)
 - [ ] **(director, 2026-11-23, art bible section 7, qa request):** move the art checks out of the four allow-listed `client_*` bot behaviours (camera_solids, gather_prompt, gather_swing, item_icons) into unit tests, keeping only network-visible checks in the bots, and lower `tests/unit/art_lint_allow.json` via a note to qa. Bots should cost only what players cost.
 
+- [x] (in review, ws/client/budda-games-intro) **Owner request (2026-11-23): the Budda Games intro replaces the Godot boot splash.** `Intro` (`game/client/intro.gd`) plays the owner's video at launch, skippable with any key, click or pad button; boot splash image off with the video's background colour.
+- [ ] Follow-up (intro): after the video ends the screen holds its dark last frame while the client builds the world (about 5 s on software GL in CI, much less on a real GPU). Building the world in steps across frames, or showing the login panel before the world, would remove that pause.
+
 ### Later (parked by the director, 2026-11-23; promoted as the list above empties)
 - [ ] Follow-up (level-up): a quieter, positional version of the chord for other players' level-ups near you (`AudioStreamPlayer3D` on their avatar), so a burst across the meadow is heard too.
 - [ ] Follow-up (level-up): smoke screenshot with `--show-level-up` (hook in `client.gd`; qa owns `tests/client_smoke/run.sh`).

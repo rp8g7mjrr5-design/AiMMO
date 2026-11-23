@@ -894,3 +894,53 @@ my request out of world's backlog. Gameplay's #104 made the old ember ash live, 
 that expected "(coming soon)" on Felling 5 now checks the live text and tests the tag on a copy
 with `soon` set. Unit tests (431), the 8-bot 180 s WebSocket bot test (8 of 8 levelled) and the
 client smoke test pass locally.
+
+## 2026-11-23: Budda Games intro replaces the Godot splash (owner request)
+
+Run outside the schedule, on the owner's direct request in a project thread; took the
+`client` claim like a worker run.
+
+**Built:** `Intro` (`game/client/intro.gd`), a CanvasLayer with a `VideoStreamPlayer` in a
+16:9 `AspectRatioContainer` over the video's background colour (#1d161a). `main.gd` awaits it
+in the client branch before the updater. `project.godot` sets
+`boot_splash/show_image=false` and `boot_splash/bg_color` to the same colour, so launch goes
+background → video with no logo or flash. Any key press (not echo), mouse button or pad button
+fades it out in 0.25 s; a 10 s timer guards against a stalled stream. It never plays headless
+or with `--no-intro`, `--updated` (relaunch after a self-update already showed it),
+`--screenshot`, `--autoconnect`, `--bot`, `--server`; `--intro` forces it for tests.
+
+**Asset:** the owner's mp4 (1920x1080, 60 fps, H.264/AAC, 0.95 MB) converted with ffmpeg to
+Theora/Vorbis at 1920x1080, 30 fps, `-q:v 8 -q:a 4`: 1.15 MB, so updates stay small. 720p was
+0.7 MB but softened the pixel-art logo. Added `client/intro/*.ogv` to the three client presets'
+include filters (the server preset already excludes `client/*`). The owner-approved exception
+to the procedural rule is written into the design bible ("Studio intro").
+
+**Tests:** unit `test_client_intro.gd` (plays on a normal launch, every automated flag skips,
+`--intro` forces, skip events, the file loads as Theora and stays under 2 MB, client presets
+pack it and the server leaves it out, boot splash off with the matching colour). By hand under
+xvfb: the real client plays the whole clip and lands on login; a scripted key press ends it in
+285 ms. No bot behaviour: bots never boot the client role, and bot behaviours must stay art-free.
+
+**Known:** after the clip, its dark last frame stays up while the client builds the world
+(about 5 s on llvmpipe). Follow-up added.
+
+**Follow-up (same run):** after merging `main`, `test_goal_skips_unlocks_not_in_the_world_yet`
+failed: it hard-coded Toolcraft as the "coming soon" example, and #110 built Toolcraft 5. The
+test now finds a soon unlock from `Skills` data, so it keeps working as unlocks get built.
+Then the 45 s ENet bot run failed in `client_craft_window` ("window would say 1 pine wood and
+1 ember sap, server said 1 ember sap"), about one run in two locally. Cause: another
+behaviour's instant `/gather` landed in the same server tick as the Craft press, and the pack
+is only flushed at the end of the tick, so the window judged an older pack. The behaviour now
+re-checks a disagreeing prediction against the pack the server judged (rebuilt from the next
+`s2c_inventory`) and fails only if that disagrees too; a new `raced` stat counts the excused
+ones. 7 ENet runs passed after it.
+
+**Scheduled run, 2026-11-23 ~14:30 UTC (looking after #111):** #111 was red (fun metric
+`longest_dead_s_median` 49.9 s vs baseline 35, nothing to do with the intro since bots never
+boot the client role) and in conflict with `main`. qa's #114 landed in the meantime: it fixed
+the same `client_craft_window` race its own way (a `raced_presses` stat that excuses presses a
+pack-changing chat line may have overtaken) and re-baselined dead time to 40 s. Another session had already merged `main` the same way (8341772); I
+and took qa's version of `client_craft_window.gd` over this branch's re-check, because two
+fixes for one race in one file would fight and qa owns `tests/`; the PR is back to just the
+intro. Did not start a second item this run: the intro PR getting green is the useful thing.
+Unit (456), 8-bot 180 s WebSocket bot test (PASSED, dead-time median 35.05 s) and client smoke test pass locally after the merge.
