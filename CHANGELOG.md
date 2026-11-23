@@ -5,6 +5,21 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- Behind the scenes: fixed a stale test that was holding back new builds, and made two automated checks steadier so updates reach you without false alarms.
+- **Level up like you mean it.** Hit a new skill level and a gold banner pops in ("Felling 5") with what you just unlocked and your next goal, a rising chord rings out, and a column of ember light bursts around you. It's over in under two seconds and never stops your swing.
+- See someone near you level up? The same burst lights them up, so the whole meadow knows.
+- The level-up announcement no longer clutters chat: the banner says it.
+- Reach **Toolcraft 5** and the workbench teaches you to harden your tools in ember sap: the **ember axe** (your stone axe, 4 ember heartwood and 1 ember sap) and the **ember pickaxe** (your stone pickaxe, 4 veinstone and 1 ember sap).
+- Ember tools make every gather's bar about a third shorter than stone and give one more item per swing, so you feel the upgrade on the very next tree or rock.
+- Ask for one too early and the workbench tells you how far you have to go ("An ember axe needs Toolcraft 5. You're Toolcraft 3.").
+- Behind the scenes: every build now tracks how fast a fresh player gets their first item and first level-up, run over run, so a change that makes the early game slower gets caught the morning after.
+- Press **K** (or the new **Skills** button, top right) to see all your skills at once: level, XP bar, how far to the next level, what the next unlock gives you, and your total level.
+- A small goal line under the compass always tells you the closest unlock ("Next: Felling 5 unlocks Old ember ash (1,680 XP)"), and glows gold when you reach it and it moves on.
+- Ember heartwood and veinstone finally look the part: heartwood is an old grey log whose heart still glows like a coal, and veinstone is a deep mauve chunk split by a glowing vein and flecked with gold.
+- Fast first level-ups are now guarded: every test run checks that fresh players reach their first level-up within about half a minute of gathering and never stand around long with nothing happening, so a change that makes levelling slower or the valley duller can't ship.
+- The workbench window now opens with your pack already counted and answers the moment you press Craft: the new item pops up with its icon, your Toolcraft XP ticks up, and nothing about crafting ever shows up in chat again.
+- Reach Felling 5 or Quarrying 5 and a new goal opens just past the meadow: eight **old ember ashes** and **rich stone seams** ring Spawn Meadow, and they pay double XP per swing and give new materials, **ember heartwood** and **veinstone**.
+- Not there yet? Try one anyway and it tells you exactly how far you have to go ("Needs Felling 5. You're Felling 3.").
 - Past the meadow, look for the **old ember ashes**: taller and wider than any tree around them, with a bright gold crown and glowing ember pods hanging beneath it that shine all night. And the **rich stone seams**: wide plum-dark outcrops flecked with gold, ember crystals breaking out of the top. They're the trees and rocks your Felling and Quarrying are building toward.
 - Every gather and craft now pays out XP you can see: a gold "+10 Felling" floats up beside your haul, and that skill's bar slides forward ("Felling 2 · 215 XP to 3"), then fades out of your way.
 - Every skill now has its own badge: a green felling stump, a slate quarrying pick, a glowing red tapping drop and a wooden toolcraft bench. They're ready for the skills window and level-up toasts, so you'll know which road just moved before you read a word.

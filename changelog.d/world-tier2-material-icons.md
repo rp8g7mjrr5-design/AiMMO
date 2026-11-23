@@ -1,1 +1,0 @@
-- Ember heartwood and veinstone finally look the part: heartwood is an old grey log whose heart still glows like a coal, and veinstone is a deep mauve chunk split by a glowing vein and flecked with gold.

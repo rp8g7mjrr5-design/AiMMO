@@ -1,3 +1,0 @@
-- **Level up like you mean it.** Hit a new skill level and a gold banner pops in ("Felling 5") with what you just unlocked and your next goal, a rising chord rings out, and a column of ember light bursts around you. It's over in under two seconds and never stops your swing.
-- See someone near you level up? The same burst lights them up, so the whole meadow knows.
-- The level-up announcement no longer clutters chat: the banner says it.

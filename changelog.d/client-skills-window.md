@@ -1,2 +1,0 @@
-- Press **K** (or the new **Skills** button, top right) to see all your skills at once: level, XP bar, how far to the next level, what the next unlock gives you, and your total level.
-- A small goal line under the compass always tells you the closest unlock ("Next: Felling 5 unlocks Old ember ash (1,680 XP)"), and glows gold when you reach it and it moves on.

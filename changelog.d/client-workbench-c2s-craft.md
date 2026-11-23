@@ -1,1 +1,0 @@
-- The workbench window now opens with your pack already counted and answers the moment you press Craft: the new item pops up with its icon, your Toolcraft XP ticks up, and nothing about crafting ever shows up in chat again.
