@@ -1,0 +1,1 @@
+- Gathering is about to slow down in the best way: the server now times every pull from a tree, rock or seep (about two seconds, quicker with the right tool) and calls it off if you walk away, so nothing is lost. You'll feel it when press-E switches over in the next update.

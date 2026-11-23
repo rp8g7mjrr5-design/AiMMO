@@ -12,6 +12,9 @@ class_name ChatCommands
 const HELP := "Commands: /gather (take from the tree, rock or seep you stand at; /gather pine for one kind), /bag (what you carry), /time (time of day in Ashgrove), /who (who is online), /help."
 const GATHER_NAMES := ["gather", "g", "harvest", "chop", "mine"]
 const CRAFT_NAMES := ["craft", "make", "build", "recipes"]
+## The timed gather (GatherChannel) as a hidden dev/bot command until protocol v3's
+## c2s_gather_start: never listed in HELP or patch notes.
+const CHANNEL_NAMES := ["channel"]
 const WHO_MAX_NAMES := 20 ## cap the /who list so one line stays readable
 
 
@@ -34,6 +37,11 @@ static func argument(text: String) -> String:
 ## True for /gather and its aliases, which the server runs against its world state.
 static func is_gather(text: String) -> bool:
 	return is_command(text) and name_of(text) in GATHER_NAMES
+
+
+## True for /channel, the timed gather, which the server runs against its world state.
+static func is_channel(text: String) -> bool:
+	return is_command(text) and name_of(text) in CHANNEL_NAMES
 
 
 ## True for /craft and its aliases, which the server runs against the sender's pack.

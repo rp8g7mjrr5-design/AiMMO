@@ -314,3 +314,65 @@ gate lands (separate backlog item), the hidden command still works on the live s
   `s2c_craft_result` into the same bump. Scale the gather channel by
   `Gathering.TOOL_SPEED` when `tool_for` finds a tool, and send `s2c_inventory` after
   crafts too.
+
+## 2026-11-22 (seventh run, 18:00 Chicago): the timed gather channel, without a protocol bump
+
+**Why not protocol v3 now.** The director scheduled the v3 bump for 2026-11-23, and the
+"one bump per day" rule. It is 00:00 UTC on the 23rd but 18:00 on the 22nd in Chicago, and
+v2 merged at 05:36 Chicago on the 22nd. The budget week and the previous run both count days
+in America/Chicago (the owner's day), so a v3 PR opened now would most likely merge on the
+same Chicago day as v2 and make the owner re-download twice in one day. I held the bump and
+built everything v3 needs that is not protocol, so the v3 run is only wiring.
+
+**Built.** `game/shared/gather_channel.gd` (`GatherChannel`): `SECONDS` per kind (ash and
+pine 2.0 s, stone 2.4 s, ember sap 1.6 s), `seconds_for` scales by `Gathering.TOOL_SPEED`
+when a tool helps, `start` / `cancel_reason` ("moved" past 0.5 m flat, or "far") / `is_due`
+/ `progress` / `finish_check` (re-runs `Gathering.check` at the end without the cooldown).
+`server.gd`: `gather_start(id, node_id)` returns `{ok, reason, seconds}` with the same checks
+as `/gather` plus "busy" and "full" (a full stack never starts); `gather_cancel(id, reason)`
+uses no charge and no cooldown; `_tick_channels` runs every server tick after movement;
+`_finish_channel` takes the charge and fills the pack, or ends "depleted"/"day"/"full" with
+nothing spent; `_gather_event(id, event, node_id, info)` is the one place v3 swaps for
+broadcasts (today it sends the gatherer a system line). The instant `/gather` is refused
+("Easy; you're still gathering.") while a channel runs, so press-E can't double-dip. A
+disconnect cancels quietly. Hidden dev command `/channel [kind]` / `/channel stop` (not in
+`HELP`, not in patch notes).
+
+**Testable server.** `server.gd` got `now_seconds()` with a `test_now` override and, when
+`net` is null, `_send` records into `test_outbox`. So the unit tests drive the real server
+functions with a fake clock instead of copying their logic. Use this for v3's tests too.
+
+**Tests.** `tests/unit/test_gameplay_gather_channel.gd`, 8 tests: durations and tools,
+channel rules, start then complete (nothing until the end, one charge, busy, instant
+`/gather` refused, cooldown after), cancel by moving (no charge, no cooldown, can restart),
+cancel on request and on disconnect (nothing sent), contested node (three finish and empty
+a pine, the fourth gets nothing and is told it is spent), start refusals, `/channel`
+routing. 187 unit tests pass with Postgres. Bot behaviour `gameplay_gather_channel.gd`: after
+the bot's first `/gather` it walks to a node, starts a channel and walks off (must cancel,
+must not pay), then goes back and holds still (must pay at the end, never cancel). Two 8 x
+180 s websocket runs with the final behaviour passed: 13 and 10 cancels, 11 and 8 completed
+gathers across the 8 bots; a bot or two per run found every nearby node spent and gave up,
+which the behaviour allows.
+
+**What didn't work.** First version of the behaviour stood at the node the first gather
+used; the client's gather prompt behaviour "holds E" whenever a bot stands still, so it had
+drained that node and its refusals were misread as ours. Now the bot walks to the nearest
+node and treats any refusal as "try the next node". Then the 45 s ENet run went red twice in
+six ("never gathered anything", 5 spent): bots standing still for this behaviour let the
+prompt drain the few nodes near spawn that other bots still needed. The behaviour now runs
+only when `bot.duration >= 120` (CI's 180 s run); with that, 45 s ENet passed 3/3 and main
+passed 4/4 before my change. Note for qa: gathering bots are close to starving in the 180 s
+run too (one bot saw 12 spent nodes before its one gather); more bots or behaviours that
+stand still will tip it. Consider a bot-test clock offset or a few extra charges via a
+server test flag.
+
+**Notes to next run (v3, after 00:00 Chicago on 2026-11-23).**
+- Put the new RPCs on a child node (`Net/Play`) per qa's note, or names that sort after every
+  existing RPC; `tests/protocol/net_v2.gd` already exists.
+- `c2s_gather_start(node_id)` -> `gather_start`; on refusal send the gatherer a refusal line
+  (or an `s2c_gather_end(..., reason)`). `c2s_gather_cancel()` -> `gather_cancel(id, "stopped")`.
+- Rewrite `_gather_event`: "begin"/"cancelled"/"done" -> `s2c_gather_begin`/`s2c_gather_end` to
+  everyone within view; "done" also `s2c_gather_result` + `s2c_inventory`; when
+  `info.depleted`, `s2c_node_state(node_id, true)`; `Gathering.respawn_due` results ->
+  `s2c_node_state(id, false)` (call it once a second in `_process`).
+- Switch the bot behaviour from `/channel` to the RPCs; keep `/channel` as a dev command.
