@@ -1,0 +1,1 @@
+- Behind the scenes for the first fights: health and stamina rules are in. A dodge always goes out while you have any stamina left, the bar refills in about two and a half seconds, sprinting outside a fight is free, and health comes back on its own soon after a fight.
