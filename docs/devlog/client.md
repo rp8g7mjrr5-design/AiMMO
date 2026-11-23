@@ -802,3 +802,42 @@ for bots and goes away with gameplay's gate.
 
 **Notes to next run:** part 2, the level-up moment (`level_up` -> chord, banner,
 `LevelUpFx.play`; `level_up_seen` -> burst on that avatar). Then the skills window (K).
+
+## 2026-11-23: the skills window and the next goal (ws/client/skills-window)
+
+**Why this item:** Milestone 1 part 3 is the top backlog item not already in a PR (part 2,
+the level-up moment, is #102). It needs nothing from #102: it reads `Skills` and world's
+`SkillIcons`, both on `main`.
+
+**Fun, in one sentence:** you can always see where your next payoff is and how close it is
+("Next: Felling 5 unlocks Old ember ash (1,680 XP)"), so every gather is a step toward
+something you can name, and K shows the whole road at a glance.
+
+**Built:** `SkillsWindow` (`game/client/skills_window.gd`): Ember-bordered window like the F1
+list; title, gold "Total level N · X XP", then one row per skill: world's badge (40 px),
+"Felling 3", "1,240 XP to level 4", a gold bar, and the next named unlock ("Level 5: Old ember
+ash, ...", "(coming soon)" for unlocks not built yet). K (new `toggle_skills` in
+`ControlsOverlay.DEFAULT_BINDS`, listed in F1) or the "Skills" button opens it; K, Esc or Close
+shut it; it frees the cursor via `window_open()`. It doesn't open over the workbench, F1 or
+Settings. Goal line: a 14 px label under the compass (y 76 to 96, clear of #102's banner at
+96) with `SkillsWindow.goal_text`, the named unlock with the least XP left across all skills.
+**Decision:** `soon` unlocks are skipped as goals (Toolcraft 3 would be the cheapest goal for
+many players, but sending them toward something that isn't in the game is a broken promise);
+ties go to the skill listed first. When a gain moves the goal on, the line flashes gold for
+1.2 s (`goal_colour`). Test hook `--open-skills`.
+
+**Tests:** unit `test_client_skills_window.gd` (totals, grouping, row texts, closest goal,
+soon skipped, goal moves on and runs out at the cap, flash colour, K bound and listed, the
+window's rows follow on_skills/on_gain, reset). Bot `client_skills_window.gd`, network-only:
+on every s2c_xp the texts match the shared rules for the server's total, total level is the
+sum, and the goal is a built unlock still ahead whose XP left equals the threshold minus the
+server total and never rises for the same goal. 8-bot runs saw 12 to 23 gains and goal changes
+per bot.
+
+**What went wrong:** the first local bot run failed in qa's pair check (both pair bots
+picked tier-2 node 403, which needs level 5, since #104). Not my code; the rerun passed. I
+wrote it up in qa's backlog with the one-line fix (skip tier 2 in `GatherLedger.pair_node`).
+A first screenshot attempt failed on Vulkan; use `--rendering-driver opengl3` like run.sh.
+
+**Notes to next run:** when #102 lands, hide the goal line while the banner shows (follow-up
+added). Then part 4 (level requirements in prompts) can reuse `SkillsWindow.next_goal`'s need.
