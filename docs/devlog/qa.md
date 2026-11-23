@@ -649,7 +649,7 @@ palette scan (0 today). Shader colours (`vec3(...)` inside emberlight.gd's shade
 three real-tree tests; reverted.
 
 **Tests:** 383 unit tests pass with Postgres (9 new). Bot test 8 x 180 s WebSocket + Postgres
-with `--fun-check`: see PR. Client smoke not run: nothing the client loads changed.
+with `--fun-check` passed in 234 s (0 of 8 bots levelled, same as before). Client smoke not run: nothing the client loads changed.
 
 **Next run:** check #94 and this PR landed. Then "chat is for talking" if `--dev-commands` is
 on main; otherwise the screenshot style check (next Emberlight item) or the pack-change ledger.
