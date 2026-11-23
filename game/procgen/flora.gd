@@ -182,11 +182,9 @@ static func build() -> Node3D:
 	var lay := layout(spots())
 	var meshes := _meshes()
 	for l in LAYERS:
-		var mmi := _multimesh(l, meshes[l], lay[l])
-		if l.begins_with("Flower"):
-			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF # tiny, and there are a lot of them
-			mmi.visibility_range_end = 90.0 # nobody sees a 10 cm flower from further than this
-		root.add_child(mmi)
+		# Chunked by area with per-layer draw distances and shadows (see `Chunks`): flowers
+		# stop at 90 m and cast no shadow, as before; now per chunk instead of per world.
+		root.add_child(Chunks.build(l, meshes[l], lay[l], layer_material(l)))
 	return root
 
 
@@ -249,22 +247,6 @@ static func _meshes() -> Dictionary:
 ## trunk. See the world backlog follow-up.)
 static func layer_material(_layer: String) -> ShaderMaterial:
 	return Emberlight.material("solid")
-
-
-static func _multimesh(node_name: String, mesh: Mesh, instances: Array) -> MultiMeshInstance3D:
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = mesh
-	mm.instance_count = instances.size()
-	for i in instances.size():
-		mm.set_instance_transform(i, instances[i][0])
-		mm.set_instance_color(i, (instances[i][1] as Color).srgb_to_linear())
-	var mmi := MultiMeshInstance3D.new()
-	mmi.name = node_name
-	mmi.multimesh = mm
-	mmi.material_override = layer_material(node_name)
-	return mmi
 
 
 ## A tiny flat spatial hash for "is anything within `radius` of here".
