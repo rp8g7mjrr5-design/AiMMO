@@ -1,0 +1,3 @@
+- Reach **Toolcraft 5** and the workbench teaches you to harden your tools in ember sap: the **ember axe** (your stone axe, 4 ember heartwood and 1 ember sap) and the **ember pickaxe** (your stone pickaxe, 4 veinstone and 1 ember sap).
+- Ember tools make every gather's bar about a third shorter than stone and give one more item per swing, so you feel the upgrade on the very next tree or rock.
+- Ask for one too early and the workbench tells you how far you have to go ("An ember axe needs Toolcraft 5. You're Toolcraft 3.").

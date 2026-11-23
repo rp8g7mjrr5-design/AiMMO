@@ -10,14 +10,17 @@ func test_recipes_are_well_formed() -> void:
 	for id in Crafting.RECIPE_ORDER:
 		var r: Dictionary = Crafting.RECIPES[id]
 		check(Inventory.is_item(id), "%s is an item a pack can hold" % id)
-		check(Inventory.ITEM_ORDER.has(id), "%s has a place in pack order" % id)
+		check(Inventory.ITEM_ORDER.has(id) or Inventory.UNDRAWN.has(id), "%s has a place in pack order (or waits for its icon)" % id)
 		check(int(r.makes) >= 1, "%s makes something" % id)
 		check(not r.needs.is_empty(), "%s costs something" % id)
 		for item in r.needs:
-			check(Inventory.is_item(item) and not Crafting.is_recipe(item), "%s needs raw %s" % [id, item])
+			var upgrade: bool = str(r.get("upgrades", "")) == item
+			check(Inventory.is_item(item) and (upgrade or not Crafting.is_recipe(item)), "%s needs raw %s (or the tool it upgrades)" % [id, item])
 			check(int(r.needs[item]) > 0, "%s needs a positive %s" % [id, item])
+			check(Inventory.ITEM_ORDER.has(item), "%s's part %s shows in needs text" % [id, item])
 	for kind in Gathering.TOOLS:
-		check(Crafting.makes_tool(Gathering.TOOLS[kind]), "the %s tool is a craftable tool" % kind)
+		for tool in Gathering.TOOLS[kind]:
+			check(Crafting.makes_tool(tool), "the %s tool %s is a craftable tool" % [kind, tool])
 
 
 func test_workbench_sits_in_open_meadow() -> void:
