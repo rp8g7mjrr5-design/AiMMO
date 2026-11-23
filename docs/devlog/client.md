@@ -842,6 +842,59 @@ A first screenshot attempt failed on Vulkan; use `--rendering-driver opengl3` li
 **Notes to next run:** when #102 lands, hide the goal line while the banner shows (follow-up
 added). Then part 4 (level requirements in prompts) can reuse `SkillsWindow.next_goal`'s need.
 
+## 2026-11-23: the level-up moment (ws/client/level-up-moment)
+
+**First, PR #101 (workbench on `c2s_craft`):** it had a merge conflict in the client and
+gameplay backlogs (both sides added a request line). Merged `main` in, kept both lines, pushed;
+auto-merge is still on. Its code merged cleanly.
+
+**`main` is red, not from us:** `test_qa_art_lint::test_only_palette_hard_codes_colours` fails
+on `main` itself (`node_props.gd: 15, allowed 11`), from world's #100 landing beside qa's #95.
+That file is world's, so I left a request in world's backlog instead of touching it. Both my
+open PRs will show a red Test until it is fixed; auto-merge waits, and the next run merges
+`main` in.
+
+**Why this item:** Milestone 1 part 2 is the top backlog item that isn't already in a PR (the
+craft window is #101) and needs nothing from another stream: protocol v4's `level_up` and
+`level_up_seen`, world's `LevelUpFx` and `SkillIcons` are all on `main`.
+
+**Fun, in one sentence:** reaching a level now *feels* like a payoff, a gold "Felling 5" with
+what you unlocked and what's next, a rising chord and a burst of ember light, instead of a
+line of grey text in chat.
+
+**Built:** `LevelUpBanner` (`game/client/level_up_banner.gd`), top centre under the compass:
+skill badge, "Felling 5", the unlock line (or "Your gathers are a little quicker"), and "Next:
+Felling 10, Clean cuts". Pops 0.6 -> ~1.08 -> 1.0 over 0.22 s (ease-out-back), holds, fades;
+1.9 s in all; every Control ignores the mouse, so nothing blocks input. `Sfx.level_up()`: C-E-G-C
+arpeggio in 0.21 s landing on a held C major chord with a shimmering high G, 1.5 s. Own level-up:
+banner + chord + `LevelUpFx.play(own avatar)`. `level_up_seen`: the burst over that player only
+(no banner, no sound yet: follow-up). Chat: the banner remembers `Skills.level_up_text(...)` for
+the level-up and `_on_system` drops exactly that line once, so no gameplay change was needed to
+clean chat; gameplay told it can drop the line later. Test hook `--show-level-up` (with
+`--screenshot`) for a smoke shot.
+
+**Decisions:** a second level-up while the banner shows replaces it rather than queueing; it
+only happens if one craft levels Toolcraft twice, rare at these XP rates (follow-up added). I
+skipped the XP meter "hold at full" follow-up to keep the run small.
+
+**Tests:** unit `tests/unit/test_client_level_up.gd` (texts, pop overshoot, fade inside 2 s,
+mouse-ignore on every child, badge set, chat-line swallow once, sound length, no clip, no end
+click, rising notes). Bot `client_level_up.gd` is network-only (art bible section 7): level
+matches the last XP total, unlocks match the shared table, banner texts, and the server's line
+equals `LevelUpBanner.announcement(...)` so it would be kept out of chat.
+
+**Notes to next run:** merge `main` into #101 and this PR once world fixes the palette lint.
+Then part 3 (skills window on K + the next-goal line); `LevelUpBanner.next_text` already builds
+the "Next: Felling 10, Clean cuts" string the goal line wants.
+
+**Later run, 2026-11-23 (fix-up):** #101 landed, then #102 had conflicts in `client.gd` (both
+added handlers next to each other), the client devlog and the client/gameplay/world backlogs.
+Merged `main` in and kept both sides. World fixed the palette lint on `main` (#103), so I took
+my request out of world's backlog. Gameplay's #104 made the old ember ash live, so the unit test
+that expected "(coming soon)" on Felling 5 now checks the live text and tests the tag on a copy
+with `soon` set. Unit tests (431), the 8-bot 180 s WebSocket bot test (8 of 8 levelled) and the
+client smoke test pass locally.
+
 ## 2026-11-23: Budda Games intro replaces the Godot splash (owner request)
 
 Run outside the schedule, on the owner's direct request in a project thread; took the
@@ -870,3 +923,7 @@ xvfb: the real client plays the whole clip and lands on login; a scripted key pr
 
 **Known:** after the clip, its dark last frame stays up while the client builds the world
 (about 5 s on llvmpipe). Follow-up added.
+
+**Follow-up (same run):** after merging `main`, `test_goal_skips_unlocks_not_in_the_world_yet`
+failed: it hard-coded Toolcraft as the "coming soon" example, and #110 built Toolcraft 5. The
+test now finds a soon unlock from `Skills` data, so it keeps working as unlocks get built.

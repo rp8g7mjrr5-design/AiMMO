@@ -37,6 +37,8 @@ var time_dial: TimeDial
 var compass: CompassStrip
 var gather_prompt: GatherPrompt
 var xp_meter: XpMeter
+var level_up_banner: LevelUpBanner
+var sfx_level_up: AudioStreamPlayer
 var gather_watch := GatherWatch.new() ## everyone's gathers -> node hits and empty looks
 var sfx_haul := {} ## node kind -> AudioStreamPlayer for Sfx.haul(kind)
 var craft_window: CraftWindow
@@ -88,6 +90,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.craft_result.connect(_on_craft_result)
 	net.skills_changed.connect(_on_skills)
 	net.xp_gained.connect(_on_xp)
+	net.level_up.connect(_on_level_up)
+	net.level_up_seen.connect(_on_level_up_seen)
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _set_status("Could not reach the server.", true))
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -151,6 +155,9 @@ func _screenshot_later(path: String, wait: float) -> void:
 		if _args.has("show-xp"):
 			# Test hook (--show-xp): the "+10 Felling" floater and bar that come with the haul.
 			xp_meter.on_gain("felling", 10, 260)
+		if _args.has("show-level-up"):
+			# Test hook (--show-level-up): the level-up banner and burst, caught mid-moment.
+			_on_level_up("felling", 5, [Skills.unlock_at("felling", 5)])
 		await get_tree().create_timer(0.4).timeout
 	else:
 		await get_tree().create_timer(wait).timeout
@@ -278,6 +285,7 @@ func _move_vector() -> Vector2:
 func _process(delta: float) -> void:
 	perf_overlay.step(delta)
 	xp_meter.step(delta)
+	level_up_banner.step(delta)
 	_step_goal(delta)
 	var t := 1.0 - exp(-14.0 * delta)
 	for id in avatars:
@@ -484,6 +492,7 @@ func _on_server_disconnected() -> void:
 	gather_prompt.hide_all()
 	xp_meter.visible = false
 	xp_meter.hide_all()
+	level_up_banner.hide_all()
 	gather_watch.reset()
 	craft_window.reset()
 	_highlight_target(-1)
@@ -542,6 +551,8 @@ func _on_chat(from_name: String, text: String) -> void:
 
 
 func _on_system(text: String) -> void:
+	if level_up_banner != null and level_up_banner.consume_system(text):
+		return # the banner already said it (chat is for talking)
 	var echo := gather_prompt != null and gather_prompt.on_system(text)
 	if echo:
 		return # the bar and the toast already said it
@@ -604,6 +615,20 @@ func _step_goal(delta: float) -> void:
 		return
 	_goal_flash = maxf(0.0, _goal_flash - delta)
 	goal_label.add_theme_color_override("font_color", SkillsWindow.goal_colour(_goal_flash / SkillsWindow.GOAL_FLASH_SECONDS))
+
+
+## s2c_level_up: the banner, the rising chord and world's burst on your own avatar, together.
+func _on_level_up(skill: String, level: int, unlocks: Array) -> void:
+	level_up_banner.on_level_up(skill, level, unlocks)
+	sfx_level_up.play()
+	if avatars.has(my_id):
+		LevelUpFx.play(avatars[my_id].node, level)
+
+
+## s2c_level_up_seen: someone near you levelled; the same burst over them, no banner or sound.
+func _on_level_up_seen(peer_id: int, _skill: String, level: int) -> void:
+	if avatars.has(peer_id) and peer_id != my_id:
+		LevelUpFx.play(avatars[peer_id].node, peer_id * 31 + level)
 
 
 ## The bench's answer to a Craft press: the window shows the server's words; a success also
@@ -845,6 +870,15 @@ func _build_ui() -> void:
 	xp_meter.visible = false
 	ui.add_child(xp_meter)
 	xp_meter.setup(theme)
+	level_up_banner = LevelUpBanner.new()
+	level_up_banner.anchor_left = 0.5
+	level_up_banner.anchor_right = 0.5
+	level_up_banner.offset_left = -LevelUpBanner.WIDTH * 0.5
+	level_up_banner.offset_right = LevelUpBanner.WIDTH * 0.5
+	level_up_banner.offset_top = 96
+	level_up_banner.offset_bottom = 96 + LevelUpBanner.HEIGHT
+	ui.add_child(level_up_banner)
+	level_up_banner.setup(theme)
 
 	# Centre reticle for the action camera: what you look at is what E gathers.
 	reticle = Reticle.new()
@@ -966,6 +1000,10 @@ func _build_audio() -> void:
 	sfx_craft.stream = Sfx.craft()
 	sfx_craft.volume_db = -4.0
 	add_child(sfx_craft)
+	sfx_level_up = AudioStreamPlayer.new()
+	sfx_level_up.stream = Sfx.level_up()
+	sfx_level_up.volume_db = -3.0
+	add_child(sfx_level_up)
 	sfx_arrive = AudioStreamPlayer.new()
 	sfx_arrive.stream = Sfx.arrive()
 	sfx_arrive.volume_db = -6.0

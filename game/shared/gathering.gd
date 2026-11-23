@@ -18,12 +18,27 @@ const COOLDOWN := 1.5 ## real seconds between two gathers by the same player
 const CHARGES := {"ash": 3, "pine": 3, "stone": 3, "ember_sap": 1}
 const DEFAULT_CHARGES := 1
 const HINT_RADIUS := 80.0 ## how far "the nearest pine is 14 m north-east" looks
-## Tools (see Crafting): carrying the right one gives TOOL_EXTRA more per gather and cuts
-## the cooldown to COOLDOWN * TOOL_SPEED. Protocol v3's timed gather channel should use the
-## same TOOL_SPEED on its duration. Seeps take no tool: sap is collected by hand.
-const TOOLS := {"ash": "stone_axe", "pine": "stone_axe", "stone": "stone_pickaxe"}
+## Tools (see Crafting): carrying the right one gives more per gather (tool_extra) and
+## shortens both the gather bar (GatherChannel) and the cooldown by tool_speed. Each kind
+## lists its tools best first; the best one you carry is the one used. A stone tool gives
+## TOOL_EXTRA more and runs at TOOL_SPEED; the ember-hardened tools (Toolcraft 5) give
+## EMBER_EXTRA more and run at EMBER_SPEED, so the bar is visibly shorter on the very next
+## gather. Seeps take no tool: sap is collected by hand.
+const TOOLS := {
+	"ash": ["ember_axe", "stone_axe"],
+	"pine": ["ember_axe", "stone_axe"],
+	"stone": ["ember_pickaxe", "stone_pickaxe"],
+}
 const TOOL_EXTRA := 1
 const TOOL_SPEED := 0.5
+const EMBER_EXTRA := 2
+const EMBER_SPEED := 0.35
+const TOOL_POWER := {
+	"stone_axe": {"speed": TOOL_SPEED, "extra": TOOL_EXTRA},
+	"stone_pickaxe": {"speed": TOOL_SPEED, "extra": TOOL_EXTRA},
+	"ember_axe": {"speed": EMBER_SPEED, "extra": EMBER_EXTRA},
+	"ember_pickaxe": {"speed": EMBER_SPEED, "extra": EMBER_EXTRA},
+}
 
 
 ## {taken: {node_id: gathers so far}, respawn_at: {node_id: time it comes back}}
@@ -144,21 +159,34 @@ static func give_back(state: Dictionary, id: int) -> void:
 		state.taken[id] = used
 
 
-## The tool in `inv` that helps with a node of `kind`, or "" if none does / none is carried.
+## The tool in `inv` that helps with a node of `kind` (the best one carried), or "" if none
+## does / none is carried.
 static func tool_for(kind: String, inv: Dictionary) -> String:
-	var tool := str(TOOLS.get(kind, ""))
-	return tool if tool != "" and Inventory.count(inv, tool) > 0 else ""
+	for tool in TOOLS.get(kind, []):
+		if Inventory.count(inv, str(tool)) > 0:
+			return str(tool)
+	return ""
+
+
+## How much a tool shortens the bar and cooldown (multiply by this); 1.0 for no tool.
+static func tool_speed(tool: String) -> float:
+	return float(TOOL_POWER.get(tool, {}).get("speed", 1.0))
+
+
+## Extra items per gather a tool gives; 0 for no tool.
+static func tool_extra(tool: String) -> int:
+	return int(TOOL_POWER.get(tool, {}).get("extra", 0))
 
 
 ## The cooldown after gathering a node of `kind` with this pack.
 static func cooldown_for(kind: String, inv: Dictionary) -> float:
-	return COOLDOWN * TOOL_SPEED if tool_for(kind, inv) != "" else COOLDOWN
+	return COOLDOWN * tool_speed(tool_for(kind, inv))
 
 
 ## How many items one gather of `kind` gives with this pack, at `level` in the skill that
 ## kind trains (Skills.yield_bonus: the "+1 wood" unlocks).
 static func amount_for(kind: String, inv: Dictionary, level: int = 1) -> int:
-	var base := int(ResourceNodes.kind_info(kind).get("amount", 1)) + (TOOL_EXTRA if tool_for(kind, inv) != "" else 0)
+	var base := int(ResourceNodes.kind_info(kind).get("amount", 1)) + tool_extra(tool_for(kind, inv))
 	return base + Skills.yield_bonus(Skills.skill_for_kind(kind), level)
 
 
@@ -166,7 +194,7 @@ static func amount_for(kind: String, inv: Dictionary, level: int = 1) -> int:
 static func amount_at(id: int, inv: Dictionary, level: int = 1) -> int:
 	var node := ResourceNodes.get_by_id(id)
 	var kind := str(node.get("kind", ""))
-	var base := int(ResourceNodes.info(node).get("amount", 1)) + (TOOL_EXTRA if tool_for(kind, inv) != "" else 0)
+	var base := int(ResourceNodes.info(node).get("amount", 1)) + tool_extra(tool_for(kind, inv))
 	return base + Skills.yield_bonus(Skills.skill_for_kind(kind), level)
 
 
