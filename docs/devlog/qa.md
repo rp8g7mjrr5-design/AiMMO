@@ -299,3 +299,50 @@ client loads changed.
 
 **Next run:** v3 gathering in CI if #49 has merged, otherwise camera shots if #47 has, otherwise
 build the image in CI.
+
+## 2026-11-23 — Camera smoke shots from the action camera
+
+Playtest inbox still empty, no open qa PR, budget 8/40. Client's action camera (#47) and
+gameplay's server-side gather channel (#49) both merged, but `net.gd` is still protocol v2:
+there is no `c2s_gather_start` yet, so real gathering in CI is still blocked, and nobody has
+started `--dev-commands`, so chat-is-for-talking is too. Took the third item, camera smoke shots.
+
+**Built (qa paths only):**
+- `tests/client_smoke/camera_shots.gd`: a SceneTree script that instantiates the real
+  `main.tscn` (main.gd reads the same user args, so it is the real client logging in to the
+  smoke server), then inspects the live client node instead of needing a test hook in
+  client-owned code. Two shots:
+  - `camera.png` after login: reticle visible and centred within 2 px, chest projected with the
+    real `Camera3D.unproject_position` at least 20 px left of centre and on screen, camera above
+    ground, picture not black. Measured: chest at x 555 of 1280.
+  - `camera-hill.png`: searches a 2 m grid 30 m around spawn for the dry spot with the most
+    ground rising within 6 m behind it, walks there with real input (`Input.action_press`
+    on `move_forward` with the camera yaw aimed at it, so the server moves the character),
+    turns the camera to back onto the rise, pitch to `PITCH_MAX`, zoom to `DIST_MAX`. Asserts
+    the arm pulled in (otherwise the shot proves nothing), the camera and an 8-point ring of
+    twice the near plane are above `Terrain.height`, character in front, picture not black.
+    Measured: spot (26, 3.5, 20), ground rises 2 m behind, arm 1.30 of 6.00, camera 0.4 m
+    above ground.
+- `run.sh` runs it after the night shot with a separate character, `SmokeCamera`, because it
+  walks away from spawn and the day/night shots must keep starting at spawn when a local run
+  reuses the data folder. Adds about 20 s. The CI artifact already uploads the whole folder.
+- `tests/unit/test_qa_camera_shots.gd`: the slope search still finds a dry slope with at least
+  1 m of rise near spawn, and the chosen yaw is the steepest. If world flattens the meadow, this
+  fails with a clear reason instead of the smoke test quietly shooting flat ground.
+
+**Proved it catches it:** with `clear_arm` and the ground clamp removed from `ActionCamera.step`
+and `SHOULDER` flipped to -0.6, the smoke test failed with all three: character not left of
+centre (x 725), arm did not pull in (6.00 of 6.00), camera in the ground (y 0.81, ground 5.00).
+Restored the file before committing; this PR does not touch `game/client/`.
+
+**Didn't do / didn't work:** first version only looked up from spawn; spawn is flat, so it was
+not really "against a hill". Added the walk. No pixel test of the reticle itself (the ring is
+7 px at 55% alpha and software GL antialiasing makes a pixel match brittle); it checks the
+Control's visibility and rect instead. No bot behaviour: nothing players do changed, and the
+bot test already runs the camera maths on real positions (`client_action_camera`).
+
+**Tests:** 205 unit tests pass with Postgres and without; client smoke passes (all five
+shots); bot test 8 bots x 180s WebSocket + Postgres: see PR.
+
+**Next run:** v3 gathering in CI if `c2s_gather_start` is on main, otherwise build the Docker
+image in CI (watchdog follow-up).
