@@ -5,6 +5,10 @@ class_name WorldBuilder
 ## Everything is generated here from code and the shared world seed.
 ## A DayNight child moves the sun, repaints the sky, and lights the lamps with the time of day.
 
+const HAZE_TOP := 3.0 ## metres: height haze thickens below this (the meadow floor is ~0-1.5 m)
+const HAZE_DENSITY := 0.035 ## extra fog density per metre below HAZE_TOP; gentle, it must not hide the meadow
+const SUN_SCATTER := 0.22 ## how much the haze glows when you look towards the sun
+
 
 static func build() -> Node3D:
 	var root := Node3D.new()
@@ -28,6 +32,7 @@ static func build() -> Node3D:
 	root.add_child(NodeProps.build())
 	root.add_child(Lamps.build())
 	root.add_child(Workbench.build())
+	root.add_child(Motes.build())
 	dn.apply(DayNight.now_fraction()) # light the lamps and leaves now that they exist
 	WorldSolids.all() # build the camera's decoration solids now (~0.15 s), not on the first camera frame
 	return root
@@ -48,6 +53,12 @@ static func _environment() -> WorldEnvironment:
 	env.fog_light_color = Color(0.85, 0.78, 0.70)
 	env.fog_density = 0.006
 	env.fog_sky_affect = 0.3
+	# Height haze (art bible section 5): the valley floors and lake hollows fill with warm HAZE
+	# by day and blue NIGHT_HAZE after dark (DayNight sets the colour); the hills stand clear of it.
+	env.fog_height = HAZE_TOP
+	env.fog_height_density = HAZE_DENSITY
+	# Looking into a low sun, the haze lights up gold: golden hour you can see in the air.
+	env.fog_sun_scatter = SUN_SCATTER
 	var we := WorldEnvironment.new()
 	we.environment = env
 	return we
