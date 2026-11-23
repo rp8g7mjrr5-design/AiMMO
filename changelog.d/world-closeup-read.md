@@ -1,0 +1,2 @@
+- Up close, Ashgrove's trees now grow roots into the ground and show ridged bark, gatherable stone outcrops carry a sparkling quartz seam, and ember sap looks wet and glossy.
+- Every wanderer now travels with a belt, a small pack and a rolled blanket on their back, so the view over your shoulder has something to look at.

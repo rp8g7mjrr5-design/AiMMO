@@ -48,7 +48,7 @@ func test_limbs_do_not_change_existing_looks() -> void:
 		var root_parts := AvatarBuilder.parts(s).filter(func(p): return p.limb == "")
 		check_eq(root_parts[0].color, Palette.from_seed(s), "tunic for seed %d" % s)
 		check_eq(root_parts[1].color, skin, "skin for seed %d" % s)
-		check_eq(root_parts.size(), 4 if style == 2 else 5, "headwear for seed %d" % s)
+		check_eq(root_parts.size(), 7 if style == 2 else 8, "headwear (and belt, pack, bedroll) for seed %d" % s)
 
 
 func test_walk_cycle_swings_the_limbs() -> void:
