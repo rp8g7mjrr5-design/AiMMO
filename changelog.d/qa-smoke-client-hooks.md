@@ -1,1 +1,0 @@
-- Every build is now photographed with the F1 controls open, a fresh haul's "+2 Ash wood" and "+10 Felling" popping up, and on the Low graphics setting, so those screens can't quietly break or lose the Emberlight look.

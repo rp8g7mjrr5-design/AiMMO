@@ -1,1 +1,0 @@
-- Chat is only for talking on every server now, not just the main one: a line starting with "/" always gets the friendly "Press F1 for controls" nudge instead of a hidden developer tool.

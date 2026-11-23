@@ -1,2 +1,0 @@
-- Level-ups now show from across the valley: the golden beam stays a clear gold stroke from 100 m away instead of thinning to a hairline in the noon haze.
-- Fixed the level-up ground ring showing as a pale square on the grass when seen from a distance; it is a glowing ring again.
