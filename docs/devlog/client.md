@@ -944,3 +944,58 @@ and took qa's version of `client_craft_window.gd` over this branch's re-check, b
 fixes for one race in one file would fight and qa owns `tests/`; the PR is back to just the
 intro. Did not start a second item this run: the intro PR getting green is the useful thing.
 Unit (456), 8-bot 180 s WebSocket bot test (PASSED, dead-time median 35.05 s) and client smoke test pass locally after the merge.
+
+## 2026-11-23, scheduled run: level requirements in prompts (ws/client/level-requirements)
+
+**Picked:** the two gameplay requests at the top of "Requests from other streams" (tier-2
+node prompts, Toolcraft 5 recipes), which together are backlog item "Milestone 1, part 4:
+level requirements in prompts". Requests first per the worker procedure; the pack window (I)
+is the item above it but the requests are bugs players hit today: the workbench lit Craft for
+an ember axe you can't make, and E on an old ash said nothing centre screen.
+
+**Fun:** a tier-2 node stops being a silent wall and becomes a goal you are standing next to:
+"Old Ember Ash · Felling 5 (1,205 XP to go)", greyed, and the moment you hit the level it reads
+"[E] Chop Old Ember Ash". The workbench shows the same for the ember tools.
+
+**Built:**
+- `GatherPrompt.target` takes your skills (new 6th arg), names nodes with `ResourceNodes.info`
+  (so "Old Ember Ash", "Rich Stone Seam" and the bar's "Chopping Old Ember Ash"), and walls a
+  node `Gathering.can_work` says no to: `can` false, `needs_level` true, `need_text` with the XP
+  to go (`SkillsWindow._grouped` for the comma). `doing_for(node)` replaces `doing_text(kind)`
+  inside the prompt; `doing_text` stays for kind-only callers.
+- `"level"` in `NOTICES`, and `notice_for(reason, node_id)` words it "Needs Felling 5".
+- `CraftWindow.row` takes skills (4th arg, null = unknown, server decides, as before) and a
+  `"level"` reason shows "Needs Toolcraft 5 · N XP to go" with the name dimmed and Craft off.
+  `on_skills` feeds it; `reset` forgets them.
+- `client.gd` `_share_skills()` after every `skills_changed` / `xp_gained`.
+- The prompt is 380 px wide now (was 300): "Rich Stone Seam · Quarrying 5 (1,680 XP to go)" was
+  355 px at 16 pt. The gather bar stays 150 px (`BAR_WIDTH`). A unit test measures the longest
+  need line against `WIDTH` so a longer node name can't overflow silently.
+
+**Tests:** unit tests for the walled prompt, agreement with `Gathering.check` at levels 1/4/5/9
+on every tier-2 node, the level notice, the width, and the gated workbench rows (static rows
+against `Crafting.check` with skills at Toolcraft 1/4/5/8, and a live window that greys then
+lifts). `test_prompt_agrees_with_the_server_rules` now checks `can` equals the server's
+verdict both ways, not just "offered implies allowed". New bot behaviour
+`client_level_walls.gd`, network-only (no art classes, per qa's lint): it keeps the skills from
+the wire and checks every tier-2 prompt and gated row against the shared rules on every change,
+and that any "level" refusal of our gathers was for a node the prompt showed as walled.
+
+**Didn't do:** a real Craft press on an ember axe from a bot. `client_craft_window`'s
+`_on_craft_result` fails on an answer for a recipe it didn't press while its own press is out,
+so a second presser would race it. Left the end-to-end refusal to gameplay's own bot.
+
+**Next run:** the pack window on I is now the top client item.
+
+First 8-bot run failed 16 times in `client_gather_prompt`: gameplay's bots do press E on tier-2
+nodes and get "level" refusals, and that behaviour compared the centre notice with
+`notice_text(reason)` ("Your level is too low") while the prompt now says "Needs Felling 5".
+It now compares with `notice_for(reason, node_id)`. Good news hidden in it: the level refusal
+path is exercised on the real server every run, so `client_level_walls`' refusal check runs too.
+
+**Workbench fit (bug, same PR):** a screenshot with `--open-workbench` at 1280x720 showed six
+recipes pushing the window's title and Close button off screen (gameplay's ember tools made it
+six). The recipe rows now sit in a `ScrollContainer` (`LIST_HEIGHT` 410 px, vertical only) in a
+600 px window; a unit test checks the window's minimum height stays under 700 px. Screenshot
+after: the title, four rows, a scroll bar and Close all on screen, the ember rows below.
+Second 8-bot run PASSED (client_level_walls: ~170 checks, 2 real "level" refusals per bot).

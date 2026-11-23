@@ -589,6 +589,7 @@ func _on_gather_result(item_id: String, count: int) -> void:
 func _on_skills(skills: Dictionary) -> void:
 	xp_meter.on_skills(skills)
 	skills_window.on_skills(skills)
+	_share_skills()
 	_update_goal(false)
 
 
@@ -597,7 +598,15 @@ func _on_skills(skills: Dictionary) -> void:
 func _on_xp(skill: String, gained: int, total_xp: int) -> void:
 	xp_meter.on_gain(skill, gained, total_xp)
 	skills_window.on_gain(skill, total_xp)
+	_share_skills()
 	_update_goal(true)
+
+
+## The gather prompt and the workbench read your levels too: a tier-2 node or an ember tool
+## above your level says what it needs instead of offering E or Craft.
+func _share_skills() -> void:
+	gather_prompt.skills = skills_window.skills.duplicate()
+	craft_window.on_skills(skills_window.skills)
 
 
 ## The goal line under the compass: the closest named unlock. When it moves on to a new goal

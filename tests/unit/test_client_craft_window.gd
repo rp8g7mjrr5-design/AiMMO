@@ -134,3 +134,68 @@ func test_no_chat_commands_left() -> void:
 	var src := FileAccess.get_file_as_string("res://client/craft_window.gd")
 	for needle in ["\"/bag", "\"/craft", "c2s_chat", "on_system"]:
 		check(not src.contains(needle), "craft_window.gd has no %s" % needle)
+
+
+# --- level-gated recipes (Toolcraft 5 ember tools) ---
+
+func test_level_gated_rows_agree_with_the_server() -> void:
+	var rich := {"ash_wood": 20, "stone": 20, "pine_wood": 20, "ember_sap": 10, "ember_heartwood": 10, "veinstone": 10}
+	for lv in [1, 4, 5, 8]:
+		var sk := {"toolcraft": Skills.xp_for_level(lv)}
+		for id in Crafting.RECIPE_ORDER:
+			var r := CraftWindow.row(rich, id, _bench(), sk)
+			check_eq(r.reason, Crafting.check(rich, id, _bench(), sk), "%s at Toolcraft %d" % [id, lv])
+
+
+func test_ember_axe_says_what_it_needs() -> void:
+	var gated := ""
+	for id in Crafting.RECIPE_ORDER:
+		if not Crafting.required(id).is_empty():
+			gated = id
+			break
+	check(gated != "", "there is a level-gated recipe")
+	var need: Array = Crafting.required(gated)
+	var low := {str(need[0]): Skills.xp_for_level(int(need[1]) - 2)}
+	var r := CraftWindow.row({}, gated, _bench(), low)
+	check_eq(r.reason, "level")
+	var to_go := Skills.xp_for_level(int(need[1])) - Skills.xp_for_level(int(need[1]) - 2)
+	check_eq(r.hint, "Needs %s %d · %s XP to go" % [Skills.label(str(need[0])), int(need[1]), SkillsWindow._grouped(to_go)])
+	check_eq(r.button, "Craft")
+	# Skills not known yet: the window doesn't guess, the server decides.
+	check(CraftWindow.row({}, gated, _bench()).reason != "level", "no skills yet: no level wall")
+	check_eq(CraftWindow.level_hint(gated, null), "")
+	check_eq(CraftWindow.level_hint(gated, {str(need[0]): Skills.xp_for_level(int(need[1]))}), "", "at the level: no hint")
+
+
+func test_window_greys_a_row_once_skills_arrive() -> void:
+	var w := CraftWindow.new()
+	w.setup(Theme.new())
+	var rich := {"ash_wood": 20, "stone": 20, "pine_wood": 20, "ember_sap": 10, "ember_heartwood": 10, "veinstone": 10}
+	w.seed_pack(rich)
+	w.pos = _bench()
+	w.on_skills({"toolcraft": 0})
+	var gated := ""
+	for id in Crafting.RECIPE_ORDER:
+		if not Crafting.required(id).is_empty() and Crafting.check(rich, id, _bench(), {}) == "level":
+			gated = id
+			break
+	check(gated != "", "a gated recipe is walled at Toolcraft 1")
+	var row_w: Dictionary = w._rows[gated]
+	check((row_w.button as Button).disabled, "Craft is off below the level")
+	check(str((row_w.hint as Label).text).begins_with("Needs Toolcraft"), "hint: %s" % (row_w.hint as Label).text)
+	w.on_craft_result(gated, false, "")
+	w.on_skills({"toolcraft": Skills.xp_for_level(int(Crafting.required(gated)[1]))})
+	check(not str((row_w.hint as Label).text).begins_with("Needs Toolcraft"), "wall lifts at the level")
+	w.reset()
+	check(w.skills == null, "logout forgets skills")
+	w.free()
+
+
+func test_window_fits_a_720p_screen() -> void:
+	# Six recipes once pushed the title and Close off a 1280x720 screen; the list scrolls now.
+	var w := CraftWindow.new()
+	w.setup(Theme.new())
+	var h := w.get_combined_minimum_size().y
+	check(h <= 700.0, "window wants %d px, a 720p screen has 720" % h)
+	check(w.list_scroll != null and w.list_scroll.horizontal_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED, "rows scroll up and down only")
+	w.free()

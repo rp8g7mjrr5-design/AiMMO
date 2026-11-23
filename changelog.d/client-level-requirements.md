@@ -1,0 +1,3 @@
+- Walk up to an Old Ember Ash or a Rich Stone Seam before you're ready and the prompt now tells you what it takes and how close you are: "Old Ember Ash · Felling 5 (1,680 XP to go)". Hit the level and it lights up as "[E] Chop Old Ember Ash".
+- The workbench greys out the ember axe and ember pickaxe until you reach Toolcraft 5, with the XP still to go, instead of lighting Craft and then saying no.
+- Pressing E on a node above your level now says "Needs Felling 5" in the middle of the screen, not just in chat.
