@@ -15,6 +15,9 @@ var cam_yaw := 0.0 ## the slow orbit behind the login screen
 var cam := ActionCamera.new() ## the over-the-shoulder camera while playing
 var _send_accum := 0.0
 var _last_sent := Vector2(INF, INF)
+## Your own avatar walks the moment you press a key and is reconciled with the server's
+## snapshots (client-side prediction); everyone else is eased toward their snapshots.
+var prediction := Prediction.new()
 
 var ui: CanvasLayer
 var login_panel: PanelContainer
@@ -413,11 +416,18 @@ func _process(delta: float) -> void:
 	pack_window.step(delta)
 	players_panel.step(delta)
 	_step_goal(delta)
+	var move := _move_vector() if logged_in else Vector2.ZERO
+	if logged_in and prediction.has_position:
+		# seq + 1 is the input that will carry this frame's walk to the server.
+		prediction.advance(seq + 1, move, delta)
 	var t := 1.0 - exp(-14.0 * delta)
 	for id in avatars:
 		var a: Dictionary = avatars[id]
 		var n: Node3D = a.node
-		n.position = n.position.lerp(a.target, t)
+		if id == my_id and prediction.has_position:
+			n.position = prediction.position
+		else:
+			n.position = n.position.lerp(a.target, t)
 		n.rotation.y = lerp_angle(n.rotation.y, a.yaw, t)
 		var anim: WalkAnim = a.anim
 		anim.step(n.position, delta)
@@ -436,7 +446,6 @@ func _process(delta: float) -> void:
 	_update_chat_fade(delta)
 	_update_mouse_capture()
 	cam.set_free_look(Input.is_action_pressed("free_look") and not chat_edit.has_focus() and not window_open())
-	var move := _move_vector()
 	_send_accum += delta
 	if _send_accum >= GameConfig.TICK_DT:
 		_send_accum = 0.0
@@ -446,6 +455,8 @@ func _process(delta: float) -> void:
 			var yaw: float = ActionCamera.facing_yaw(cam.move_yaw()) if move != Vector2.ZERO else (avatars[my_id].yaw if avatars.has(my_id) else 0.0)
 			net.c2s_input.rpc_id(1, seq, move, yaw)
 			_last_sent = move
+			if avatars.has(my_id):
+				avatars[my_id].yaw = yaw # turn now; the server only echoes what we sent
 		else:
 			seq += 1
 	if avatars.has(my_id):
@@ -606,6 +617,8 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	players_panel.set_me(id)
 	goal_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
+	prediction.reset()
+	prediction.place(Terrain.clamp_to_world(Vector3(character.x, character.y, character.z)))
 	cam.place(Vector3(character.x, character.y, character.z), character.yaw + PI)
 	craft_window.seed_pack(character.get("inventory"))
 	pack_window.seed_pack(character.get("inventory"))
@@ -617,6 +630,7 @@ func _on_server_disconnected() -> void:
 	for id in avatars.keys():
 		_on_player_left(id)
 	logged_in = false
+	prediction.reset()
 	DayNight.clear_sync() # back to this machine's clock (same epoch, so the sky doesn't jump)
 	multiplayer.multiplayer_peer = null
 	login_panel.visible = true
@@ -672,6 +686,11 @@ func _on_snapshot(_tick: int, entries: Array) -> void:
 		if avatars.has(id):
 			var a: Dictionary = avatars[id]
 			a.target = Vector3(entries[i + 1], entries[i + 2], entries[i + 3])
+			if id == my_id:
+				# Replay the walk the server hasn't seen on top of where it has you.
+				prediction.reconcile(a.target, net.last_ack_seq)
+				i += 5
+				continue
 			a.yaw = entries[i + 4]
 			if a.node.position.y < -50.0:
 				a.node.position = a.target # first sighting: no slide-in from nowhere
