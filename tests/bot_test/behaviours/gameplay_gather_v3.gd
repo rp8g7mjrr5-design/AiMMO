@@ -50,6 +50,12 @@ const STILL := Vector2.ZERO
 ## After the three checks, keep pressing E like a player working a node, this many gathers
 ## per login, moving on when a node empties.
 const FARM_GATHERS := 4
+## Don't press E in the last seconds before bot.gd's mid-run disconnect. bot.gd freezes the
+## bot for 1.5 s before it drops the connection, without calling on_play, so a gather started
+## just before would pay its XP inside that freeze; client_xp_meter then checks that gain's
+## bar after the reconnect has cleared the meter and reads 0 (CI on PR #98). Longest gather
+## (2.4 s) plus the freeze plus slack. Client's request for the real fix is in its backlog.
+const QUIET_BEFORE_DISCONNECT := 5.0
 
 enum Step { WAIT_FIRST, GOTO, START, RUNNING, IDLE, WAIT_RESPAWN }
 enum Test { WALK_AWAY, CANCEL, HOLD, FARM, DONE }
@@ -201,6 +207,12 @@ func _next_node() -> void:
 	_step = Step.GOTO
 
 
+## bot.gd is about to drop the connection for the reconnect check: hold E until after it.
+func _disconnect_soon() -> bool:
+	return str(bot.phase) == "playing_1" \
+			and float(bot.disconnect_at) - float(bot.elapsed) < QUIET_BEFORE_DISCONNECT
+
+
 func _start() -> void:
 	_step = Step.START
 	_answer_by = bot.elapsed + ANSWER_TIMEOUT
@@ -252,7 +264,7 @@ func on_play(_delta: float) -> void:
 		Step.START:
 			bot.move = STILL
 			if _answer_by == INF:
-				if bot.elapsed >= _next_at:
+				if bot.elapsed >= _next_at and not _disconnect_soon():
 					_start()
 			elif bot.elapsed > _answer_by:
 				fail("c2s_gather_start(%d) was never answered" % _target)

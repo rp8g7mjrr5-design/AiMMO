@@ -742,3 +742,10 @@ level (qa's limit 90 s), worst 39.9 s, 109 s wall clock median; every bot `gave_
 reaches Felling 2 only; a live check of the level gate needs a fixture character already
 near level 5 (follow-up in the backlog). If a real client ever double-sends a start inside
 100 ms it gets no answer for the second; client's prompt waits for begin/end, so fine today.
+
+## 2026-11-23, PR #98 fix run (merge main, XP-bar race in CI)
+- PR #98 was red and conflicted. Conflict: the director rewrote `docs/workstreams/gameplay.md` on main; I took main's version and re-applied this PR's ticks (flood guard, both qa requests).
+- Red CI: `client_xp_meter` failed on 3 of 8 bots with "bar landed at 0.000, server progress is 0.6". Cause: bot.gd freezes a bot for 1.5 s before its mid-run disconnect and doesn't call `on_play` then; a gather already running finishes in that freeze and pays XP; after the reconnect `client_xp_meter.on_login` clears the meter but keeps `_pending`, so its next check reads an empty bar. Main rarely hit it because bots used to gather in short bursts; this PR keeps them pressing E until Felling 2, so a gain right before the disconnect became likely.
+- The real fix is one line in client's behaviour (reset `_pending` in `on_login`); that file isn't ours, so I filed the request in `docs/workstreams/client.md` and worked around it: `gameplay_gather_v3` doesn't start a gather within `QUIET_BEFORE_DISCONNECT` (5 s) of `bot.disconnect_at`. `/gather`, crafting and qa's ledger can still hit the race rarely until client fixes it.
+- Tests (local, Postgres): 397 unit tests pass; bot test 8 x 180 s websocket `--fun-check` PASSED, 8 of 8 levelled, median 35.7 s gathered to first level; client smoke passed.
+- Next run: no new item this run (stopped after the fix to keep it small; PR #98 is still the one landing). Top unblocked item is Milestone 1 part 3 (tier-2 nodes gated by level).
