@@ -46,6 +46,10 @@ var sfx_craft: AudioStreamPlayer
 var notice_line: NoticeLine ## centre-screen system notices (chat is for talking)
 var sfx_nope: AudioStreamPlayer
 var reticle: Reticle
+## Left-click gathering: a press the game itself took (cursor captured, no window or button
+## under it) since the last frame, and whether that press is still held.
+var _click_tap := false
+var _click_down := false
 var controls_overlay: ControlsOverlay
 var skills_window: SkillsWindow
 var pack_window: PackWindow
@@ -319,7 +323,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		cam.turn(look_delta(event.relative, settings))
 	elif event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+		if event.is_action("click_use") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+			_click_tap = true
+			_click_down = true
+			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			cam.zoom(-1.0)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			cam.zoom(1.0)
@@ -453,13 +461,18 @@ func _process(delta: float) -> void:
 
 ## The "[E] Chop Ember Ash" prompt: press or hold E near a node to start a timed gather on
 ## it (c2s_gather_start), E again or moving stops it (c2s_gather_cancel). The node it targets
-## is the one under the reticle (look-to-interact), else the nearest live one.
+## is the one under the reticle (look-to-interact), else the nearest live one. Left-click
+## does the same on the node under the reticle only; only a click the game took counts (see
+## _unhandled_input), so the click that closes a window or presses a button never gathers.
 func _update_gather(delta: float, my_pos: Vector3, eye: Vector3, look: Vector3) -> void:
 	var free := not chat_edit.has_focus() and not window_open()
 	var held := Input.is_action_pressed("interact") and free
 	var pressed := Input.is_action_just_pressed("interact") and free
+	_click_down = _click_down and free and Input.is_action_pressed("click_use")
+	var click_pressed := _click_tap and free
+	_click_tap = false
 	var now := Time.get_ticks_msec() / 1000.0
-	var op := gather_prompt.update(delta, my_pos, TimeDial.current_seconds(), now, held, pressed, _move_vector() != Vector2.ZERO, eye, look)
+	var op := gather_prompt.update(delta, my_pos, TimeDial.current_seconds(), now, held, pressed, _move_vector() != Vector2.ZERO, eye, look, _click_down, click_pressed)
 	var t := gather_prompt.current_target()
 	reticle.active = not t.is_empty() and bool(t.can)
 	_highlight_target(-1 if t.is_empty() or chat_edit.has_focus() else int(t.id))
