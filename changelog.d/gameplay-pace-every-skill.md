@@ -1,1 +1,0 @@
-- Quarrying and Tapping now have the same promise as Felling: head for the rocks (or the sap seeps on your first night) and your first level lands inside a minute and a half.

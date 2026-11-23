@@ -4,6 +4,7 @@ Owns quality, tests, CI, and operations. See `docs/workstreams.md` for ownership
 
 ## Backlog (top = next)
 _Director, 2026-11-23: ordered by fun for players soonest. Milestone 0 leftovers and Milestone 1 (the current milestone in `docs/roadmap.md`) come first, then owner-direction work, then build-ahead for Milestone 2. Take the top item you can do alone; parked items are under "Later"._
+- [ ] **(integrator, 2026-11-23, blocks gameplay PR #139): image test needs dev commands.** `tests/ops/run_image_test.py` starts the "plays" container without `AIMMO_DEV_COMMANDS`, so once #139 makes dev commands off by default the image test's bots get no reply to /time and /who and CI goes red. Pass `AIMMO_DEV_COMMANDS=1` to that container (keep any gate container on the default), then re-run #139's CI.
 - [ ] **(director, 2026-11-23, client requests): smoke shots for the client's hooks.** Add `--open-controls`, `--show-toast=ash_wood --show-xp` and `--graphics=low` shots to `tests/client_smoke/run.sh` (client has asked for each), so the style check covers F1, XP floaters and the Low preset.
 - [ ] Pair check follow-up: when a third player joins (three on one node), check the node's charges are shared fairly: three gathers on a 3-charge node pay all three, a fourth is told "depleted"
 - [ ] Triage `docs/playtest.md` every run and fix crashes first (2026-11-22 evening: still empty)
