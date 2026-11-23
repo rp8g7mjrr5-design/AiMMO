@@ -16,6 +16,14 @@ check, qa_gather_ledger's pair mode), so "two players on one node" never depends
 the 8 bots happen to walk. Every saved character must hold exactly the pack the server last
 sent its bot.
 
+Long runs also run the level-gate check (behaviour qa_level_gate, tests/bot_test/level_gate.gd)
+next to the pair check: before the server starts, seed_veteran.gd saves a character at exactly
+the level the tier-2 node nearest spawn needs, a few metres from it. A fresh bot walks to that
+node and must be refused ("level", the "Needs <Skill> 5" line, nothing paid); the veteran then
+works it until it is empty (every charge pays, so the refusal took none); both reconnect, the
+veteran keeps its level and XP (checked in the save too) and the fresh bot is still refused.
+Skip it with --no-level-gate.
+
 Every run also prints the fun metrics (tests/bot_test/fun_report.py) and writes
 fun_metrics.json into the work directory, which is kept for the CI artifact. With
 --fun-check the run also fails when they break the limits or got worse than
@@ -54,6 +62,9 @@ MAX_PROBE_WAIT = 150.0
 PROBE_PLAY = 36.0
 # Pair bots' run length: pick, walk ~35 m, wait for each other, gather, reconnect.
 PAIR_PLAY = 50.0
+# Level-gate bots' run length (cut short by qa_level_gate once both checks are done): walk
+# ~50 m, refuse, hold, reconnect / walk 10 m, wait for the refusal, empty a 4-charge node, reconnect.
+LEVEL_GATE_PLAY = 90.0
 # Chat-gate bots' run length: three commands per login, a reconnect, a couple of talk lines.
 GATE_PLAY = 30.0
 
@@ -114,6 +125,20 @@ def stop_server(server, log: Path, stop_file: Path, label: str) -> list:
     if "[server] stopped cleanly" not in log.read_text(errors="replace"):
         problems.append(f"{label} did not report a clean stop")
     return problems + scan_log(log, label)
+
+
+def seed_veteran(env: dict, work: Path, name: str):
+    """Saves the level-gate veteran before the server starts. Returns (node id, problems)."""
+    log = work / "seed_veteran.log"
+    r = subprocess.run([GODOT, "--headless", "--path", str(GAME), "-s", "tests/bot_test/seed_veteran.gd", "--",
+                        f"--name={name}", f"--password=pw-{name}"],
+                       stdout=open(log, "w"), stderr=subprocess.STDOUT, env=env, timeout=120)
+    text = log.read_text(errors="replace")
+    m = re.search(r"^seed: node=(\d+)$", text, re.M)
+    if r.returncode != 0 or m is None:
+        return -1, [f"level gate: could not seed the veteran:\n{text}"]
+    print("[bot-test] " + next(l for l in text.splitlines() if l.startswith("seed: ")))
+    return int(m.group(1)), scan_log(log, "seed_veteran")
 
 
 def gate_log_problems(text: str) -> list:
@@ -180,6 +205,7 @@ def main() -> int:
     ap.add_argument("--fun-check", action="store_true",
                     help="fail on fun-metric limits and regressions against the baseline")
     ap.add_argument("--fun-baseline", default=str(fun_report.BASELINE), help="baseline JSON for --fun-check")
+    ap.add_argument("--no-level-gate", action="store_true", help="skip the tier-2 level-gate check")
     ap.add_argument("--no-chat-gate", action="store_true", help="skip the chat-gate phase (dev commands off)")
     a = ap.parse_args()
 
@@ -194,6 +220,14 @@ def main() -> int:
 
     server_log = work / "server.log"
     t0 = time.time()
+    run_tag = str(int(t0))[-5:]
+    gate_node = -1
+    problems = []
+    level_gate = a.duration >= gather_report.LONG_RUN and not a.no_level_gate
+    if level_gate:
+        # Seeded while nothing else has storage open (the JSON store keeps the file in memory).
+        gate_node, seed_problems = seed_veteran(env, work, f"bot{run_tag}_vet")
+        problems += seed_problems
     # Behaviours type slash commands (dev tools); the public server runs without the flag.
     server = start_server(env, server_log, "--dev-commands")
     if server is None:
@@ -201,7 +235,6 @@ def main() -> int:
         return 1
 
     bots = []
-    run_tag = str(int(t0))[-5:]
     for i in range(a.bots):
         name = f"bot{run_tag}_{i + 1}"
         result = work / f"{name}.json"
@@ -213,7 +246,6 @@ def main() -> int:
         bots.append((name, p, result, log))
         time.sleep(0.3)
 
-    problems = []
     hard_deadline = time.time() + a.duration + 120
     for name, p, _, _ in bots:
         try:
@@ -249,6 +281,17 @@ def main() -> int:
                           "--only-behaviour=qa_gather_ledger", *extra)
             pair_bots.append((name, subprocess.Popen(cmd, stdout=open(log, "w"), stderr=subprocess.STDOUT, env=env), result, log))
             time.sleep(1.0)
+        gate_bots = []
+        if gate_node >= 0:
+            fresh = f"bot{run_tag}_gate"
+            for name, extra in ((fresh, ["--level-gate=fresh"]),
+                                (f"bot{run_tag}_vet", ["--level-gate=veteran", f"--gate-partner={fresh}"])):
+                result = work / f"{name}.json"
+                log = work / f"{name}.log"
+                cmd = bot_cmd(name, port, a.transport, LEVEL_GATE_PLAY, result, "--expect-peers=0",
+                              "--only-behaviour=qa_level_gate", f"--gate-node={gate_node}", *extra)
+                gate_bots.append((name, subprocess.Popen(cmd, stdout=open(log, "w"), stderr=subprocess.STDOUT, env=env), result, log))
+                time.sleep(0.5)
         if pick is None:
             if any(_ledger(s).get("depleted") for s in rows.values()):
                 problems.append("gathering: every emptied node came back during the run, none left for the respawn probe")
@@ -286,6 +329,18 @@ def main() -> int:
             except (OSError, ValueError, KeyError):
                 pass
         problems += [f"gathering: {g}" for g in gather_report.check_pair(pair_rows)]
+        for name, p, result, log in gate_bots:
+            try:
+                p.wait(timeout=LEVEL_GATE_PLAY + 90)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                problems.append(f"{name}: hung and was killed")
+            bots.append((name, p, result, log))
+            try:
+                g = json.loads(result.read_text())["stats"]["behaviours"]["qa_level_gate"].get("gate")
+                print(f"[bot-test] level gate (node {gate_node}): {name} {g}")
+            except (OSError, ValueError, KeyError):
+                pass
         print("[bot-test] pair: " + ", ".join(f"{n} {_ledger(s).get('pair')}" for n, s in sorted(pair_rows.items())))
 
     problems += stop_server(server, server_log, stop_file, "server")
@@ -321,6 +376,9 @@ def main() -> int:
                                        "running_amount": ledger.get("running_amount", 0)})
             if "skills_floor" in ledger:
                 expected[name]["skills_floor"] = ledger["skills_floor"]
+            gate = s.get("behaviours", {}).get("qa_level_gate", {}) or {}
+            if "skills_floor" in gate:
+                expected[name]["skills_floor"] = gate["skills_floor"]
 
     # Data-loss check: boot storage in a fresh process and compare saved positions.
     if expected:
