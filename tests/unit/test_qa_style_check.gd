@@ -120,3 +120,26 @@ func test_real_baseline_file_is_valid() -> void:
 			check(base.has(key), "%s baseline has %s" % [shot, key])
 			check(parsed.big.has(key) and parsed.small.has(key), "tolerances for " + key)
 		check_eq(Style.check_shot(shot, base, parsed).fail.size(), 0, "%s baseline passes its own check" % shot)
+
+
+func test_low_preset_is_held_to_noon() -> void:
+	var b := _baseline()
+	var r: Dictionary = Style.check_shot("low", b.shots.noon, b)
+	check_eq(r.fail.size(), 0, "Low that looks like noon passes")
+	check(not ("no baseline" in "\n".join(r.note)), "Low borrows noon's baseline, it needs none of its own")
+	var neon := Style.check_shot("low", Style.measure(_flat(Color(0.1, 1.0, 0.1)), 1), b)
+	check(neon.fail.size() > 0, "Low that turns neon fails against noon's baseline")
+	check("noon baseline" in "\n".join(neon.fail), "the failure says it compared with noon")
+	check(Style.check_shot("low", Style.measure(_flat(Color.BLACK), 1), b).fail.size() > 0, "a black Low frame fails noon's luma floor")
+
+
+func test_hud_shots_get_hard_rules_only() -> void:
+	var b := _baseline()
+	# A dark overlay over the world is a big move from noon, but the HUD shots have no baseline.
+	var dim := Style.check_shot("controls", Style.measure(_flat(Color(0.12, 0.12, 0.14)), 1), b)
+	check_eq(dim.fail.size(), 0, "a dimmed F1 overlay is not a style failure")
+	check_eq(dim.note.size(), 0, "and asks for no baseline")
+	check(Style.check_shot("toast", Style.measure(_flat(Color.BLACK), 1), b).fail.size() > 0, "a black toast shot fails")
+	var gold := _flat(GRASS)
+	gold.fill_rect(Rect2i(30, 10, 34, 26), EMBER)
+	check(Style.check_shot("toast", Style.measure(gold, 1), b).fail.size() > 0, "a toast that floods the screen with ember fails")
