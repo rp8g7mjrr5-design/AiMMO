@@ -225,3 +225,48 @@ func test_look_to_interact_on_real_nodes() -> void:
 		if not t.is_empty() and t.id == n.id:
 			checked += 1
 	check(checked >= 78, "looked-at node won %d of 80" % checked)
+
+
+static func _deep(_x: float, _z: float) -> float:
+	return -1000.0 # no ground in the way: only the solids matter
+
+
+## The camera keeps out of decoration (world's WorldSolids) as well as resource nodes, while
+## gathering still only sees resource nodes.
+func test_camera_solids_include_decoration() -> void:
+	var bench := {}
+	var biggest := {}
+	var big_r := 0.0
+	for s in WorldSolids.all():
+		if s.source == "workbench":
+			bench = s
+		for c in s.columns:
+			if float(c[0]) > big_r and float(c[2]) - float(c[1]) > 1.0:
+				big_r = float(c[0])
+				biggest = s
+	check(not bench.is_empty(), "world has a workbench solid")
+	var around := ActionCamera.camera_solids(bench.pos)
+	check(around.has(bench), "the workbench is one of the camera's solids at the bench")
+	var node: Dictionary = ResourceNodes.all()[0]
+	check(ActionCamera.camera_solids(node.pos).has(node), "resource nodes are still in")
+	for n in ResourceNodes.near(bench.pos, ActionCamera.DIST_MAX + 3.0):
+		check(around.has(n), "every nearby node is in too")
+	# An arm swinging straight through the widest decorative column pulls in before it.
+	check(not biggest.is_empty(), "found a decorative column to back into")
+	var col: Array = []
+	for c in biggest.columns:
+		if float(c[0]) == big_r:
+			col = c
+	var centre := Vector3(biggest.pos.x + float(col[3]), biggest.pos.y + (float(col[1]) + float(col[2])) * 0.5, biggest.pos.z + float(col[4]))
+	var shoulder := centre - Vector3(0, 0, big_r + 1.0) # yaw 0 looks -Z, so the arm runs +Z through it
+	var open := ActionCamera.clear_arm(shoulder, 0.0, 0.0, ActionCamera.DIST_DEFAULT, _deep, [])
+	var arm := ActionCamera.clear_arm(shoulder, 0.0, 0.0, ActionCamera.DIST_DEFAULT, _deep, [biggest])
+	check_near(open, ActionCamera.DIST_DEFAULT, 0.0001, "nothing in the way without it")
+	check(arm < 1.0, "pulled in before the %s (arm %.2f)" % [biggest.source, arm])
+	check(not WorldSolids.inside(ActionCamera.camera_point(shoulder, 0.0, 0.0, arm), biggest), "camera ends outside it")
+	# Settled from a real step, too.
+	var c := ActionCamera.new()
+	c.place(shoulder - Vector3(ActionCamera.SHOULDER, ActionCamera.PIVOT_HEIGHT, 0), 0.0)
+	c.pitch = 0.0
+	var xf := _settle(c, shoulder - Vector3(ActionCamera.SHOULDER, ActionCamera.PIVOT_HEIGHT, 0), _deep, [biggest])
+	check(not WorldSolids.inside(xf.origin, biggest), "stepped camera ends outside the %s" % biggest.source)

@@ -244,8 +244,7 @@ func _process(delta: float) -> void:
 			seq += 1
 	if avatars.has(my_id):
 		var me: Node3D = avatars[my_id].node
-		var props := ResourceNodes.near(me.position, ActionCamera.DIST_MAX + 3.0)
-		var xf := cam.step(me.position, delta, Callable(Terrain, "height"), props)
+		var xf := cam.step(me.position, delta, Callable(Terrain, "height"), ActionCamera.camera_solids(me.position))
 		camera.transform = xf
 		if compass.due(delta):
 			compass.feed(cam.yaw, me.position, other_positions())
@@ -273,6 +272,8 @@ func _update_bench(delta: float, my_pos: Vector3) -> void:
 	var at_bench := CraftWindow.near_bench(my_pos) and gather_prompt.current_target().is_empty()
 	var free := not chat_edit.has_focus() and not window_open()
 	gather_prompt.show_hint("[E] Use Workbench" if at_bench and free else "")
+	# The bench glows warm exactly while its prompt shows (a no-op when nothing changes).
+	Workbench.set_highlight(world.get_node_or_null("Workbench"), at_bench and free)
 	if at_bench and free and Input.is_action_just_pressed("interact"):
 		craft_window.open(my_pos)
 		sfx_chime.play()

@@ -109,9 +109,17 @@ static func inside_prop(p: Vector3, node: Dictionary, margin: float) -> bool:
 	return NodeProps.inside_solid(p, node, margin)
 
 
+## Everything the camera keeps out of near `pos`: the resource node props
+## (`ResourceNodes.near`) plus world's decorative solids (`WorldSolids.near`: scatter trees and
+## rocks, birches, boulders, meadow lanterns, the workbench). Only the camera uses decoration;
+## gathering and look-to-interact keep using `ResourceNodes.near` (decoration isn't gatherable).
+static func camera_solids(pos: Vector3, radius: float = DIST_MAX + 3.0) -> Array:
+	return ResourceNodes.near(pos, radius) + WorldSolids.near(pos, radius)
+
+
 ## How long the arm can be, up to `want`, before the camera would sit within CLEARANCE of
 ## the ground (`height` is a Callable(x, z) -> float, normally Terrain.height) or a prop in
-## `props` (resource node dictionaries). Never shorter than ARM_MIN.
+## `props` (resource nodes and decorative solids, see camera_solids). Never shorter than ARM_MIN.
 static func clear_arm(shoulder: Vector3, p_yaw: float, p_pitch: float, want: float, height: Callable, props: Array = []) -> float:
 	var back := -look_dir(p_yaw, p_pitch)
 	var t := ARM_SAMPLE
