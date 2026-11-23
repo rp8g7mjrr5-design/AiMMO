@@ -158,7 +158,7 @@ static func apply_glow(world: Node, glow: float) -> void:
 
 
 static func _set_emission(n: Node, energy: float) -> void:
-	var gi := n as GeometryInstance3D
+	var gi := Chunks.first_geometry(n) # a chunked layer shares one material across its chunks
 	if gi == null:
 		return
 	if gi.material_override is ShaderMaterial: # Emberlight: the heartbeat swells it in the shader

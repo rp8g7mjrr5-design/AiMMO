@@ -604,3 +604,44 @@ filed with gameplay), the rerun passed in 186 s. 8 x 45 s ENet passed.
 
 **Next run:** check #81 and this PR landed. Then the art-free server lint (next Emberlight
 item, small), unless `--dev-commands` is on main, in which case "chat is for talking in CI".
+
+## 2026-11-23 — "two players on one node" made deterministic (pair bots)
+
+Budget 14/40, playtest inbox empty, no open qa PR (#81 and the render budget have landed).
+`--dev-commands` is still not on `main`, so "chat is for talking in CI" stays blocked. Took
+the integrator's request first: `gathering: no two players ever gathered one node at the
+same time` turned `main` red on #81's push run because it relied on where the 8 bots happen
+to walk (`contested=0`, `shared_node_max=1` on that run).
+
+**Fun it protects:** gathering next to another player is the first social moment at Spawn
+Meadow (the starter ring exists for it). That must keep working every build, and a red
+`main` from luck blocks every stream's deploy, which is dead time for players.
+
+**Built:** a pair mode in `qa_gather_ledger` (like the respawn probe). After the 8 bots,
+`run_bot_test.py` starts two fresh bots with `--only-behaviour=qa_gather_ledger`:
+`--gather-pair=lead [--pair-avoid=<probe node>]` and, 1 s later,
+`--gather-pair=follow --pair-leader=<lead name>`. The leader walks to the live, non-night node
+nearest spawn (`GatherLedger.pair_node`, from its own s2c_nodes) and waits. The follower
+doesn't guess the node (a respawn between the two logins could change the nearest one); it
+watches the leader in snapshots and takes the node the leader has stood still at for 0.8 s
+(`GatherLedger.node_at`). Each sends `c2s_gather_start` once another player is in reach of
+the node, so both channels overlap. Each must see two gatherers on that node; its gather must
+end "done" or "depleted" (the other's finish may take the last charge). Then each reconnects
+and its pack is checked against the save like every bot. `gather_report.check_pair` fails the
+run unless both bots report the same node, both saw two at once, and one got paid. The old
+chance-based check is gone from `check()`; `most_on_one_node` is still printed.
+
+The pair runs while the probe waits for its node, so it costs no time unless the probe has
+nothing to wait for (then up to ~50 s). It never goes to the probe's node.
+
+**Didn't do:** a "both pick the same node independently" version: simpler, but a node
+respawning between the two logins makes them pick different nodes, which is the same kind
+of flake. Leader/follower costs ~40 lines more and can't disagree.
+
+**Tests:** 376 unit tests pass with Postgres (new `test_pair_node_is_the_nearest_live_day_node`,
+`test_node_at`); 21 Python tests (pair cases in `test_gather_report.py`); bot test 8 x 180 s
+WebSocket + Postgres with `--fun-check` passed twice (pair on nodes 158 and 132, both paid, both
+`together`), 8 x 45 s ENet passed. Client smoke not run: nothing the client loads changed.
+
+**Next run:** if this PR is red, fix it first. Then "chat is for talking" if `--dev-commands`
+is on main; otherwise the art-free server lint (Emberlight).

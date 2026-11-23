@@ -307,6 +307,34 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 
 **Next run.** Emberlight part 2b (lamps, workbench, avatars, NodeFx onto the shared materials, and the whole-world material count), unless this PR needs a fix.
 
+## 2026-11-23: chunked instancing (Emberlight part 3, qa's render-budget request)
+**Why this.** Requests from other streams come first, and qa's render-budget request (primitives 1.98M at the spawn shot against the art bible's 600k) is the top open one; it is also Emberlight part 3 in my backlog. Nothing of mine was open (#88 ember veins merged). What a player feels: smoother frames, especially on the integrated-graphics laptops the art bible targets, with the same forest in the same places.
+
+**Measured first.** On main the spawn shot was 1,998k primitives, 206 to 213 draw calls, 18 materials (part 2a already brought materials from 30 to 18). The scene is ~600k triangles; the frame was 3.3x that because every scatter and flora layer was one MultiMesh spanning the whole 512 m world, so the camera could never cull it and each of Godot's 4 default shadow cascades drew all of it again.
+
+**Built.**
+- `game/procgen/chunks.gd` (`Chunks`): `split()` groups a layer's [Transform3D, Color] instances by area; `build()` makes a Node3D named after the layer with one MultiMeshInstance3D per chunk (`c<x>_<z>`), all sharing the layer's mesh and material. Each chunk node sits at its chunk's centre and holds its instances relative to it, so "distance to the chunk" means the same to every renderer.
+- Per-layer draw distances from the art bible (flowers 90 m, small props 160 m, trees 300 m), padded by half a chunk diagonal (`cut_of`) so nothing closer than its layer's range ever disappears.
+- Chunk sizes per layer: trees 128 m, small props (rocks, moss, birch marks, mossy boulders) 64 m, flowers 32 m.
+- No shadows from flower stems and blooms (as before), birch marks and moss.
+- The sun uses 2 shadow cascades (`SHADOW_PARALLEL_2_SPLITS`) instead of 4.
+- The scatter forest (`WorldBuilder._props`, new `scatter_layout()`) and every flora layer (`Flora.build`) use it. `Lamps.apply_glow` finds the shared material through the first chunk (`Chunks.first_geometry`).
+- Ceilings in `tests/client_smoke/render_baseline.json` lowered as qa asked: primitives 2.05M to 650k, materials 30 to 20; baseline reset (with the reason in its `_doc`).
+
+**Result (spawn shot, llvmpipe).** Primitives 2.0M to 613k night / 587k noon (-69%). Draw calls 213 to 273 night / 206 to 257 noon (still under 300). Materials 18. Screenshots side by side with main: same trees, rocks, lamps; shadows a touch softer with 2 cascades.
+
+**What I tried.** 64 m chunks everywhere with 4 cascades: 716k primitives but 342 draw calls (over 300). 64 m with 2 cascades: 525k primitives (under target!) but 326 draw calls. 96 m: 553k / 266. 128 m: 614k / 236, but then a rock 70 m away could vanish because the cut is measured to the chunk, which is why the small layers got smaller chunks and the cut got padded. Every chunk is a draw call in the main pass and in each shadow cascade, so chunk size is a straight trade between triangles and draw calls; I kept draw-call headroom for chunking the node props next.
+
+**Didn't work.** My first "never moves a prop" test read the instances back from the MultiMesh; the headless dummy renderer doesn't keep MultiMesh data (every transform reads back as identity), so the test checks the split the build is made from instead (every instance, same transform and colour, input order within each chunk, chunk node at its centre with the right count).
+
+**Probably also fixed.** Flowers had one `visibility_range_end = 90` on a world-wide MultiMesh, which Godot measures from one point for the whole layer (the world centre), so wildflowers far from the middle of the valley were likely never drawn. Now each 32 m patch is judged on its own. Not verified with a far-away render, so not in the changelog.
+
+**Tested.** 363 unit tests with Postgres (6 new in `tests/unit/test_world_chunks.gd`: split keeps every instance in its chunk; scatter and flora chunked without moving a prop; shadows as set; ranges follow the art bible; the padded cut covers a far-corner prop; night glow still reaches the chunked ash crowns). Client smoke test passed with the new ceilings. 8-bot 180 s websocket bot test: see the PR. No new bot behaviour: art bible section 7 keeps render checks in unit tests and the smoke test, and chunking changes nothing on the network.
+
+**Known / not done.** Node props are still world-wide MultiMeshes (165k triangles, the biggest piece left; follow-up filed with the id-to-chunk mapping it needs). No mid-distance tree mesh yet. Draw-call headroom is 27 at night.
+
+**Next run.** Chunk `NodeProps` (gets the spawn shot under 600k), unless this PR needs a fix.
+
 ## 2026-11-23: skill badges (Milestone 1 part 3, first half)
 **Run start.** #92 (chunked instancing) had a merge conflict with main in my backlog's "Requests from other streams" (client's new Graphics quality request landed next to my qa line). Merged main in, kept both lines, unit tests and the 8-bot test passed locally, pushed; auto-merge was already on.
 

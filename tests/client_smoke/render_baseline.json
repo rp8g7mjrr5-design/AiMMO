@@ -1,10 +1,27 @@
 {
-  "_doc": "Render budget for tests/client_smoke/render_budget.py (art bible section 7). art_bible: the targets. ceilings: what fails the Test check today. On 2026-11-23 the spawn shot was already over two targets, so those ceilings are today's number with a little room (primitives measured 1,980,677 noon / 1,981,697 night, about 3x the scene's ~580k triangles because the sun's shadow passes draw the scene again; 30 distinct materials in the world as built, avatars not counted). Ceilings only go down: world lowers them when it slims the world. baseline: the worst frame per shot on 2026-11-23 (llvmpipe, 1280x720); a PR that raises draw calls or primitives more than `regression` over it fails.",
-  "art_bible": {"draw_calls": 300, "primitives": 600000, "materials": 24, "texture_mem_mb": 32, "world_build_s": 3.0},
-  "ceilings": {"draw_calls": 300, "primitives": 2050000, "materials": 30, "texture_mem_mb": 32},
+  "_doc": "Render budget for tests/client_smoke/render_budget.py (art bible section 7). art_bible: the targets. ceilings: what fails the Test check today. Ceilings only go down: world lowers them when it slims the world. baseline: the worst frame per shot (llvmpipe, 1280x720); a PR that raises draw calls or primitives more than `regression` over it fails. History: on 2026-11-23 the spawn shot was 1.98M primitives (about 3x the scene's ~600k triangles: every MultiMesh spanned the whole world, so the camera and each of 4 shadow cascades drew all of it) and 30 materials. 2026-11-23, ws/world/chunked-instancing: the scatter forest and flora are chunked by area with per-layer draw distances and the sun uses 2 shadow cascades: primitives 2.0M -> 613k night / 587k noon, draw calls up from 219 to 273 night / 257 noon (each chunk is a draw call; still under 300), 18 materials. Ceilings lowered to primitives 650k and materials 20; baseline reset to those numbers.",
+  "art_bible": {
+    "draw_calls": 300,
+    "primitives": 600000,
+    "materials": 24,
+    "texture_mem_mb": 32,
+    "world_build_s": 3.0
+  },
+  "ceilings": {
+    "draw_calls": 300,
+    "primitives": 650000,
+    "materials": 20,
+    "texture_mem_mb": 32
+  },
   "regression": 0.2,
   "baseline": {
-    "noon": {"draw_calls": 217, "primitives": 1980677},
-    "night": {"draw_calls": 219, "primitives": 1981697}
+    "noon": {
+      "draw_calls": 257,
+      "primitives": 587246
+    },
+    "night": {
+      "draw_calls": 273,
+      "primitives": 612998
+    }
   }
 }

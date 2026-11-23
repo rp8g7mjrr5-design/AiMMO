@@ -43,6 +43,26 @@ func test_gatherers_on() -> void:
 	check_eq(GatherLedger.gatherers_on(ch, 99), 0)
 
 
+func test_pair_node_is_the_nearest_live_day_node() -> void:
+	var spawn := GameConfig.SPAWN_POINT
+	var first := GatherLedger.pair_node({}, [], spawn)
+	check(first >= 0, "there is a node to share")
+	var n := ResourceNodes.get_by_id(first)
+	check(not bool(ResourceNodes.kind_info(str(n.kind)).night_only), "never a night-only seep")
+	var d := Vector2(n.pos.x, n.pos.z).length()
+	for other in ResourceNodes.near(spawn, d - 0.01):
+		check(bool(ResourceNodes.kind_info(str(other.kind)).night_only), "only seeps are nearer: %d" % other.id)
+	var second := GatherLedger.pair_node({first: true}, [], spawn)
+	check(second >= 0 and second != first, "an empty node is skipped")
+	check_eq(GatherLedger.pair_node({}, [first], spawn), second, "the probe's node is skipped")
+
+
+func test_node_at() -> void:
+	var n := ResourceNodes.get_by_id(GatherLedger.pair_node({}, [], GameConfig.SPAWN_POINT))
+	check_eq(GatherLedger.node_at(n.pos + Vector3(1.0, 0, 0.5), 1.8), int(n.id), "standing next to it")
+	check_eq(GatherLedger.node_at(n.pos + Vector3(2.5, 0, 0), 1.8), -1, "too far")
+
+
 func test_only_behaviour_filter() -> void:
 	var loaded: Array = BotBehaviour.load_all()
 	check_eq(BotBehaviour.only(loaded[0], PackedStringArray()).size(), loaded[0].size(), "no filter keeps all")
