@@ -65,7 +65,7 @@ func load_or_create_character(account: Dictionary) -> Dictionary:
 	if rows == null:
 		return {}
 	if not rows.is_empty():
-		return _with_inventory(CharacterData.from_pg_row(rows[0]))
+		return _with_skills(_with_inventory(CharacterData.from_pg_row(rows[0])))
 	var ch := CharacterData.new_for(account)
 	var ins: Variant = _q(
 		"INSERT INTO characters (account_id, name, pos_x, pos_y, pos_z, yaw, appearance_seed) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
@@ -81,14 +81,49 @@ func save_character(ch: Dictionary) -> bool:
 		[ch.id, ch.x, ch.y, ch.z, ch.yaw])
 	if r == null:
 		return false
-	return _save_inventory(int(ch.id), Inventory.normalize(ch.get("inventory", {})))
+	if not _save_inventory(int(ch.id), Inventory.normalize(ch.get("inventory", {}))):
+		return false
+	return _save_skills(int(ch.id), Skills.normalize(ch.get("skills", {})))
 
 
 func find_character_by_name(char_name: String) -> Dictionary:
 	var rows: Variant = _q("SELECT * FROM characters WHERE lower(name) = lower($1) ORDER BY id LIMIT 1", [char_name])
 	if rows == null or rows.is_empty():
 		return {}
-	return _with_inventory(CharacterData.from_pg_row(rows[0]))
+	return _with_skills(_with_inventory(CharacterData.from_pg_row(rows[0])))
+
+
+## Fills ch.skills from character_skills (migration 0003). Returns {} if the query fails
+## (or `ch` is already {}), so a character is never handed out, and later saved, with
+## skills that failed to load.
+func _with_skills(ch: Dictionary) -> Dictionary:
+	if ch.is_empty():
+		return {}
+	var rows: Variant = _q("SELECT skill, xp FROM character_skills WHERE character_id = $1", [ch.id])
+	if rows == null:
+		return {}
+	var skills := {}
+	for r in rows:
+		skills[r.skill] = r.xp
+	ch.skills = Skills.normalize(skills)
+	return ch
+
+
+## Upserts every skill's total XP in one statement. Never deletes rows, and never lowers a
+## stored total (GREATEST), so a stale copy of a character can't take XP away.
+func _save_skills(character_id: int, skills: Dictionary) -> bool:
+	if skills.is_empty():
+		return true
+	var values := PackedStringArray()
+	var params: Array = [character_id]
+	for skill in skills:
+		params.append(skill)
+		params.append(int(skills[skill]))
+		values.append("($1, $%d, $%d, now())" % [params.size() - 1, params.size()])
+	var r: Variant = _q(
+		"INSERT INTO character_skills (character_id, skill, xp, updated_at) VALUES %s ON CONFLICT (character_id, skill) DO UPDATE SET xp = GREATEST(character_skills.xp, EXCLUDED.xp), updated_at = now()" % ", ".join(values),
+		params)
+	return r != null
 
 
 ## Fills ch.inventory from inventory_items. Returns {} if the query fails, so a character is

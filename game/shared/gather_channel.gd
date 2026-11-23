@@ -20,10 +20,13 @@ const DEFAULT_SECONDS := 2.0
 const MOVE_TOLERANCE := 0.5
 
 
-## Seconds a gather of `kind` takes with this pack.
-static func seconds_for(kind: String, inv: Dictionary) -> float:
+## Seconds a gather of `kind` takes with this pack, at `level` in the skill that kind trains
+## (every level is a little quicker, Skills.speed_factor).
+static func seconds_for(kind: String, inv: Dictionary, level: int = 1) -> float:
 	var base := float(SECONDS.get(kind, DEFAULT_SECONDS))
-	return base * Gathering.TOOL_SPEED if Gathering.tool_for(kind, inv) != "" else base
+	if Gathering.tool_for(kind, inv) != "":
+		base *= Gathering.TOOL_SPEED
+	return base * Skills.speed_factor(level)
 
 
 ## A new channel on node `id`, started at `now` from `pos`, lasting `seconds`.
