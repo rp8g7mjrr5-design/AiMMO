@@ -22,6 +22,11 @@ extends TestCase
 ## ever deleted by loading or saving. A fixture may also name the plain password its hash was
 ## made from, with a header `-- password: <text>` (or the older comment form
 ## `Password is "<text>"`), and the test checks that password still logs in.
+##
+## Skills (character_skills, migration 0003, Milestone 1) likewise: every stored XP row loads
+## with its XP (unknown skill ids too), a character saved before skills existed loads at
+## level 1 with 0 XP in every skill, saving more XP reads back, and a save never lowers XP
+## or deletes a row.
 
 const FIXTURES_DIR := "res://tests/fixtures"
 const HEADER := "schema-version:"
@@ -98,6 +103,35 @@ static func changed_pack(inv: Dictionary) -> Dictionary:
 		if not out.has(item):
 			out[item] = 3
 			break
+	return out
+
+
+## Pure: the skills the round-trip saves: every known skill +SKILL_STEP XP (so a level 1
+## character earns its first XP and gets rows), unknown ids kept as they are.
+const SKILL_STEP := 25
+static func changed_skills(skills: Dictionary) -> Dictionary:
+	var out := skills.duplicate()
+	for id in Skills.ORDER:
+		out[id] = int(out.get(id, 0)) + SKILL_STEP
+	return out
+
+
+## Pure: what is wrong with `got` as the skills of a character whose stored character_skills
+## rows were `want` (skill -> XP). Stored rows must come back exactly; a character with no rows
+## (saved before skills, or never earned XP) must be level 1 with 0 XP in every skill.
+static func skill_problems(want: Dictionary, got: Dictionary) -> PackedStringArray:
+	var out := PackedStringArray()
+	for id in want:
+		if not got.has(id):
+			out.append("'%s' (%d XP) lost" % [id, want[id]])
+		elif int(got[id]) != int(want[id]):
+			out.append("'%s' %d XP became %d" % [id, want[id], got[id]])
+	for id in got:
+		if not want.has(id) and int(got[id]) != 0:
+			out.append("'%s' %d XP appeared from nowhere" % [id, got[id]])
+	for id in Skills.ORDER:
+		if not want.has(id) and Skills.level_of(got, id) != 1:
+			out.append("'%s' is level %d with nothing stored (must be 1)" % [id, Skills.level_of(got, id)])
 	return out
 
 
@@ -181,6 +215,20 @@ func test_pack_checks() -> void:
 	check_eq(changed_pack({}), {"ash_wood": 3}, "empty pack gets one stack")
 
 
+func test_skill_checks() -> void:
+	check_eq(skill_problems({}, {}).size(), 0, "no rows, no skills: level 1 everywhere")
+	check_eq(skill_problems({"felling": 1700, "old_lore": 55}, {"felling": 1700, "old_lore": 55}).size(), 0, "same")
+	check_eq(skill_problems({"felling": 1700}, {}).size(), 1, "lost a skill")
+	check_eq(skill_problems({"felling": 1700}, {"felling": 150}).size(), 1, "XP changed")
+	check_eq(skill_problems({"old_lore": 55}, {}).size(), 1, "lost an unknown skill")
+	check_eq(skill_problems({}, {"felling": 0}).size(), 0, "a 0 XP entry is still level 1")
+	check(skill_problems({}, {"felling": 200}).size() >= 1, "XP from nowhere, and not level 1")
+	var c := changed_skills({"felling": 1700, "old_lore": 55})
+	check_eq(int(c.felling), 1700 + SKILL_STEP, "known skill gains")
+	check_eq(int(c.toolcraft), SKILL_STEP, "missing skill gets its first XP")
+	check_eq(int(c.old_lore), 55, "unknown skill kept as is")
+
+
 func test_there_are_fixtures() -> void:
 	check(fixture_files().size() >= 1, "at least one fixture in %s" % FIXTURES_DIR)
 	var all := Migrator.list_files(Migrator.default_dir())
@@ -235,6 +283,7 @@ func _check_fixture(admin: PgClient, base: String, fixture: String, db_name: Str
 	var url := url_with_database(base, db_name)
 	var before: Variant = null
 	var packs: Variant = {}
+	var skills: Variant = {}
 	var tried := PackedStringArray()
 
 	# 1 and 2. The schema as it was when the fixture was written, the old data, and a raw
@@ -273,6 +322,12 @@ func _check_fixture(admin: PgClient, base: String, fixture: String, db_name: Str
 				before = null
 				db.close()
 				return
+			skills = _snapshot_skills(db)
+			if skills == null:
+				check(false, "%s: skills snapshot: %s" % [fixture, db.last_error])
+				before = null
+				db.close()
+				return
 		db.close()
 		print("[qa] save-compat: %s written for schema %s, upgrading through %d later migration(s)" % [
 			fixture, version, all.size() - migrations_up_to(all, version).size()])
@@ -282,7 +337,7 @@ func _check_fixture(admin: PgClient, base: String, fixture: String, db_name: Str
 		admin.simple_query("DROP DATABASE IF EXISTS %s" % db_name)
 		return
 	check(before.size() >= 1, "%s inserts no accounts" % fixture)
-	_check_upgraded(fixture, url, mig_dir, before, packs, password_of(sql))
+	_check_upgraded(fixture, url, mig_dir, before, packs, skills, password_of(sql))
 	if admin.simple_query("DROP DATABASE IF EXISTS %s" % db_name) == null:
 		check(false, "%s: could not drop %s: %s" % [fixture, db_name, admin.last_error])
 
@@ -299,7 +354,19 @@ func _snapshot_packs(db: PgClient) -> Variant:
 	return null if rows == null else packs_by_character(rows)
 
 
-func _check_upgraded(fixture: String, url: String, mig_dir: String, before: Array, packs: Dictionary, password: String) -> void:
+## {character_id: {skill: xp}} as stored, or {} on a schema from before character_skills
+## (those characters are level 1 everywhere), or null if the query failed.
+func _snapshot_skills(db: PgClient) -> Variant:
+	var t: Variant = db.query("SELECT count(*) AS n FROM pg_tables WHERE tablename = 'character_skills'")
+	if t == null or t.is_empty():
+		return null
+	if int(t[0].n) == 0:
+		return {}
+	var rows: Variant = db.query("SELECT character_id, skill AS item, xp AS qty FROM character_skills")
+	return null if rows == null else packs_by_character(rows)
+
+
+func _check_upgraded(fixture: String, url: String, mig_dir: String, before: Array, packs: Dictionary, skills: Dictionary, password: String) -> void:
 	# 3. Today's server opens it: runs the remaining migrations, then loads every character.
 	var store := PgStore.new()
 	store.url = url
@@ -312,16 +379,22 @@ func _check_upgraded(fixture: String, url: String, mig_dir: String, before: Arra
 	var stored_rows := 0
 	for cid in packs:
 		stored_rows += packs[cid].size()
+	var stored_skill_rows := 0
+	for cid in skills:
+		stored_skill_rows += skills[cid].size()
 	for row in before:
-		_check_account(fixture, store, row, packs, password)
+		_check_account(fixture, store, row, packs, skills, password)
 	check_eq(_character_count(store), count_before, "%s: loading created characters" % fixture)
 	var rows_now := _count(store, "SELECT count(*) AS n FROM inventory_items")
 	check(rows_now >= stored_rows, "%s: inventory_items went from %d to %d rows (rows are never deleted)" % [
 		fixture, stored_rows, rows_now])
+	var skill_rows_now := _count(store, "SELECT count(*) AS n FROM character_skills")
+	check(skill_rows_now >= stored_skill_rows, "%s: character_skills went from %d to %d rows (rows are never deleted)" % [
+		fixture, stored_skill_rows, skill_rows_now])
 	store.close()
 
 
-func _check_account(fixture: String, store: PgStore, row: Dictionary, packs: Dictionary, password: String) -> void:
+func _check_account(fixture: String, store: PgStore, row: Dictionary, packs: Dictionary, skills: Dictionary, password: String) -> void:
 	var who := "%s/%s" % [fixture, row.username_lc]
 	var acct := store.find_account(row.username_lc)
 	check(not acct.is_empty(), who + ": account not found")
@@ -350,12 +423,18 @@ func _check_account(fixture: String, store: PgStore, row: Dictionary, packs: Dic
 		check(false, "%s: pack on load: %s" % [who, p])
 	if not stored_pack.is_empty():
 		print("[qa] save-compat: %s carries %d stored item row(s)" % [who, stored_pack.size()])
+	var stored_skills: Dictionary = skills.get(int(row.id), {})
+	for p in skill_problems(stored_skills, ch.get("skills", {})):
+		check(false, "%s: skills on load: %s" % [who, p])
+	if not stored_skills.is_empty():
+		print("[qa] save-compat: %s carries %d stored skill row(s)" % [who, stored_skills.size()])
 
 	# Save and load again: what the server writes back must read back the same.
 	# (normalize, because the store snaps a moved character back onto the terrain)
 	ch.x += 1.0
 	ch.yaw = 0.5
 	ch.inventory = changed_pack(ch.inventory)
+	ch.skills = changed_skills(ch.get("skills", {}))
 	ch = CharacterData.normalize(ch)
 	check(store.save_character(ch), who + ": save failed: " + store.last_error)
 	var again := store.load_or_create_character(acct)
@@ -373,6 +452,20 @@ func _check_account(fixture: String, store: PgStore, row: Dictionary, packs: Dic
 		var saved: Dictionary = packs_by_character(raw).get(int(ch.id), {})
 		for p in pack_problems(ch.inventory, saved, "is still in the table but the loaded pack lost it"):
 			check(false, "%s: inventory_items after save: %s" % [who, p])
+	raw = store._q("SELECT character_id, skill AS item, xp AS qty FROM character_skills WHERE character_id = $1", [ch.id])
+	check(raw != null, who + ": reading character_skills: " + store.last_error)
+	if raw != null:
+		var saved_xp: Dictionary = packs_by_character(raw).get(int(ch.id), {})
+		for p in pack_problems(ch.skills, saved_xp, "is still in the table but the loaded skills lost it"):
+			check(false, "%s: character_skills after save: %s" % [who, p])
+	# A stale save (the XP from before this session) must never lower what is stored.
+	var stale := ch.duplicate(true)
+	stale.skills = stored_skills.duplicate()
+	check(store.save_character(stale), who + ": stale save failed: " + store.last_error)
+	var after_stale := store.load_or_create_character(acct)
+	for id in ch.skills:
+		check(Skills.xp_of(after_stale.get("skills", {}), id) >= int(ch.skills[id]),
+			"%s: a stale save lowered %s from %d to %d XP" % [who, id, int(ch.skills[id]), Skills.xp_of(after_stale.get("skills", {}), id)])
 
 
 func _character_count(store: PgStore) -> int:

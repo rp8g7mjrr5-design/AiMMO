@@ -504,3 +504,51 @@ the gathering checks and the probe). Client smoke not run: nothing the client lo
 **Next run:** the "chat is for talking" item if `--dev-commands` is on main; otherwise the
 fun-metrics follow-up (count `c2s_gather_start` and `s2c_gather_*` in `qa_fun_metrics` and
 re-take the baseline), then the render budget in CI.
+
+## 2026-11-23 — Skills and XP in CI (Milestone 1), time to first level-up
+
+Budget 13/40. Playtest inbox still empty. My open PR #84 (render budget) had its Test run
+going with auto-merge on, so nothing to fix. Gameplay's skills (PR #85) landed at 07:42 UTC,
+which unblocked my Milestone 1 items, and milestone items come before anything not a bug.
+"Chat is for talking" is still blocked: `--dev-commands` isn't on main.
+
+**Fun it protects:** the long road only feels good if a level you earned stays earned, and
+if the first one comes quickly. Now CI fails an update that loses XP on load or logout, and
+it times the first level-up in seconds of real gathering.
+
+**What gameplay already covered (didn't duplicate):** `gameplay_skills` checks the login
+character carries skills, XP never drops (also across a reconnect), level-up lines agree with
+`/skills`; `test_gameplay_skills.gd` has the curve tests (they already run in CI with the
+other unit tests) and loads `week01_skills.sql`.
+
+**What I added:**
+- `test_qa_save_compat.gd`: every fixture's `character_skills` rows load with exact XP
+  (the unknown `old_lore` id too); characters from before 0003 load at level 1 / 0 XP in
+  every skill; the round-trip saves +25 XP in every skill and reads it back from the table;
+  a stale save (the XP from before) must not lower it; no row may be deleted. **Proved it
+  catches it:** changing PgStore's upsert from `GREATEST(...)` to `EXCLUDED.xp` fails it.
+- `verify_store.gd` after the bot test: each saved character holds at least the XP its bot
+  knew of (`skills_floor` from `qa_gather_ledger`: the login character plus the start XP of
+  every level announced). A floor, not exact, because without protocol v4 the client only
+  sees XP at login and on level-ups.
+- Fun metrics: `first_level_up_s`, `first_level_up_gather_s` (time actually holding a timed
+  gather, from our own `s2c_gather_begun`/`ended`), `gather_s`, `level_ups`,
+  `levels_per_10_min`; a second table in the report. Limit: 90 s of gathering on the slowest
+  bot, and a bot that gathered longer than 90 s without levelling fails too.
+
+**Honest caveat:** on my run no bot levelled up. Each bot gathers only 9 to 26 s of its
+174 s (nodes near spawn run dry with 8 bots, 37 emptied; the rest is wandering), about 100 to
+150 XP split over three skills, and level 2 needs 150 in one. Gameplay's PR run saw 5 of 8,
+so it's close to the edge. The limit is therefore real but doesn't bite today; I didn't set
+`bots_levelled_min` or a median baseline, since either would fail or flake. Filed with
+gameplay: keep bots gathering one skill and walking to fresh nodes. Rough maths from the
+run: ~5.5 XP per second of gathering, so level 2 would take ~27 s of gathering in one
+skill, well inside 90.
+
+**Tests:** 338 unit tests pass with Postgres; 16 Python tests; bot test 8 x 180 s WebSocket +
+Postgres with `--fun-check` passed (241 s, verify 9/9 with skills). Client smoke not run:
+nothing the client loads changed.
+
+**Next run:** if PR #84 or this one is red, fix it first. Then "chat is for talking" if
+`--dev-commands` is on main; otherwise the fun-metrics follow-up (count `c2s_gather_start`
+as an action) or the art-free server lint.

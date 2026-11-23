@@ -14,6 +14,13 @@ extends RefCounted
 ##   rewards_per_min  items received per minute of play
 ##   loops_completed  crafts that used gathered items (gather -> craft); "use" joins it once
 ##                    tools do something players can see
+##   first_level_up_s seconds from the first login to the first "<Skill> is now level N!"
+##                    line (Milestone 1, the long road), -1 if it never came
+##   first_level_up_gather_s  seconds this bot spent gathering (holding a timed gather, ours
+##                    only) before that first level-up: the roadmap promises level 2 inside
+##                    about a minute of gathering, and the report holds it to a limit
+##   gather_s         all seconds spent in timed gathers
+##   level_ups, levels_per_10_min  every level-up line, and per 10 minutes of play
 ##
 ## Other bots' chat and join/leave notices are not feedback here: they are bot chatter, and
 ## a player alone in the world would not get them.
@@ -28,6 +35,11 @@ var _play_time := 0.0
 var _play_started := 0.0
 var _act_since := -1.0 ## first unanswered action since the last feedback, or -1
 var _longest_wait := 0.0
+var _gather_since := -1.0 ## when our running timed gather started, or -1
+var _gather_time := 0.0
+var _first_level := -1.0
+var _first_level_gather := -1.0
+var level_ups := 0
 var rewards := 0
 var loops := 0
 var feedback_events := 0
@@ -48,6 +60,7 @@ func stop_play(t: float) -> void:
 		return
 	_close_gap(t)
 	_close_wait(t)
+	gather_ended(t)
 	_play_time += t - _play_started
 	_playing = false
 
@@ -82,6 +95,37 @@ func crafted(t: float, count: int) -> void:
 	loops += 1
 
 
+## One of our timed gathers started (s2c_gather_begun for us). Only times the gathering;
+## feedback is still counted from the server lines, as before, so the baseline holds.
+func gather_begun(t: float) -> void:
+	if _playing:
+		gather_ended(t) # a new start replaces a running one
+		_gather_since = t
+
+
+## Our running gather stopped, for any reason (done, walked off, cancelled, disconnect).
+func gather_ended(t: float) -> void:
+	if _gather_since >= 0.0:
+		_gather_time += maxf(0.0, t - _gather_since)
+	_gather_since = -1.0
+
+
+## Seconds spent gathering so far, a running gather included up to `t`.
+func gather_time(t: float) -> float:
+	return _gather_time + (maxf(0.0, t - _gather_since) if _gather_since >= 0.0 else 0.0)
+
+
+## A "<Skill> is now level N!" line arrived.
+func level_up(t: float) -> void:
+	feedback(t)
+	if not _playing:
+		return
+	level_ups += 1
+	if _first_level < 0.0 and _first_login >= 0.0:
+		_first_level = t - _first_login
+		_first_level_gather = gather_time(t)
+
+
 func _close_gap(t: float) -> void:
 	var gap := t - _last_feedback
 	if gap > _longest_dead:
@@ -113,6 +157,11 @@ func result() -> Dictionary:
 		"loops_completed": loops,
 		"feedback_events": feedback_events,
 		"play_s": snappedf(_play_time, 0.01),
+		"first_level_up_s": snappedf(_first_level, 0.01) if _first_level >= 0.0 else -1.0,
+		"first_level_up_gather_s": snappedf(_first_level_gather, 0.01) if _first_level >= 0.0 else -1.0,
+		"gather_s": snappedf(_gather_time, 0.01),
+		"level_ups": level_ups,
+		"levels_per_10_min": snappedf(level_ups / minutes * 10.0, 0.01) if minutes > 0.0 else 0.0,
 	}
 
 
@@ -125,6 +174,11 @@ static func items_in(text: String) -> int:
 	if text.begins_with("You craft a"):
 		return 1
 	return 0
+
+
+## True for a level-up line ("Felling is now level 2! ..."; see Skills.level_up_text).
+static func is_level_up(text: String) -> bool:
+	return RegEx.create_from_string("^\\w+ is now level \\d+!").search(text) != null
 
 
 ## True for server lines that are other players coming and going, not feedback to us.

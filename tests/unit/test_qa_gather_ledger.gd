@@ -51,3 +51,14 @@ func test_only_behaviour_filter() -> void:
 	if just.size() == 1:
 		check_eq(just[0].name, "qa_gather_ledger")
 	check_eq(BotBehaviour.only(loaded[0], PackedStringArray(["no_such"])).size(), 0)
+
+
+func test_saved_skills_hold_what_the_bot_knew() -> void:
+	var Verify: GDScript = load("res://tests/bot_test/verify_store.gd")
+	check_eq(Verify.skills_problem({}, {}), "", "nothing known, nothing to check")
+	check_eq(Verify.skills_problem({"felling": 150}, {"felling": 175, "tapping": 30}), "", "more is fine")
+	check_eq(Verify.skills_problem({"felling": 150}, {"felling": 150}), "", "exactly the floor")
+	var why: String = Verify.skills_problem({"felling": 150, "quarrying": 0}, {"felling": 90})
+	check(why.contains("felling 90 XP (level 1)") and why.contains("at least 150 (level 2)"), "names the lost level: " + why)
+	check(not why.contains("quarrying"), "0 XP floor is always met")
+	check(Verify.skills_problem({"felling": 150}, null) != "", "no skills saved at all")
