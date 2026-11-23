@@ -1,0 +1,2 @@
+- Your "Next:" goal under the compass now follows what you actually do: a brand-new character is pointed at the first tree, and a skill only becomes your goal once you've started training it.
+- Gathering with a full stack no longer looks like a mistake: a quiet "Pack full: Ash wood (99) · XP still counts" toast with the item's icon replaces the red refusal and the "nope", because the swing still taught you something.

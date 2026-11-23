@@ -5,13 +5,15 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## - the window's level and "XP to level N" texts match the shared Skills rules for that total;
 ## - the total level is the sum of the four skill levels;
 ## - the goal line always names a real, built unlock that is still ahead, and the XP it says is
-##   left equals the threshold minus the server's total; it never goes up for the same goal.
+##   left equals the threshold minus the server's total; it never goes up for the same goal;
+## - the goal follows what the bot trains: a skill it has XP in (or the first skill before any).
 
 var _skills := {}
 var _gains := 0
 var _goals_reached := 0
 var _goal_key := ""
 var _goal_need := -1
+var _trained_goals := 0
 
 
 func setup(net: Node) -> void:
@@ -55,6 +57,14 @@ func _check_goal() -> void:
 		fail("goal %s is not a built unlock" % g)
 		return
 	var xp := Skills.xp_of(_skills, str(g.skill))
+	var trained := Skills.ORDER.filter(func(s): return Skills.xp_of(_skills, s) > 0)
+	if trained.is_empty():
+		if str(g.skill) != str(Skills.ORDER[0]):
+			fail("a fresh character's goal is %s, not the first skill" % g)
+	elif xp <= 0 and not SkillsWindow._closest(_skills, trained).is_empty():
+		fail("goal %s is in a skill the bot never trained (trained: %s)" % [g, trained])
+	else:
+		_trained_goals += 1
 	if Skills.level_for(xp) >= int(g.level):
 		fail("goal %s is already reached at %d XP" % [g, xp])
 	if int(g.need) != Skills.xp_for_level(int(g.level)) - xp:
@@ -73,3 +83,4 @@ func _check_goal() -> void:
 func on_finish() -> void:
 	stat("gains", _gains)
 	stat("goal_changes", _goals_reached)
+	stat("goals_in_trained_skills", _trained_goals)

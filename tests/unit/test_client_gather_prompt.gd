@@ -137,6 +137,31 @@ func test_parses_every_success_line() -> void:
 	check(GatherPrompt.parse_gain("Easy; you're still gathering.").is_empty(), "not a gain")
 
 
+func test_full_stack_gather_gets_a_quiet_toast() -> void:
+	# A gather that ends on a full stack pays XP but no items (no s2c_gather_result). The
+	# server's line becomes a bottom toast with the item's icon, not a chat line or a refusal.
+	for kind in ResourceNodes.KINDS:
+		for n in ResourceNodes.all():
+			if n.kind != kind:
+				continue
+			for spent in [false, true]:
+				var line := Gathering.full_text(n.id, spent)
+				var f := GatherPrompt.parse_full(line)
+				check_eq(str(f.get("item", "?")), str(ResourceNodes.info(n).item), line)
+			break
+	check(GatherPrompt.parse_full("You gather 2 stone from the outcrop (4 in your pack).").is_empty(), "a haul is not full")
+	check_eq(GatherPrompt.full_toast_text("ash_wood", 99), "Pack full: Ash wood (99) · XP still counts")
+	var w := GatherPrompt.new()
+	w.setup(Theme.new())
+	w.pack = {"stone": Inventory.MAX_STACK}
+	var n := _first("stone")
+	check(w.on_system(Gathering.full_text(n.id)), "kept out of chat and the centre notice")
+	check_eq(w.toast_label.text, GatherPrompt.full_toast_text("stone", Inventory.MAX_STACK))
+	check_eq(w.toast_item(), "stone", "with the item's icon")
+	check(not w.on_system("Chat is for talking. Press F1 for controls."), "other lines pass through")
+	w.free()
+
+
 func test_toast_fades() -> void:
 	check_near(GatherPrompt.toast_alpha(0.0), 1.0, 0.0001)
 	check_near(GatherPrompt.toast_alpha(GatherPrompt.TOAST_SECONDS * 0.5), 1.0, 0.0001)
