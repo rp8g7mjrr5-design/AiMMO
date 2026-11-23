@@ -66,7 +66,7 @@ func on_play(delta: float) -> void:
 	_last_press = now
 	presses += 1
 	_pending += 1
-	bot.net.c2s_chat.rpc_id(1, cmd)
+	bot.send_command(cmd)
 
 
 func _on_system(text: String) -> void:

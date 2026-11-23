@@ -118,7 +118,7 @@ func on_play(_delta: float) -> void:
 				else:
 					_tries += 1
 					_next_at = bot.elapsed + RETRY_AFTER
-					bot.net.c2s_chat.rpc_id(1, "/channel")
+					bot.send_command("/channel")
 		Step.HOLDING:
 			bot.move = Vector2.ZERO
 			if bot.elapsed > _ends_by:

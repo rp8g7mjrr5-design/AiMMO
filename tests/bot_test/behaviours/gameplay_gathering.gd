@@ -82,7 +82,7 @@ func on_play(_delta: float) -> void:
 	_tries += 1
 	_waiting = true
 	_next_send = bot.elapsed + RETRY_AFTER
-	bot.net.c2s_chat.rpc_id(1, "/gather %s" % node.kind)
+	bot.send_command("/gather %s" % node.kind)
 
 
 func _next_target() -> bool:

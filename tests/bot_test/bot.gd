@@ -8,6 +8,13 @@ extends Node
 ##       --duration=180 --result=/path/result.json --expect-peers=7
 
 const BotBehaviour := preload("res://tests/bot_test/bot_behaviour.gd")
+## Slash commands go out one at a time, at least this far apart, so behaviours never trip the
+## server's shared per-player command cooldown (GameConfig.CHAT_COOLDOWN) on each other.
+const COMMAND_GAP := GameConfig.CHAT_COOLDOWN + 0.15
+const MAX_QUEUED_COMMANDS := 16
+
+## Emitted the moment a queued command goes out (qa_fun_metrics times answers from here).
+signal command_sent(text: String)
 
 var net: Node
 var behaviours: Array = []
@@ -40,10 +47,13 @@ var stats := {
 	"logins": 0, "snapshots": 0, "chats_sent": 0, "chats_from_others": 0,
 	"max_peers_seen": 0, "distance_walked": 0.0, "position_restored": false,
 	"spawn_before_disconnect": [], "spawn_after_reconnect": [],
+	"commands_sent": 0, "max_command_wait": 0.0,
 }
 var _pos_at_disconnect := Vector3.ZERO
 var _others := {}
 var _phase_started := 0.0
+var _commands: Array = [] ## [text, on_sent: Callable, queued_at] waiting for the command gap
+var _last_command_at := -INF
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -116,6 +126,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	var reconnect := phase == "reconnecting"
 	phase = "playing_2" if reconnect else "playing_1"
 	_phase_started = elapsed
+	_commands.clear() # a line queued before the disconnect belongs to the old session
 	for b in behaviours:
 		b.on_login(reconnect, character)
 
@@ -218,11 +229,47 @@ func _play(delta: float) -> void:
 		yaw = atan2(move.x, move.y)
 	for b in behaviours:
 		b.on_play(delta)
+	_pump_commands()
 	_send_input()
 	if elapsed >= next_chat:
 		next_chat = elapsed + rng.randf_range(8.0, 20.0)
 		stats.chats_sent += 1
 		net.c2s_chat.rpc_id(1, "hello from %s #%d" % [bot_name, stats.chats_sent])
+
+
+## Queue a slash command for the server. Behaviours call this instead of c2s_chat so their
+## commands are spaced COMMAND_GAP apart and none is dropped by the shared cooldown.
+## `on_sent` runs at the moment the line actually goes out (judge positions there).
+## Every call sends exactly one line, in the order queued.
+func send_command(text: String, on_sent: Callable = Callable()) -> void:
+	if _commands.size() >= MAX_QUEUED_COMMANDS:
+		_fail("command queue full (%d), dropping %s" % [_commands.size(), text])
+		return
+	_commands.append([text, on_sent, elapsed])
+
+
+func _pump_commands() -> void:
+	if multiplayer.multiplayer_peer == null:
+		return
+	var text := _next_command()
+	if text != "":
+		net.c2s_chat.rpc_id(1, text)
+
+
+## The command to send this frame ("" when none is due). Runs its on_sent callback, counts it
+## and emits command_sent. Split from the RPC so tests/unit/test_qa_fun_metrics.gd can drive it.
+func _next_command() -> String:
+	if _commands.is_empty() or elapsed - _last_command_at < COMMAND_GAP:
+		return ""
+	var c: Array = _commands.pop_front()
+	_last_command_at = elapsed
+	stats.commands_sent += 1
+	stats.max_command_wait = maxf(stats.max_command_wait, elapsed - float(c[2]))
+	var cb: Callable = c[1]
+	if cb.is_valid():
+		cb.call()
+	command_sent.emit(c[0])
+	return c[0]
 
 
 func _send_input() -> void:
