@@ -46,6 +46,13 @@ const MIN_SPREAD := 0.007
 const FAR_FADE_START := 60.0 ## m; past this the beam fades gently with distance ...
 const FAR_FADE_END := 220.0 ## m; ... to FAR_FADE_MIN of its strength here and beyond
 const FAR_FADE_MIN := 0.65
+## At night the faint beam (BEAM_NIGHT) is mostly navy sky showing through, so a pale core
+## turns it grey. The beam alone drops the pale core and leans towards the sparks' deep ember
+## as the light goes (`beam_tint`), and is a little more opaque, so the colour it adds over
+## the sky is ember. Not brighter: past 1.0 the filmic tonemap clips red first and an HDR
+## ember turns lemon yellow (tried, see devlog).
+const NIGHT_BEAM_EMBER := 0.7 ## how far the beam's colour leans to SPARK_EMBER at full night
+const NIGHT_BEAM_BOOST := 0.6 ## extra opacity at full night (alpha x1.6, still under the cap)
 
 const CORE := Color(1.0, 0.86, 0.52) ## the column's hot middle, a touch paler than a lantern
 const GLOW := Color(1.0, 0.56, 0.24) ## Lamps.FLAME, the lantern light
@@ -57,7 +64,7 @@ const HIDDEN := Basis(Vector3.ZERO, Vector3.ZERO, Vector3.ZERO)
 var age := 0.0
 var finished := false
 var daylight := 0.0 ## 0 night .. 1 full day, read from the sky when the burst starts
-## What the last frame drew for the column and the beam ({height, radius, strength}).
+## What the last frame drew for the column and the beam ({height, radius, strength, flag}).
 ## Kept here because the headless (dummy) renderer does not store MultiMesh instance data,
 ## so tests and bots read these instead of the MultiMesh.
 var column_now := {}
@@ -114,6 +121,18 @@ static func drawn_radius(radius: float, distance: float) -> float:
 ## own gentle distance fade; the scene fog does not touch them). Mirrors the shader.
 static func far_fade(distance: float) -> float:
 	return lerpf(1.0, FAR_FADE_MIN, _smooth((distance - FAR_FADE_START) / (FAR_FADE_END - FAR_FADE_START)))
+
+
+## The colour the beam (or, with `beam` false, the column) is drawn with, for daylight `day`
+## (0..1) and facing `body` (1 face-on). Mirrors the shader: rgb is its ALBEDO, a is the
+## factor on its ALPHA. By day both are the column's gold; at night the beam turns deep
+## ember and a little more opaque.
+static func beam_tint(day: float, beam: bool = true, body: float = 1.0) -> Color:
+	var d := clampf(day, 0.0, 1.0)
+	var night := (1.0 - d) if beam else 0.0
+	var c := GLOW.lerp(CORE, body * body * 0.6 * (1.0 - 0.5 * d) * (1.0 - night))
+	c = c.lerp(SPARK_EMBER, NIGHT_BEAM_EMBER * night)
+	return Color(c.r * 1.2, c.g * 1.2, c.b * 1.2, 1.0 + NIGHT_BEAM_BOOST * night)
 
 
 ## How light the sky is right now, 0 deep night .. 1 full day, as this client's sky clock
@@ -240,6 +259,8 @@ func _apply() -> void:
 	# material, so the beam costs no extra draw call; each carries its strength in custom data.
 	var c := column_at(age, daylight)
 	var b := beam_at(age, daylight)
+	c.flag = 0.0 # custom data g: the shader gives only the beam (flag 1) its night ember
+	b.flag = 1.0
 	column_now = c
 	beam_now = b
 	var col := get_node("Column") as MultiMeshInstance3D
@@ -250,7 +271,7 @@ func _apply() -> void:
 			col.multimesh.set_instance_transform(i, Transform3D(HIDDEN, Vector3.ZERO))
 		else:
 			col.multimesh.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(maxf(part.radius, 0.001), maxf(part.height, 0.001), maxf(part.radius, 0.001))), Vector3(0, part.height * 0.5, 0)))
-		col.multimesh.set_instance_custom_data(i, Color(part.strength, 0, 0, 0))
+		col.multimesh.set_instance_custom_data(i, Color(part.strength, part.flag, 0, 0))
 	var r := ring_at(age)
 	var ring := get_node("Ring") as MultiMeshInstance3D
 	ring.visible = r.strength > 0.0
@@ -291,6 +312,9 @@ func _build() -> void:
 	_column_mat.set_shader_parameter("fade_start", FAR_FADE_START)
 	_column_mat.set_shader_parameter("fade_end", FAR_FADE_END)
 	_column_mat.set_shader_parameter("fade_min", FAR_FADE_MIN)
+	_column_mat.set_shader_parameter("ember", SPARK_EMBER)
+	_column_mat.set_shader_parameter("night_ember", NIGHT_BEAM_EMBER)
+	_column_mat.set_shader_parameter("night_boost", NIGHT_BEAM_BOOST)
 	var col := _single("Column", cyl, 2)
 	col.material_override = _column_mat
 	# The shader widens far beams past their instance bounds; keep them from being culled
@@ -375,11 +399,16 @@ uniform float min_spread = 0.007; // LevelUpFx.MIN_SPREAD
 uniform float fade_start = 60.0;
 uniform float fade_end = 220.0;
 uniform float fade_min = 0.65;
+uniform vec4 ember : source_color = vec4(1.0, 0.42, 0.14, 1.0); // LevelUpFx.SPARK_EMBER
+uniform float night_ember = 0.7; // LevelUpFx.NIGHT_BEAM_EMBER
+uniform float night_boost = 0.6; // LevelUpFx.NIGHT_BEAM_BOOST
 varying float h;
 varying float strength;
+varying float night; // the beam's share of night (0 for the column, and for the beam by day)
 void vertex() {
 	h = VERTEX.y + 0.5; // 0 at the feet, 1 at the top
 	strength = INSTANCE_CUSTOM.r; // per instance: the column, then the sky beam
+	night = INSTANCE_CUSTOM.g * (1.0 - day); // LevelUpFx.beam_tint
 	// Never thinner on screen than min_spread (LevelUpFx.drawn_radius): far away, widen the
 	// unit cylinder so the beam keeps a steady few pixels instead of thinning to a hairline.
 	// MODEL_MATRIX already holds this instance's transform (its x scale is the radius).
@@ -406,8 +435,12 @@ void fragment() {
 	// very middle.
 	// By day: less of the pale core (deeper orange is what stands out on a bright meadow)
 	// and a thicker floor of opacity, so the column reads solid gold rather than a ghost.
-	ALBEDO = mix(glow.rgb, core.rgb, body * body * 0.6 * (1.0 - 0.5 * day)) * 1.2;
-	ALPHA = clamp((0.45 + 0.3 * day + 1.0 * body) * top * foot * shimmer * strength, 0.0, 0.92 + 0.05 * day);
+	// At night the beam (faint, so mostly sky shows through) drops the pale core, which would
+	// grey it, and leans to deep ember, a little more opaque (LevelUpFx.beam_tint mirrors this).
+	vec3 c = mix(glow.rgb, core.rgb, body * body * 0.6 * (1.0 - 0.5 * day) * (1.0 - night));
+	c = mix(c, ember.rgb, night_ember * night);
+	ALBEDO = c * 1.2;
+	ALPHA = clamp((0.45 + 0.3 * day + 1.0 * body) * top * foot * shimmer * strength * (1.0 + night_boost * night), 0.0, 0.92 + 0.05 * day);
 }
 """
 	return sh

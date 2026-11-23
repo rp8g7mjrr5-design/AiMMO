@@ -567,3 +567,23 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Didn't do.** The bigger burst for named unlocks and every 10th level still needs the client to pass the level (the backlog item stays). At night the far beam reads pale grey rather than ember; follow-up added.
 
 **Next run.** The gather-swing impact puff, or the milestone burst once the client passes a level.
+
+## 2026-11-23, run: ember night beam (ws/world/night-beam-ember)
+
+**Open PRs.** None of world's open. Budget: 29 of 40 world PRs this week before this one.
+
+**Picked.** The top item (milestone burst) still needs the client to pass the level; the gather impact puff needs the client to call world on each swing's contact. The next item world can do alone is the night beam follow-up. Fun: at night, a level-up across the valley now reads as an ember stroke over the stars (you see someone just got stronger, Milestone 1's "see others progress"), instead of a grey streak you'd take for haze.
+
+**Looked first, on main** (llvmpipe, 1280x720, bursts at 15/45/100 m, 0.45 s in, own render script in a scratch dir): at midnight all three beams are beige-grey (pixel ~(151,145,114) at 100 m). The pale core is mixed in at low alpha, and navy sky shows through most of it.
+
+**Built.**
+- Column shader: custom data g flags the beam instance (column 0, beam 1; still one MultiMesh, one material, one draw call). `night = flag * (1 - day)`. At night the beam drops the pale core and leans `NIGHT_BEAM_EMBER` (0.7) towards `SPARK_EMBER`, and its alpha is x(1 + `NIGHT_BEAM_BOOST` 0.6), still under the 0.92 cap. By day `night` is 0, so the day beam and the column at every hour are exactly as before.
+- `LevelUpFx.beam_tint(day, beam, body)` mirrors the shader (rgb = ALBEDO, a = alpha factor) for tests. `column_now`/`beam_now` carry the flag because the dummy renderer drops MultiMesh custom data.
+
+**Didn't work.** First try boosted the beam's brightness at night (ALBEDO x2.1, HDR). Filmic clips red first, so the ember turned lemon/olive yellow. Switched the boost to opacity instead; the hue holds. Noted in a comment so nobody tries it again.
+
+**Tests.** Two new unit tests in `test_world_level_up_fx.gd`: the column colour and opacity are unchanged at day 0/0.5/1, the day beam equals the column, the night beam composited over the navy sky at its real far alpha is clearly more saturated and ember-hued (hue < 0.11) than before, no HDR values, and the tint eases with no jump at dusk; and the shader carries the rule (beam flag 1, column 0, uniforms from the constants). Unit suite with Postgres: 607 pass. 8-bot 180 s websocket bot test passed (276 s). Client smoke test passed (render budget unchanged: 609,931 triangles). No new bot behaviour: nothing new on the network, and art checks belong in unit tests. No mutation run this time (the session blocked the scratch revert step); the hue check fails by construction if `NIGHT_BEAM_EMBER` is 0, since the old colour is the "was" side of the same comparison.
+
+**Looked at after.** Midnight: the 15 m and 45 m beams are deep amber, the 100 m one an ember stroke (~(185,133,64), was (151,145,114)). Noon: no visible change (1.6k of 920k pixels differ by more than 8/255, all shimmer and motes timing). Before/after in the project files (`world/level-up-night-beam-*`).
+
+**Next run.** The gather-swing impact puff needs a client call per swing: build world's half (`NodeProps.play_impact(root, id, point)` plus a pure contact-point helper) and file the client request, or the dusk look check added to follow-ups.

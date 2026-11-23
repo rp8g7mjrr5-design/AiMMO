@@ -291,3 +291,54 @@ func test_column_shader_carries_the_far_rules() -> void:
 	var ring_code := ((fx.get_node("Ring") as MultiMeshInstance3D).material_override as ShaderMaterial).shader.code
 	check(ring_code.contains("fog_disabled"), "the additive ring ignores fog (else it draws as a pale square from afar)")
 	avatar.free()
+
+
+## Backlog follow-up (level-up far beam): at night the faint beam read pale grey over the navy
+## sky from 100 m, because a mostly see-through pale core averages to grey. The beam now
+## turns deep ember after dark; the column and the day beam are untouched.
+func test_night_beam_reads_ember_over_the_night_sky() -> void:
+	const NAVY := Color(0.03, 0.04, 0.14) # the night sky behind a far beam (measured, 720p shot)
+	for day in [0.0, 0.5, 1.0]:
+		var col := LevelUpFx.beam_tint(day, false)
+		var old := LevelUpFx.GLOW.lerp(LevelUpFx.CORE, 0.6 * (1.0 - 0.5 * day))
+		check(absf(col.r - old.r * 1.2) < 0.001 and absf(col.g - old.g * 1.2) < 0.001 and absf(col.b - old.b * 1.2) < 0.001, "the column's colour is unchanged at day %.1f" % day)
+		check_eq(col.a, 1.0, "the column's opacity is unchanged at day %.1f" % day)
+	var day_beam := LevelUpFx.beam_tint(1.0)
+	var day_col := LevelUpFx.beam_tint(1.0, false)
+	check(day_beam.is_equal_approx(day_col), "by day the beam is the column's gold")
+	var night := LevelUpFx.beam_tint(0.0)
+	check(night.a > 1.4 and night.a < 2.0, "at night the beam is a little more opaque (x%.2f)" % night.a)
+	check(maxf(night.r, maxf(night.g, night.b)) <= 1.2 + 0.001, "not HDR-bright (filmic would clip it yellow)")
+	# What a far beam adds over the sky at night: its strength there, faded by distance.
+	var a := LevelUpFx.BEAM_NIGHT * LevelUpFx.far_fade(100.0) * 0.6
+	var before := LevelUpFx.beam_tint(0.0, false) # the beam used the column's colour at night
+	var was := NAVY.lerp(Color(before.r, before.g, before.b), a)
+	var now := NAVY.lerp(Color(night.r, night.g, night.b), minf(a * night.a, 1.0))
+	check(now.s > was.s + 0.15, "over the navy sky the night beam is clearly more saturated (%.2f, was %.2f)" % [now.s, was.s])
+	check(now.h < 0.11, "and its hue is ember orange, not yellow or grey (hue %.3f)" % now.h)
+	check(now.r > was.r, "and brighter in red than before")
+	# The tint eases with the light: no jump at dusk.
+	var last := LevelUpFx.beam_tint(0.0)
+	for i in range(1, 21):
+		var c := LevelUpFx.beam_tint(i / 20.0)
+		check(absf(c.g - last.g) < 0.08 and absf(c.a - last.a) < 0.08, "beam tint eases at day %.2f" % (i / 20.0))
+		last = c
+
+
+func test_column_shader_gives_only_the_beam_its_night_ember() -> void:
+	var holder := Node3D.new()
+	var fx := LevelUpFx.play(holder, 3, 0.0)
+	var col := fx.get_node("Column") as MultiMeshInstance3D
+	fx.advance(0.4)
+	# The dummy renderer doesn't keep MultiMesh custom data, so read what _apply wrote from.
+	check_eq(float(fx.column_now.flag), 0.0, "the column is flagged as the column")
+	check_eq(float(fx.beam_now.flag), 1.0, "the beam is flagged as the beam")
+	var mat := col.material_override as ShaderMaterial
+	check((mat.get_shader_parameter("ember") as Color).is_equal_approx(LevelUpFx.SPARK_EMBER), "shader ember is the sparks' ember")
+	check_eq(float(mat.get_shader_parameter("night_ember")), LevelUpFx.NIGHT_BEAM_EMBER, "shader leans as far as beam_tint")
+	check_eq(float(mat.get_shader_parameter("night_boost")), LevelUpFx.NIGHT_BEAM_BOOST, "shader opacity lift matches beam_tint")
+	var code := mat.shader.code
+	check(code.contains("night = INSTANCE_CUSTOM.g * (1.0 - day)"), "only the beam instance, and only after dark")
+	check(code.contains("(1.0 - night)") and code.contains("mix(c, ember.rgb, night_ember * night)"), "the shader drops the pale core and leans to ember")
+	check(code.contains("(1.0 + night_boost * night)"), "the shader lifts the beam's opacity at night")
+	holder.free()
