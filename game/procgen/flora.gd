@@ -230,7 +230,25 @@ static func _meshes() -> Dictionary:
 	bloom.height = 1.0
 	bloom.radial_segments = 5
 	bloom.rings = 2
-	return {"BirchBark": trunk, "BirchMarks": band, "BirchCrowns": crown, "MossRocks": rock, "Moss": moss, "FlowerStems": stem, "FlowerBlooms": bloom}
+	# Baked vertex colours (Emberlight): dark at the foot, lighter up the height. Same
+	# vertices, so WorldSolids (which reads these meshes) is unchanged.
+	return {
+		"BirchBark": Emberlight.bake(trunk, 0.40, 1.6),
+		"BirchMarks": Emberlight.bake(band, 0.0),
+		"BirchCrowns": Emberlight.bake(crown, 0.30),
+		"MossRocks": Emberlight.bake(rock, 0.40, 1.5),
+		"Moss": Emberlight.bake(moss, 0.20),
+		"FlowerStems": Emberlight.bake(stem, 0.30),
+		"FlowerBlooms": bloom,
+	}
+
+
+## Which shared Emberlight material each flora layer uses: all of them share `solid` with the
+## scatter forest. (Not `foliage` for the birch crowns yet: its sway is in mesh units, and
+## these are unit meshes scaled up, so a 4 m crown would swing about 0.3 m and slide off its
+## trunk. See the world backlog follow-up.)
+static func layer_material(_layer: String) -> ShaderMaterial:
+	return Emberlight.material("solid")
 
 
 static func _multimesh(node_name: String, mesh: Mesh, instances: Array) -> MultiMeshInstance3D:
@@ -242,13 +260,10 @@ static func _multimesh(node_name: String, mesh: Mesh, instances: Array) -> Multi
 	for i in instances.size():
 		mm.set_instance_transform(i, instances[i][0])
 		mm.set_instance_color(i, (instances[i][1] as Color).srgb_to_linear())
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.9
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = node_name
 	mmi.multimesh = mm
-	mmi.material_override = mat
+	mmi.material_override = layer_material(node_name)
 	return mmi
 
 

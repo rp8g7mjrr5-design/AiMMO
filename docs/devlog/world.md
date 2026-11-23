@@ -281,3 +281,28 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Known / not done.** Flora, node props, lamps, workbench, avatars and NodeFx are still StandardMaterial3D (part 2). Nights read green-black, not yet blue-and-ember (part 4's re-key; follow-up filed). Nothing uses the `glow` variant yet; veins come with part 2.
 
 **Next run.** Emberlight part 2 (everything else onto the shared materials, veins on gatherables), unless #79 needs a fix.
+
+## 2026-11-23: Emberlight part 2a, ember veins on every gatherable
+**Why this.** Next in my backlog (owner direction 7, the art bible), and #79 (level-up burst) has merged, so nothing of mine was open. Part 2 as written (nodes, flora, lamps, workbench, avatars, NodeFx, a whole-world material count) is too big for one finished run, so I split it: this run moves the resource nodes and the flora onto the shared materials and adds the art bible's signature motif, ember veins on everything you can gather. Lamps, workbench, avatars and NodeFx are part 2b. What a player feels: a node you can use now *glows* (thin ember cracks beating with the valley's heartbeat), plain scenery doesn't, and an emptied node goes dark. "If it glows ember, you can use it" becomes true in the world, not just in the bible.
+
+**Built.**
+- `NodeProps` veins: a new `NodeVeins` layer, appended after every older part with its own rng (old parts, order and colours unchanged; the close-up test now checks veins come last). Ash: 3 zig-zag cracks up the trunk between the root flares and the crown; pine: 2; outcrop: 2 lines over the big stone on the faces the quartz seam leaves free; seep: a crack over 3 of the 5 rim stones running in towards the pool. Each crack is two thin boxes between points on the part's real surface (`_crack`), with the flat face along the surface normal. Live look only. `vein_cracks(kind, tier)`: one more crack per tier above 1, read from an optional node `tier` (gameplay's tier-2 nodes can just set it), capped at NodeFx's 10 shell slots.
+- Veins are instance colour alpha 0 on the shared `glow` material, so the shader's `vein = 1 - COLOR.a` lights them and the heartbeat swells them. No new material per kind.
+- Node layers on Emberlight (`NodeProps.layer_material`): bark, stones, stumps and close-up detail on the forest's `solid`; pine tiers on its `foliage`; ash leaves on a named `foliage/node_ash_leaf` (their night glow is a different number from the decorative leaves', set by `Lamps.apply_glow` as before); sap pools on a named `glow/sap` (whole-surface glow, now beating with the heartbeat); veins on `glow`. Meshes baked with AO like the scatter's.
+- Flora (birches, marks, boulders, moss, flowers) all on `solid` with baked AO.
+- Materials after this: 8 named Emberlight materials (solid, solid/terrain, foliage, foliage/ash_leaf, foliage/node_ash_leaf, glow, glow/sap), down from 7 StandardMaterial3Ds for nodes plus 7 for flora.
+
+**Decisions.**
+- Veins as separate thin boxes, not vertex alpha painted into the trunk/stone meshes: these meshes are 5 to 8 segments round, so a per-vertex vein would smear into a whole glowing face. Boxes give a crisp crack and cost 6 to 10 instances per node in one MultiMesh (about 3,000 instances, one draw call, no shadows).
+- Named materials configure themselves once (a `configured` meta), because `layer_material` is called again by tests and by build, and resetting `emission_energy` there would undo `apply_glow` (my first test caught exactly that: sap stuck at its day value).
+- Birch crowns stay on `solid`, not `foliage`: the sway is in mesh units, flora uses unit meshes scaled to size, so a birch crown would slide off its trunk. Follow-up filed.
+- Vein energy 1.4 instead of the shader's 2.0: at 2.0 the noon render clipped veins to white; 1.4 reads ember orange-gold by day and bright at night.
+- No new bot behaviour: art bible section 7 says art checks live in unit tests and the smoke test, not the 8-bot loop, and veins change nothing on the network.
+
+**Didn't work.** First draft had `var ak := a + [...][k]` (an untyped array index), which GDScript can't infer; typed it. The sap pool on Emberlight lost its clearcoat gloss (the shader has no specular) and reads a flatter yellow at noon than before; same brightness, compared side by side with main. Follow-up filed.
+
+**Tested.** 340 unit tests with Postgres (7 new in `tests/unit/test_world_ember_veins.gd`: every live node has veins and every emptied one none, tier 2 has more, veins sit on the bark / stone / rim stone surface, deterministic, every node and flora layer on Emberlight within budget, baking keeps vertices, `apply_glow` still reaches the node leaves and the sap). The existing vertex-by-vertex camera-solid test covers the veins too (it walks every layer). 8-bot 180 s websocket bot test passed (9/9 characters persisted, fun metrics unchanged in kind: median first reward 8.5 s). Client smoke test passed (day 0.703, night 0.167, same as part 1). Rendered an ash, outcrop, seep and pine close up at noon and midnight on the real renderer and looked at them.
+
+**Known / not done.** Lamps, workbench, avatars and NodeFx's bits are still StandardMaterial3D (part 2b). No whole-world material-count test yet (needs part 2b).
+
+**Next run.** Emberlight part 2b (lamps, workbench, avatars, NodeFx onto the shared materials, and the whole-world material count), unless this PR needs a fix.
