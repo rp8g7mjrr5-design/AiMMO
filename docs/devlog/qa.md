@@ -404,3 +404,43 @@ with `--fun-check` passed twice on the final code (four earlier runs used to pic
 
 **Next run:** v3 gathering in CI if `c2s_gather_start` is on main (and fold it into
 `qa_fun_metrics`), otherwise build the Docker image in CI.
+
+## 2026-11-23 — CI tests the real server image before Railway runs it
+
+Playtest inbox still empty, no open qa PR, budget 10/40. `main` is still protocol v2 (no
+`c2s_gather_start`, no `--dev-commands`), so the top two backlog items stay blocked. Took the
+next item named in my last note: build the Docker image in CI.
+
+**Fun it protects:** a broken image means the world is down after a deploy until someone
+notices. Every other test runs the server from the repo with the host's Godot, so the image
+Railway actually runs was never tested.
+
+**Built:** `tests/ops/run_image_test.py --image <tag>` after a new CI step `docker build -t
+aimmo-server:ci .`. Scenarios: `contents` (tools the entrypoint/probe use, imported class
+cache, migrations identical to the repo's, ENV and CMD), `plays` (container boots with its
+own CMD on `--network host`, reaches the CI Postgres, answers the host's probe; 2 real bots
+from `tests/bot_test` play 40 s each against it, reconnect, positions restored; `docker stop`
+exits 0 with a clean save; no ERROR lines), `frozen` (`docker exec kill -STOP` the server, the
+watchdog kills it, container exits 70). Also `tests/ops/test_dockerfile.py` (no Docker needed):
+every COPY source exists and isn't `.dockerignore`d, every `docker/*.sh` is copied and checked.
+Two bots, not one: with one bot, `client_compass`, `world_avatar_limbs` and `world_closeup`
+fail because they need to see another player.
+
+**Proved it catches it:** an image with `docker/probe.sh` left out of the COPY and the wrong
+folder copied to `/app/db` failed `contents` with all four problems. Worth noting what that
+image would have done live: no probe, so the watchdog never sees the server answer and kills a
+healthy server after 180 s, forever. Nothing else in CI would have caught it.
+
+**Didn't work / caveat:** this sandbox's proxy blocks `deb.debian.org`, so I could not build
+the real `debian:bookworm-slim` image locally. I verified the test against a stand-in built
+from the same Dockerfile with `FROM ubuntu:24.04` and the proxy CA added (same packages, same
+COPY/ENV/CMD). The real build runs for the first time on this PR's CI; GitHub's runners reach
+Debian fine. Expect the build step to add about a minute and the image test about 65 s.
+
+**Tests:** 259 unit tests pass with Postgres; 6 new Dockerfile tests and 7 fun-report tests
+pass; bot test 8 bots x 180 s WebSocket + Postgres with `--fun-check` passed (186 s); watchdog
+and protocol tests pass; image test passed on Postgres and JSON storage. Client smoke not run:
+nothing the client loads changed.
+
+**Next run:** if this PR's CI shows the Debian build failing, fix that first. Then v3 gathering
+in CI if `c2s_gather_start` is on main, otherwise the server performance check in the bot test.

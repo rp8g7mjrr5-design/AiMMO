@@ -48,6 +48,15 @@ jobs:
       - name: Watchdog test (a frozen server is restarted, a healthy one is left alone)
         run: python3 tests/ops/run_watchdog_test.py
 
+      - name: Dockerfile checks (fast, no Docker)
+        run: python3 -m unittest discover -s tests/ops -p 'test_*.py'
+
+      - name: Build the server image (the same Dockerfile Railway builds)
+        run: docker build -t aimmo-server:ci .
+
+      - name: Server image test (contents, boot, 2 bots play, docker stop saves, watchdog restarts)
+        run: python3 tests/ops/run_image_test.py --image aimmo-server:ci
+
       - name: Fun-metrics report tests
         run: python3 -m unittest discover -s tests/bot_test -p 'test_*.py'
 
@@ -74,6 +83,7 @@ jobs:
             /tmp/aimmo-bot-test-*/
             /tmp/aimmo-protocol-test-*/
             /tmp/aimmo-watchdog-test-*/
+            /tmp/aimmo-image-test-*/
           if-no-files-found: ignore
           retention-days: 14
 
