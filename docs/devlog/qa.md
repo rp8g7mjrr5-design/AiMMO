@@ -838,3 +838,45 @@ run: nothing the client loads changed.
 
 **Next run:** check this PR landed and `main` went green. Then the gather_start fun-metrics
 follow-up or the screenshot style check; "chat is for talking" still waits on `--dev-commands`.
+
+## 2026-11-23 — fun metrics read real gathering (`ws/qa/fun-real-gathering`)
+
+Budget 20/40, playtest inbox empty, claim taken. Open: #119 (chat gate in CI), checks
+running, auto-merge on, nothing to fix. Skipped backlog item 1 (it is #119) and took the
+gather_start fun-metrics follow-up, which doesn't need #119's code.
+
+**Fun:** a press of E or Craft that the game is slow to answer now fails the build, the
+same way a slow slash command already did. Before this, `longest_wait_s` only saw chat
+commands, so the real controls were not measured at all.
+
+**What changed:**
+- `bot.send_play(method, args)` sends Net/Play requests and emits `play_sent`; the six
+  direct `net.play.c2s_*.rpc_id` calls in `gameplay_gather_v3`, `qa_gather_ledger` and
+  `client_craft_window` use it (qa owns tests/; one-line changes, behaviour unchanged). A
+  unit test fails any behaviour that calls a `c2s_` RPC directly.
+- `qa_fun_metrics`: `play_sent` is an action; our `s2c_gather_begin/end`, `s2c_xp` and a
+  refused `s2c_craft_result` are feedback; `s2c_gather_result` is a reward, an ok
+  `s2c_craft_result` is a craft (window crafts were not counted at all before: no text line
+  follows them), `s2c_level_up` is the level-up. The server still sends the text line too,
+  so `FunMetrics.expect_echo`/`echo` drops a text line that repeats an RPC's answer (same
+  kind and count, within 0.5 s). `/gather` and `/craft` (text only) still count.
+- `first_reward_s_worst` 120 -> 90 (CI worst over the last nine `main` runs: 8.9-10.7 s).
+- `art_lint_allow.json`: `skill_icons.gd` 7 -> 0 (world's request; the lint was printing
+  the note).
+
+**Check against double counting:** rewards/min stayed 10.7 / 10.3 in two local runs (CI
+baseline 10.0); if text echoes were counted it would be ~20.
+
+**Tests:** 481 Godot unit tests pass with Postgres; Python bot_test and ops unittests pass.
+Bot test 8 x 180 s WebSocket + Postgres `--fun-check` PASSED twice (240 s each; 8/8
+levelled, wait worst 0.25 / 0.23 s with E presses included, dead median 27.7 / 29.9); 8 x
+45 s ENet PASSED. Client smoke not run: nothing the client loads changed.
+
+**Didn't do:** re-take the medians. Local runs are not CI (the dead-time gate flaked on
+exactly that); follow-up added to re-take after three `main` runs. Also noticed
+`first_level_up_s` (wall clock) median is ~120 s while gathering time is ~34 s: bots
+spend most of their first two minutes walking and on other behaviours; that's the gathered
+seconds the roadmap gates, so left as is.
+
+**Next run:** check #119 and this PR landed (both append to this devlog and the backlog,
+so the second may need `main` merged in). Then the screenshot style check.

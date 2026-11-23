@@ -191,7 +191,7 @@ func _plan() -> void:
 	_gate_text = false
 	_step = Step.GATE
 	_answer_by = bot.elapsed + ANSWER_TIMEOUT
-	bot.net.play.c2s_gather_start.rpc_id(1, _gate_node)
+	bot.send_play("c2s_gather_start", [_gate_node])
 
 
 func _fill_targets() -> void:
@@ -253,7 +253,7 @@ func _start() -> void:
 	_pack_before = int(_pack.get(_item, 0))
 	_result_count = 0
 	_cancel_sent = false
-	bot.net.play.c2s_gather_start.rpc_id(1, _target)
+	bot.send_play("c2s_gather_start", [_target])
 
 
 func on_play(_delta: float) -> void:
@@ -316,7 +316,7 @@ func on_play(_delta: float) -> void:
 					bot.move = STILL
 					if not _cancel_sent and bot.elapsed >= _next_at:
 						_cancel_sent = true
-						bot.net.play.c2s_gather_cancel.rpc_id(1)
+						bot.send_play("c2s_gather_cancel")
 				_:
 					bot.move = STILL
 			if bot.elapsed > _ends_by:

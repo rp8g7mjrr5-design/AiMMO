@@ -169,3 +169,68 @@ func test_behaviours_send_commands_through_the_queue() -> void:
 			continue
 		var src := FileAccess.get_file_as_string(dir.path_join(f))
 		check(not src.contains("c2s_chat"), "%s sends chat directly; use bot.send_command so the shared cooldown can't drop it" % f)
+
+
+func test_behaviours_send_play_requests_through_the_bot() -> void:
+	# The fun metrics time each press of E / Craft from bot.play_sent; a direct
+	# net.play.<c2s>.rpc_id call would be a press nobody measures.
+	var direct := RegEx.create_from_string("\\bc2s_\\w+\\.rpc")
+	var dir := "res://tests/bot_test/behaviours"
+	for f in DirAccess.get_files_at(dir):
+		if not f.ends_with(".gd"):
+			continue
+		var src := FileAccess.get_file_as_string(dir.path_join(f))
+		check(direct.search(src) == null, "%s calls a c2s_ RPC directly; use bot.send_play(method, args)" % f)
+
+
+func test_send_play_offline_sends_nothing() -> void:
+	var bot: Node = BotScript.new()
+	var seen := []
+	bot.play_sent.connect(func(method: String, _a: Array): seen.append(method))
+	check(not bot.send_play("c2s_gather_start", [1]), "no peer, no send")
+	check_eq(seen.size(), 0, "and no press is counted")
+	check_eq(int(bot.stats.play_sent), 0)
+	bot.free()
+
+
+func test_rpc_reward_and_its_text_line_count_once() -> void:
+	var m := FunMetrics.new()
+	m.start_play(0.0)
+	m.act(5.0) # pressed E
+	m.feedback(5.05) # s2c_gather_begin
+	m.reward(8.0, 2) # s2c_gather_result
+	m.expect_echo("gather", 8.0, 2)
+	var line := "You gather 2 ash wood from the ember ash (2 in your pack)."
+	check(m.echo("gather", 8.0, FunMetrics.items_in(line)), "the text line after the RPC is its echo")
+	check(not m.echo("gather", 8.0, 2), "an echo is dropped only once")
+	m.stop_play(60.0)
+	var r := m.result()
+	check_eq(r.rewards, 2, "2 items, not 4")
+	check_near(r.first_reward_s, 8.0, 0.001)
+	check_near(r.longest_wait_s, 0.05, 0.001, "the press was answered by the gather bar")
+
+
+func test_echo_needs_same_kind_count_and_time() -> void:
+	var m := FunMetrics.new()
+	m.start_play(0.0)
+	m.expect_echo("gather", 10.0, 2)
+	check(not m.echo("gather", 10.1, 3), "different count: a separate reward")
+	check(not m.echo("level", 10.1), "different kind")
+	check(not m.echo("gather", 10.0 + FunMetrics.ECHO_WINDOW + 0.1, 2), "too late: a /gather of its own")
+	m.expect_echo("level", 20.0)
+	check(m.echo("level", 20.0), "level-up line after s2c_level_up")
+	m.expect_echo("gather", 30.0, 1)
+	m.expect_echo("gather", 31.0, 1) # the 30.0 one expires when this is added
+	check(m.echo("gather", 31.2, 1), "the newer one is still there")
+	check(not m.echo("gather", 31.3, 1), "each RPC drops one line")
+	check(not m.echo("gather", 5.0, 1), "a line before the RPC is not its echo")
+
+
+func test_dev_gather_text_alone_still_counts() -> void:
+	# /gather (dev commands) answers with text only: no RPC, so nothing to echo.
+	var m := FunMetrics.new()
+	m.start_play(0.0)
+	check(not m.echo("gather", 4.0, 1), "nothing expected")
+	m.reward(4.0, 1)
+	m.stop_play(60.0)
+	check_eq(m.result().rewards, 1)

@@ -303,7 +303,7 @@ func on_play(delta: float) -> void:
 				_probe_item = str(ResourceNodes.kind_info(str(ResourceNodes.get_by_id(_probe_node).kind)).item)
 				_probe_pack_before = int(_pack.get(_probe_item, 0))
 				_probe_ends_by = bot.elapsed + ANSWER_TIMEOUT
-				bot.net.play.c2s_gather_start.rpc_id(1, _probe_node)
+				bot.send_play("c2s_gather_start", [_probe_node])
 			elif bot.elapsed > _probe_ends_by:
 				fail("probe: c2s_gather_start(%d) was never answered" % _probe_node)
 				_probe = Probe.DONE
@@ -377,7 +377,7 @@ func _play_pair(delta: float) -> void:
 			if _pair_next > 0.0 and bot.elapsed >= _pair_next:
 				_pair_next = 0.0
 				_pair_ends_by = bot.elapsed + ANSWER_TIMEOUT
-				bot.net.play.c2s_gather_start.rpc_id(1, _pair_node)
+				bot.send_play("c2s_gather_start", [_pair_node])
 			elif bot.elapsed > _pair_ends_by:
 				fail("pair: c2s_gather_start(%d) was never answered" % _pair_node)
 				_pair = Pair.DONE
