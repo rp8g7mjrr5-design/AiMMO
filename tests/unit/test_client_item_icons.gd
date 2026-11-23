@@ -4,13 +4,6 @@ extends TestCase
 ## item's icon next to the right words.
 
 
-func _gather_line(kind: String, qty: int, in_pack: int) -> String:
-	for n in ResourceNodes.all():
-		if n.kind == kind:
-			return Gathering.success(int(n.id), qty, in_pack, false)
-	return ""
-
-
 func test_shelf_wants_every_item_at_every_size() -> void:
 	var w := IconShelf.wanted()
 	check_eq(w.size(), Inventory.ITEM_ORDER.size() * IconShelf.SIZES.size(), "one per item per size")
@@ -76,10 +69,10 @@ func test_every_gather_toast_gets_its_items_icon() -> void:
 	g.setup(Theme.new())
 	g.icons = shelf
 	for kind in ResourceNodes.KINDS:
-		var line := _gather_line(kind, 2, 6)
-		check(line != "", "a %s line" % kind)
-		check(g.on_system(line), "%s line is a gain" % kind)
 		var item := str(ResourceNodes.kind_info(kind).item)
+		g.pack = {item: 6}
+		g.on_result(item, 2) # s2c_gather_result
+		check(g.toast_label.text.ends_with("(6)"), g.toast_label.text)
 		check_eq(g.toast_item(), item, "%s toast shows the %s icon" % [kind, item])
 		check(g.toast_icon.visible, "icon shown")
 		check(g.toast_icon.texture == shelf.texture(item, IconShelf.TOAST_SIZE), "icon from the shelf")
