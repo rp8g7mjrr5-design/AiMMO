@@ -454,3 +454,53 @@ against the container here, 0 of 200 straight on the host, which is why the watc
 never saw it. Live, the watchdog probes every 20 s, so Railway's log would have collected one
 of these every couple of hours. The probe now reads the rest of the headers and waits (up to
 2 s) for that first frame before closing: 0 errors in 600 probes, about 33 ms each.
+
+## 2026-11-23 — Real gathering (protocol v3) covered in CI, items counted end to end
+
+Playtest inbox still empty, no open qa PR, budget 11/40. Protocol v3 is on main now, so the
+director's top item (real gathering in CI) is unblocked. `--dev-commands` is still not on
+main, so the second item (chat is for talking, in CI) stays blocked.
+
+**Fun it protects:** the core loop is "press E, watch the bar, get the wood". If a gather
+pays nothing, pays twice, or the wood is gone after a reconnect, the loop that makes the game
+fun breaks in the worst way: a player loses their haul. Now no update ships that does that.
+
+**What was already there:** gameplay's `gameplay_gather_v3` already walks every bot to a node
+and does walk-away cancel, `c2s_gather_cancel`, hold to finish and farming through
+`c2s_gather_start`. I didn't duplicate it; I added what nobody checked:
+- `qa_gather_ledger` (every bot): first s2c_inventory after a reconnect equals the last one
+  before it; nobody may start gathering a node this client shows empty (client/server node
+  desync); the most players on one node at once; emptied nodes with wall-clock times.
+- `gather_report.py` (whole run, >= 120 s): at least 4 bots finished a timed gather, both
+  cancel kinds happened, two players shared a node, a node was emptied.
+- Respawn probe: nodes respawn after 180 s (stone 240 s) and bots play 180 s, so no bot ever
+  saw one come back. After the 8 bots the harness picks the emptied node due back soonest
+  (but >= 8 s away), starts one fresh bot with `--only-behaviour=qa_gather_ledger
+  --gather-probe=<node>`: it must see the node empty at login, get s2c_node_state(node,false)
+  within 6 s of the due time, walk there, gather it with c2s_gather_start, get paid, and after
+  a reconnect not see it empty. Cost: about 50 s more on the CI bot test (186 s -> 235 s).
+  I chose that over a dev-only respawn speed-up because the respawn timers are gameplay's
+  files; follow-up filed to drop the probe if gameplay adds one.
+- `verify_store.gd` now also compares each saved pack with the bot's last s2c_inventory, so
+  server, client and database agree. A gather still running at the hang-up may pay out after
+  the last message got through; one item up by at most one gather's amount is allowed then
+  (`GatherLedger.reconnect_problem`, "in_flight"). It never happened in my runs.
+- `--only-behaviour=a,b` in the bot harness (an old backlog item; the probe needed it).
+
+**Proved it catches it:** fed `verify_store.gd` the probe's real saved character with a pack
+of 4 ash wood instead of 2: "saved pack { ash_wood: 2 } but the server last told the bot
+{ ash_wood: 4 }", 0/1 persisted. Unit tests cover lost/invented/two-gather/two-item packs.
+
+**Numbers from two full runs:** 42 and 32 timed gathers by 8 and 6 of 8 bots, 15 walk-offs,
+14-15 explicit cancels, 2 players on one node, 37 and 33 nodes emptied, 0 in-flight payouts.
+6 of 8 is closer to the floor of 4 than I'd like: if it flakes, look at bots whose
+`gameplay_gather_v3.nodes_tried` is high and `completed` 0 (all nearby nodes empty).
+
+**Tests:** 300 unit tests pass with Postgres (new `test_qa_gather_ledger.gd`); 15 Python tests
+(new `test_gather_report.py`); bot test 8 x 180 s WebSocket + Postgres with `--fun-check`
+passed twice (237 s, 235 s, probe passed both times); 8 x 45 s ENet passed (short runs skip
+the gathering checks and the probe). Client smoke not run: nothing the client loads changed.
+
+**Next run:** the "chat is for talking" item if `--dev-commands` is on main; otherwise the
+fun-metrics follow-up (count `c2s_gather_start` and `s2c_gather_*` in `qa_fun_metrics` and
+re-take the baseline), then the render budget in CI.

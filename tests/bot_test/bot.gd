@@ -26,6 +26,10 @@ var transport := "enet"
 var duration := 180.0
 var result_path := ""
 var expect_peers := 0
+## Every command-line arg, for behaviours with options of their own (qa_gather_ledger's probe).
+var args := {}
+## --only-behaviour=a,b loads just those behaviours (by file name, without .gd).
+var only_behaviours := PackedStringArray()
 
 var phase := "connecting"
 var elapsed := 0.0
@@ -56,8 +60,9 @@ var _commands: Array = [] ## [text, on_sent: Callable, queued_at] waiting for th
 var _last_command_at := -INF
 
 
-func start(p_net: Node, args: Dictionary) -> void:
+func start(p_net: Node, p_args: Dictionary) -> void:
 	net = p_net
+	args = p_args
 	bot_name = str(args.get("name", bot_name))
 	password = str(args.get("password", password))
 	var parsed := Transport.parse_address(str(args.get("address", "127.0.0.1:%d" % GameConfig.DEFAULT_PORT)), str(args.get("transport", "enet")))
@@ -67,6 +72,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 	duration = float(args.get("duration", "180"))
 	result_path = str(args.get("result", ""))
 	expect_peers = int(args.get("expect-peers", "0"))
+	if str(args.get("only-behaviour", "")) != "":
+		only_behaviours = str(args["only-behaviour"]).split(",", false)
 	rng.seed = hash(bot_name)
 	disconnect_at = duration * rng.randf_range(0.35, 0.55)
 	next_chat = rng.randf_range(3.0, 8.0)
@@ -87,7 +94,10 @@ func _load_behaviours() -> void:
 	var loaded: Array = BotBehaviour.load_all()
 	for e in loaded[1]:
 		_fail(e)
-	behaviours = loaded[0]
+	behaviours = BotBehaviour.only(loaded[0], only_behaviours)
+	for want in only_behaviours:
+		if not behaviours.any(func(b): return b.name == want):
+			_fail("--only-behaviour: no behaviour named %s" % want)
 	for b in behaviours:
 		b.bot = self
 		b.setup(net)
