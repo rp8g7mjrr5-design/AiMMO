@@ -149,3 +149,23 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tested.** 183 unit tests with Postgres (4 new in `tests/unit/test_world_workbench.gd`: at the crafting spot and on the ground, faces spawn, parts hold together and sit at the right heights, clear of nodes/lanterns/trees/flora/spawn, deterministic). 8-bot 180 s websocket bot test passed twice (new behaviour `world_workbench.gd`: every bot's bench matches the crafting rule, ~173 position checks per bot, all 8 bots stood in crafting range at some point, 8/8 characters persisted). Client smoke test passed (day 0.725, night 0.123); the bench is in the spawn screenshot. I rendered three close-ups (front, back three-quarter, from the lantern ring) on the real renderer and looked at them.
 
 **Next run.** Close-up read for the action camera (backlog item 2), then item icons.
+
+## 2026-11-23: close-up read for the action camera
+**Built.** The camera now sits about 3.5 m behind the shoulder, so I looked at what it sees up close and fixed what read flat or broke.
+- New `NodeDetail` layer in `NodeProps` (one BoxMesh MultiMesh, shadowless): three root flares on every node ash and pine (and on their stumps), so trees grow out of the slope instead of standing on it like posts; four bark ridges per live trunk (dark fissures on the ash, lighter reddish plates on the pine); six pale quartz studs set along a rising seam across the outcrop's big stone, each laid on the ellipsoid's surface along its normal. Detail parts are appended after every older part and use their own rng (`WORLD_SEED + 227`), so older parts, their order and colours are unchanged (unit test).
+- Sap pools: roughness 0.35 -> 0.14, clearcoat on, so they look wet with a moving highlight.
+- Avatars: a belt, a small leather pack and a rolled blanket on the back (root parts appended last, no rng draws, so every saved look is unchanged). `parts()` entries now carry an optional `rot`.
+- **Seeing inside meshes.** The camera's prop clearance (`ActionCamera.PROP_COLUMNS`, client) was smaller than the props and ignored node scale: ash crowns are 1.9 m round vs a 1.6 m column, the lowest pine tier starts at 1.15 m vs a column from 2.6 m, the stone is taller than its 1.2 m column, seeps have none. A probe found vertices of every kind outside those columns. World now owns the exact shape: `NodeProps.SOLID_COLUMNS`, `solid_columns(kind, scale)` and `inside_solid(p, node, margin)`. A unit test transforms every vertex of every part of every node (live and depleted) and checks it is inside; the tightest miss is about 1.7 cm inside. Request filed in the client backlog to make `inside_prop` call `inside_solid`. I didn't edit `action_camera.gd` myself because it is client-owned.
+
+**Decisions.**
+- Hand-made stepped columns (the crown band is split at 2.5 m, pine per tier) rather than one fat column, so the camera isn't pushed in under a canopy for no reason; the vertex test keeps them honest.
+- Depleted looks fit inside the live columns, so the camera needs no depleted state.
+- Detail boxes cast no shadow: about 2,600 tiny instances that no one would see shadows of.
+
+**Didn't work.** My first seam studs were squarish (0.2 x 0.12) and near-white; in the close-up render they looked like stickers on the rock. Making them long and thin along the seam (0.26–0.32 x 0.08) and a little greyer made them read as a quartz vein. My first probe render put the test avatar in front of the ash. Also, `WorldBuilder.has_method` on a class is a parse error in 4.3, so call static functions directly.
+
+**Tested.** 209 unit tests with Postgres (6 new in `tests/unit/test_world_closeup.gd`; the avatar headwear test now expects 3 more root parts). The 8-bot 180 s websocket bot test passed twice. The new behaviour `world_closeup.gd` looks round in 8 directions every second and checks node detail and the pack on every avatar that joins. It reports `camera_inside_mesh_with_client_columns`: 25 to 59 of about 1,384 looks per bot (2 to 4%) in the second run, which shows the client bug is real. Client smoke test passed (day 0.695, night 0.108, the same as `main` today on this machine: 0.696 / 0.109). I rendered close-ups of the ash, pine, stone, seep and an avatar from behind on the real renderer and looked at them.
+
+**Known / not done.** Decorative scatter trees still have plain trunks and no camera clearance; the same goes for flora, lanterns and the workbench (follow-ups in the backlog). From straight behind, the bedroll mostly hides under the head.
+
+**Next run.** Item icons for the inventory UI, unless the client asks for decoration clearance first.

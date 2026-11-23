@@ -18,13 +18,18 @@ const LIMB_PIVOTS := {
 }
 const ARM_LENGTH := 0.5
 const LEG_LENGTH := 0.4
+const LEATHER := Color(0.45, 0.31, 0.19)
+const BEDROLL := Color(0.70, 0.63, 0.50)
+const PACK_BACK := 0.38 ## how far behind the body's centre the pack sits (the body is 0.32 round)
 
 
 static func build(display_name: String, appearance_seed: int, is_self: bool) -> Node3D:
 	var root := rig()
 	for p in parts(appearance_seed):
 		var parent: Node3D = root if p.limb == "" else root.get_node(p.limb)
-		parent.add_child(_part(p.mesh, p.color, p.pos))
+		var mi := _part(p.mesh, p.color, p.pos)
+		mi.rotation = p.get("rot", Vector3.ZERO)
+		parent.add_child(mi)
 
 	var tag := Label3D.new()
 	tag.text = display_name
@@ -50,7 +55,7 @@ static func rig() -> Node3D:
 	return root
 
 
-## Every mesh of the avatar as {limb, mesh, color, pos}: `limb` is "" for parts on the root,
+## Every mesh of the avatar as {limb, mesh, color, pos, rot}: `limb` is "" for parts on the root,
 ## else the pivot it hangs from, and `pos` is relative to that parent. Deterministic.
 static func parts(appearance_seed: int) -> Array:
 	var rng := RandomNumberGenerator.new()
@@ -110,11 +115,32 @@ static func parts(appearance_seed: int) -> Array:
 	for l in ["LegL", "LegR"]:
 		out.append(_p(l, leg, trousers, Vector3(0, -LEG_LENGTH * 0.5 + 0.02, 0)))
 		out.append(_p(l, boot, boots, Vector3(0, -LEG_LENGTH + 0.045, 0.03)))
+
+	# What the action camera sees most: the back. A belt, a small travel pack and a rolled
+	# blanket on top of it, so the wanderer reads as a traveller from over the shoulder.
+	# Root parts, added last and with no rng draws, so older looks and part indices keep.
+	var belt := CylinderMesh.new()
+	belt.top_radius = 0.335
+	belt.bottom_radius = 0.335
+	belt.height = 0.07
+	belt.radial_segments = 8
+	belt.rings = 1
+	out.append(_p("", belt, LEATHER.darkened(0.3), Vector3(0, 0.68, 0)))
+	var pack := BoxMesh.new()
+	pack.size = Vector3(0.34, 0.36, 0.16)
+	out.append(_p("", pack, LEATHER, Vector3(0, 0.94, -PACK_BACK)))
+	var roll := CylinderMesh.new()
+	roll.top_radius = 0.075
+	roll.bottom_radius = 0.075
+	roll.height = 0.42
+	roll.radial_segments = 7
+	roll.rings = 1
+	out.append(_p("", roll, BEDROLL, Vector3(0, 1.17, -PACK_BACK + 0.01), Vector3(0, 0, PI * 0.5)))
 	return out
 
 
-static func _p(limb: String, mesh: Mesh, color: Color, pos: Vector3) -> Dictionary:
-	return {"limb": limb, "mesh": mesh, "color": color, "pos": pos}
+static func _p(limb: String, mesh: Mesh, color: Color, pos: Vector3, rot: Vector3 = Vector3.ZERO) -> Dictionary:
+	return {"limb": limb, "mesh": mesh, "color": color, "pos": pos, "rot": rot}
 
 
 static func _capsule(radius: float, height: float, segments: int, rings: int) -> CapsuleMesh:
