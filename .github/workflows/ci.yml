@@ -93,9 +93,9 @@ jobs:
         if: steps.changes.outputs.code == 'true'
         run: python3 -m unittest discover -s tests/client_smoke -p 'test_*.py'
 
-      - name: Bot test (8 bots, 3 minutes, WebSocket, Postgres, fun metrics checked)
+      - name: Bot test (8 bots, 3 minutes, WebSocket, Postgres, fun metrics and server performance checked)
         if: steps.changes.outputs.code == 'true'
-        run: python3 tests/bot_test/run_bot_test.py --bots 8 --duration 180 --transport websocket --fun-check
+        run: python3 tests/bot_test/run_bot_test.py --bots 8 --duration 180 --transport websocket --fun-check --perf-check
 
       - name: Bot test smoke (8 bots, 45 seconds, ENet)
         if: steps.changes.outputs.code == 'true'

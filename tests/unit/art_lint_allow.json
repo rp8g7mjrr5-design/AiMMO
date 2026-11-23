@@ -6,18 +6,7 @@
 		"client_gather_prompt.gd": 1,
 		"client_gather_swing.gd": 1,
 		"client_item_icons.gd": 1,
-		"world_avatar_limbs.gd": 1,
-		"world_bench_lantern.gd": 1,
-		"world_closeup.gd": 1,
-		"world_day_night.gd": 1,
-		"world_deco_solids.gd": 1,
-		"world_flora.gd": 1,
-		"world_gather_fx.gd": 1,
-		"world_item_icons.gd": 1,
-		"world_lamps.gd": 1,
-		"world_level_up_fx.gd": 1,
-		"world_resource_nodes.gd": 1,
-		"world_workbench.gd": 1
+		"world_level_up_fx.gd": 1
 	},
 	"palette": {
 		"_about": "Colour literals per game/procgen/ file as of 2026-11-23 (palette.gd excluded). New colours go in palette.gd with a comment saying what they are for.",
