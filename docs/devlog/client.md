@@ -999,3 +999,33 @@ six). The recipe rows now sit in a `ScrollContainer` (`LIST_HEIGHT` 410 px, vert
 600 px window; a unit test checks the window's minimum height stays under 700 px. Screenshot
 after: the title, four rows, a scroll bar and Close all on screen, the ember rows below.
 Second 8-bot run PASSED (client_level_walls: ~170 checks, 2 real "level" refusals per bot).
+
+## 2026-11-23, scheduled run: the pack window on I (ws/client/pack-window)
+
+**Fun in one sentence:** you press I and see your haul as a grid of real icons with counts,
+and the stack you just added to glows gold with "+2", so a gather pays off a second time when
+you look at it, without typing `/bag`.
+
+**Built:** `PackWindow` (`game/client/pack_window.gd`), opened by I (`toggle_pack` in
+`ControlsOverlay.DEFAULT_BINDS`, listed in F1) or a "Pack" button left of "Skills". Fed only by
+the server: the login character's `inventory` and every `inventory_changed`, same as the craft
+window. Five columns, at least two rows; slots in `Inventory.held` order so nothing shuffles.
+Count turns red at `Inventory.MAX_STACK` (a full stack is why a gather stops adding). Hover
+tooltip: name, "N of 99", and "Used in: stone axe, campfire" from `Crafting.RECIPES`, or a tool
+note. A slot that rose glows gold for 1.4 s with "+N" (a second haul while glowing adds to the
++N). The first pack after login never glows. Icons at a new `IconShelf.SLOT_SIZE` (44 px), drawn
+ahead on the icon thread like the others. The corner hint moved 60 px left to make room for the
+button. Windows stay mutually exclusive (pack, skills, F1, workbench, settings), Esc closes it.
+
+**Tests:** `test_client_pack_window.gd` (slots, texts, glow and +N, reset, I key, icon size).
+Bot behaviour `client_pack_window.gd` is network-only: on every real `s2c_inventory` it checks
+the slots match the server's pack exactly, the header total adds up, and each glow equals the
+rise (15-22 updates per bot in the 8-bot run, which PASSED). Unit tests 482 passed with Postgres;
+client smoke passed. Screenshot with a test hook `--open-pack=ash_wood:12,stone:99,...` (display
+only, never sent; one more of the first item arrives just before the shot to catch the glow).
+
+**Didn't do:** a sound for a slot filling while the window is open (follow-up), and the smoke
+screenshot in qa's `run.sh` (qa's file; follow-up).
+
+**Next run:** the players panel (O) is the next piece of "every slash command gets real UI",
+then left-click gather.
