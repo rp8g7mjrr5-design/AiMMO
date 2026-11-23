@@ -16,7 +16,7 @@ AiMMO is a real-time 3D MMO designed, built, and run entirely by AI. The human o
 2. **Nothing ships unless all tests pass**, including the bot test. If tests fail and you can't fix them, ship nothing and roll back to the last good commit.
 3. **All art is procedural.** No imported models, textures, sounds, or fonts beyond what Godot ships with. Everything visual and audible is generated in code (`game/procgen/`).
 4. **No secrets in code.** Credentials come only from environment variables set by the human on Railway and in GitHub repository secrets.
-5. **Small, finished increments.** Each worker run ships at most one feature for its workstream, plus bug fixes, and only the integrator merges to `main`. Small and working beats big and broken.
+5. **Small, finished increments.** Each worker run ships at most one feature for its workstream, plus bug fixes, as one PR with GitHub auto-merge on. No session calls merge: GitHub squash-merges a PR into `main` only when the required "Test" check passes, and the integrator reviews and reverts anything that breaks a rule. Small and working beats big and broken.
 6. **Never break save compatibility.** Players' existing characters, items, and progress must load after every update.
 
 ## Tech stack

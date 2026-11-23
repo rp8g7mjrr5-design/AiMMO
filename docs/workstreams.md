@@ -2,7 +2,9 @@
 
 AiMMO is developed around the clock by several AI sessions working in parallel. Each
 **worker** owns one area of the game and ships one small, tested improvement per run as a
-pull request. The **integrator** is the only session that merges to `main`. The **weekly
+pull request and turns on GitHub auto-merge, so GitHub squash-merges it once the required
+"Test" check passes. No session calls merge directly. The **integrator** reviews what landed,
+folds the changelog, and reverts anything that breaks a rule. The **weekly
 review** (Fridays) steps back, rebalances the plan, and names the week's release.
 
 Every session still follows CLAUDE.md first. Nothing here relaxes a hard rule.
@@ -65,7 +67,11 @@ and note it in the changelog fragment. From v4 on, the bump PR also adds a froze
    bullet lines (fun and clear). Append honest notes to `docs/devlog/<stream>.md` (what you
    built, what didn't work, notes to your next run). Update your backlog: tick the item,
    add follow-ups.
-7. Open a PR titled `[<stream>] <what players get>` and stop. Do not merge.
+7. Open a PR titled `[<stream>] <what players get>`, then turn on auto-merge with the squash
+   method: `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/ccr/auto_merge -f merge_method=squash`
+   (or `gh pr merge <n> --auto --squash` where GraphQL is available). Then stop. Never call
+   merge yourself; GitHub merges the PR when the required "Test" check is green. If CI goes
+   red, auto-merge waits, and you fix it next run (step 2).
 8. Never ask questions; make the call and write down why.
 
 ## Integrator procedure (each run)
@@ -75,20 +81,28 @@ and note it in the changelog fragment. From v4 on, the bump PR also adds a froze
 1. Attach and clone. Read CLAUDE.md and this file.
 2. **Health first.** Check the latest CI run on `main` and the Railway deploy. If `main` is
    red or the deploy failed, fix it or revert to the last good commit before anything else.
-3. Collect open `ws/*` PRs whose CI is green. For each, oldest first:
-   - Merge `main` into the branch if it's behind; resolve conflicts; push; wait for CI.
+3. **Review, don't merge.** GitHub auto-merge does the merging; the integrator never calls
+   the merge API. Look at every `ws/*` PR merged since your last run and every one still open,
+   oldest first:
    - Review against the hard rules: ownership respected, add-only migrations, procedural
      only, no secrets, save compatibility (old fixtures still load), tests added.
-   - If it passes, squash-merge it. If it breaks a rule, leave a PR comment with what to fix
-     and move on (the worker fixes it next run). If a PR has been stuck for over 24 hours,
-     close it with a reason and put the item back in that stream's backlog.
+   - **Open PR that breaks a rule:** turn its auto-merge off
+     (`gh api -X DELETE repos/<owner>/<repo>/pulls/<n>/ccr/auto_merge`) and leave a PR comment
+     with what to fix. The worker fixes it next run and turns auto-merge back on.
+   - **Open PR with no auto-merge** (a worker forgot): if it passes review, turn auto-merge on.
+   - **Open PR with a merge conflict:** merge `main` into the branch, resolve, push, and let
+     auto-merge finish it after CI.
+   - **Merged PR that breaks a rule:** open a revert PR with auto-merge on and add the item
+     back to that stream's backlog with a note.
+   - If a PR has been stuck for over 24 hours, close it with a reason and put the item back in
+     that stream's backlog.
 4. After merging, fold every `changelog.d/*.md` fragment into `CHANGELOG.md` under the
    current week's heading (`## Week NN — <headline>`; create it if this is the first merge of
    the week, with a provisional headline), then delete the fragments. `main` is protected and
    only accepts merged PRs with a green "Test" check, so put this on a branch
-   `integrate/YYYY-MM-DD-HH`, open a PR, wait for CI, and merge it. Never push to `main`
-   directly. Aim for at most one deploy per run, so the live server restarts at most once an
-   hour.
+   `integrate/YYYY-MM-DD-HH`, open a PR, and turn on auto-merge (squash). Never push to `main`
+   directly. Worker PRs now deploy as they land, so the server may restart more than once an
+   hour; keep your own changes to one PR per run.
 5. Confirm CI passes, the server redeploys, and the `Week NN` release updates. If the deploy
    breaks, revert and confirm the previous version is live.
 6. Triage `docs/playtest.md`: tag new reports and add them to the right stream's backlog.
@@ -112,11 +126,11 @@ dry. It does not write game code.
    and requests between streams are answered. Keep the roadmap covering the next 4 to 6 weeks.
 4. Write `docs/digest/YYYY-MM-DD.md`: a short plain-language summary for the owner of what
    changed in the game yesterday, what's coming today, anything stuck, and budget use so far.
-5. Commit on a branch `ws/director/YYYY-MM-DD` and open a PR (docs only). The integrator
-   merges it like any other.
+5. Commit on a branch `ws/director/YYYY-MM-DD`, open a PR (docs only), and turn on
+   auto-merge (squash) like any other worker PR.
 6. End the run with the digest's text so the owner can read it in the thread.
 
 ## Weekly review (Fridays)
 
-See `docs/weekly_task.md`. Like everyone else, it changes `main` only through a PR with a green
-"Test" check.
+See `docs/weekly_task.md`. Like everyone else, it changes `main` only through a PR with
+auto-merge on, which lands once the "Test" check is green.

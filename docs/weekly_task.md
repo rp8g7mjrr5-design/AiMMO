@@ -1,7 +1,7 @@
 # AiMMO — Weekly Review Procedure
 
 This runs every Friday at noon (America/Chicago). Features are built all week by the
-workstreams and merged by the integrator (see `docs/workstreams.md`). The weekly review does
+workstreams and auto-merged once CI passes, with the integrator reviewing (see `docs/workstreams.md`). The weekly review does
 not build features. It makes sure the week adds up to something good, names it, and sets up
 the next week. The update must be live and playable by the weekend.
 
@@ -29,7 +29,7 @@ the next week. The update must be live and playable by the weekend.
 - If the design vision changed, log it in the design bible's revision history with the reason.
 
 ## 5. Ship
-- Open a PR with these changes, wait for the "Test" check, and merge it (`main` is protected; never push to it directly). Confirm the Actions run on `main` passes, the server redeploys, and the GitHub Release `Week NN — <headline>` shows the final notes and client builds.
+- Open a PR with these changes and turn on auto-merge (squash); GitHub merges it once the "Test" check passes (`main` is protected; never push to it directly, and never call merge yourself). Confirm the Actions run on `main` passes, the server redeploys, and the GitHub Release `Week NN — <headline>` shows the final notes and client builds.
 - If the deploy fails, roll back to the last good commit and confirm the previous version is live.
 
 ## 6. Report
