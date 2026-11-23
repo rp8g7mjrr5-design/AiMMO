@@ -927,3 +927,10 @@ xvfb: the real client plays the whole clip and lands on login; a scripted key pr
 **Follow-up (same run):** after merging `main`, `test_goal_skips_unlocks_not_in_the_world_yet`
 failed: it hard-coded Toolcraft as the "coming soon" example, and #110 built Toolcraft 5. The
 test now finds a soon unlock from `Skills` data, so it keeps working as unlocks get built.
+Then the 45 s ENet bot run failed in `client_craft_window` ("window would say 1 pine wood and
+1 ember sap, server said 1 ember sap"), about one run in two locally. Cause: another
+behaviour's instant `/gather` landed in the same server tick as the Craft press, and the pack
+is only flushed at the end of the tick, so the window judged an older pack. The behaviour now
+re-checks a disagreeing prediction against the pack the server judged (rebuilt from the next
+`s2c_inventory`) and fails only if that disagrees too; a new `raced` stat counts the excused
+ones. 7 ENet runs passed after it.

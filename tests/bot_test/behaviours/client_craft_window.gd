@@ -37,6 +37,11 @@ var crafted := 0
 var predicted := 0
 var pack_checks := 0
 var bench_frames := 0
+## A prediction that disagreed with the server, waiting for the next s2c_inventory: another
+## behaviour's instant /gather can land in the same server tick as the press, before the pack
+## is flushed, so the window judged an older pack. {id, ok, text, pos, at, why}
+var _recheck := {}
+var raced := 0
 
 
 func setup(net: Node) -> void:
@@ -61,6 +66,7 @@ func setup(net: Node) -> void:
 
 func on_login(_reconnect: bool, character: Dictionary) -> void:
 	_w.reset()
+	_recheck = {}
 	_w.seed_pack(character.get("inventory"))
 	if not _w.pack_known:
 		fail("login character gave the window no pack")
@@ -86,6 +92,9 @@ func on_play(delta: float) -> void:
 		_sent = ""
 	if _sent == "" and _presses < MAX_PRESSES and bot.elapsed >= _next_press and _quiet():
 		_press(p)
+	if not _recheck.is_empty() and bot.elapsed - float(_recheck.at) > ANSWER_TIMEOUT:
+		fail(str(_recheck.why) + " (no s2c_inventory followed)")
+		_recheck = {}
 
 
 ## No gather of ours running or just finished, and no disconnect or end of run coming up.
@@ -116,6 +125,39 @@ func _on_inventory(items: Dictionary) -> void:
 	pack_checks += 1
 	if Inventory.to_wire(_w.pack) != want:
 		fail("window pack %s, server sent %s" % [Inventory.to_wire(_w.pack), want])
+	if not _recheck.is_empty():
+		_settle_recheck(Inventory.normalize(items))
+
+
+## The pack the server judged the craft on, rebuilt from the pack that followed it: put the
+## ingredients back and take the product out if it was made. If the window's row agrees with
+## the server on that pack, the miss was only a gather racing the press, not a window bug.
+func _settle_recheck(after: Dictionary) -> void:
+	var rc := _recheck
+	_recheck = {}
+	var judged := after.duplicate()
+	if rc.ok:
+		var rec: Dictionary = Crafting.RECIPES.get(rc.id, {})
+		for item in rec.get("needs", {}):
+			judged[item] = Inventory.count(judged, item) + int(rec.needs[item])
+		judged[rc.id] = maxi(0, Inventory.count(judged, rc.id) - int(rec.get("makes", 1)))
+	var why := _prediction_miss(judged, rc.id, rc.ok, rc.text, rc.pos)
+	if why != "":
+		fail("%s; also on the pack that followed: %s" % [rc.why, why])
+	else:
+		raced += 1
+
+
+## "" when the window's row for `id` on `pack` predicts the server's answer, else what differs.
+func _prediction_miss(pack: Dictionary, id: String, ok: bool, text: String, p: Vector3) -> String:
+	var r: Dictionary = WindowScript.row(pack, id, p)
+	if ok != (r.reason == ""):
+		return "%s: server said ok=%s (%s), window row said '%s'" % [id, ok, text, r.reason]
+	if not ok and r.reason == "missing":
+		var want := Crafting.refusal("missing", pack, id, p)
+		if want != text:
+			return "window would say %s, server said %s" % [want, text]
+	return ""
 
 
 func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
@@ -127,17 +169,13 @@ func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
 	# The pack follows the result on the server's next tick, so the window still holds the
 	# pack the server judged: its row must have said the same thing.
 	var p: Vector3 = bot.my_pos
-	var r: Dictionary = WindowScript.row(_w.pack, recipe_id, p)
 	var d := Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ)
 	var edge: bool = bool(Crafting.RECIPES.get(recipe_id, {}).get("bench", false)) and absf(d - Crafting.BENCH_RANGE) < EDGE
 	if not edge:
 		predicted += 1
-		if ok != (r.reason == ""):
-			fail("%s: server said ok=%s (%s), window row said '%s'" % [recipe_id, ok, text, r.reason])
-		elif not ok and r.reason == "missing":
-			var want := Crafting.refusal("missing", _w.pack, recipe_id, p)
-			if want != text:
-				fail("window would say %s, server said %s" % [want, text])
+		var why := _prediction_miss(_w.pack, recipe_id, ok, text, p)
+		if why != "":
+			_recheck = {"id": recipe_id, "ok": ok, "text": text, "pos": p, "at": bot.elapsed, "why": why}
 	var shown: Dictionary = _w.on_craft_result(recipe_id, ok, text)
 	if _w.status_label.text != text:
 		fail("window shows '%s', server said '%s'" % [_w.status_label.text, text])
@@ -157,6 +195,9 @@ func on_finish() -> void:
 	stat("predicted", predicted)
 	stat("pack_checks", pack_checks)
 	stat("bench_frames", bench_frames)
+	stat("raced", raced)
+	if not _recheck.is_empty():
+		fail(str(_recheck.why) + " (run ended before the next s2c_inventory)")
 	if presses < 1:
 		fail("never found a quiet moment to press Craft")
 	if pack_checks < 1:
