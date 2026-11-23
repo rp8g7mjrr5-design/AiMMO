@@ -1,0 +1,1 @@
+- Behind the scenes: the checks that keep every tree, lantern, avatar and camera angle looking right now cover the whole valley at once instead of riding along with our test bots, so test runs are lighter and catch more.

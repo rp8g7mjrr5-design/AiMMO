@@ -495,3 +495,18 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tested.** Unit suite with Postgres (520 pass; 3 new in `test_world_level_up_fx.gd`: day column wider/taller with the same timing and bounded, beam height/strength/timing by day and night, `play` reads the pinned sky and an explicit day wins, beam in the column MultiMesh). Bot behaviour `world_level_up_fx.gd` alternates day and night bursts and checks the beam passes 20 m by day and is gone by `BEAM_TIME` (11 day beams per bot). Client smoke test passed. 8-bot 180 s websocket bot test: first run failed once on `gameplay_gather_v3` ("gather ended moved while standing still", bot 2 at (73, 10, -15)), nothing this change touches; the rerun passed. Flagging it as a possible gameplay flake.
 
 **Next run.** Golden hour (#127) should land on its own. Then the milestone-level variant needs the client to pass the level; otherwise the art checks out of the bot loop, or the gather-swing impact puff.
+
+## 2026-11-23, run: art checks out of the bot loop (ws/world/art-free-bots)
+
+**First, #133 (level-up by day).** It had a merge conflict in this devlog only (two entries from parallel runs); merged `main` in, kept both entries in date order, unit suite passed (542), reran the 8-bot test, pushed.
+
+**Picked** the top backlog item: move the `world_*` art checks out of the bot loop (director, art bible section 7). Fun: none a player sees directly; it buys faster, steadier bot runs for every stream (8 bots no longer each build props, bits, lanterns, avatars and icons while "playing"), and the checks got stronger, so fewer broken looks reach players.
+
+**Built.**
+- `tests/unit/test_world_walked_world.gd` (10 tests, ~3 s): every resource node's live and depleted look on its spot, every node's close-up detail inside its solid columns, a hit on every node (shell, shake, bits stay near and vanish), 3000+ client camera looks on a 6 m grid round the meadow and a step off each node there (with nodes and decoration, never inside a solid, decoration never lengthens the arm), the lamps and the bench lantern over a whole day of `WorldClock` in 10 s steps, the bench highlight in and out of range, 300 avatar seeds (limbs, pack and bedroll, finite colours), every flora spot, the sky over 1001 fractions, 24 px icons for every item plus an unknown id. Mutation-checked: changing a detail count, the back-part count or the night threshold makes three of them fail.
+- `tests/bot_test/behaviours/world_ground_truth.gd`, art-free: every position in every snapshot stands on `Terrain.height` (the server clamps to it, so a gap is a desync), the server clock never runs backwards, something gatherable within 40 m of every spot bots reach, bench passes, distinct appearance seeds.
+- Removed 11 behaviours: avatar_limbs, bench_lantern, closeup, day_night, deco_solids, flora, gather_fx, item_icons, lamps, resource_nodes, workbench. Asked qa (their backlog) to drop them from `art_lint_allow.json`.
+
+**Decisions.** Whole-world unit tests over "wherever bots walked": the bots only ever touched the ~60 m round spawn, so the unit tests see more. `world_level_up_fx.gd` stays: open PR #133 edits it and touching it here would conflict; follow-up added. The two camera stats (`camera_inside_*`) went with their behaviours; nothing read them in CI.
+
+**Next run.** `world_level_up_fx.gd` once #133 lands, else the gather-swing impact puff.
