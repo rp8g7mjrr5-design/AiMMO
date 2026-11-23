@@ -13,6 +13,7 @@ var _sens_value: Label
 var _invert: CheckBox
 var _volume: HSlider
 var _volume_value: Label
+var _graphics: OptionButton
 var _shadows: OptionButton
 var _draw: HSlider
 var _draw_value: Label
@@ -31,8 +32,8 @@ func setup(p_settings: ClientSettings, theme_res: Theme) -> void:
 	anchor_bottom = 0.5
 	offset_left = -220
 	offset_right = 220
-	offset_top = -190
-	offset_bottom = 190
+	offset_top = -210
+	offset_bottom = 210
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 18)
@@ -77,6 +78,15 @@ func setup(p_settings: ClientSettings, theme_res: Theme) -> void:
 	_volume = _slider(grid, "Volume", 0.0, 1.0, 0.05)
 	_volume_value = grid.get_child(grid.get_child_count() - 1)
 	_volume.value_changed.connect(_on_volume)
+
+	_label(grid, "Graphics")
+	_graphics = OptionButton.new()
+	for n in Quality.NAMES:
+		_graphics.add_item(n)
+	_graphics.tooltip_text = "Low runs smoothest on older laptops. Sets shadows and draw distance below."
+	_graphics.item_selected.connect(_on_graphics)
+	grid.add_child(_graphics)
+	grid.add_child(Control.new())
 
 	_label(grid, "Shadows")
 	_shadows = OptionButton.new()
@@ -152,6 +162,12 @@ func _on_volume(v: float) -> void:
 	changed.emit(settings)
 
 
+func _on_graphics(i: int) -> void:
+	settings.apply_quality(i)
+	_sync_controls()
+	changed.emit(settings)
+
+
 func _on_shadows(i: int) -> void:
 	settings.shadow_quality = i
 	changed.emit(settings)
@@ -172,6 +188,7 @@ func _on_reset() -> void:
 	settings.draw_distance = d.draw_distance
 	settings.field_of_view = d.field_of_view
 	settings.shoulder_right = d.shoulder_right
+	settings.graphics_quality = d.graphics_quality
 	_sync_controls()
 	changed.emit(settings)
 
@@ -180,6 +197,7 @@ func _sync_controls() -> void:
 	_sens.set_value_no_signal(settings.mouse_sensitivity)
 	_invert.set_pressed_no_signal(settings.invert_y)
 	_volume.set_value_no_signal(settings.master_volume)
+	_graphics.select(settings.graphics_quality)
 	_shadows.select(settings.shadow_quality)
 	_draw.set_value_no_signal(settings.draw_distance)
 	_fov.set_value_no_signal(settings.field_of_view)

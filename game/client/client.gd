@@ -43,6 +43,7 @@ var sfx_craft: AudioStreamPlayer
 var reticle: Reticle
 var controls_overlay: ControlsOverlay
 var controls_button: Button
+var perf_overlay: PerfOverlay
 ## Item icons, drawn on a background thread from the moment the game starts.
 var icon_shelf := IconShelf.new()
 var _args := {} ## command-line test hooks
@@ -95,6 +96,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 		settings_menu.open()
 	if args.has("open-workbench"):
 		_open_workbench_after_login.call_deferred()
+	if args.has("show-perf"):
+		perf_overlay.toggle() # test hook: the F3 overlay in a screenshot
 	if args.has("open-controls"):
 		_open_controls_after_login.call_deferred()
 	if args.has("autoconnect"):
@@ -162,6 +165,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			settings_menu.toggle()
 		get_viewport().set_input_as_handled()
 		return
+	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_perf"):
+		perf_overlay.toggle() # works anywhere, even on the login screen, and never takes the cursor
+		get_viewport().set_input_as_handled()
+		return
 	if not logged_in or settings_menu.visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_controls"):
@@ -209,6 +216,8 @@ func _apply_settings(s: ClientSettings) -> void:
 	camera.far = s.draw_distance
 	camera.fov = s.field_of_view
 	cam.side = s.shoulder_side()
+	Quality.level = s.graphics_quality
+	Quality.apply_renderer(s.graphics_quality)
 	for sun in world.find_children("*", "DirectionalLight3D", true, false):
 		sun.shadow_enabled = s.shadow_quality > 0
 		if s.shadow_quality > 0:
@@ -229,6 +238,7 @@ func _move_vector() -> Vector2:
 
 
 func _process(delta: float) -> void:
+	perf_overlay.step(delta)
 	var t := 1.0 - exp(-14.0 * delta)
 	for id in avatars:
 		var a: Dictionary = avatars[id]
@@ -768,6 +778,9 @@ func _build_ui() -> void:
 	ui.add_child(controls_button)
 
 	# The F1 controls overlay, centre screen.
+	perf_overlay = PerfOverlay.new()
+	perf_overlay.setup(theme)
+	ui.add_child(perf_overlay)
 	controls_overlay = ControlsOverlay.new()
 	controls_overlay.setup(theme)
 	controls_overlay.closed.connect(func(): sfx_chime.play())

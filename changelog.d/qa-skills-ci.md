@@ -1,2 +1,0 @@
-- Your skill levels are now guarded like your pack: every update is checked to make sure old characters load at level 1, saved XP comes back exactly, and a level-up you earned is never lost when you log off.
-- Every update now also times how long a fresh player has to gather before their first level-up, and fails if it takes more than 90 seconds.

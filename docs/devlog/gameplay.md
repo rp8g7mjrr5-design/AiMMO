@@ -619,3 +619,89 @@ the level-up system line for v3 clients. Tier-2 nodes (part 3) should check
 0003). Bot test 8 x 180 s websocket PASSED: every bot answered /skills 3-4 times, XP
 survived each reconnect, 5 of 8 bots reached a level 2 inside the run (110-189 XP each),
 rewards/min median 9.65, first reward 6.9 s. Client smoke test passed.
+
+## 2026-11-23 (twelfth run, ~10:00 Chicago): protocol v4, skills reach the client (Milestone 1, part 2)
+
+**Picked.** No open gameplay PR; budget 11/40. The chat-command gate (second item) is still
+blocked, but now only by the craft window: press-E sends `c2s_gather_start` since client PR
+#83, while `craft_window.gd` still sends `/bag` and `/craft <id>`, so turning commands off
+would break crafting for players. Request filed in client's backlog. Next was facing yaw
+(owner direction 2) and the v4 skills messages (current milestone). **Call: v4 carries only
+the skills messages.** `c2s_input` already carries a yaw; making movement camera-relative
+is a movement-rules change that needs the client in step, and the skills messages are what
+three other streams are waiting on now (client's banner and skills window, world's
+`LevelUpFx` from #79). Facing yaw and `s2c_roster` go in v5, with no daily limit any more.
+**What a player feels:** nothing yet on its own; it unblocks the "+10 Felling" pop next to
+the haul toast, the level-up banner naming the unlock, and the burst over a friend who levels
+next to you.
+
+**Built.**
+- `Net/Play`: `s2c_skills(skills)`, `s2c_xp(skill, gained, total_xp)`,
+  `s2c_level_up(skill, level, unlocks)`, `s2c_level_up_seen(peer_id, skill, level)`; Net
+  signals `skills_changed`, `xp_gained`, `level_up`, `level_up_seen`. Net's own RPC list is
+  untouched (v1-v3 clients still get "out of date").
+- `PROTOCOL_VERSION` 4. Frozen `tests/protocol/net_v3.gd` and `net_play_v3.gd` (the frozen
+  net preloads the frozen Play; the only line that differs from the shipped file).
+- Server: `_send_world_state` sends `s2c_skills(skills_wire(...))` (all four, 0 for untouched,
+  unknown ids stay in the save but aren't sent). `award_xp` now queues `[to, method, args]`
+  instead of bare lines: `s2c_xp`, then on a level-up `s2c_level_up` (unlocks as the table's
+  dicts), `s2c_level_up_seen` to everyone else in view, then the old system line.
+  `_send_queued_lines` sends them right after the gather/craft reply, so the order a client
+  sees is result -> gather line -> xp -> level_up -> level-up line.
+- The level-up system line stays for now: today's client only shows chat. Follow-up in the
+  backlog to drop it once the banner exists.
+
+**Tests.** `tests/unit/test_gameplay_protocol_v4.gd` (9): RPC placement and frozen copies,
+re-emit on Net, login sends every skill, XP after the haul, nothing for a cancel, level-up to
+the player and the burst to watchers only (not yourself, not out of view), the Felling 5
+unlock in the payload, Toolcraft XP after a craft and none after a refused one, and the
+**message contract** (backlog follow-up from the duplicate v3 run): a full scenario
+(world state, clock, reject, chat and a command, gather to depletion, cancel by moving, bad
+node, crafts ok/refused/unknown, respawn, snapshot) and every message it produced has an RPC
+on Net or Play with the same argument count. The v3 test now checks the frozen v3 Play
+instead of today's. Bot behaviour `gameplay_skills_v4.gd` (passive): one `s2c_skills` per
+login matching the login character and never below the last total, every `s2c_xp` adds up
+exactly, every `s2c_level_up` matches the level of the running total and the unlock table,
+`s2c_level_up_seen` never about ourselves, every paid-out gather has gathering XP.
+
+**Results.** 342 unit tests pass with Postgres. Protocol test passes on websocket and ENet
+(v1, v2, v3 clients and protocol 3/5 told to update, current client logs in). Bot test
+8 x 180 s websocket with fun check PASSED (8-12 `s2c_xp` per bot, totals consistent across
+the reconnect), 8 x 45 s ENet PASSED, client smoke test passed.
+
+**What didn't go to plan.** No bot levelled up in either 180 s run (59-146 XP per bot,
+split between Felling and Quarrying, so no skill reached the 150 for level 2; a second run
+alone on the machine was the same, so it isn't CPU contention: today's behaviours spread
+their gathers over both kinds, and the last run's 5-of-8 level-ups were the lucky side). The level-up path is covered by the unit
+tests over the same server code; the behaviour checks it whenever a bot does level.
+Next run could give the bot test a reliable level-up, e.g. a fixture character near level 2
+that one bot logs in as (`tests/fixtures/` is ours; the bot launcher is qa's).
+
+**Notes to next run.** v5 = facing yaw (server sets facing from the camera heading,
+camera-relative W/A/S/D, clamp/validate) + `s2c_roster`; freeze `net_v4.gd` and
+`net_play_v4.gd`, put new RPCs on Play, never Net. If yaw changes `c2s_input`'s arguments,
+that's on Net: arguments don't shift numbering, but run the protocol test anyway.
+
+## 2026-11-23 (run after v4): PR #89 red on a flaky gathering bot check, fixed
+
+**What broke.** #89's CI passed the 180 s websocket bot test but failed the 45 s ENet one:
+`bot_7: [gameplay_gathering] never gathered anything (tried 5 nodes, 3 spent)`. Not caused by
+v4: the identical failure (same bot, same counts) hit world's #79 run at 06:44, because the
+test world clock and spawns are deterministic. bot_7 walked 187 m (twice the others): it
+spawns far from the nodes, the other bots had already emptied nodes 1 and 5, and in a ~15 s
+login it kept walking to nodes the server had already told it were spent.
+
+**Fix (my own behaviour, `tests/bot_test/behaviours/gameplay_gathering.gd`).** The bot now
+listens to `nodes_depleted` / `node_state`, skips nodes it knows are empty, picks each next
+node nearest-from-where-it-stands (not nearest-from-login), and drops a target that empties
+while it is still walking. The first node of a login is still one of the nearest four so
+bots spread out. Merged `main` into the branch (no conflicts) rather than rebasing.
+
+**Results.** 366 unit tests pass with Postgres. Five 45 s ENet runs passed, and after the fix
+every bot showed `spent_seen=0` (before: up to 3). Full 8 x 180 s websocket run with
+`--fun-check` and the client smoke test: both passed (bot test PASSED in 233 s).
+
+**Note to next run.** No new item this run: diagnosing the flake and the full test cycle
+filled it, and a small item started on top would have been rushed. Next run: if #89 has
+landed, take the top gameplay backlog item from `main` (tier-2 nodes need `skill_level` in
+`gather_start`/`gather`, see the part 1 notes).
