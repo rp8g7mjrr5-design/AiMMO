@@ -761,3 +761,48 @@ remembered progress, not the bar's current position; at ~1 gain per 1.6 s that n
 **Notes to next run:** part 2, the level-up moment: `level_up` -> rising chord in `sfx.gd`,
 banner with the unlock, `LevelUpFx.play(avatar)`; `level_up_seen` -> the burst on that avatar.
 Then tell gameplay (its backlog) the banner shows so it can drop the chat line for v4 clients.
+
+## 2026-11-23: the level-up moment (ws/client/level-up-moment)
+
+**First, PR #101 (workbench on `c2s_craft`):** it had a merge conflict in the client and
+gameplay backlogs (both sides added a request line). Merged `main` in, kept both lines, pushed;
+auto-merge is still on. Its code merged cleanly.
+
+**`main` is red, not from us:** `test_qa_art_lint::test_only_palette_hard_codes_colours` fails
+on `main` itself (`node_props.gd: 15, allowed 11`), from world's #100 landing beside qa's #95.
+That file is world's, so I left a request in world's backlog instead of touching it. Both my
+open PRs will show a red Test until it is fixed; auto-merge waits, and the next run merges
+`main` in.
+
+**Why this item:** Milestone 1 part 2 is the top backlog item that isn't already in a PR (the
+craft window is #101) and needs nothing from another stream: protocol v4's `level_up` and
+`level_up_seen`, world's `LevelUpFx` and `SkillIcons` are all on `main`.
+
+**Fun, in one sentence:** reaching a level now *feels* like a payoff, a gold "Felling 5" with
+what you unlocked and what's next, a rising chord and a burst of ember light, instead of a
+line of grey text in chat.
+
+**Built:** `LevelUpBanner` (`game/client/level_up_banner.gd`), top centre under the compass:
+skill badge, "Felling 5", the unlock line (or "Your gathers are a little quicker"), and "Next:
+Felling 10, Clean cuts". Pops 0.6 -> ~1.08 -> 1.0 over 0.22 s (ease-out-back), holds, fades;
+1.9 s in all; every Control ignores the mouse, so nothing blocks input. `Sfx.level_up()`: C-E-G-C
+arpeggio in 0.21 s landing on a held C major chord with a shimmering high G, 1.5 s. Own level-up:
+banner + chord + `LevelUpFx.play(own avatar)`. `level_up_seen`: the burst over that player only
+(no banner, no sound yet: follow-up). Chat: the banner remembers `Skills.level_up_text(...)` for
+the level-up and `_on_system` drops exactly that line once, so no gameplay change was needed to
+clean chat; gameplay told it can drop the line later. Test hook `--show-level-up` (with
+`--screenshot`) for a smoke shot.
+
+**Decisions:** a second level-up while the banner shows replaces it rather than queueing; it
+only happens if one craft levels Toolcraft twice, rare at these XP rates (follow-up added). I
+skipped the XP meter "hold at full" follow-up to keep the run small.
+
+**Tests:** unit `tests/unit/test_client_level_up.gd` (texts, pop overshoot, fade inside 2 s,
+mouse-ignore on every child, badge set, chat-line swallow once, sound length, no clip, no end
+click, rising notes). Bot `client_level_up.gd` is network-only (art bible section 7): level
+matches the last XP total, unlocks match the shared table, banner texts, and the server's line
+equals `LevelUpBanner.announcement(...)` so it would be kept out of chat.
+
+**Notes to next run:** merge `main` into #101 and this PR once world fixes the palette lint.
+Then part 3 (skills window on K + the next-goal line); `LevelUpBanner.next_text` already builds
+the "Next: Felling 10, Clean cuts" string the goal line wants.
