@@ -332,3 +332,11 @@ reticle (copied to the project's week-00 folder).
 - Mouse capture under xvfb: the window never has focus, so the smoke shot runs with a visible
   cursor; the capture rule itself is unit tested.
 - Next: the top gathering item as soon as v3 lands, else the pack window (chat-to-UI).
+
+## 2026-11-23: keep PR #47 (action camera) current
+
+PR #47 was green but one commit behind `main` (the integrator's changelog fold, docs only).
+Per "finish before starting" I merged `main` into the branch and stopped, no new feature this
+run. The merge touched no code (CHANGELOG.md, week-00 devlog, workstreams.md, deleted two other
+streams' fragments), so I left the full unit/bot/smoke run to CI on the pushed head rather than
+spending a local 3-minute bot run on an unchanged game. No review comments to address.
