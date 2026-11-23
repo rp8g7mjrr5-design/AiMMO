@@ -55,8 +55,9 @@ static func is_craft(text: String) -> bool:
 
 
 ## Returns the reply for a command line (already cleaned by Validation.clean_chat).
-## ctx keys: "world_seconds" (float), "online" (Array of character names), and
-## "inventory" (the sender's Inventory Dictionary).
+## ctx keys: "world_seconds" (float), "online" (Array of character names),
+## "inventory" (the sender's Inventory Dictionary) and "skills" (the sender's Skills XP).
+## /skills is a hidden dev and bot command, never listed in HELP or patch notes.
 static func run(text: String, ctx: Dictionary) -> String:
 	var words := text.substr(1).strip_edges().split(" ", false)
 	var cmd := words[0].to_lower() if words.size() > 0 else "help"
@@ -69,6 +70,9 @@ static func run(text: String, ctx: Dictionary) -> String:
 			return who_reply(ctx.get("online", []))
 		"bag", "pack", "inventory", "inv", "i":
 			return Inventory.describe(Inventory.normalize(ctx.get("inventory", {})))
+		"skills", "xp", "levels":
+			# Hidden dev/bot command (owner direction 1): players get a skills window.
+			return Skills.describe(Skills.normalize(ctx.get("skills", {})))
 	return "Unknown command /%s. Try /help." % cmd.substr(0, 20)
 
 

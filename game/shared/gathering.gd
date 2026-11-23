@@ -132,9 +132,11 @@ static func cooldown_for(kind: String, inv: Dictionary) -> float:
 	return COOLDOWN * TOOL_SPEED if tool_for(kind, inv) != "" else COOLDOWN
 
 
-## How many items one gather of `kind` gives with this pack.
-static func amount_for(kind: String, inv: Dictionary) -> int:
-	return int(ResourceNodes.kind_info(kind).get("amount", 1)) + (TOOL_EXTRA if tool_for(kind, inv) != "" else 0)
+## How many items one gather of `kind` gives with this pack, at `level` in the skill that
+## kind trains (Skills.yield_bonus: the "+1 wood" unlocks).
+static func amount_for(kind: String, inv: Dictionary, level: int = 1) -> int:
+	var base := int(ResourceNodes.kind_info(kind).get("amount", 1)) + (TOOL_EXTRA if tool_for(kind, inv) != "" else 0)
+	return base + Skills.yield_bonus(Skills.skill_for_kind(kind), level)
 
 
 ## "north-east" for a flat offset (north is -Z, east is +X, as on the client's compass).

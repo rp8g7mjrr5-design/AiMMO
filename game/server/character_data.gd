@@ -12,6 +12,7 @@ const DEFAULTS := {
 	"yaw": 0.0,
 	"appearance_seed": 0,
 	"inventory": {}, ## item id -> quantity, see Inventory. Stored in inventory_items (Postgres).
+	"skills": {}, ## skill id -> total XP, see Skills. Stored in character_skills (Postgres).
 }
 
 
@@ -28,7 +29,7 @@ static func normalize(src: Dictionary) -> Dictionary:
 				var f: float = float(v) if typeof(v) != TYPE_STRING else (v as String).to_float()
 				out[k] = f if is_finite(f) else 0.0
 			TYPE_DICTIONARY:
-				out[k] = Inventory.normalize(v)
+				out[k] = Skills.normalize(v) if k == "skills" else Inventory.normalize(v)
 			_:
 				out[k] = str(v)
 	# A position outside the world (e.g. after a world resize) snaps back inside it.

@@ -553,3 +553,69 @@ keeps pressing E for up to 4 more gathers per login like a player working a node
 Bot test 8 x 180 s websocket with fun check: PASSED, rewards/min median 9.55 (baseline
 4.15), first reward 8.5 s, longest wait 0.12 s. 8 x 45 s ENet PASSED, 286 unit tests pass.
 Worth raising the fun baseline once this is on main (qa's file, so it's their call).
+
+## 2026-11-23 (eleventh run, ~09:00 Chicago): skills and XP, server side (Milestone 1, part 1)
+
+**Picked.** No open gameplay PR; budget 10/40 this week. Top unblocked backlog item for the
+current milestone: skills data and XP, server side, no bump. (The chat-command gate still
+waits for the client's press-E to send `c2s_gather_start`, client PR #83 is not on `main`;
+facing yaw and the skills messages need protocol v4.) **What a player feels:** every gather
+and craft now moves them toward a level, and each level-up is cheered in chat with what it
+gives and what comes next, a minute into their first session.
+
+**Who does skills best, and how ours improves (owner direction 6).** The classic long-road
+skill MMOs (the one everyone thinks of, with its 99s and capes) are the benchmark: players
+love that every action ticks XP, that a skill is a long personal goal, and that a max skill
+is a badge. They hate: an exponential curve where the last few levels are half the total
+(so "level 92 is half way"), long middle stretches with no unlock, and that the best XP is
+often alone and AFK. Ours: our own polynomial curve (`150*L^1.1 + 0.15*L^3`, rounded to 5;
+no doubling every few levels, level 50 is ~10% of the road, not ~1%), every level a felt gain
+(gathers 0.3% quicker per level, 30% at 100), a named unlock every few levels with the next
+one always named in the level-up line, and a 25% "better together" bonus instead of
+rewarding standing alone. Levels aren't stored, only XP, so the curve can be retuned without
+touching anyone's save.
+
+**Built.**
+- `game/shared/skills.gd` (`Skills`): the four skills (ids permanent), `KIND_SKILL`,
+  `GATHER_XP` (wood 10, stone 12, sap 30), Toolcraft XP 8 per ingredient used, the curve
+  (`xp_step`, `xp_for_level` cached, `level_for` by binary search, `xp_to_next`, `progress`),
+  `gain()` (returns gained/xp/level_before/level/unlocks reached), `UNLOCKS` (Felling and
+  Quarrying: 5 tier-2 node *soon*, 10 and 25 +1 yield; Tapping 5 and 15 +1 sap; Toolcraft 3 and
+  5 recipes *soon*), `yield_bonus`, `speed_factor`, `normalize` (keeps unknown skill ids,
+  like the pack keeps retired items), `level_up_text`, `describe`.
+- `GatherChannel.seconds_for(kind, inv, level)` and `Gathering.amount_for(kind, inv, level)`
+  take the skill level (default 1 = unchanged, so every older test and caller is identical).
+- Migration `0003_character_skills.sql` (character_id, skill, xp BIGINT >= 0). `CharacterData`
+  gets `skills: {}` (normalized by `Skills.normalize`, not `Inventory.normalize`, which would
+  have capped XP at the stack size; there's a test for that). `PgStore` loads skills with the
+  pack (a failed query returns {} like the pack does) and upserts them with
+  `GREATEST(old, new)`, so a stale save can never lower XP. JsonStore needed no change.
+- Server: `award_xp(id, skill, amount)` is the only way XP changes; called after every
+  completed timed gather, instant `/gather`, and successful craft. `has_company(id)` gives
+  the bonus. A level-up queues a system line that `_send_queued_lines` sends right after
+  the reply it came with (gather line, craft reply / `s2c_craft_result`), and
+  `_flush_inventories` flushes anything left at the end of the tick. Level-up lines start
+  with the skill name, never "You", so no behaviour or client parser takes them for a
+  gather or craft reply. Hidden `/skills` dev command (not in HELP).
+- Fixture `week01_skills.sql` (schema 0003, a 0-XP skill and an unknown one); the week 00
+  characters load with no XP (checked).
+
+**Tests.** `tests/unit/test_gameplay_skills.gd`: curve monotonic and capped; the time targets
+under a pace model (channel time plus 6 s walk per node, ignoring the speed gains): level 2
+bare-handed ~60 s, level 5 ~11 min bare / less with an axe, level 10 with an axe ~45 min,
+level 50 ~20 days and level 100 ~200 days at 2 h a day; gains and unlocks; speed and yield;
+normalize and old characters; text; server pays XP for timed, instant gathers and crafts,
+nothing for a cancelled gather or a refused craft; the level-up line follows the gather line
+and the next gather is quicker; company bonus on and off; both stores keep XP; a stale save
+never lowers it; the fixture loads. Bot behaviour `gameplay_skills.gd`: login character has
+`skills`, XP never drops (within a login or across a reconnect), our paid-out gathers show up
+as XP, level-up lines name a real skill and agree with `/skills`.
+
+**Notes to next run.** v4 (part 2) only needs to send what `award_xp` already returns. Keep
+the level-up system line for v3 clients. Tier-2 nodes (part 3) should check
+`skill_level(id, skill)` in `gather_start`/`gather` before `Gathering.check`.
+
+**Results.** 316 unit tests pass with Postgres (save-compat runs the new fixture through
+0003). Bot test 8 x 180 s websocket PASSED: every bot answered /skills 3-4 times, XP
+survived each reconnect, 5 of 8 bots reached a level 2 inside the run (110-189 XP each),
+rewards/min median 9.65, first reward 6.9 s. Client smoke test passed.

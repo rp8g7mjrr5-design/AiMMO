@@ -234,6 +234,28 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 
 **Next run.** Roots on the scatter trees, or the lantern flame flicker, unless a request comes in.
 
+## 2026-11-23: the level-up burst (Milestone 1, part 1)
+**Why this.** Milestone 1 is now current and the director put the level-up burst at the top of my backlog. It is the payoff moment of the whole skills loop: you have been chopping for a minute, the bar fills, and the game should say so loudly enough that you and everyone near you notice. A player will feel their level-up as an event in the world, not a line of text.
+
+**Best in class first (owner direction 6).** The level-up moment players remember is the one that is public: a burst of light others can see across a town makes levelling social and gives newcomers something to want. What people dislike is when it is long or blinding and blocks play, or when it is the same tiny sparkle as every other effect. Ours: short (2 s, you never stop to watch it), warm (the ash leaves' and lanterns' colours, so it belongs to Ashgrove), seen by others, with a ground ring so it reads from above the action camera too, and a light that actually lights the grass around you at night.
+
+**Built.**
+- New `game/procgen/level_up_fx.gd` (`LevelUpFx`). Pure maths: `column_at(t)` (shoots up to 5.5 m in a fifth of a second with a pop, holds, thins and fades), `ring_at(t)` (rolls out to 3.2 m in 0.9 s), `light_at(t)`, `sparks(seed)` / `spark_at(s, t)` (28 sparks swirling up from a ring at the feet past the head, streaked, winking out). The node copies those into a column, a disc, a spark MultiMesh and a shadowless OmniLight (range 9 m, peak 2.4).
+- `LevelUpFx.play(avatar, seed)` adds or restarts one "LevelUpFx" child on the avatar; it frees itself at the end. A second call mid-burst restarts it rather than stacking.
+- Request filed in the client backlog to call it on level-ups (gameplay's skills/XP messages are not there yet).
+
+**Decisions.**
+- Column and ring are one-instance MultiMeshes rather than MeshInstance3Ds: on the headless dummy renderer a MeshInstance3D with a mesh logs `mesh_get_surface_count` errors, which fail unit tests and would fail bots. Same trick NodeFx uses.
+- Alpha-blended column, not additive (see below). Sparks stay unshaded in their own colour, so they read on any background.
+
+**Didn't work.** My first column was additive like NodeFx's rim glow. At night it looked great; at noon on the real renderer it burnt out to a flat white tube (additive over a bright sky clips). A pale gold alpha-blended column was then almost invisible by day. Mostly lantern orange with a pale core only in the very middle, alpha up to 0.92, reads as a gold pillar by day and still glows by night. From 45 m by broad day it is a thin gold stroke with sparks: visible, not loud (follow-up in the backlog).
+
+**Tested.** 283 unit tests with Postgres (5 new in `tests/unit/test_world_level_up_fx.gd`: column curve, ring and light go out, every spark rises round the avatar and burns out inside the burst, deterministic sparks, play/restart/finish on a real avatar rig with one burst only). 8-bot 180 s websocket bot test passed; new behaviour `world_level_up_fx.gd` plays a burst on the bot's own avatar rig at login and every 9 s, runs it frame by frame, checks sparks, light and clean finish, and restarts every other burst mid-way (21 bursts, 10 restarts, 1,450 frames per bot). Client smoke test passed (day 0.695, night 0.106). Rendered two bursts (0.3 s and 0.9 s in) in the Spawn Meadow at noon, midnight and from 45 m on the real renderer and looked at them; copies in the project files (`world/level-up-day.png`, `world/level-up-night.png`).
+
+**Known / not done.** Nothing plays it until gameplay sends level-ups and the client calls it. No sound (client owns `sfx.gd`).
+
+**Next run.** Milestone 1 part 2: the tier-2 node props (old ember ash, rich stone seam).
+
 ## 2026-11-23: Emberlight part 1, the shared shader
 **Why this.** Top of my backlog (owner direction 7, the art bible). The level-up burst is waiting in PR #79 (red only because gameplay's v3 bot behaviours starve on emptied nodes, which the integrator flagged for gameplay; nothing for world to fix), and this item doesn't need its code. What a player feels: the valley stops looking like flat-shaded primitives and starts looking painted, with warm sunny sides, blue-leaning shade, darker hollows, and ash leaves that breathe together at night.
 
