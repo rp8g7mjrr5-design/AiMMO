@@ -41,6 +41,54 @@ static func craft() -> AudioStreamWAV:
 	return wav
 
 
+## One gather paying out, by node kind: the hit itself (a wooden chop for ash and pine, a
+## bright stone clink for an outcrop, a soft slosh for a sap seep), then a little pickup chime
+## as the haul lands in your pack. Under half a second, so a held E never stacks them up.
+static func haul(kind: String) -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(kind)
+	var data := PackedByteArray()
+	var length := 0.46
+	var lp := 0.0 # one-pole low-pass state for the noise
+	var lp2 := 0.0
+	for i in int(RATE * length):
+		var t := float(i) / RATE
+		var noise := rng.randf_range(-1.0, 1.0)
+		var v := 0.0
+		match kind:
+			"stone":
+				# A hard tick of noise and two inharmonic ringing partials.
+				lp += (noise - lp) * 0.6
+				v = lp * exp(-t * 90.0) * 0.6
+				v += (sin(TAU * 1870.0 * t) * 0.5 + sin(TAU * 2960.0 * t) * 0.35) * exp(-t * 26.0) * 0.55
+			"ember_sap":
+				# Dark noise swelling and falling, with a wobbling pitch: a scoop of thick sap.
+				lp += (noise - lp) * 0.08
+				lp2 += (lp - lp2) * 0.15
+				var env := sin(PI * clampf(t / 0.22, 0.0, 1.0))
+				v = lp2 * env * 3.2 + sin(TAU * (240.0 + 90.0 * sin(TAU * 9.0 * t)) * t) * env * 0.18
+			_:
+				# Wood: a low thunk with a burst of mid noise for the bite of the blade.
+				lp += (noise - lp) * 0.3
+				v = sin(TAU * 150.0 * t) * exp(-t * 32.0) * 0.8 + lp * exp(-t * 60.0) * 0.7
+		var dn := t - 0.16
+		if dn >= 0.0:
+			for f in [1318.5, 1975.5]:
+				var start: float = 0.0 if f < 1500.0 else 0.06
+				var d: float = dn - start
+				if d >= 0.0:
+					v += (sin(TAU * f * d) * 0.8 + sin(TAU * f * 2.0 * d) * 0.15) * minf(1.0, d * 120.0) * exp(-d * 14.0) * 0.32
+		var s16 := int(clampf(v * 0.4, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = RATE
+	wav.stereo = false
+	wav.data = data
+	return wav
+
+
 static func _tones(notes: Array, volume: float) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	for n in notes:

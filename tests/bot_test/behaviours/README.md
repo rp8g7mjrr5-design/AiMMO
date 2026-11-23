@@ -18,3 +18,9 @@ A behaviour's failures fail the bot test. Its stats show up in the bot's result 
 
 `tests/unit/test_qa_bot_behaviours.gd` checks that every file here loads and extends the base,
 so a broken behaviour fails the unit tests before the 3-minute bot test even starts.
+
+`qa_gather_ledger.gd` checks real gathering never loses or invents items (pack across a
+reconnect, final pack against the save) and that every client agrees which nodes are empty.
+After long runs the harness starts one extra bot with `--only-behaviour=qa_gather_ledger
+--gather-probe=<node>` to watch an emptied node respawn and gather it (see
+`../gather_report.py`). `--only-behaviour=a,b` works for any behaviour while developing it.

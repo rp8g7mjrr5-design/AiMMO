@@ -161,10 +161,21 @@ static func _set_emission(n: Node, energy: float) -> void:
 	var gi := n as GeometryInstance3D
 	if gi == null:
 		return
+	if gi.material_override is ShaderMaterial: # Emberlight: the heartbeat swells it in the shader
+		(gi.material_override as ShaderMaterial).set_shader_parameter("emission_energy", energy)
+		return
 	var mat := gi.material_override as StandardMaterial3D
 	if mat == null or not mat.emission_enabled:
 		return
 	mat.emission_energy_multiplier = energy
+
+
+## The shared Emberlight foliage material for ember ash leaves: their warmth is off by day
+## and apply_glow turns it up at night, beating with the valley's heartbeat.
+static func ember_leaf_material() -> ShaderMaterial:
+	var m := Emberlight.material("foliage", "ash_leaf")
+	m.set_shader_parameter("emission_color", EMBER)
+	return m
 
 
 ## Give a leaf material its ember warmth (off until apply_glow turns it up at night).

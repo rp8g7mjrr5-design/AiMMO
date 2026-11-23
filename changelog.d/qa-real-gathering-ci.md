@@ -1,0 +1,2 @@
+- Every item you gather now gets counted three times before an update ships: what the server gave you, what your pack shows, and what is saved. If they ever disagree, the update doesn't go out.
+- Emptied trees and rocks are now tested coming back too: a fresh player sees the stump, hears it regrow, and chops it.

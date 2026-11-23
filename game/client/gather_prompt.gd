@@ -1,28 +1,42 @@
 class_name GatherPrompt
 extends Control
-## Gathering as a game action: when you stand within reach of a tree, rock or seep, a small
-## prompt above the chat says "[E] Chop Ember Ash". Press (or hold) E and the client sends
-## "/gather <kind>" for that node, a short bar fills while you gather, and the server's
-## answer pops up as a toast like "+2 Ash wood".
+## Gathering as a game action, on protocol v3's timed gather: when you stand within reach of
+## a tree, rock or seep, a small prompt above the chat says "[E] Chop Ember Ash". Press (or
+## hold) E and the client sends c2s_gather_start(node_id) for that very node. The server
+## answers s2c_gather_begin with how long it takes, a bar fills over exactly that time
+## ("Chopping Ember Ash"), and s2c_gather_result pops a "+2 Ash wood  (6)" toast. Keep E held
+## and the next gather starts the moment one ends (no dead time); press E again or walk off
+## and it stops. A refusal ("pack full", "spent") shows as a short centre-screen notice.
 ##
-## The server still decides everything: reach, depletion, night-only seeps, the cooldown,
-## pack room. Until protocol v3 brings c2s_gather and s2c_nodes the client can't know which
-## nodes are spent, so the prompt shows for a spent node too and the server's reply (in chat)
-## says so. All the rules are static functions so they are unit tested headless.
+## The server still decides everything: reach, depletion, night-only seeps, pack room, the
+## timing. The client only knows which nodes are spent (s2c_nodes / s2c_node_state) so the
+## prompt never offers one. All the rules are static functions so they are unit tested headless.
 
 const WIDTH := 300.0
 const HEIGHT := 64.0
 const KEY_LABEL := "E"
 ## The action word per node kind, as in the design bible ("[E] Chop Ember Ash").
 const VERBS := {"ash": "Chop", "pine": "Chop", "stone": "Mine", "ember_sap": "Collect"}
-## Seconds between two presses: the server's gather cooldown plus a little slack for the
-## round trip, and never faster than the chat cooldown (gathers travel as chat until v3).
-const PRESS_INTERVAL := 1.6
+const DOING := {"Chop": "Chopping", "Mine": "Mining", "Collect": "Collecting", "Gather": "Gathering"}
+## A start the server hasn't answered yet is asked again after this many seconds.
+const ASK_TIMEOUT := 1.5
 const TOAST_SECONDS := 2.2
 const TOAST_RISE := 26.0 ## px the toast floats up while it fades
 const ACCENT := Color(1.0, 0.56, 0.24) ## ember orange, the ash leaves
+const NOTICE := Color(1.0, 0.82, 0.62) ## a refusal: warm, softer than the haul toast
 const DIM := Color(0.85, 0.85, 0.85, 0.75)
 const ICON_GAP := 6.0 ## px between a toast's icon and its text
+## Short centre-screen words for a refused or broken-off gather (s2c_gather_end's reason).
+## Reasons the player caused on purpose ("moved", "stopped") or that need no words ("done",
+## "busy", "cooldown", "disconnected") show nothing. The server's longer line (with where the
+## next node is) still goes to chat.
+const NOTICES := {
+	"full": "Your pack is full",
+	"depleted": "Nothing left here for now",
+	"day": "Ember sap only seeps at night",
+	"far": "Out of reach",
+	"unknown": "Nothing to gather there",
+}
 
 var prompt_label: Label
 var bar: ProgressBar
@@ -30,62 +44,106 @@ var toast_label: Label
 var toast_icon: TextureRect
 ## Where toast icons come from (set by the client; without one, toasts fall back to world's cache).
 var icons: IconShelf
+## node id -> true for every node the server says is empty right now.
+var spent := {}
+## Your pack as the server last sent it (s2c_inventory), for the toast's "(6)".
+var pack := {}
 var _target := {}
-var _last_press := -INF
+var _channel := {} ## your running gather: {node_id, kind, text, started, seconds}
+var _asked_node := -1 ## a start we sent and the server hasn't answered yet
+var _asked_at := -INF
+var _hold_blocked := false ## after a refusal, holding E doesn't ask again until you let go
 var _toast_age := INF
 
 
-## What the prompt shows for a player at `pos` at world time `world_seconds`: the node within
-## ResourceNodes.GATHER_RANGE under the reticle (look-to-interact, when `look` is given: the
-## camera's eye and look direction), else the nearest one in reach, or {} for none.
-## {id, kind, label, can: bool (false for a seep in daylight), text, command}.
-static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look := Vector3.ZERO) -> Dictionary:
+## What the prompt shows for a player at `pos` at world time `world_seconds`: the live node
+## within ResourceNodes.GATHER_RANGE under the reticle (look-to-interact, when `look` is
+## given: the camera's eye and look direction), else the nearest live one in reach. With
+## only spent nodes in reach it names the nearest one, greyed out. {} for nothing in reach.
+## {id, kind, label, can: bool (false for a spent node or a seep in daylight), text, doing}.
+static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look := Vector3.ZERO, spent_ids := {}) -> Dictionary:
 	var in_reach := ResourceNodes.near(pos, ResourceNodes.GATHER_RANGE)
 	if in_reach.is_empty():
 		return {}
-	var n: Dictionary = pick(in_reach, eye, look)
+	var live: Array = in_reach.filter(func(n): return not spent_ids.has(int(n.id)))
+	var n: Dictionary = pick(live, eye, look) if not live.is_empty() else in_reach[0]
 	var info := ResourceNodes.kind_info(n.kind)
-	var can: bool = not (bool(info.get("night_only", false)) and not WorldClock.is_night(world_seconds))
 	var label := str(info.get("label", n.kind))
 	var what := "Ember Sap" if n.kind == "ember_sap" else label.capitalize()
+	var verb := str(VERBS.get(n.kind, "Gather"))
+	var is_spent := live.is_empty()
+	var night_only := bool(info.get("night_only", false)) and not WorldClock.is_night(world_seconds)
+	var text := "[%s] %s %s" % [KEY_LABEL, verb, what]
+	if is_spent:
+		text = "%s is spent for now" % label
+	elif night_only:
+		text = "%s only seeps at night" % label
 	return {
 		"id": int(n.id),
 		"kind": str(n.kind),
 		"label": label,
-		"can": can,
-		"text": ("[%s] %s %s" % [KEY_LABEL, VERBS.get(n.kind, "Gather"), what]) if can else ("%s only seeps at night" % label),
-		"command": "/gather %s" % n.kind,
+		"can": not is_spent and not night_only,
+		"text": text,
+		"doing": doing_text(str(n.kind)),
 	}
 
 
+## "Chopping Ember Ash", "Mining Stone Outcrop", "Collecting Ember Sap": the bar's caption.
+static func doing_text(kind: String) -> String:
+	var info := ResourceNodes.kind_info(kind)
+	if info.is_empty():
+		return "Gathering"
+	var what := "Ember Sap" if kind == "ember_sap" else str(info.label).capitalize()
+	return "%s %s" % [DOING.get(VERBS.get(kind, "Gather"), "Gathering"), what]
+
+
 ## Look-to-interact: from `in_reach` (nearest first), the node under the reticle, falling
-## back to the nearest. Until protocol v3 gathers by node id, the server picks the nearest node
-## of the asked kind, so an aimed node only wins if no closer node of its kind is in reach
-## (otherwise the prompt would name one node and the server would take another).
+## back to the nearest. Protocol v3 gathers by node id, so the aimed node is the one you get.
 static func pick(in_reach: Array, eye: Vector3, look: Vector3) -> Dictionary:
 	if look == Vector3.ZERO:
 		return in_reach[0]
 	var aimed := ActionCamera.aimed_node(eye, look.normalized(), in_reach)
-	if aimed.is_empty():
-		return in_reach[0]
-	for n in in_reach:
-		if n.kind == aimed.kind:
-			return aimed if int(n.id) == int(aimed.id) else in_reach[0]
-	return in_reach[0]
+	return in_reach[0] if aimed.is_empty() else aimed
 
 
-## True if a press at real time `now` may send a gather (one per PRESS_INTERVAL).
-static func can_press(now: float, last_press: float) -> bool:
-	return now - last_press >= PRESS_INTERVAL - 0.0001 # float slack: 11.6 - 10.0 < 1.6
+## What E does this frame. `held` / `pressed` (just pressed) for E, `moving` for any movement
+## key, `target` from target(), `gathering` while your own gather runs, `waiting` while a
+## start is unanswered, `blocked` after a refusal until E is let go.
+## {"op": "start", "node": id}, {"op": "cancel"}, or {} for nothing.
+static func decide(held: bool, pressed: bool, moving: bool, target: Dictionary, gathering: bool, waiting: bool, blocked: bool) -> Dictionary:
+	if gathering:
+		return {"op": "cancel"} if pressed or moving else {}
+	if waiting or moving or target.is_empty() or not bool(target.get("can", false)):
+		return {}
+	if pressed or (held and not blocked):
+		return {"op": "start", "node": int(target.id)}
+	return {}
 
 
-## How full the gathering bar is, 0..1, `since` seconds after a press (1 = ready again).
-static func progress(since: float) -> float:
-	return clampf(since / PRESS_INTERVAL, 0.0, 1.0)
+## How full the gathering bar is, 0..1, at `now` for a channel {started, seconds}.
+static func progress(channel: Dictionary, now: float) -> float:
+	if channel.is_empty():
+		return 0.0
+	var secs := float(channel.seconds)
+	if secs <= 0.0:
+		return 1.0
+	return clampf((now - float(channel.started)) / secs, 0.0, 1.0)
+
+
+## The centre-screen words for a gather that ended with `reason`, or "" for none.
+static func notice_text(reason: String) -> String:
+	return str(NOTICES.get(reason, ""))
+
+
+## True for the server's own system lines about your timed gather (start, haul, stop): the
+## bar, toast and notices already say it, so they stay out of chat (chat is for talking).
+static func is_echo(text: String) -> bool:
+	return text.begins_with("You start gathering") or text.begins_with("You gather ") or text.begins_with("You stop gathering")
 
 
 ## Reads the server's success line ("You gather 2 ash wood from the ember ash (6 in your
 ## pack).", see Gathering.success) into {qty, item, label, in_pack}, or {} for any other line.
+## The workbench's pack mirror uses it; toasts come from s2c_gather_result.
 static func parse_gain(text: String) -> Dictionary:
 	var m := RegEx.create_from_string("^You gather (\\d+) (.+?) from the .+? \\((\\d+) in your pack\\)").search(text)
 	if m == null:
@@ -98,10 +156,12 @@ static func parse_gain(text: String) -> Dictionary:
 	return {"qty": m.get_string(1).to_int(), "item": item, "label": label, "in_pack": m.get_string(3).to_int()}
 
 
-## "+2 Ash wood  (6)" for a parsed gain.
+## "+2 Ash wood  (6)" for a gain {qty, label, in_pack}; without in_pack (or below 0) just "+2 Ash wood".
 static func toast_text(gain: Dictionary) -> String:
 	var label := str(gain.label)
-	return "+%d %s  (%d)" % [int(gain.qty), label.left(1).to_upper() + label.substr(1), int(gain.in_pack)]
+	var head := "+%d %s" % [int(gain.qty), label.left(1).to_upper() + label.substr(1)]
+	var in_pack := int(gain.get("in_pack", -1))
+	return head if in_pack < 0 else "%s  (%d)" % [head, in_pack]
 
 
 ## Left edge of a toast's icon so icon + gap + text sit centred in WIDTH, for text `text_w` px wide.
@@ -166,51 +226,97 @@ func _make_label(font_size: int, color: Color) -> Label:
 	return l
 
 
-## Called every logged-in frame with where you stand, whether E is held, and (optionally) the
-## camera's eye and look direction for look-to-interact. Returns the
-## chat command to send now ("/gather pine"), or "" for nothing.
-func update(delta: float, pos: Vector3, world_seconds: float, now: float, interact_held: bool, eye := Vector3.ZERO, look := Vector3.ZERO) -> String:
-	_target = target(pos, world_seconds, eye, look)
-	var since := now - _last_press
-	var busy := since < PRESS_INTERVAL
-	prompt_label.visible = not _target.is_empty()
-	if not _target.is_empty():
+## Called every logged-in frame with where you stand, E held / just pressed, whether you are
+## moving, and (optionally) the camera's eye and look direction for look-to-interact.
+## Returns what to send now: {"op": "start", "node": id} (c2s_gather_start), {"op": "cancel"}
+## (c2s_gather_cancel), or {}.
+func update(delta: float, pos: Vector3, world_seconds: float, now: float, held: bool, pressed: bool = false, moving: bool = false, eye := Vector3.ZERO, look := Vector3.ZERO) -> Dictionary:
+	_target = target(pos, world_seconds, eye, look, spent)
+	if not held:
+		_hold_blocked = false
+	var waiting := _asked_node >= 0 and now - _asked_at < ASK_TIMEOUT
+	if not waiting:
+		_asked_node = -1
+	var op := decide(held, pressed, moving, _target, not _channel.is_empty(), waiting, _hold_blocked)
+	if op.get("op", "") == "start":
+		_asked_node = int(op.node)
+		_asked_at = now
+	elif op.get("op", "") == "cancel":
+		_channel = {} # the bar goes at once; the server's "stopped" end is then a no-op
+		_hold_blocked = true # E pressed to stop: don't start again until it is let go
+	var gathering := not _channel.is_empty()
+	prompt_label.visible = gathering or not _target.is_empty()
+	if gathering:
+		prompt_label.text = str(_channel.text)
+		prompt_label.add_theme_color_override("font_color", Color.WHITE)
+	elif not _target.is_empty():
 		prompt_label.text = _target.text
 		prompt_label.add_theme_color_override("font_color", Color.WHITE if _target.can else DIM)
-	bar.visible = busy and not _target.is_empty()
-	bar.value = progress(since)
+	bar.visible = gathering
+	bar.value = progress(_channel, now)
 	_toast_age += delta
 	toast_label.modulate.a = toast_alpha(_toast_age)
 	toast_label.position.y = -TOAST_RISE * clampf(_toast_age / TOAST_SECONDS, 0.0, 1.0)
 	toast_icon.modulate.a = toast_label.modulate.a
 	toast_icon.position.y = toast_label.position.y + (24.0 - IconShelf.TOAST_SIZE) * 0.5
-	if interact_held and not _target.is_empty() and _target.can and can_press(now, _last_press):
-		_last_press = now
-		return str(_target.command)
-	return ""
+	return op
 
 
-## Shows "+2 Ash wood" if `text` is a gather success line. Returns whether it was.
+## s2c_gather_begin for your own gather: the bar starts filling over the server's `seconds`.
+func on_begun(node_id: int, seconds: float, now: float) -> void:
+	_asked_node = -1
+	var kind := str(ResourceNodes.get_by_id(node_id).get("kind", ""))
+	_channel = {"node_id": node_id, "kind": kind, "text": doing_text(kind), "started": now, "seconds": seconds}
+
+
+## s2c_gather_end for your own gather (or a refused start). Shows the refusal notice, if
+## any, and returns its text ("" for none).
+func on_ended(node_id: int, reason: String) -> String:
+	if _channel.is_empty() or int(_channel.node_id) == node_id:
+		_channel = {}
+	_asked_node = -1 # a refused start is answered by its end alone
+	var words := notice_text(reason)
+	if reason != "done":
+		_hold_blocked = true # holding E doesn't hammer a refusal; let go and press again
+	if words != "":
+		show_toast(words, "", NOTICE)
+	return words
+
+
+## s2c_gather_result: the haul toast "+2 Ash wood  (6)" with the item's icon. s2c_inventory
+## arrives first, so `pack` already holds the new count.
+func on_result(item_id: String, count: int) -> void:
+	var in_pack := int(pack.get(item_id, -1)) if pack.has(item_id) else -1
+	show_toast(toast_text({"qty": count, "label": Inventory.label(item_id), "in_pack": in_pack}), item_id)
+
+
+## A system line: true if it is an echo of your timed gather (keep it out of chat).
 func on_system(text: String) -> bool:
-	var gain := parse_gain(text)
-	if gain.is_empty():
-		return false
-	show_toast(toast_text(gain), str(gain.item))
-	return true
+	return is_echo(text)
+
+
+## Your own gather is running (begun, not yet ended or cancelled).
+func gathering() -> bool:
+	return not _channel.is_empty()
+
+
+func channel() -> Dictionary:
+	return _channel
 
 
 ## Shows `text` (for example "[E] Use Workbench") in the prompt line when no node is in
 ## reach; the node prompt always wins. Call after update() each frame; "" shows nothing extra.
 func show_hint(text: String) -> void:
-	if _target.is_empty():
+	if _target.is_empty() and _channel.is_empty():
 		prompt_label.visible = text != ""
 		prompt_label.text = text
 		prompt_label.add_theme_color_override("font_color", Color.WHITE)
 
 
 ## Pops a floating toast like "Crafted: Stone axe!", with `item`'s icon beside it ("" = no icon).
-func show_toast(text: String, item: String = "") -> void:
+func show_toast(text: String, item: String = "", color: Color = ACCENT) -> void:
 	toast_label.text = text
+	toast_label.add_theme_color_override("font_color", color)
 	_toast_age = 0.0
 	toast_label.modulate.a = 1.0
 	toast_icon.visible = item != ""
@@ -236,6 +342,11 @@ func current_target() -> Dictionary:
 
 func hide_all() -> void:
 	_target = {}
+	_channel = {}
+	_asked_node = -1
+	_hold_blocked = false
+	spent = {}
+	pack = {}
 	prompt_label.visible = false
 	bar.visible = false
 	_toast_age = INF

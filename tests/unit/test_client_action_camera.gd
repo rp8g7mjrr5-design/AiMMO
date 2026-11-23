@@ -207,9 +207,9 @@ func test_look_to_interact_target() -> void:
 	check(ActionCamera.aimed_node(eye, sky, [stone, pine]).is_empty(), "nothing under the reticle")
 	check_eq(GatherPrompt.pick([stone, pine], eye, sky).id, 1, "falls back to the nearest")
 	check_eq(GatherPrompt.pick([stone, pine], eye, Vector3.ZERO).id, 1, "no camera: nearest")
-	# Two of the same kind: the server takes the nearest of a kind, so the prompt does too.
+	# Two of the same kind: v3 gathers by node id, so the aimed one wins over a nearer twin.
 	var near_pine := {"id": 3, "kind": "pine", "pos": Vector3(1.0, 0, 0)}
-	check_eq(GatherPrompt.pick([near_pine, pine], eye, at_pine).id, 3, "never promises a node the server won't pick")
+	check_eq(GatherPrompt.pick([near_pine, pine], eye, at_pine).id, 2, "the aimed pine, not the nearest")
 
 
 func test_look_to_interact_on_real_nodes() -> void:

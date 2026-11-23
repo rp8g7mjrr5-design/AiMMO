@@ -64,6 +64,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	# The heartbeat runs every frame (one RenderingServer call), so the glow swells smoothly.
+	Emberlight.set_pulse(Emberlight.pulse(now_world_seconds()))
 	_timer -= delta
 	if _timer > 0.0:
 		return
