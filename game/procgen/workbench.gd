@@ -36,8 +36,10 @@ const LANTERN_SPOT := Vector2(-0.68, -0.25) ## local x, z on the top
 const LANTERN_GLASS := Vector3(0.15, 0.2, 0.15)
 const LIGHT_ENERGY := 1.1 ## at full night; softer than a meadow lantern, it only has to light the bench
 const LIGHT_RANGE := 6.0
-const GLASS_DAY := 0.15 ## the same as the meadow lanterns, so they read as one family
-const GLASS_NIGHT := 1.5
+## The bench lantern's glass is the meadow lanterns' glass (one shared material,
+## `Lamps.glass_material()`), so it lights to exactly the same brightness: one family.
+const GLASS_DAY := Lamps.GLASS_DAY
+const GLASS_NIGHT := Lamps.GLASS_NIGHT
 const HIGHLIGHT_FADE := 0.15 ## seconds, like NodeFx.FADE_IN
 const HIGHLIGHT_STRENGTH := 0.8 ## a touch softer than a node's: the bench is big and close
 
@@ -208,8 +210,8 @@ static func apply_glow(bench: Node, glow: float) -> void:
 		omni.light_energy = v.light_energy
 		omni.visible = v.light_on
 	var gi := bench.get_node_or_null(GLASS_LAYER) as GeometryInstance3D
-	if gi and gi.material_override is StandardMaterial3D:
-		(gi.material_override as StandardMaterial3D).emission_energy_multiplier = v.glass
+	if gi and gi.material_override is ShaderMaterial: # shared with the meadow lanterns
+		(gi.material_override as ShaderMaterial).set_shader_parameter("emission_energy", v.glass)
 
 
 ## Turn the bench's warm rim glow on or off (the client calls this while "[E] Use Workbench"
@@ -294,7 +296,10 @@ static func _meshes() -> Dictionary:
 	cyl.height = 1.0
 	cyl.radial_segments = 7
 	cyl.rings = 1
-	return {"BenchWood": box, "BenchStone": box, "BenchLogs": cyl, "BenchGlass": box}
+	# Baked like the rest of the world (art bible section 2): each part darkens toward its foot.
+	var wood := Emberlight.bake(box, 0.25)
+	return {"BenchWood": wood, "BenchStone": Emberlight.bake(box, 0.35, 1.4), "BenchLogs": Emberlight.bake(cyl, 0.3),
+		"BenchGlass": Emberlight.bake(box, 0.0)}
 
 
 static func _multimesh(node_name: String, mesh: Mesh, instances: Array, glow: bool = false) -> MultiMeshInstance3D:
@@ -306,18 +311,10 @@ static func _multimesh(node_name: String, mesh: Mesh, instances: Array, glow: bo
 	for i in instances.size():
 		mm.set_instance_transform(i, instances[i][0])
 		mm.set_instance_color(i, (instances[i][1] as Color).srgb_to_linear())
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.85
-	if glow: # the lantern glass: lit from the shared clock by apply_glow
-		mat.roughness = 0.3
-		mat.emission_enabled = true
-		mat.emission = Lamps.FLAME
-		mat.emission_energy_multiplier = GLASS_DAY
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = node_name
 	mmi.multimesh = mm
-	mmi.material_override = mat
-	if glow:
+	mmi.material_override = Lamps.glass_material() if glow else Emberlight.material("solid")
+	if glow: # the lantern glass: lit from the shared clock by apply_glow
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mmi

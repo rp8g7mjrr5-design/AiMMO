@@ -30,6 +30,16 @@ const RICH_STONE := Color(0.58, 0.50, 0.57) ## rich stone seam: a deeper colour 
 const RICH_FLECK := Color(1.0, 0.86, 0.52) ## bright gold flecks: "this rock is rich"
 
 
+# Skill badges (SkillIcons, Milestone 1): one colour per skill, used for the badge disc and
+# to tint that skill's toasts, XP bar and window header. Each echoes what the skill works on.
+const SKILL_FELLING := Color(0.36, 0.56, 0.32) ## forest green: the trees you fell
+const SKILL_QUARRYING := Color(0.42, 0.50, 0.62) ## cool slate blue: cut stone
+const SKILL_TAPPING := Color(0.62, 0.24, 0.17) ## sap red-brown, close to SMOULDER: the seeps
+const SKILL_TOOLCRAFT := Color(0.66, 0.48, 0.30) ## worked ash-wood: the bench and handles
+const SKILL_PLAIN := Color(0.58, 0.56, 0.52) ## a skill with no badge of its own yet
+const BADGE_INK := Color(0.16, 0.11, 0.09, 0.55) ## soft dark backing so a badge's emblem pops off its disc
+const BADGE_STAR := Color(0.92, 0.88, 0.78) ## the plain badge's pale star
+
 ## Stable, pleasant colour for a seed (character tunics, banners...).
 static func from_seed(seed_value: int, sat: float = 0.55, val: float = 0.85) -> Color:
 	var rng := RandomNumberGenerator.new()
