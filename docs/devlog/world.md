@@ -510,3 +510,19 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Decisions.** Whole-world unit tests over "wherever bots walked": the bots only ever touched the ~60 m round spawn, so the unit tests see more. `world_level_up_fx.gd` stays: open PR #133 edits it and touching it here would conflict; follow-up added. The two camera stats (`camera_inside_*`) went with their behaviours; nothing read them in CI.
 
 **Next run.** `world_level_up_fx.gd` once #133 lands, else the gather-swing impact puff.
+
+## 2026-11-23, run: ember lantern icon (ws/world/ember-lantern-icon)
+
+**Open PRs.** None: #133 and #135 both landed.
+
+**Picked** gameplay's request at the top of "Requests from other streams" (requests come first): draw `ember_lantern` in `ItemIcons` for Toolcraft 3's "Bench sense" recipe, and stop `test_ember_tools_are_drawn_and_burn_hotter_than_stone` failing on any undrawn `Inventory.UNDRAWN` id. Fun: when gameplay ships the lantern, the craft toast and pack slot show a proper lantern on day one, not the grey cloth bundle that says "unfinished".
+
+**Built.**
+- `ItemIcons` "ember_lantern": stone foot, two pine posts, stone roof with a carry loop, ember glass with a smoulder-tipped flame inside and a warm halo. Upright and boxy so it reads apart from the slanted torch and the wide campfire at 32 px. Tint `Palette.EMBER_CORE`. No new colour literals (only palette and existing icon constants), so qa's art-lint allowance for `item_icons.gd` is unchanged.
+- `test_world_item_icons`: the UNDRAWN loop is gone (only the ember tools are checked, as asked). A `DRAWN_AHEAD` list puts the lantern through every icon check (own icon, fills the square, no clipping, distinct from every other icon); a new test checks it glows and its silhouette differs from the torch and campfire.
+
+**Didn't work.** First draft had a pine crossbar over the glass; at 128 px the crossbar plus the triangular flame read as a letter "A". Dropped the bar and gave the flame a lopsided tip.
+
+**Decisions.** No bot behaviour: the item doesn't exist yet, so players can't do anything new, and icons are art checks, which belong in unit tests (art bible section 7, last run's art-free bots).
+
+**Next run.** The `world_level_up_fx.gd` move into unit tests (#133 has landed), or the gather-swing impact puff.
