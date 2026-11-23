@@ -46,7 +46,7 @@ func on_play(_delta: float) -> void:
 	_tries += 1
 	_waiting = true
 	_next_at = bot.elapsed + RETRY_AFTER
-	bot.net.c2s_chat.rpc_id(1, "/bag")
+	bot.send_command("/bag")
 
 
 func _on_system(text: String) -> void:

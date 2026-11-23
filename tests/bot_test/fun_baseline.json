@@ -1,0 +1,7 @@
+{
+  "_doc": "Fun-metric limits and baseline for run_bot_test.py --fun-check (see fun_report.py). Medians from the 8-bot, 180 s WebSocket run on 2026-11-23 (four runs: first reward 7.4-8.5 s, rewards/min 4.2-6.2, wait 0.01 s). longest_dead_s is reported but not compared: today it is mostly bots wandering after their one gather per login (41-69 s median across runs).",
+  "limits": {"first_reward_s_worst": 120, "longest_wait_s_worst": 45},
+  "regression": 0.2,
+  "slack": {"first_reward_s": 3.0, "longest_wait_s": 2.0, "rewards_per_min": 1.0},
+  "baseline": {"first_reward_s_median": 8.5, "longest_wait_s_median": 0.05, "rewards_per_min_median": 4.15}
+}

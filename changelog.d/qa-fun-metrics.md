@@ -1,0 +1,1 @@
+- Every build is now playtested for fun: robot players time how long a brand-new character waits for their first item, how long anything you do waits for an answer, and how many items a minute come in. A change that makes those worse can't ship.
