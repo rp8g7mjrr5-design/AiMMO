@@ -1,0 +1,1 @@
+- Fewer surprise kicks: the server now restarts once per update instead of twice, and not at all when only the notes change.

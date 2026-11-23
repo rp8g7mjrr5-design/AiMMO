@@ -21,7 +21,7 @@ from other streams") in your PR, and work around it for now.
 | `world` | `game/procgen/` (except `sfx.gd`), `game/shared/terrain.gd` | Terrain, biomes, flora, creatures' looks, buildings, weather visuals, art direction |
 | `gameplay` | `game/server/`, `game/shared/` (except `terrain.gd`), `db/migrations/`, `tests/fixtures/` | Systems: gathering, inventory, crafting, combat, NPC/creature AI, quests, economy, protocol |
 | `client` | `game/client/`, `game/main.gd`, `game/main.tscn`, `game/procgen/sfx.gd`, `game/project.godot`, `game/export_presets.cfg` | UI/HUD, camera, controls, prediction and smoothing, settings, audio, onboarding |
-| `qa` | `tests/` (except `tests/fixtures/`), `.github/`, `Dockerfile`, `docker/`, `railway.json`, `docs/playtest.md` | Bugs from playtest.md, crash fixes anywhere (see below), bot-test coverage, performance, CI, ops |
+| `qa` | `tests/` (except `tests/fixtures/`), `.github/`, `Dockerfile`, `docker/`, `railway.json`, `tools/`, `docs/playtest.md` | Bugs from playtest.md, crash fixes anywhere (see below), bot-test coverage, performance, CI, ops |
 
 **Every worker owns:** `docs/workstreams/<its stream>.md`, `docs/devlog/<its stream>.md`, and
 new files it creates in `changelog.d/`. Every worker adds unit tests for its own code under
@@ -39,23 +39,56 @@ sections of every `docs/workstreams/<stream>.md` (workers still tick their own i
 follow-ups).
 
 **Protocol changes** (`game/shared/net.gd`, `GameConfig.PROTOCOL_VERSION`) belong to
-`gameplay`. A protocol bump means old clients can't connect, so do it at most once per day
-and note it in the changelog fragment. From v4 on, the bump PR also adds a frozen copy of the old `net.gd` as
+`gameplay`. Installed games update themselves on launch and when the server turns them away
+(PR #67), so there is no daily limit: bump when a feature needs it, as soon as it is ready.
+Keep at most one bump PR open at a time and put every protocol change that is ready into it,
+and note the bump in the changelog fragment. From v4 on, the bump PR also adds a frozen copy of the old `net.gd` as
 `tests/protocol/net_v<old>.gd`; that one qa path is allowed in a gameplay PR (see
 `tests/protocol/README.md`).
+
+## One run per stream at a time (claims)
+
+Workers run every hour, and a run can take longer than that. Two runs of one stream at once
+build the same item twice, so every worker run (and the integrator, as stream `integrator`)
+holds a **claim** while it works: a branch `claim/<stream>` that `tools/ws_claim.sh` creates
+atomically. It needs no clone, so take it before doing anything expensive:
+
+```sh
+CLAIM() { bash <(gh api repos/rp8g7mjrr5-design/AiMMO/contents/tools/ws_claim.sh -H "Accept: application/vnd.github.raw") "$@"; }
+CLAIM take <stream> "starting"        # exit 3 = another run of this stream is working: stop now, one line
+CLAIM note <stream> "<item you picked>"   # once you've picked, and every ~45 min of a long run
+CLAIM release <stream> "<PR link or why>" # last thing you do, whether you shipped or not
+```
+
+A claim nobody refreshed for 150 minutes belongs to a run that died and the next run takes it
+over. Never take or release another stream's claim.
 
 ## Worker procedure (each run)
 
 0. **Budget check first.** Follow `docs/budget.md`. If your stream has hit its weekly cap and
-   has no open PR to fix, stop immediately.
+   has no open PR to fix, stop immediately. Then **take your claim** (above); if it's busy,
+   stop with one line. From here on, release the claim before you stop, on every path.
 1. Attach and clone the repo. Read `CLAUDE.md`, this file, `docs/design_bible.md`
    (especially the North star), `docs/roadmap.md`, your backlog `docs/workstreams/<stream>.md`,
    and the tail of `docs/devlog/<stream>.md`.
-2. **Finish before starting.** If you already have an open PR (branch `ws/<stream>/...`):
-   bring it up to date with `main` (merge, don't rebase), fix red CI or review comments, and
-   stop there for this run. A worker has at most one open PR.
+2. **Look after your open PRs, then keep going.** List your open `ws/<stream>/` PRs. For each:
+   - Checks green or still running, auto-merge on, no conflict, no unanswered review comment:
+     nothing to do. GitHub lands it on its own. Carry on to step 3.
+   - Red CI, a merge conflict, or a review comment: fix it first (merge `main` in, don't
+     rebase), push, make sure auto-merge is on, then carry on to step 3 if this run still has
+     room for a small item.
+   - Auto-merge off and no comment saying why: turn it on.
+   A worker has at most **two** open PRs: one landing, one new. If you already have two, fix
+   what needs fixing and stop. Never start a new item on top of an unmerged PR's branch; the
+   new item branches from `main` and must not need the open PR's code. If the top item does,
+   take the next one that doesn't.
 3. Pick the top unblocked item from your backlog (requests from other streams and bugs
-   first). Size it so it is built and fully tested in this run. Small and working beats big
+   first), skipping any item already in one of your open PRs (its tick is in that PR, not on
+   `main` yet). If the top items are blocked on another stream, take the next unblocked one,
+   then a follow-up, a bug, a test or a polish item from your own area: a run that ships
+   nothing is the last resort, for when your stream truly has no work it can do alone. Write
+   the reason in your devlog, and add the missing items to your backlog's follow-ups so the
+   next run has something. Size it so it is built and fully tested in this run. Small and working beats big
    and broken. **Fun comes first** (design bible, "Fun comes first"): before you build,
    write down in one sentence what a player will feel that they didn't before. If you can't,
    pick a smaller slice that does, or add the feedback (sound, motion, toast) that makes it
@@ -75,15 +108,23 @@ and note it in the changelog fragment. From v4 on, the bump PR also adds a froze
    feedback, a shorter loop, a new payoff, less dead time), or which upcoming fun this
    plumbing unblocks. Then turn on auto-merge with the squash
    method: `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/ccr/auto_merge -f merge_method=squash`
-   (or `gh pr merge <n> --auto --squash` where GraphQL is available). Then stop. Never call
-   merge yourself; GitHub merges the PR when the required "Test" check is green. If CI goes
-   red, auto-merge waits, and you fix it next run (step 2).
-8. Never ask questions; make the call and write down why.
+   (or `gh pr merge <n> --auto --squash` where GraphQL is available). Never call merge
+   yourself; GitHub merges the PR when the required "Test" check is green. Don't wait for CI:
+   if it goes red, auto-merge waits, and the next run fixes it (step 2).
+8. Release your claim with the PR link, and stop.
+9. Never ask questions; make the call and write down why.
+
+**CI is the second test run, not the first.** CI tests a PR once, on its PR run (pushes to a
+branch without a PR run nothing). Docs-only PRs (`docs/`, `changelog.d/`, root `*.md`) run
+only the unit tests, so director, digest and changelog PRs land in about two minutes. Pushing
+the branch before opening the PR is fine; open the PR as soon as the branch is ready.
 
 ## Integrator procedure (each run)
 
-0. **Cheap exit first.** Before cloning, check for open `ws/*` PRs and the latest `main` CI
-   result. If there are no open worker PRs and `main` is green, stop with one line.
+0. **Cheap exit first.** Before cloning, check for open `ws/*` PRs, PRs merged since the last
+   `integrate/` PR or integrator devlog note, and the latest `main` CI result. If there is
+   nothing open, nothing new merged, and `main` is green, stop with one line. Otherwise take
+   the `integrator` claim (see "Claims"); if it's busy, stop with one line.
 1. Attach and clone. Read CLAUDE.md and this file.
 2. **Health first.** Check the latest CI run on `main` and the Railway deploy. If `main` is
    red or the deploy failed, fix it or revert to the last good commit before anything else.
@@ -106,17 +147,22 @@ and note it in the changelog fragment. From v4 on, the bump PR also adds a froze
      back to that stream's backlog with a note.
    - If a PR has been stuck for over 24 hours, close it with a reason and put the item back in
      that stream's backlog.
-4. After merging, fold every `changelog.d/*.md` fragment into `CHANGELOG.md` under the
-   current week's heading (`## Week NN — <headline>`; create it if this is the first merge of
-   the week, with a provisional headline), then delete the fragments. `main` is protected and
-   only accepts merged PRs with a green "Test" check, so put this on a branch
-   `integrate/YYYY-MM-DD-HH`, open a PR, and turn on auto-merge (squash). Never push to `main`
-   directly. Worker PRs now deploy as they land, so the server may restart more than once an
-   hour; keep your own changes to one PR per run.
-5. Confirm CI passes, the server redeploys, and the `Week NN` release updates. If the deploy
-   breaks, revert and confirm the previous version is live.
+4. **Fold the changelog a few times a day, not every hour.** The release notes already show
+   unfolded `changelog.d/*.md` fragments on top of the week's entry, so players see new notes
+   as soon as a PR lands. Fold only when the last `integrate/` PR merged 6 or more hours ago,
+   or 6 or more fragments are waiting, or it's the first run after 00:00 Chicago: move every
+   fragment into `CHANGELOG.md` under the current week's heading (`## Week NN — <headline>`;
+   create it if this is the first merge of the week, with a provisional headline), then
+   delete the fragments. Put it on a branch `integrate/YYYY-MM-DD-HH`, open a PR, and turn on
+   auto-merge (squash); it's docs-only, so CI takes about two minutes and the server doesn't
+   restart. Never push to `main` directly. At most one PR of your own per run.
+5. Confirm CI passes, the server redeploys, and the `Week NN` release updates. Railway
+   deploys the server itself from `main` when server files change (`railway.json`
+   `watchPatterns`); CI no longer deploys a second time. If the deploy breaks, revert and
+   confirm the previous version is live.
 6. Triage `docs/playtest.md`: tag new reports and add them to the right stream's backlog.
 7. If a stream's backlog has fewer than 3 items, add the next ones from the roadmap.
+8. Release the `integrator` claim and end with your two or three lines.
 
 **Week numbers:** weeks start Friday. Week 00 started 2026-11-20. Week NN is the number of
 whole weeks since then.

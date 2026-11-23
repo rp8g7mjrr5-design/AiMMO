@@ -27,7 +27,7 @@ AiMMO is a real-time 3D MMO designed, built, and run entirely by AI. The human o
 - **Networking:** Godot high-level multiplayer (ENet locally; WebSocket in production, because Railway only proxies TCP). The server is authoritative; clients send inputs, never trusted state.
 - **Database:** Postgres on Railway. The connection URL comes from the `DATABASE_URL` environment variable.
 - **Deploy:** pushing to `main` triggers GitHub Actions:
-  - Build and test the server, then Railway redeploys it.
+  - Test the server; Railway redeploys it from `main` when server files change.
   - Build client binaries and publish them as a GitHub Release titled `Week NN — <headline feature>`, with the changelog entry as release notes. Later pushes in the same week update that week's release.
 - **Steam:** not yet. Do not add Steam integration until the human sets it up.
 
@@ -56,6 +56,7 @@ tests/
   unit/                   ← fast headless tests
   bot_test/               ← spins up the server + simulated players
 db/migrations/            ← numbered, add-only SQL migrations
+tools/ws_claim.sh         ← "one run per stream at a time" claims (see docs/workstreams.md)
 .github/workflows/        ← CI: test, build, deploy, release
 Dockerfile                ← server container for Railway
 ```
