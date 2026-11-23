@@ -360,27 +360,29 @@ func gather(id: int, kind_word: String = "") -> String:
 	var kind = Gathering.parse_kind(kind_word)
 	if kind == null:
 		return "Gather what? Try /gather, or /gather ash, pine, stone or sap."
+	var skills := skills_of(id)
 	if GatherChannel.is_active(s.channel):
-		return Gathering.refusal("cooldown", gathering, -1, CharacterData.position(s.character), now, ws, kind)
+		return Gathering.refusal("cooldown", gathering, -1, CharacterData.position(s.character), now, ws, kind, skills)
 	var pos := CharacterData.position(s.character)
-	var node_id := Gathering.pick_target(gathering, pos, now, ws, kind)
+	var node_id := Gathering.pick_target(gathering, pos, now, ws, kind, skills)
 	if node_id < 0:
-		return Gathering.refusal("none", gathering, -1, pos, now, ws, kind)
-	var node_kind := str(ResourceNodes.get_by_id(node_id).kind)
+		return Gathering.refusal("none", gathering, -1, pos, now, ws, kind, skills)
+	var node := ResourceNodes.get_by_id(node_id)
+	var node_kind := str(node.kind)
 	var inv: Dictionary = s.character.inventory
-	var why := Gathering.check(gathering, node_id, pos, now, ws, s.last_gather, Gathering.cooldown_for(node_kind, inv))
+	var why := Gathering.check(gathering, node_id, pos, now, ws, s.last_gather, Gathering.cooldown_for(node_kind, inv), skills)
 	if why != "":
-		return Gathering.refusal(why, gathering, node_id, pos, now, ws, kind)
+		return Gathering.refusal(why, gathering, node_id, pos, now, ws, kind, skills)
 	var tool := Gathering.tool_for(node_kind, inv)
 	var got := Gathering.take(gathering, node_id, now)
-	var added := give_item(id, got.item, Gathering.amount_for(node_kind, inv, skill_level(id, Skills.skill_for_kind(node_kind))))
+	var added := give_item(id, got.item, Gathering.amount_at(node_id, inv, skill_level(id, Skills.skill_for_kind(node_kind))))
 	if added <= 0:
 		Gathering.give_back(gathering, node_id)
-		return Gathering.refusal("full", gathering, node_id, pos, now, ws, kind)
+		return Gathering.refusal("full", gathering, node_id, pos, now, ws, kind, skills)
 	s.last_gather = now
 	if got.depleted:
 		_node_changed(node_id, true, got.respawn)
-	award_xp(id, Skills.skill_for_kind(node_kind), Skills.gather_xp(node_kind, has_company(id)))
+	award_xp(id, Skills.skill_for_kind(node_kind), Skills.gather_xp(node_kind, has_company(id), int(node.get("tier", 1))))
 	return Gathering.success(node_id, added, Inventory.count(s.character.inventory, got.item), got.depleted, tool)
 
 
@@ -405,12 +407,12 @@ func gather_start(id: int, node_id: int) -> Dictionary:
 	# No gather cooldown here: the channel's own server-timed bar is the pacing, so a player
 	# who keeps pressing E goes straight from one gather into the next (no dead time). The
 	# cooldown stays for the instant /gather dev command.
-	var why := Gathering.check(gathering, node_id, pos, now, world_seconds(), -INF, 0.0)
-	if why == "" and Inventory.count(inv, str(ResourceNodes.kind_info(kind).item)) >= Inventory.MAX_STACK:
+	var why := Gathering.check(gathering, node_id, pos, now, world_seconds(), -INF, 0.0, skills_of(id))
+	if why == "" and Inventory.count(inv, str(ResourceNodes.info(node).item)) >= Inventory.MAX_STACK:
 		why = "full"
 	if why != "":
 		return {"ok": false, "reason": why, "seconds": 0.0}
-	var secs := GatherChannel.seconds_for(kind, inv, skill_level(id, Skills.skill_for_kind(kind)))
+	var secs := GatherChannel.seconds_at(node_id, inv, skill_level(id, Skills.skill_for_kind(kind)))
 	s.channel = GatherChannel.start(node_id, pos, now, secs)
 	_gather_event(id, "begin", node_id, {"seconds": secs})
 	return {"ok": true, "reason": "", "seconds": secs}
@@ -456,15 +458,16 @@ func _finish_channel(id: int, now: float) -> void:
 	var ws := world_seconds()
 	_respawn_nodes(now)
 	var audience: Array = ch.get("audience", [])
-	var why := GatherChannel.finish_check(gathering, ch, pos, now, ws)
+	var why := GatherChannel.finish_check(gathering, ch, pos, now, ws, skills_of(id))
 	if why != "":
 		_gather_event(id, "cancelled", node_id, {"reason": why, "audience": audience})
 		return
-	var kind := str(ResourceNodes.get_by_id(node_id).kind)
+	var node := ResourceNodes.get_by_id(node_id)
+	var kind := str(node.kind)
 	var inv: Dictionary = s.character.inventory
 	var tool := Gathering.tool_for(kind, inv)
 	var got := Gathering.take(gathering, node_id, now)
-	var added := give_item(id, got.item, Gathering.amount_for(kind, inv, skill_level(id, Skills.skill_for_kind(kind))))
+	var added := give_item(id, got.item, Gathering.amount_at(node_id, inv, skill_level(id, Skills.skill_for_kind(kind))))
 	if added <= 0:
 		Gathering.give_back(gathering, node_id)
 		_gather_event(id, "cancelled", node_id, {"reason": "full", "audience": audience})
@@ -472,7 +475,7 @@ func _finish_channel(id: int, now: float) -> void:
 	s.last_gather = now
 	if got.depleted:
 		_node_changed(node_id, true, got.respawn)
-	award_xp(id, Skills.skill_for_kind(kind), Skills.gather_xp(kind, has_company(id)))
+	award_xp(id, Skills.skill_for_kind(kind), Skills.gather_xp(kind, has_company(id), int(node.get("tier", 1))))
 	_gather_event(id, "done", node_id, {"item": got.item, "count": added, "tool": tool, "depleted": got.depleted, "audience": audience})
 
 
@@ -510,7 +513,7 @@ func _gather_event(id: int, event: String, node_id: int, info: Dictionary) -> vo
 			if reason in ["moved", "far", "stopped"]:
 				text = GatherChannel.cancel_text(reason)
 			elif reason != "disconnected":
-				text = Gathering.refusal(reason, gathering, node_id, pos, now, world_seconds())
+				text = Gathering.refusal(reason, gathering, node_id, pos, now, world_seconds(), "", skills_of(id))
 	if reason != "":
 		var to := players_in_view(pos)
 		for other in info.get("audience", []):
@@ -540,7 +543,7 @@ func gather_request(id: int, node_id: int) -> Dictionary:
 		if ResourceNodes.get_by_id(node_id).is_empty():
 			_send(id, "s2c_system", ["There is nothing to gather there."])
 		else:
-			_send(id, "s2c_system", [Gathering.refusal(reason, gathering, node_id, pos, now_seconds(), world_seconds())])
+			_send(id, "s2c_system", [Gathering.refusal(reason, gathering, node_id, pos, now_seconds(), world_seconds(), "", skills_of(id))])
 	return r
 
 
@@ -633,15 +636,16 @@ func _channel_command(id: int, word: String) -> void:
 	var ws := world_seconds()
 	var pos := CharacterData.position(s.character)
 	_respawn_nodes(now)
-	var node_id := Gathering.pick_target(gathering, pos, now, ws, kind)
+	var skills := skills_of(id)
+	var node_id := Gathering.pick_target(gathering, pos, now, ws, kind, skills)
 	if node_id < 0:
-		_send(id, "s2c_system", [Gathering.refusal("none", gathering, -1, pos, now, ws, kind)])
+		_send(id, "s2c_system", [Gathering.refusal("none", gathering, -1, pos, now, ws, kind, skills)])
 		return
 	var r := gather_start(id, node_id)
 	if r.ok:
 		return # the "begin" event already told the player
 	var reason := "cooldown" if r.reason == "busy" else str(r.reason)
-	_send(id, "s2c_system", [Gathering.refusal(reason, gathering, node_id, pos, now, ws, kind)])
+	_send(id, "s2c_system", [Gathering.refusal(reason, gathering, node_id, pos, now, ws, kind, skills)])
 
 
 ## A player crafts ("/craft axe"), or lists the recipes ("/craft" or "/recipes"). The
@@ -702,6 +706,14 @@ func _craft(id: int, recipe: String) -> Dictionary:
 	print("[craft] %s made %d %s" % [s.character.name, made, recipe])
 	award_xp(id, "toolcraft", Skills.craft_xp(recipe, has_company(id)))
 	return {"ok": true, "reason": "", "text": Crafting.success(recipe, made, inv)}
+
+
+## Player `id`'s skills (skill id -> XP; empty for a player who is not here, which is level 1
+## everywhere). Gathering.check uses it for tier-2 nodes.
+func skills_of(id: int) -> Dictionary:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return {}
+	return sessions[id].character.get("skills", {})
 
 
 ## Player `id`'s level in `skill` (1 for an unknown skill or a player who is not here).

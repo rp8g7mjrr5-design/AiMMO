@@ -44,7 +44,8 @@ func _check_near(pos: Vector3) -> void:
 		fail("node %d (%s) looks the same depleted" % [n.id, n.kind])
 	for p in live:
 		var o: Vector3 = p.xform.origin
-		if Vector2(o.x - n.pos.x, o.z - n.pos.z).length() > 2.0 or o.y < n.pos.y - 0.05:
+		var spread := 2.0 if NodeProps.tier_of(n) == 1 else 3.2 * float(n.scale) # the old ash is 3 m wide
+		if Vector2(o.x - n.pos.x, o.z - n.pos.z).length() > spread or o.y < n.pos.y - 0.05:
 			fail("node %d (%s) prop is not standing on its spot" % [n.id, n.kind])
 			return
 

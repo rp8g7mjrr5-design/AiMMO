@@ -25,6 +25,10 @@ const KIND_SKILL := {"ash": "felling", "pine": "felling", "stone": "quarrying", 
 ## XP for one completed gather, by node kind. Stone takes a little longer than wood and
 ## pays a little more; a seep gives once, only at night, so it pays the most.
 const GATHER_XP := {"ash": 10, "pine": 10, "stone": 12, "ember_sap": 30}
+## Tier-2 nodes (ResourceNodes.TIER2, level 5 to work) pay this many times their kind's XP
+## per gather: an old ash 20, a rich seam 24. Their bar is only 1.2x as long, so working
+## them levels you about 1.7x as fast, which keeps level 20+ in reach.
+const TIER_XP_SCALE := 2.0
 ## XP for one completed craft: Toolcraft pays per ingredient used, so bigger things teach
 ## more (a stone axe, 5 items, is 40 XP; a campfire, 8 items, is 64).
 const CRAFT_XP_PER_ITEM := 8
@@ -54,12 +58,12 @@ const CURVE_C := 0.15
 ## (tier-2 nodes, Toolcraft recipes). Every level also gives SPEED_PER_LEVEL.
 const UNLOCKS := {
 	"felling": {
-		5: {"name": "Old ember ash", "text": "work the old ember ashes past the meadow", "soon": true},
+		5: {"name": "Old ember ash", "text": "work the old ember ashes past the meadow"},
 		10: {"name": "Clean cuts", "text": "+1 wood from every gather", "yield": 1},
 		25: {"name": "Heartwood", "text": "+1 more wood from every gather", "yield": 1},
 	},
 	"quarrying": {
-		5: {"name": "Rich seam", "text": "work the rich stone seams past the meadow", "soon": true},
+		5: {"name": "Rich seam", "text": "work the rich stone seams past the meadow"},
 		10: {"name": "True strike", "text": "+1 stone from every gather", "yield": 1},
 		25: {"name": "Splitter", "text": "+1 more stone from every gather", "yield": 1},
 	},
@@ -144,9 +148,13 @@ static func skill_for_kind(kind: String) -> String:
 	return str(KIND_SKILL.get(kind, ""))
 
 
-## XP for one gather of `kind`, with the together bonus when `together` is true.
-static func gather_xp(kind: String, together: bool = false) -> int:
-	return with_bonus(int(GATHER_XP.get(kind, 0)), together)
+## XP for one gather of `kind`, with the together bonus when `together` is true. A tier-2
+## node (`tier` 2) pays TIER_XP_SCALE times as much.
+static func gather_xp(kind: String, together: bool = false, tier: int = 1) -> int:
+	var base := int(GATHER_XP.get(kind, 0))
+	if tier >= 2:
+		base = int(round(base * TIER_XP_SCALE))
+	return with_bonus(base, together)
 
 
 ## XP for crafting `recipe` once (Toolcraft), with the together bonus when `together`.

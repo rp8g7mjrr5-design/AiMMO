@@ -54,7 +54,8 @@ func on_play(delta: float) -> void:
 				fail("node %d detail at %s is outside its solid columns" % [n.id, p.xform.origin])
 		var want := {"ash": 7, "pine": 7, "stone": 6, "ember_sap": 0}
 		var got := NodeProps.parts(n).filter(func(p): return p.layer == NodeProps.DETAIL_LAYER).size()
-		if got != want[n.kind]:
+		# A tier-2 node (gameplay's level-gated ring) has richer detail: at least tier 1's.
+		if got != want[n.kind] and not (NodeProps.tier_of(n) >= 2 and got >= want[n.kind]):
 			fail("%s node %d has %d detail parts, want %d" % [n.kind, n.id, got, want[n.kind]])
 	for i in YAWS:
 		var yaw := TAU * i / YAWS

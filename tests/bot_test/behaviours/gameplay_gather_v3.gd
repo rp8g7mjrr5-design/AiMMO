@@ -25,6 +25,12 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## wider (SEARCH_RADII) and finally waits for a respawn instead of giving up. "Never started
 ## a single timed gather" fails only when a node it tried refused for a reason other than
 ## being empty (8 bots can drain every node near spawn; that's not a bug).
+##
+## Tier-2 gate (Milestone 1 part 3): once per login, before its first node, the bot asks to
+## gather the nearest tier-2 node (an old ember ash or rich seam, level 5) from wherever it
+## stands. Below the level the server must refuse it with reason "level" and a system line
+## "Needs Felling 5. You're Felling N."; at or above it, it must not say "level". Tier-2
+## nodes the bot can't work are never picked as targets.
 
 const SETTLE := 1.0
 const LONG_RUN := 120.0
@@ -57,7 +63,7 @@ const FARM_GATHERS := 4
 ## (2.4 s) plus the freeze plus slack. Client's request for the real fix is in its backlog.
 const QUIET_BEFORE_DISCONNECT := 5.0
 
-enum Step { WAIT_FIRST, GOTO, START, RUNNING, IDLE, WAIT_RESPAWN }
+enum Step { WAIT_FIRST, GATE, GOTO, START, RUNNING, IDLE, WAIT_RESPAWN }
 enum Test { WALK_AWAY, CANCEL, HOLD, FARM, DONE }
 
 var _step := Step.IDLE
@@ -101,6 +107,11 @@ var acks := 0
 var _farmed := 0
 var farmed := 0
 var refusal_reasons := {}
+var _skills := {} ## skill id -> XP, as the server last told us
+var _gate_node := -1
+var _gate_text := false
+var gate_refused := 0
+var gate_lines := 0
 
 
 func setup(net: Node) -> void:
@@ -115,7 +126,10 @@ func setup(net: Node) -> void:
 		else:
 			_empty.erase(id))
 	net.skills_changed.connect(func(skills: Dictionary):
+		_skills = skills.duplicate()
 		_focus_level = Skills.level_for(int(skills.get(FOCUS_SKILL, 0))))
+	net.xp_gained.connect(func(skill: String, _gained: int, total: int): _skills[skill] = total)
+	net.system_message.connect(_on_system)
 	net.level_up.connect(func(skill: String, level: int, _unlocks: Array):
 		if skill == FOCUS_SKILL:
 			if level >= LEVEL_GOAL and _focus_level < LEVEL_GOAL:
@@ -163,14 +177,33 @@ func _plan() -> void:
 	_login_nodes = 0
 	_radius_i = 0
 	_fill_targets()
-	_next_node()
+	var t2 := ResourceNodes.tier2()
+	if t2.is_empty():
+		_next_node()
+		return
+	# The nearest tier-2 node: ask from here, whatever the distance (the level answer comes first).
+	var best: Dictionary = t2[0]
+	for n in t2:
+		if bot.my_pos.distance_to(n.pos) < bot.my_pos.distance_to(best.pos):
+			best = n
+	_gate_node = int(best.id)
+	_target = _gate_node
+	_gate_text = false
+	_step = Step.GATE
+	_answer_by = bot.elapsed + ANSWER_TIMEOUT
+	bot.net.play.c2s_gather_start.rpc_id(1, _gate_node)
 
 
 func _fill_targets() -> void:
 	_targets.clear()
 	for n in ResourceNodes.near(bot.my_pos, SEARCH_RADII[_radius_i]):
-		if n.kind in FOCUS_KINDS:
+		if n.kind in FOCUS_KINDS and Gathering.can_work(n, _skills):
 			_targets.append(n.id)
+
+
+func _on_system(text: String) -> void:
+	if _step == Step.GATE and text.begins_with("Needs "):
+		_gate_text = true
 
 
 ## The nearest node we haven't seen empty, from where we stand now. Widens the search when
@@ -243,6 +276,11 @@ func on_play(_delta: float) -> void:
 			if g == null or (not g._active and bot.elapsed > g._start_at) \
 					or bot.elapsed - _login_at > WAIT_FIRST_MAX:
 				_plan()
+		Step.GATE:
+			bot.move = STILL
+			if bot.elapsed > _answer_by:
+				fail("c2s_gather_start(%d) on a tier-2 node was never answered" % _gate_node)
+				_next_node()
 		Step.WAIT_RESPAWN:
 			if bot.elapsed >= _next_at:
 				_fill_targets()
@@ -317,6 +355,24 @@ func _on_ended(peer: int, node_id: int, reason: String) -> void:
 	if node_id != _target:
 		return
 	match _step:
+		Step.GATE:
+			var node := ResourceNodes.get_by_id(_gate_node)
+			var below := not Gathering.can_work(node, _skills)
+			if below and reason != "level":
+				fail("tier-2 node %d (needs %s %d, we're %d) answered %s, not level" % [_gate_node, node.skill, node.min_level, Skills.level_of(_skills, node.skill), reason])
+			elif not below and reason == "level":
+				fail("tier-2 node %d refused for level at %s %d" % [_gate_node, node.skill, Skills.level_of(_skills, node.skill)])
+			if reason == "level":
+				gate_refused += 1
+				# The system line is sent right after the end; look for it a moment later.
+				bot.get_tree().create_timer(1.0).timeout.connect(func():
+					if _gate_text:
+						gate_lines += 1
+					else:
+						fail("tier-2 refusal without a \"Needs ...\" line"))
+			bot.get_tree().create_timer(0.5).timeout.connect(func():
+				if _step == Step.GATE:
+					_next_node())
 		Step.START:
 			# Refused before it began.
 			refused += 1
@@ -418,6 +474,8 @@ func on_finish() -> void:
 	stat("refusal_reasons", refusal_reasons)
 	stat("levelled", levelled)
 	stat("focus_level", _focus_level)
+	stat("gate_refused", gate_refused)
+	stat("gate_lines", gate_lines)
 	stat("waited_respawn", waited_respawn)
 	if float(bot.duration) >= LONG_RUN and nodes_tried > 0 and started == 0 and _live_refusals > 0:
 		fail("never started a single timed gather (%d refusals that weren't an emptied node)" % _live_refusals)
