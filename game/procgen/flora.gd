@@ -31,6 +31,14 @@ const STEM := Color(0.30, 0.48, 0.22)
 const BLOOMS := [Color(0.97, 0.86, 0.38), Color(0.66, 0.50, 0.86), Color(0.96, 0.95, 0.90), Color(0.92, 0.42, 0.30), Color(0.55, 0.70, 0.95)]
 
 const LAYERS := ["BirchBark", "BirchMarks", "BirchCrowns", "MossRocks", "Moss", "FlowerStems", "FlowerBlooms"]
+## Layers the Graphics quality thins (art bible section 7, client's `Quality.flora_density()`).
+## Only the wildflowers: they are most of flora's triangles (12 stems and 12 blooms a patch)
+## and have no camera solid. Birches and boulders stay whole on every level, because they are
+## landmarks and `WorldSolids` keeps the camera out of them, so hiding one would leave an
+## invisible wall.
+const THINNED := ["FlowerStems", "FlowerBlooms"]
+const QUALITY_SCRIPT := "res://client/quality.gd"
+const QUALITY_POLL := 0.5 ## seconds between looks at the Graphics setting
 
 static var _spots: Array = []
 
@@ -171,6 +179,67 @@ static func layout(all_spots: Array) -> Dictionary:
 	return layers
 
 
+## A stable number in 0..1 for a spot, from its position: on a flora density `d`, the spots
+## whose rank is below `d` are drawn. Every part of a patch shares its rank, so a patch is
+## drawn or hidden whole (never a stem without its bloom), and the same patches stay on Low
+## every launch.
+static func rank(spot: Dictionary) -> float:
+	var p: Vector3 = spot.pos
+	return float(hash(Vector3i(int(p.x * 10.0), int(p.z * 10.0), SEED_OFFSET)) & 0xffff) / 65536.0
+
+
+## How many of `ranks` (sorted, lowest first) are drawn at density `d`: those below `d`.
+static func shown_count(ranks: PackedFloat32Array, d: float) -> int:
+	if d >= 1.0:
+		return ranks.size()
+	return ranks.bsearch(d)
+
+
+## {layer: Array of [Transform3D, Color, rank]} for the THINNED layers, lowest rank first, so
+## each chunk's MultiMesh holds its patches in rank order and density is one
+## `visible_instance_count` (no rebuild, no new draw calls).
+static func ranked_layout(all_spots: Array) -> Dictionary:
+	var layers := {}
+	for l in THINNED:
+		layers[l] = []
+	var ordered := all_spots.filter(func(sp): return sp.kind == "flowers")
+	var ranks := {}
+	for sp in ordered:
+		ranks[sp] = rank(sp)
+	ordered.sort_custom(func(a, b): return ranks[a] < ranks[b])
+	for sp in ordered:
+		for p in parts(sp):
+			if layers.has(p.layer):
+				layers[p.layer].append([p.xform, p.color, ranks[sp]])
+	return layers
+
+
+## Draws `d` (0..1) of the wildflowers under a Flora node built by `build()`: Low's 0.5 hides
+## half the patches, Medium and High's 1.0 shows them all. Cheap (no rebuild), so it can follow
+## the Graphics setting live.
+static func apply_density(flora_root: Node, d: float) -> void:
+	for l in THINNED:
+		var layer := flora_root.get_node_or_null(l)
+		if layer == null:
+			continue
+		for c in layer.get_children():
+			var mm := (c as MultiMeshInstance3D).multimesh
+			var ranks: PackedFloat32Array = c.get_meta("ranks", PackedFloat32Array())
+			var n := shown_count(ranks, d)
+			mm.visible_instance_count = -1 if n >= mm.instance_count else n
+	flora_root.set_meta("density", d)
+
+
+## The client's `Quality.flora_density()`, or 1.0 where the client code isn't there. Loaded by
+## path, not by class name, because the server export leaves `client/` out and procgen must
+## still parse there.
+static func quality_density() -> float:
+	if not ResourceLoader.exists(QUALITY_SCRIPT):
+		return 1.0
+	var q: Script = load(QUALITY_SCRIPT)
+	return float(q.call("flora_density"))
+
+
 static func count(kind: String) -> int:
 	return spots().filter(func(s): return s.kind == kind).size()
 
@@ -180,12 +249,52 @@ static func build() -> Node3D:
 	var root := Node3D.new()
 	root.name = "Flora"
 	var lay := layout(spots())
+	var ranked := ranked_layout(spots())
 	var meshes := _meshes()
 	for l in LAYERS:
 		# Chunked by area with per-layer draw distances and shadows (see `Chunks`): flowers
 		# stop at 90 m and cast no shadow, as before; now per chunk instead of per world.
-		root.add_child(Chunks.build(l, meshes[l], lay[l], layer_material(l)))
+		var insts: Array = ranked[l] if ranked.has(l) else lay[l]
+		var layer := Chunks.build(l, meshes[l], insts, layer_material(l))
+		if ranked.has(l):
+			_store_ranks(layer, insts, Chunks.size_of(l))
+		root.add_child(layer)
+	var watch := _QualityWatch.new()
+	watch.name = "QualityWatch"
+	root.add_child(watch)
+	apply_density(root, quality_density())
 	return root
+
+
+## Each chunk of a thinned layer remembers the rank of every instance it holds (same order as
+## `Chunks.split`, which keeps input order inside a chunk).
+static func _store_ranks(layer: Node, insts: Array, size: float) -> void:
+	var by_chunk := Chunks.split(insts, size)
+	for k in by_chunk:
+		var c := layer.get_node_or_null("c%d_%d" % [k.x, k.y])
+		if c == null:
+			continue
+		var ranks := PackedFloat32Array()
+		for inst in by_chunk[k]:
+			ranks.append(inst[2])
+		c.set_meta("ranks", ranks)
+
+
+## Follows the Graphics setting while the game runs: when the player picks Low, Medium or
+## High in Settings, the wildflowers thin or fill in within half a second, no restart.
+class _QualityWatch:
+	extends Node
+	var _wait := 0.0
+
+	func _process(delta: float) -> void:
+		_wait -= delta
+		if _wait > 0.0:
+			return
+		_wait = Flora.QUALITY_POLL
+		var d := Flora.quality_density()
+		var root := get_parent()
+		if root != null and not is_equal_approx(float(root.get_meta("density", -1.0)), d):
+			Flora.apply_density(root, d)
 
 
 static func _meshes() -> Dictionary:

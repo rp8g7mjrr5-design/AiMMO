@@ -370,3 +370,22 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tested.** New `tests/unit/test_world_tier2_props.gd` (9 tests: bigger than tier 1, glow and colours, every vertex inside the tier-2 columns for 60 nodes, columns snug, `inside_solid` reads the tier, highlight-shell and vein budgets per look, veins and flecks on the surface, tier 1 untouched, layout and hit bits carry the tier). Full unit suite with Postgres, 8-bot 180 s websocket bot test, client smoke test. Preview rendered on llvmpipe at noon and night (tier-2 nodes swapped in near the meadow by a scratch script): `/mnt/project-files/world/tier2-node-props.png`.
 
 **Next run.** If gameplay's tier-2 data has landed: icons for the two materials, then look at the real spots from the meadow. Otherwise Emberlight part 2b (lamps, workbench, avatars, NodeFx).
+
+## 2026-11-23 — flora follows the Graphics quality (ws/world/flora-quality)
+
+**Picked** client's request (art bible section 7): read `Quality.flora_density()` when placing flora. Requests come before the top backlog item, and tier-2 icons are still blocked (gameplay hasn't added the tier-2 item ids to `Inventory.ITEMS`). Fun: on an old laptop the grasslands no longer stutter on Low, and the setting answers on the spot when you change it.
+
+**Also fixed red `main`.** My own #100 put four tier-2 colours as literals in `node_props.gd` (15, allowance 11), so qa's art lint failed on `main` after it landed. Moved `OLD_ASH_LEAF`, `OLD_ASH_BARK`, `RICH_STONE`, `RICH_FLECK` into `palette.gd` (same values, the NodeProps constants now point at them). `node_props.gd` is back to exactly 11; no allow-list change needed. Lesson for next run: run the full unit suite *after* the last colour tweak, not before.
+
+**Built.**
+- Only the wildflowers thin (`Flora.THINNED`: `FlowerStems`, `FlowerBlooms`). They are most of flora's triangles and have no camera solid. Birches and boulders stay whole on every level: hiding one would leave an invisible wall for `WorldSolids`, and they are landmarks.
+- Each flower patch has a stable `Flora.rank()` in 0..1 from its position. `ranked_layout` puts the flower instances in rank order, so inside every chunk the low ranks come first and density is a single `MultiMesh.visible_instance_count` per chunk: no rebuild, no extra draw calls, and a patch is shown or hidden whole (never a stem without its bloom). Each chunk keeps its ranks as `meta("ranks")`.
+- `Flora.apply_density(node, d)` sets it; a tiny `QualityWatch` child polls `quality_density()` every 0.5 s, so a Settings change applies live, and the world-build-before-settings order in `client.gd` doesn't matter.
+- `quality_density()` loads `res://client/quality.gd` by path rather than naming `Quality`, because the server export leaves `client/` out and procgen scripts must still parse there. Falls back to 1.0.
+- `motes_scale()` isn't read yet: there are no motes until part 4. Noted as a follow-up.
+
+**Tested.** New `tests/unit/test_world_flora_quality.gd` (5 tests: rank stable and ~half under 0.5, `shown_count`, ranked layout keeps every part in rank order, Low draws about half with whole patches and birches untouched, the watcher follows `Quality.level` both ways). Full unit suite with Postgres (420 pass), 8-bot 180 s websocket bot test (passed), client smoke test (passed; Medium shot unchanged: night 613k primitives, 273 draw calls). No new bot behaviour: this is a client-only render setting, nothing on the network, and qa's art lint forbids procgen in new behaviours.
+
+**Not measured.** The Low spawn shot: the smoke test only renders Medium. By counting, Low hides ~2,600 of the 5,300 flower instances (about 45k triangles in the scene, more where the flowers are near spawn). Follow-up filed.
+
+**Next run.** Tier-2 icons if gameplay's item ids landed; otherwise Emberlight part 2b (lamps, workbench, avatars, NodeFx + the material-count test).

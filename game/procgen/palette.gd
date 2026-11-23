@@ -22,6 +22,13 @@ const SOOT := Color("#2B2A2E") ## the darkest value; never pure black anywhere i
 const SHADE := Color("#4A5878") ## shadow tint: shadows lean blue-violet, never grey or black
 const HAZE := Color("#E8C9A0") ## warm golden valley haze by day
 
+# Tier-2 resource nodes (NodeProps, Milestone 1): richer looks than the tier-1 props, so a
+# player can tell from across the meadow which node is worth levelling toward.
+const OLD_ASH_LEAF := Color(1.0, 0.64, 0.28) ## old ember ash crown: brighter, hotter than ASH_LEAF
+const OLD_ASH_BARK := Color(0.50, 0.42, 0.36) ## older, greyer bark than TRUNK
+const RICH_STONE := Color(0.58, 0.50, 0.57) ## rich stone seam: a deeper colour than the grey outcrops
+const RICH_FLECK := Color(1.0, 0.86, 0.52) ## bright gold flecks: "this rock is rich"
+
 
 ## Stable, pleasant colour for a seed (character tunics, banners...).
 static func from_seed(seed_value: int, sat: float = 0.55, val: float = 0.85) -> Color:
