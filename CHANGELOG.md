@@ -5,6 +5,16 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- **Update required:** this server speaks a new version. Your game updates itself the next time you open it (or when the server turns it away), so just relaunch.
+- Gathering is now a real action under the hood: the server times every chop and strike, other settlers nearby can see you working, and a tree or rock you empty shows up empty for everyone (your new client brings the bar, the motion and the "+1" pop-ups as it catches up).
+- Crafting, your pack and emptied nodes now travel as their own messages instead of chat lines, so they're instant and never collide with what you type.
+- Keep pressing E to keep gathering: there's no pause between one gather and the next any more, the bar itself sets the pace.
+- **Press F1 for controls.** Every key in the game on one card, drawn as keycaps: move, look, free look, shoulder swap, zoom, gather, the workbench, chat. There's a "?" button in the top-right corner too, so you never have to type /help again.
+- The camera no longer swings inside trees, rocks, birches, boulders, the meadow lanterns or the workbench: it slides in front of them, like it already did for gatherable nodes.
+- The workbench glows warm while "[E] Use Workbench" is showing, so you can see it's ready before you press.
+- Fixed a rare mix-up where the workbench window still showed parts you had already used up in a craft.
+- Fewer surprise kicks: the server now restarts once per update instead of twice, and not at all when only the notes change.
+- Every update now boots the exact server package that goes live and has two test players log in, play, log out and back in before it ships, so an update can't leave the world offline.
 - The game now updates itself! Open it and it grabs the newest version of Ashgrove before you log in, with a little ember progress bar. Download the client one last time and you never have to again.
 - Got turned away for an old version? The game now restarts and updates on its own instead of sending you to the Releases page.
 - The world now knows the true shape of every forest tree, rock, birch, mossy boulder, meadow lantern and the workbench, so the camera can slide in smoothly in front of them instead of ending up inside a trunk or a boulder. It switches on as soon as the camera picks it up.

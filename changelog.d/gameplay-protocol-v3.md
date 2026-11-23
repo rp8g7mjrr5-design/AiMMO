@@ -1,4 +1,0 @@
-- **Update required:** this server speaks a new version. Grab the latest client from the Releases page; an older one tells you to update instead of logging in.
-- Gathering is now a real action under the hood: the server times every chop and strike, other settlers nearby can see you working, and a tree or rock you empty shows up empty for everyone (your new client brings the bar, the motion and the "+1" pop-ups as it catches up).
-- Crafting, your pack and emptied nodes now travel as their own messages instead of chat lines, so they're instant and never collide with what you type.
-- Keep pressing E to keep gathering: there's no pause between one gather and the next any more, the bar itself sets the pace.

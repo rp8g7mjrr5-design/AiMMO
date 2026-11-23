@@ -1,3 +1,0 @@
-- The camera no longer swings inside trees, rocks, birches, boulders, the meadow lanterns or the workbench: it slides in front of them, like it already did for gatherable nodes.
-- The workbench glows warm while "[E] Use Workbench" is showing, so you can see it's ready before you press.
-- Fixed a rare mix-up where the workbench window still showed parts you had already used up in a craft.
