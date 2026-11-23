@@ -22,6 +22,7 @@ const DEFAULT_BINDS := {
 	"free_look": [KEY_ALT],
 	"swap_shoulder": [KEY_V],
 	"toggle_controls": [KEY_F1],
+	"toggle_perf": [KEY_F3],
 }
 
 ## What the overlay lists, in order: [section title, [[what it does, keys], ...]].
@@ -43,6 +44,7 @@ const SECTIONS := [
 		["Chat", ["=Enter"]],
 		["Settings, or close a window", ["=Esc"]],
 		["This list", ["toggle_controls"]],
+		["Frame rate and draw stats", ["toggle_perf"]],
 	]],
 ]
 
