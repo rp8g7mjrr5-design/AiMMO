@@ -80,6 +80,7 @@ static func spawn_bits(node: Dictionary, hit_no: int = 0) -> Array:
 	var s: float = node.scale
 	var base: Vector3 = node.pos
 	var out: Array = []
+	var old := NodeProps.tier_of(node) >= 2 # tier 2 is bigger: bits start further out
 	for i in BITS.get(node.kind, 0):
 		var a := rng.randf() * TAU
 		var dir := Vector3(cos(a), 0.0, sin(a))
@@ -91,25 +92,31 @@ static func spawn_bits(node: Dictionary, hit_no: int = 0) -> Array:
 				var ash: bool = node.kind == "ash"
 				var r := rng.randf_range(1.6, 2.1) if ash else rng.randf_range(1.2, 1.7)
 				var y := rng.randf_range(2.1, 3.0) if ash else rng.randf_range(1.5, 2.8)
+				if old and ash: # under the old ash's bigger crown
+					r = r * 1.45
+					y = y + 0.6
 				b.p0 = base + dir * r * s + Vector3.UP * y * s
 				b.v = dir * rng.randf_range(0.2, 0.6)
 				b.life = rng.randf_range(1.8, 2.6)
 				b.fall = "drift"
 				if node.kind == "ash":
 					b.size = Vector3(0.28, 0.04, 0.2)
-					b.color = NodeProps.ASH_NODE_LEAF.lightened(rng.randf() * 0.15)
+					b.color = (NodeProps.OLD_ASH_LEAF if old else NodeProps.ASH_NODE_LEAF).lightened(rng.randf() * 0.15)
 					b.glow = 0.25 # ash leaves are warm
 				else:
 					b.size = Vector3(0.2, 0.06, 0.2)
 					b.color = NodeProps.PINE_NODE.lightened(0.15 + rng.randf() * 0.1)
 			"stone":
-				b.p0 = base + dir * 0.9 * s + Vector3.UP * rng.randf_range(0.5, 1.1) * s
+				b.p0 = base + dir * (1.35 if old else 0.9) * s + Vector3.UP * rng.randf_range(0.5, 1.1) * (1.3 if old else 1.0) * s
 				b.v = dir * rng.randf_range(1.2, 2.6) + Vector3.UP * rng.randf_range(2.2, 3.6)
 				b.life = rng.randf_range(0.7, 1.0)
 				b.fall = "arc"
 				var c := rng.randf_range(0.08, 0.14)
 				b.size = Vector3(c, c * 0.8, c)
 				b.color = NodeProps.STONE_VEIN if i == 0 else CHIP.darkened(rng.randf() * 0.2)
+				if old: # gold flecks fly off a rich seam
+					b.color = NodeProps.RICH_FLECK if i < 2 else NodeProps.RICH_STONE.lightened(rng.randf() * 0.1)
+					b.glow = 0.4 if i < 2 else 0.0
 			"ember_sap":
 				b.p0 = base + dir * rng.randf_range(0.0, 0.3) * s + Vector3.UP * 0.35 * s
 				b.v = dir * rng.randf_range(0.3, 1.0) + Vector3.UP * rng.randf_range(2.0, 3.4)
@@ -221,7 +228,7 @@ func play_hit(id: int) -> bool:
 		return false
 	var slot: Dictionary = slots[id]
 	_shakes[id] = 0.0
-	var n := {"id": id, "kind": slot.kind, "pos": slot.pos, "scale": slot.scale}
+	var n := {"id": id, "kind": slot.kind, "pos": slot.pos, "scale": slot.scale, "tier": slot.get("tier", 1)}
 	var hit_no: int = _hits.get(id, 0)
 	_hits[id] = hit_no + 1
 	if _is_depleted(id) and slot.kind != "stone":
