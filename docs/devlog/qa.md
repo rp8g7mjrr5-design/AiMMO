@@ -971,3 +971,38 @@ reward median 7.3 s, wait worst 0.16 s, rewards/min 10.36).
 
 **Next run:** check this PR landed once #125 turns `main` green; read the first `main`
 run's `style.log` and compare with the local baseline. Then the tier-2 level gate item.
+
+## 2026-11-23 — tier-2 level gate in the bot test (Milestone 1)
+
+**Built:** behaviour `qa_level_gate.gd` (inert unless a bot gets `--level-gate`), pure helpers
+in `tests/bot_test/level_gate.gd`, and `tests/bot_test/seed_veteran.gd`. On long runs,
+`run_bot_test.py` seeds a veteran *before the server starts* (the JSON store keeps its file in
+memory, so seeding into a running server would be lost) at exactly the first XP of the level the
+tier-2 node nearest spawn needs (node 403, old ember ash, Felling 5 = 1680 XP), 10 m short of it.
+Next to the pair check it starts two bots: a fresh one walks ~46 m to the node and presses E;
+it must get `s2c_gather_end(me, 403, "level")` and exactly `Gathering.level_text` ("Needs
+Felling 5. You're Felling 1."), no bar, no XP, same pack. It stands there 10 s. The veteran walks
+up, waits until it has seen the fresh player stand in reach for 2 s (so the refusal happened
+first), then gathers until the node empties: it must be paid on exactly `node_charges` (4)
+gathers, which is how "the refusal took no charge" is proven. Both reconnect: the fresh player
+is refused again, the veteran's Felling XP is at least what it last heard and the node still
+shows empty; the veteran's `skills_floor` goes to `verify_store.gd`, so the save is checked too.
+`--no-level-gate` skips it.
+
+**Same PR (requests):** `art_lint_allow.json` sky_clock 24 -> 21 (world; the lint printed the
+note). `test_qa_save_compat.gd`'s full-stack check feeds `Inventory.MAX_STACK` itself (gameplay
+wants 999). Gameplay's unstuck request was already done on `main` (`qa_fun_metrics.gd` line 39);
+told gameplay in its backlog it can drop `_tell_fun_metrics`.
+
+**Didn't work first time:** naming the state setter `_set` collides with `Object._set` (parse
+error), renamed `_to`. The seed log's first line is Godot's banner, so the runner now prints the
+`seed: ` line.
+
+**Tests:** 543 unit tests pass (Postgres); bot test 8 x 180 s WebSocket + Postgres + `--fun-check`
+passed in 278 s (gate: fresh 2 refusals / 2 lines; veteran 4 done, emptied, 8 heartwood, +95 XP,
+reconnect ok). Python harness tests pass. No client files touched, so no client smoke run.
+
+**Next run:** the gate phase adds no wall time (it runs alongside the pair bots and the respawn
+probe). If CI ever shows "the fresh player never stood at node", the walk to the ring is blocked
+by something; raise `WALK_TIMEOUT` or pick the next gate node. Follow-ups in the backlog: a
+level-4 edge veteran, and the same pair for Toolcraft 5 recipes.

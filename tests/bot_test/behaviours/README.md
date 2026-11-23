@@ -30,3 +30,10 @@ boots a second server with `--dev-commands=0` (how the public server runs) and t
 type /gather, /bag and /who: chat is for talking, so each line must get the hint and change
 nothing. The main bot-test server runs with `--dev-commands`, so other behaviours may type
 commands.
+
+`qa_level_gate.gd` only acts on bots started with `--level-gate=fresh|veteran` (Milestone 1,
+"tier-2 nodes refuse a too-low level"). Before a long run's server starts, `../seed_veteran.gd`
+saves a character at exactly the level the tier-2 node nearest spawn needs; next to the pair
+check, a fresh bot walks there and must be refused ("level" and the "Needs <Skill> 5" line,
+nothing paid), then the veteran works the node empty with every charge paid, and both
+reconnect (still refused; level and XP kept, also in the save). See `../level_gate.gd`.
