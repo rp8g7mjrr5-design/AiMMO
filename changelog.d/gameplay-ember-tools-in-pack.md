@@ -1,1 +1,0 @@
-- Your ember axe and ember pickaxe now sit right next to your stone tools in the pack, with their own icons, instead of trailing behind the campfires.

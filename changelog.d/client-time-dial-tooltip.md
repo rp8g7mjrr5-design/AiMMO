@@ -1,2 +1,0 @@
-- Hover the sun/moon dial above the chat (open chat or any window to free the cursor) to see the exact time and how long until dusk, night or dawn. No more typing /time.
-- In the last minute and a half before the light changes, the dial warns you: "· Night soon". Time to head back to the bench lantern, or to stay out and watch the ember glow come up.
