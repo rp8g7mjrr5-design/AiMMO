@@ -199,6 +199,26 @@ static func is_echo(text: String) -> bool:
 	return text.begins_with("You start gathering") or text.begins_with("You gather ") or text.begins_with("You stop gathering")
 
 
+## Reads the server's full-stack line ("Your pack can't hold any more ash wood. You leave it,
+## but the work still counts.", see Gathering.full_text) into {item, label}, or {} for any other.
+static func parse_full(text: String) -> Dictionary:
+	var m := RegEx.create_from_string("^Your pack can't hold any more (.+?)\\. You leave it").search(text)
+	if m == null:
+		return {}
+	var label := m.get_string(1)
+	for id in Inventory.ITEM_ORDER:
+		if Inventory.label(id).to_lower() == label.to_lower():
+			return {"item": id, "label": label}
+	return {"item": "", "label": label}
+
+
+## The full-stack toast: "Pack full: Ash wood (99) · XP still counts". The XP floater shows
+## the gain itself; this says why no "+2" came with it.
+static func full_toast_text(item: String, in_pack: int) -> String:
+	var label := Inventory.label(item) if item != "" else "that"
+	return "Pack full: %s (%d) · XP still counts" % [label.left(1).to_upper() + label.substr(1), in_pack]
+
+
 ## Reads the server's success line ("You gather 2 ash wood from the ember ash (6 in your
 ## pack).", see Gathering.success) into {qty, item, label, in_pack}, or {} for any other line.
 ## The workbench's pack mirror uses it; toasts come from s2c_gather_result.
@@ -349,8 +369,14 @@ func on_result(item_id: String, count: int) -> void:
 	show_toast(toast_text({"qty": count, "label": Inventory.label(item_id), "in_pack": in_pack}), item_id)
 
 
-## A system line: true if it is an echo of your timed gather (keep it out of chat).
+## A system line: true if it is an echo of your timed gather (keep it out of chat). A gather
+## that finished on a full stack (no s2c_gather_result, the XP still lands) gets its own
+## quiet toast here instead of a centre-screen refusal: the work counted, nothing went wrong.
 func on_system(text: String) -> bool:
+	var full := parse_full(text)
+	if not full.is_empty():
+		show_toast(full_toast_text(str(full.item), int(pack.get(full.item, Inventory.MAX_STACK))), str(full.item), NOTICE)
+		return true
 	return is_echo(text)
 
 
