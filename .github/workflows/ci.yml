@@ -89,6 +89,10 @@ jobs:
         if: steps.changes.outputs.code == 'true'
         run: python3 -m unittest discover -s tests/bot_test -p 'test_*.py'
 
+      - name: Render-budget maths tests
+        if: steps.changes.outputs.code == 'true'
+        run: python3 -m unittest discover -s tests/client_smoke -p 'test_*.py'
+
       - name: Bot test (8 bots, 3 minutes, WebSocket, Postgres, fun metrics checked)
         if: steps.changes.outputs.code == 'true'
         run: python3 tests/bot_test/run_bot_test.py --bots 8 --duration 180 --transport websocket --fun-check
@@ -101,7 +105,7 @@ jobs:
         if: steps.changes.outputs.code == 'true'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri >/dev/null
 
-      - name: Client smoke test
+      - name: Client smoke test (screenshots, action camera, render budget)
         if: steps.changes.outputs.code == 'true'
         timeout-minutes: 8
         run: tests/client_smoke/run.sh build/client-smoke
