@@ -5,7 +5,8 @@ class_name ItemIcons
 ## chunk with a quartz seam for stone, a glowing drop for ember sap, the two stone tools, a
 ## lit torch and a campfire, and the two tier-2 materials: ember heartwood (an old grey log
 ## whose cut end glows like a coal) and veinstone (a deep mauve chunk split by glowing
-## veins with gold flecks), drawn like the old ember ash and the rich seam. They match what the world draws (the outcrop's pale seam, the
+## veins with gold flecks), drawn like the old ember ash and the rich seam, and the two
+## ember tools (the stone tools' shapes with coal-dark heads and an ember-hot edge). They match what the world draws (the outcrop's pale seam, the
 ## seep's ember glow, the ash's warm leaves), so a "+2 ash wood" toast looks like the tree
 ## you just hit.
 ##
@@ -46,6 +47,7 @@ const FLAME := Color(1.0, 0.50, 0.12)
 const FLAME_CORE := Color(1.0, 0.88, 0.45)
 const CLOTH := Color(0.70, 0.60, 0.44)
 const WARM_GLOW := Color(1.0, 0.55, 0.15)
+static var COAL := Palette.SOOT.lightened(0.12) ## ember tool heads: coal-dark, but lighter than the outline so the shape reads
 
 static var _cache := {}
 
@@ -109,6 +111,8 @@ static func tint(item: String) -> Color:
 			return Palette.RICH_FLECK
 		"stone_axe", "stone_pickaxe":
 			return STONE.lightened(0.2)
+		"ember_axe", "ember_pickaxe":
+			return Palette.EMBER
 	return CLOTH
 
 
@@ -382,6 +386,38 @@ static func _recipe(item: String) -> Array:
 				_capsule(Vector2(0.26, 0.86), Vector2(0.60, 0.26), 0.045, HANDLE),
 				_poly([Vector2(0.22, 0.30), Vector2(0.44, 0.17), Vector2(0.62, 0.16), Vector2(0.64, 0.26), Vector2(0.44, 0.27)], STONE, {"shade": 0.28}),
 				_poly([Vector2(0.58, 0.16), Vector2(0.76, 0.22), Vector2(0.90, 0.40), Vector2(0.76, 0.34), Vector2(0.60, 0.28)], STONE, {"shade": 0.28}),
+				_box(Vector2(0.59, 0.24), Vector2(0.055, 0.05), 0.5, LASHING, {"outline": false, "round": 0.01}),
+			]
+		"ember_axe":
+			# The stone axe's shape, but the head is a dark coal-veined wedge, broader and
+			# bearded, whose cutting edge glows ember orange: the tool you earned at Toolcraft 5.
+			return [
+				_capsule(Vector2(0.24, 0.84), Vector2(0.64, 0.24), 0.045, HANDLE.darkened(0.1)),
+				_poly([Vector2(0.48, 0.22), Vector2(0.68, 0.10), Vector2(0.86, 0.16), Vector2(0.90, 0.40), Vector2(0.84, 0.58), Vector2(0.72, 0.46), Vector2(0.56, 0.40)], COAL, {"shade": 0.3}),
+				# Coal veins across the head.
+				_capsule(Vector2(0.60, 0.22), Vector2(0.74, 0.30), 0.011, Palette.SMOULDER, {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.66, 0.38), Vector2(0.78, 0.33), 0.010, Palette.SMOULDER, {"outline": false, "shade": 0.0}),
+				# The glowing edge: a smoulder rim, an ember band and a hot core line.
+				_poly([Vector2(0.84, 0.14), Vector2(0.90, 0.17), Vector2(0.94, 0.40), Vector2(0.88, 0.60), Vector2(0.84, 0.56), Vector2(0.87, 0.40)], Palette.SMOULDER, {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.88, 0.20), Vector2(0.90, 0.40), 0.022, Palette.EMBER, {"outline": false, "shade": 0.0, "glow": 0.18}),
+				_capsule(Vector2(0.90, 0.40), Vector2(0.86, 0.54), 0.020, Palette.EMBER, {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.89, 0.22), Vector2(0.89, 0.46), 0.008, Palette.EMBER_CORE, {"outline": false, "shade": 0.0}),
+				_box(Vector2(0.60, 0.30), Vector2(0.06, 0.025), 0.98, LASHING, {"outline": false}),
+				_box(Vector2(0.56, 0.36), Vector2(0.06, 0.025), 0.98, LASHING, {"outline": false}),
+			]
+		"ember_pickaxe":
+			# The stone pick's two prongs in dark coal, each tip burning ember hot.
+			return [
+				_capsule(Vector2(0.26, 0.86), Vector2(0.60, 0.26), 0.045, HANDLE.darkened(0.1)),
+				_poly([Vector2(0.14, 0.34), Vector2(0.40, 0.16), Vector2(0.62, 0.14), Vector2(0.64, 0.27), Vector2(0.42, 0.28)], COAL, {"shade": 0.3}),
+				_poly([Vector2(0.56, 0.14), Vector2(0.78, 0.20), Vector2(0.92, 0.46), Vector2(0.76, 0.35), Vector2(0.58, 0.28)], COAL, {"shade": 0.3}),
+				_capsule(Vector2(0.30, 0.25), Vector2(0.48, 0.21), 0.010, Palette.SMOULDER, {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.68, 0.22), Vector2(0.80, 0.32), 0.010, Palette.SMOULDER, {"outline": false, "shade": 0.0}),
+				# Hot tips.
+				_poly([Vector2(0.15, 0.335), Vector2(0.30, 0.23), Vector2(0.33, 0.30)], Palette.EMBER, {"outline": false, "shade": 0.0, "glow": 0.2}),
+				_poly([Vector2(0.91, 0.455), Vector2(0.78, 0.25), Vector2(0.74, 0.34)], Palette.EMBER, {"outline": false, "shade": 0.0, "glow": 0.2}),
+				_capsule(Vector2(0.19, 0.31), Vector2(0.27, 0.27), 0.014, Palette.EMBER_CORE, {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.86, 0.39), Vector2(0.80, 0.31), 0.014, Palette.EMBER_CORE, {"outline": false, "shade": 0.0}),
 				_box(Vector2(0.59, 0.24), Vector2(0.055, 0.05), 0.5, LASHING, {"outline": false, "round": 0.01}),
 			]
 		"torch":

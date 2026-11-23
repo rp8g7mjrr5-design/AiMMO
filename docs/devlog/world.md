@@ -406,3 +406,17 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tested.** Unit suite with Postgres (428 pass), 8-bot 180 s websocket bot test (passed, 8 of 8 levelled), client smoke test (passed). Icon sheet checked by eye at 128 px next to ash wood, stone and sap. The night spawn shot is now 624k primitives (613k last run): the tier-2 ring is on `main` now. Chunked `NodeProps` is still the fix; follow-up filed.
 
 **Next run.** Emberlight part 2b (lamps, workbench, avatars, NodeFx, the material-count test), unless a PR of mine needs fixing.
+
+## 2026-11-23, run: ember tool icons (ws/world/ember-tool-icons)
+
+**Picked.** Requests from other streams come first: gameplay asked for icons for `ember_axe` and `ember_pickaxe` (Toolcraft 5). Until now they showed the cloth fallback bundle, which made the biggest crafting reward so far look like junk. Fun: the moment you craft your first ember tool, the pack and the craft toast show a coal-black head with a glowing edge next to your old stone one, so the upgrade reads at a glance.
+
+**Built.** Two recipes in `ItemIcons`, using the stone tools' silhouettes (same hand, same handle angle) so they read as the same tool, upgraded: an `ember_axe` with a broader, bearded coal head, smoulder veins and an ember-hot cutting edge with a small halo, and an `ember_pickaxe` with coal prongs whose tips burn. Both tint toasts `Palette.EMBER`. Every colour comes from `palette.gd` (`SOOT` lightened for the head, `SMOULDER`, `EMBER`, `EMBER_CORE`), so the art lint's allowance for `item_icons.gd` doesn't move. `COAL` is a `static var` because `lightened()` isn't allowed in a const (and `SOOT * 1.6` would also have scaled alpha).
+
+**Didn't work.** First pass: the axe edge's halo (radius 0.26) reached the right border (alpha 0.21, test fails over 0.15); 0.18 keeps it in. The pick's hot tips were too small to count as glowing at 48 px (9 warm pixels); bigger tip triangles and a core line fixed it.
+
+**Tests.** `test_world_item_icons::_all_items` now also covers any `Inventory.UNDRAWN` item that `ItemIcons` has drawn, so the margin and distinctness checks run on the ember tools today, before gameplay moves them into `ITEMS`. New test: each ember tool has its own icon, a halo, more warm pixels than its stone twin and its own tint, and every `UNDRAWN` item is drawn. No new bot behaviour: per art bible section 7 and qa's art lint, art checks live in unit tests and new behaviours must stay art-free. Preview sheet: `/mnt/project-files/world/ember-tool-icons.png` (project files).
+
+**Main was red when I started.** `test_client_skills_window::test_goal_skips_unlocks_not_in_the_world_yet` fails on `main` (bb48678): it expects Toolcraft 5 to stay a "coming soon" unlock, but the ember tools are real now, so the goal picks it. That is client's test (and qa may fix red main), not a world path, so I left it alone; this PR's auto-merge waits until it is fixed. Every other unit test passed.
+
+**Next run.** Emberlight part 2b (lamps, workbench, avatars, NodeFx, the material-count test), unless a PR of mine needs fixing.
