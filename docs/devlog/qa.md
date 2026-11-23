@@ -342,7 +342,7 @@ Control's visibility and rect instead. No bot behaviour: nothing players do chan
 bot test already runs the camera maths on real positions (`client_action_camera`).
 
 **Tests:** 205 unit tests pass with Postgres and without; client smoke passes (all five
-shots); bot test 8 bots x 180s WebSocket + Postgres: see PR.
+shots); bot test 8 bots x 180s WebSocket + Postgres passed in 185s.
 
 **Next run:** v3 gathering in CI if `c2s_gather_start` is on main, otherwise build the Docker
 image in CI (watchdog follow-up).
