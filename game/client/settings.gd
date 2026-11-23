@@ -11,7 +11,7 @@ const SENS_MIN := 0.25
 const SENS_MAX := 3.0
 const DRAW_MIN := 150.0
 const DRAW_MAX := 600.0
-const SHADOW_NAMES := ["Off", "Low", "High"]
+const SHADOW_NAMES := ["Off", "60 m", "120 m"] ## by reach, so they never read like the Graphics levels
 const FOV_MIN := 55.0
 const FOV_MAX := 100.0
 
@@ -22,6 +22,7 @@ var shadow_quality := 1 ## 0 off, 1 low (60 m, the art bible's Medium default), 
 var draw_distance := 600.0 ## metres, camera far plane
 var field_of_view := 70.0 ## degrees, vertical
 var shoulder_right := true ## the action camera sits over the right shoulder (false: left)
+var graphics_quality := Quality.MEDIUM ## Low, Medium, High (Quality); picking one sets shadows and draw distance
 
 
 static func from_config(cfg: ConfigFile) -> ClientSettings:
@@ -35,6 +36,9 @@ static func from_config(cfg: ConfigFile) -> ClientSettings:
 	s.field_of_view = _num(cfg.get_value(SECTION, "field_of_view", s.field_of_view), s.field_of_view)
 	var sh: Variant = cfg.get_value(SECTION, "shoulder_right", s.shoulder_right)
 	s.shoulder_right = sh if typeof(sh) == TYPE_BOOL else true
+	# Files saved before the Graphics setting existed have no key: they get Medium, and their
+	# own shadow and draw distance values stay as saved (nothing is re-applied on load).
+	s.graphics_quality = int(_num(cfg.get_value(SECTION, "graphics_quality", s.graphics_quality), s.graphics_quality))
 	s.sanitize()
 	return s
 
@@ -55,6 +59,7 @@ func to_config() -> ConfigFile:
 	cfg.set_value(SECTION, "draw_distance", draw_distance)
 	cfg.set_value(SECTION, "field_of_view", field_of_view)
 	cfg.set_value(SECTION, "shoulder_right", shoulder_right)
+	cfg.set_value(SECTION, "graphics_quality", graphics_quality)
 	return cfg
 
 
@@ -68,6 +73,16 @@ func sanitize() -> void:
 	shadow_quality = clampi(shadow_quality, 0, SHADOW_NAMES.size() - 1)
 	draw_distance = clampf(draw_distance, DRAW_MIN, DRAW_MAX)
 	field_of_view = clampf(field_of_view, FOV_MIN, FOV_MAX)
+	graphics_quality = Quality.clamp_level(graphics_quality)
+
+
+## Picks a Graphics level: its shadow distance and view distance replace the current ones.
+func apply_quality(level: int) -> void:
+	graphics_quality = Quality.clamp_level(level)
+	var p := Quality.preset(graphics_quality)
+	shadow_quality = int(p.shadow_quality)
+	draw_distance = float(p.draw_distance)
+	sanitize()
 
 
 ## Vertical look multiplier: mouse up looks up unless invert Y is on.

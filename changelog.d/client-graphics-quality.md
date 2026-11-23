@@ -1,0 +1,2 @@
+- New **Graphics** setting in Settings: Low, Medium or High. Low trims shadows and view distance so older laptops stay smooth; High stretches sun shadows out to 120 m.
+- Press **F3** for a small frame-rate panel (fps, frame time, draw calls, triangles) in the corner. Press it again to hide it.

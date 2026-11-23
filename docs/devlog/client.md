@@ -684,3 +684,46 @@ is qa's file and needs no change (nothing dropped).
 **Notes to next run:** XP floaters (`s2c_xp`) as soon as protocol v4 (PR #89) is on main.
 If it isn't, the Graphics quality setting (Low/Medium/High plus F3 overlay) is the next
 no-dependency item; it can reuse the shadow default changed here.
+
+## 2026-11-23 (afternoon): Graphics quality and the F3 overlay (ws/client/graphics-quality)
+
+**Why this item:** the XP items still need gameplay's protocol v4 (PR #89, open), and the
+procedure says never build on an unmerged PR. My last note said the Graphics quality setting
+was the next no-dependency item, and it is a director item for owner direction 7.
+
+**Fun, in one sentence:** a player on an older laptop picks Low and gets smooth movement
+instead of a stuttering camera, and the owner can press F3 to see exactly what a scene costs.
+
+**Built:**
+- `Quality` (`game/client/quality.gd`): one static `level` (Low, Medium default, High) and a
+  preset table: shadow distance (60/60/120 m via the existing `shadow_quality` index), view
+  distance (400/600/600 m; 600 m is where the 0.006 haze is about 97% solid, so it is "the end
+  of the haze"), sun shadow map (2048 on Low), soft-shadow filter (hard/low/medium), and
+  `flora_density()` / `motes_scale()` for world to read.
+- Settings: a Graphics row; picking a level writes its shadows and distance into the two rows
+  below, which still fine-tune. Saved as `graphics_quality`; files without it read as Medium
+  and keep their own values (loading never re-applies a preset). Shadow labels renamed from
+  Off/Low/High to Off/60 m/120 m, because "Graphics: Medium, Shadows: Low" read as a contradiction
+  (indices unchanged, so saved files are fine).
+- `PerfOverlay` (`game/client/perf_overlay.gd`) on F3, bottom-right (the only free corner, also
+  on the login screen): fps and average frame ms over each quarter second, draw calls,
+  triangles, and the level. Works anywhere, never takes the cursor. In the F1 list. Test hook
+  `--show-perf`.
+
+**Render defaults:** checked the art bible's list. Nothing in the project enables SDFGI,
+VoxelGI, SSR, SSIL or SSAO, there is one sun, and the far plane already ends at the haze, so
+`project.godot` needed no change. I found no `glow_enabled` anywhere; the "one glow pass" may
+not be on at all. That's world's environment; noted here, not touched.
+
+**Tests:** unit `tests/unit/test_client_quality.gd` (presets, apply, saved and old files,
+garbage, overlay text and refresh, F3 listed). Bot `client_graphics_quality.gd`: every bot
+cycles levels with save/reload to its own file and runs the real overlay on its frames
+(about 19 picks and 690 redraws per bot). Unit 365 passed, bot test passed (8 bots, 180 s),
+client smoke passed (render numbers unchanged: Medium is today's defaults).
+
+**Not done:** flora density and motes don't change yet (world's code; requested in its
+backlog). A level change mid-game moves shadows and distance at once, flora only after world
+wires it. No Low smoke screenshot yet (follow-up).
+
+**Notes to next run:** XP floaters (`s2c_xp`) the moment PR #89 is on main. If not, the
+time-dial tooltip (replaces `/time`) or the Players panel are small no-dependency items.
