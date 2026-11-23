@@ -154,6 +154,7 @@ static func apply_glow(world: Node, glow: float) -> void:
 	_set_emission(world.get_node_or_null("AshCrowns"), v.ash)
 	_set_emission(world.get_node_or_null("ResourceNodes/NodeAshCrowns"), v.node_ash)
 	_set_emission(world.get_node_or_null("ResourceNodes/" + NodeProps.GLOW_LAYER), v.sap)
+	Workbench.apply_glow(world.get_node_or_null("Workbench"), glow)
 
 
 static func _set_emission(n: Node, energy: float) -> void:
