@@ -1,0 +1,2 @@
+- Every press of E and every Craft press is now timed in our automated playtests: if the game ever takes more than a blink to answer one, the build doesn't ship.
+- The first reward for a brand-new player is now held to 90 seconds at worst (it's about 8 today), so a slow start can't sneak back in.

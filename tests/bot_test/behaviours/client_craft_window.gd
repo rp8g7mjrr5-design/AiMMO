@@ -49,7 +49,7 @@ func setup(net: Node) -> void:
 	_w.setup(Theme.new())
 	_w.craft_requested.connect(func(id: String):
 		if bot.multiplayer.multiplayer_peer != null:
-			bot.net.play.c2s_craft.rpc_id(1, id))
+			bot.send_play("c2s_craft", [id]))
 	net.inventory_changed.connect(_on_inventory)
 	net.craft_result.connect(_on_craft_result)
 	net.xp_gained.connect(func(skill: String, _g: int, _t: int):
