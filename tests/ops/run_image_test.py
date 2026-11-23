@@ -177,7 +177,11 @@ def scenario_contents(image: str, work: Path) -> list:
 
 def scenario_boots_plays_stops(image: str, work: Path) -> list:
     """One container for boots, plays and stops: booting it costs ~10-20 s each time."""
-    c = Container(image, work, "plays")
+    # The bots type /time, /who and /skills, which are dev commands: off by default since
+    # gameplay's chat gate (#139), so this one container switches them on the way an operator
+    # would, with the env var (the image's CMD takes no flags). The frozen container keeps the
+    # image's default.
+    c = Container(image, work, "plays", extra_env={"AIMMO_DEV_COMMANDS": "1"})
     problems = []
     try:
         c.server_pid()
@@ -190,6 +194,8 @@ def scenario_boots_plays_stops(image: str, work: Path) -> list:
         want = "postgres" if os.environ.get("DATABASE_URL") else "json"
         if f"[server] storage ready: {want}" not in c.log():
             problems.append(f"boots: the server did not report {want} storage ready")
+        if "[server] dev commands: on (AIMMO_DEV_COMMANDS)" not in c.log():
+            problems.append("boots: AIMMO_DEV_COMMANDS=1 did not switch the server's dev commands on")
 
         # plays: real bots from the bot test, run on the host against the container. Two, because
         # several behaviours (compass, avatars) need to see another player.
@@ -247,6 +253,9 @@ def scenario_frozen(image: str, work: Path) -> list:
         pid = c.server_pid()
         if not c.wait_for("[watchdog] server answering", 120):
             return ["frozen: the container never answered; last log lines:\n" + c.tail()]
+        for line in c.log().splitlines():
+            if line.startswith("[server] dev commands:"):
+                print(f"  frozen: image default {line[len('[server] '):]}")
         r = docker("exec", c.name, "bash", "-c", f"kill -STOP {pid}")
         if r.returncode != 0:
             return [f"frozen: could not freeze the server: {r.stderr.strip()}"]

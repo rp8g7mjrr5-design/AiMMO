@@ -29,9 +29,14 @@ func test_texts() -> void:
 	check_eq(PackWindow.total_text({"stone": 3, "ash_wood": 4}), "7 items")
 	check(PackWindow.empty_text().ends_with("press E."), PackWindow.empty_text())
 	check(not PackWindow.empty_text().contains("/"), "no chat command in the empty text")
-	check_eq(PackWindow.used_in("stone"), ["stone axe", "stone pickaxe", "campfire"])
-	check_eq(PackWindow.tooltip_text("ash_wood", 12), "Ash Wood\n12 of 99\nUsed in: stone axe, campfire")
-	check(PackWindow.tooltip_text("stone", 99).contains("(full)"), "full stack says so")
+	# Built from the recipe table and the stack cap, so new recipes (the ember lantern) and a
+	# bigger stack (999) land without touching this test.
+	check_eq(PackWindow.used_in("stone"), _recipes_using("stone"))
+	check(PackWindow.used_in("stone").has("stone axe"), "stone makes the stone axe")
+	var ash_uses := ", ".join(PackedStringArray(_recipes_using("ash_wood")))
+	check_eq(PackWindow.tooltip_text("ash_wood", 12), "Ash Wood\n12 of %d\nUsed in: %s" % [Inventory.MAX_STACK, ash_uses])
+	check(PackWindow.tooltip_text("stone", Inventory.MAX_STACK).contains("(full)"), "full stack says so")
+	check(not PackWindow.tooltip_text("stone", Inventory.MAX_STACK - 1).contains("(full)"), "one short is not full")
 	check(PackWindow.tooltip_text("torch", 3).count("\n") == 1, "a torch is used in nothing yet: two lines")
 	check(PackWindow.tooltip_text("stone_axe", 1).contains("Used in: ember axe"), "axe upgrades")
 	for item in Inventory.ITEM_ORDER:
@@ -89,3 +94,22 @@ func test_i_key_is_listed() -> void:
 	check_eq(ControlsOverlay.DEFAULT_BINDS.get("toggle_pack"), [KEY_I])
 	check(ControlsOverlay.listed_actions().has("toggle_pack"), "I is in the F1 list")
 	check(IconShelf.SIZES.has(PackWindow.ICON), "slot icons are drawn ahead")
+
+
+## The recipe labels that need `item`, in the workbench's order, read straight from the table.
+func _recipes_using(item: String) -> Array:
+	var out: Array = []
+	for id in Crafting.RECIPE_ORDER:
+		if (Crafting.RECIPES[id].needs as Dictionary).has(item):
+			out.append(str(Crafting.RECIPES[id].label))
+	return out
+
+
+func test_a_three_digit_stack_fits_its_slot() -> void:
+	# Gameplay is raising Inventory.MAX_STACK to 999: the count in a slot's corner must still
+	# fit inside the slot, with room to spare for the icon.
+	var font := ThemeDB.fallback_font
+	var w := font.get_string_size("999", HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	check(w + 10.0 < PackWindow.SLOT * 0.6, "\"999\" is %.0f px in a %.0f px slot" % [w, PackWindow.SLOT])
+	var big := font.get_string_size(str(maxi(Inventory.MAX_STACK, 999)), HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	check(big < PackWindow.SLOT - 8.0, "the full stack's count fits too")

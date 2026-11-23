@@ -75,9 +75,26 @@ static func next_text(all: Dictionary, skill: String) -> String:
 ## The named unlock you are closest to, across every skill, by XP still needed:
 ## {skill, level, name, need}. Unlocks marked `soon` are skipped (they aren't in the world
 ## yet, so they make a poor goal). Ties go to the skill listed first. Empty when none is left.
+## The goal follows what you do: only skills you have earned XP in compete. A brand-new
+## character (no XP anywhere) is pointed at the first skill in Skills.ORDER, where the game
+## starts (chop a tree), not at a cheap Toolcraft unlock it has no materials for yet. If every
+## skill you have trained is past its last unlock, the untrained ones compete after all.
 static func next_goal(all: Dictionary) -> Dictionary:
-	var best := {}
+	var trained: Array = []
 	for s in Skills.ORDER:
+		if Skills.xp_of(all, s) > 0:
+			trained.append(s)
+	if trained.is_empty():
+		trained = [Skills.ORDER[0]]
+	var best := _closest(all, trained)
+	if best.is_empty():
+		best = _closest(all, Skills.ORDER)
+	return best
+
+
+static func _closest(all: Dictionary, skills: Array) -> Dictionary:
+	var best := {}
+	for s in skills:
 		var xp := Skills.xp_of(all, s)
 		var lv := Skills.level_for(xp)
 		var u = Skills.next_unlock(s, lv)

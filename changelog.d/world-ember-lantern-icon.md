@@ -1,1 +1,0 @@
-- The ember lantern has its picture ready: a little stone-and-pine lantern with an ember burning behind the glass, just like the meadow lamps, waiting in your pack the moment you can craft one.

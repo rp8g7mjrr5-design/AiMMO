@@ -1,2 +1,0 @@
-- Chat is for talking now, all the way: "slow down", "chat is for talking", "this ash is spent, it comes back in about 3 minutes" and your welcome all pop up in the middle of the screen, right above your crosshair, and fade on their own. Only what players say (and who arrives or leaves) is left in chat.
-- A soft low "nope" plays with every refusal, so you hear a full pack or an empty node without taking your eyes off the tree.

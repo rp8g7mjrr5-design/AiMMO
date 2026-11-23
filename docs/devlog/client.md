@@ -1187,3 +1187,89 @@ not the exact shoulder offset (that path is unit tested in `test_client_action_c
 
 **Next run:** client-side prediction (unblocked since v3's `ack_seq`), or the art-check move
 out of the bot behaviours, or Return to Spawn Meadow once v5 is on `main`.
+
+## 2026-11-23: gameplay's three requests (ws/client/long-road-ready)
+
+**Why this and not prediction:** the worker procedure puts requests from other streams first,
+and three gameplay requests were waiting on client tests: raising `Inventory.MAX_STACK` to
+999 (the long road needs it), the Toolcraft 3 ember lantern recipe, and a toast for gathers
+that end on a full stack. All three were small and unblock gameplay's next runs.
+
+**Built:**
+- `test_client_pack_window` builds its texts from `Inventory.MAX_STACK` and `Crafting.RECIPES`
+  instead of pinning "99" and today's recipe list. A new test proves "999" fits a 68 px slot
+  at the count's 15 px font.
+- The goal line (`SkillsWindow.next_goal`) now only weighs skills you have XP in. A fresh
+  character is pointed at `Skills.ORDER[0]` (Felling 5). If every trained skill is past its
+  last built unlock, the untrained skills compete again. Gameplay suggested "skip skills
+  at 0 XP". I took that, plus the fresh-character fallback, because without it a fresh
+  player (0 XP everywhere) would get no goal or the cheap Toolcraft 3 they have no materials for.
+- The Bench sense row test follows the unlock's `soon` flag, so it holds before and after
+  the lantern lands.
+- `GatherPrompt.parse_full` / `full_toast_text`: the server's "Your pack can't hold any
+  more ash wood. You leave it, but the work still counts." becomes a bottom toast "Pack full:
+  Ash wood (99) · XP still counts" with the item icon, in the warm notice colour. Before
+  this it showed as a centre notice with the "nope" sound, which reads as a mistake although
+  the gather worked and paid XP.
+
+**Tests:** I simulated gameplay's planned changes locally (MAX_STACK 999, the lantern recipe,
+Bench sense not soon). All 171 client tests passed. Only gameplay's own tests failed,
+as expected, and those changes were reverted before committing. New unit tests:
+`test_full_stack_gather_gets_a_quiet_toast`, `test_a_three_digit_stack_fits_its_slot`,
+`test_goal_follows_the_skills_you_train`. The `client_skills_window` bot behaviour now fails
+if the goal is in a skill the bot never trained (stat `goals_in_trained_skills`). Unit tests:
+587 passed with Postgres. 8-bot 180 s WebSocket bot test: PASSED. Client smoke test: passed.
+
+**Didn't work first time:** my first simulation run used a sed pattern that didn't match
+`MAX_STACK := 99 ##`. I caught it from `git diff --stat` and reran.
+
+**Known gap:** no bot fills a stack (99 takes far longer than 3 minutes), so the full-pack
+toast is proven only by unit tests on the server's own `Gathering.full_text` lines.
+
+**Next run:** client-side prediction, or moving the art checks out of the bot behaviours.
+
+## 2026-11-23: client-side prediction (ws/client/prediction)
+
+**Why this:** top unblocked backlog item, and the biggest "feels like a modern action MMO" gain
+left in movement. No requests from other streams were waiting on client. Before this your own
+avatar was eased toward the server's snapshots like everyone else's, so every key press waited
+a round trip plus the easing before your feet moved (about 150 ms on a good connection, far
+more on a bad one). A player will feel the wanderer start, stop and turn on the frame they
+press the key.
+
+**Built:** `Prediction` (`game/client/prediction.gd`, pure, no nodes).
+- Every frame `advance(seq + 1, move, dt)` runs the shared `Movement.step` locally and keeps the
+  walk in `pending`, labelled with the input seq that will carry it (merged per seq and move,
+  so about one entry per tick; standing still isn't kept because it replays as nothing).
+- Each snapshot `reconcile(server_pos, net.last_ack_seq)` drops acked walks, replays the rest
+  on the server's position, and eases the difference out at `CORRECTION_RATE` 10/s. Past
+  `SNAP_DISTANCE` 4 m it snaps (Return to Spawn Meadow, reconnects).
+- While walking, a disagreement under `WALK_DEADZONE` (1.2 ticks of walk, 0.36 m) is left
+  alone: the server steps whole 50 ms ticks from whenever an input arrives and the client
+  steps frames, so up to a tick is timing, not error. Correcting it made the drawn position
+  shiver along the walk. Standing still it settles exactly onto the server.
+- `client.gd`: your avatar's node is placed at `prediction.position` instead of lerping;
+  others are unchanged. The login character places it; disconnect resets it. Your own yaw is
+  set when the input goes out, and the snapshot's echo of it is ignored.
+
+**Tests:** `test_client_prediction.gd` (10 tests) runs the client's real send loop against a
+server tick with 20/60/150 ms one-way delay at 30/60/144 fps: no backward step while walking
+straight, no snaps, disagreement under 2x the deadzone, exact settle after stopping, about a
+round trip of lead over the server, walls hold in the replay, bad input ignored. Bot
+behaviour `client_prediction` runs the same class on each bot against the real server (walks
+whatever bot.gd actually sent, via call_deferred after the frame's input goes out, because
+other behaviours zero `bot.move` after `on_play`). In the 8-bot run: ~3,550 reconciles per
+bot, mean disagreement 8 to 11 mm, max 0.22 to 0.48 m, one snap each (the Return to Spawn
+Meadow teleport). Unit tests: 600 passed with Postgres. 8-bot 180 s WebSocket bot test:
+PASSED. Client smoke test: passed.
+
+**Didn't work first time:** I kept standing-still frames in `pending`; unsent zero inputs
+(the client skips sending while idle) never got acked, so the list held half a second of
+nothing. Dropping zero walks fixed it.
+
+**Known gaps:** localhost bots see almost no latency, so the bot numbers prove agreement, not
+the feel on a 150 ms link (the unit sim covers that). The server applies the latest input
+per tick rather than per input, so a quick tap shorter than a tick can be walked for a whole
+tick server-side; the ease hides it (at most 0.3 m).
+
+**Next run:** the art checks out of the bot behaviours (qa's request), or the F3 prediction numbers.

@@ -1,3 +1,0 @@
-- Aim and click: left-click a tree, rock or seep under your crosshair to start gathering it, and hold the button to keep going, just like holding E.
-- Clicking again while you chop keeps you chopping, so mashing the button never breaks your swing. E or walking off still stops.
-- The F1 controls list now shows "Left click" next to E for gathering.

@@ -1,1 +1,0 @@
-- Every press of E now has a stopwatch on it: our test client chops, mines and crafts a stone axe before each update ships, and the update is held back if the bar, the haul toast or the "Crafted!" pop takes longer than a blink to answer you.

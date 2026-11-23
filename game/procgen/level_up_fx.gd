@@ -10,6 +10,12 @@ extends Node3D
 ## second, so a level-up 45 m away still catches the eye. At night the beam stays faint,
 ## because the column already glows there.
 ##
+## Other players see a level-up from up to about 100 m (the view range), where a 0.6 m beam
+## is a hairline. So the column shader never lets the beam (or the column) get thinner on
+## screen than `MIN_SPREAD` radians: past ~45 m it widens with distance, holding a steady
+## few pixels wide, and it ignores the valley haze (it is light, not a thing in the haze) but
+## fades a little with distance of its own accord. `drawn_radius` is the same rule in GDScript.
+##
 ##   LevelUpFx.play(avatar)   # your own level-ups and other players' alike
 ##
 ## `play` adds (or restarts) one "LevelUpFx" child on the avatar, which frees itself when it
@@ -34,6 +40,12 @@ const BEAM_HEIGHT := 24.0 ## m; the sky beam clears the tallest ash trees (about
 const BEAM_RADIUS := 0.3 ## m; slim, so it reads as a beam, not a second column
 const BEAM_TIME := 1.6 ## s; the beam is over well before the column
 const BEAM_NIGHT := 0.35 ## beam strength at full night, against 1.0 at full day
+## Narrowest the column or beam may look, as an angle (radians) from its middle to its edge.
+## 0.007 keeps the beam about 0.8 degrees wide: 8 px on a 720p screen, 12 px at 1080p.
+const MIN_SPREAD := 0.007
+const FAR_FADE_START := 60.0 ## m; past this the beam fades gently with distance ...
+const FAR_FADE_END := 220.0 ## m; ... to FAR_FADE_MIN of its strength here and beyond
+const FAR_FADE_MIN := 0.65
 
 const CORE := Color(1.0, 0.86, 0.52) ## the column's hot middle, a touch paler than a lantern
 const GLOW := Color(1.0, 0.56, 0.24) ## Lamps.FLAME, the lantern light
@@ -50,6 +62,10 @@ var daylight := 0.0 ## 0 night .. 1 full day, read from the sky when the burst s
 ## so tests and bots read these instead of the MultiMesh.
 var column_now := {}
 var beam_now := {}
+## Where every spark the last frame drew sits, relative to the avatar's feet (hidden sparks
+## left out). Same reason as above: on the dummy renderer the Sparks MultiMesh reads back
+## identity transforms, so a check of the MultiMesh passes whatever the sparks do.
+var sparks_now := PackedVector3Array()
 var _sparks: Array = []
 var _column_mat: ShaderMaterial
 var _ring_mat: ShaderMaterial
@@ -86,6 +102,18 @@ static func beam_at(t: float, day: float = 0.0) -> Dictionary:
 		"radius": BEAM_RADIUS * (0.6 + 0.4 * fade),
 		"strength": lerpf(BEAM_NIGHT, 1.0, clampf(day, 0.0, 1.0)) * fade,
 	}
+
+
+## The radius the column or beam is drawn at, `distance` metres from the camera, for a
+## true radius of `radius` m: never thinner on screen than MIN_SPREAD. Mirrors the shader.
+static func drawn_radius(radius: float, distance: float) -> float:
+	return maxf(radius, MIN_SPREAD * maxf(distance, 0.0))
+
+
+## How much of its strength the column and beam keep `distance` metres away (the shader's
+## own gentle distance fade; the scene fog does not touch them). Mirrors the shader.
+static func far_fade(distance: float) -> float:
+	return lerpf(1.0, FAR_FADE_MIN, _smooth((distance - FAR_FADE_START) / (FAR_FADE_END - FAR_FADE_START)))
 
 
 ## How light the sky is right now, 0 deep night .. 1 full day, as this client's sky clock
@@ -229,8 +257,12 @@ func _apply() -> void:
 	ring.multimesh.set_instance_transform(0, Transform3D(Basis.from_scale(Vector3(maxf(r.radius, 0.001), 1.0, maxf(r.radius, 0.001))), Vector3(0, 0.06, 0)))
 	_ring_mat.set_shader_parameter("strength", r.strength)
 	var mm := (get_node("Sparks") as MultiMeshInstance3D).multimesh
+	sparks_now.clear()
 	for i in _sparks.size():
-		mm.set_instance_transform(i, spark_at(_sparks[i], age))
+		var sxf := spark_at(_sparks[i], age)
+		mm.set_instance_transform(i, sxf)
+		if not sxf.basis.get_scale().is_zero_approx():
+			sparks_now.append(sxf.origin)
 		if age == 0.0:
 			mm.set_instance_color(i, (_sparks[i].color as Color).srgb_to_linear())
 			mm.set_instance_custom_data(i, Color(_sparks[i].glow, 0, 0, 0))
@@ -255,8 +287,15 @@ func _build() -> void:
 	_column_mat.set_shader_parameter("core", CORE)
 	_column_mat.set_shader_parameter("glow", GLOW)
 	_column_mat.set_shader_parameter("day", 0.0)
+	_column_mat.set_shader_parameter("min_spread", MIN_SPREAD)
+	_column_mat.set_shader_parameter("fade_start", FAR_FADE_START)
+	_column_mat.set_shader_parameter("fade_end", FAR_FADE_END)
+	_column_mat.set_shader_parameter("fade_min", FAR_FADE_MIN)
 	var col := _single("Column", cyl, 2)
 	col.material_override = _column_mat
+	# The shader widens far beams past their instance bounds; keep them from being culled
+	# when only the widened edge is on screen (1.2 m covers the beam out to ~170 m).
+	col.extra_cull_margin = 1.2
 	add_child(col)
 
 	# The ground ring: a flat disc whose shader draws only a soft band near its edge.
@@ -328,15 +367,30 @@ static func _column_shader() -> Shader:
 	var sh := Shader.new()
 	sh.code = """
 shader_type spatial;
-render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled;
+render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 uniform vec4 core : source_color = vec4(1.0, 0.86, 0.52, 1.0);
 uniform vec4 glow : source_color = vec4(1.0, 0.56, 0.24, 1.0);
 uniform float day = 0.0; // 0 night .. 1 full day
+uniform float min_spread = 0.007; // LevelUpFx.MIN_SPREAD
+uniform float fade_start = 60.0;
+uniform float fade_end = 220.0;
+uniform float fade_min = 0.65;
 varying float h;
 varying float strength;
 void vertex() {
 	h = VERTEX.y + 0.5; // 0 at the feet, 1 at the top
 	strength = INSTANCE_CUSTOM.r; // per instance: the column, then the sky beam
+	// Never thinner on screen than min_spread (LevelUpFx.drawn_radius): far away, widen the
+	// unit cylinder so the beam keeps a steady few pixels instead of thinning to a hairline.
+	// MODEL_MATRIX already holds this instance's transform (its x scale is the radius).
+	vec3 centre = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	float dist = length(INV_VIEW_MATRIX[3].xyz - centre);
+	float radius = max(length(MODEL_MATRIX[0].xyz), 0.0001);
+	VERTEX.xz *= max(1.0, min_spread * dist / radius);
+	// The scene fog would turn a far beam the colour of the haze behind it; it is light, so
+	// it ignores the fog and fades a little with distance of its own (LevelUpFx.far_fade).
+	float k = clamp((dist - fade_start) / (fade_end - fade_start), 0.0, 1.0);
+	strength *= mix(1.0, fade_min, k * k * (3.0 - 2.0 * k));
 }
 void fragment() {
 	// Edge-on faces are the column's outline; face-on is its thin middle. Inverted rim, so
@@ -363,7 +417,9 @@ static func _ring_shader() -> Shader:
 	var sh := Shader.new()
 	sh.code = """
 shader_type spatial;
-render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
+// fog_disabled: with fog on, an additive quad adds the fog colour over its whole square, so
+// from 40 m on the ring showed as a pale flat square on the grass.
 uniform vec4 glow : source_color = vec4(1.0, 0.56, 0.24, 1.0);
 uniform float strength = 0.0;
 void fragment() {

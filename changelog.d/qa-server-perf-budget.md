@@ -1,1 +1,0 @@
-- Every build now puts the server on a stopwatch while eight test players chop, mine and chat: if a tick gets slow, the world stops moving 20 times a second, memory creeps up or each player's connection has to carry much more, the update is held back before you ever feel lag.
