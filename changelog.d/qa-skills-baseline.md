@@ -1,0 +1,1 @@
+- Fast first level-ups are now guarded: every test run checks that fresh players reach their first level-up within about half a minute of gathering and never stand around long with nothing happening, so a change that makes levelling slower or the valley duller can't ship.
