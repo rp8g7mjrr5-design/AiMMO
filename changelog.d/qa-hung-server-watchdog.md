@@ -1,0 +1,1 @@
+- If the world server ever freezes, it now notices on its own, saves everyone it can, and restarts in about a minute instead of staying down until someone spots it.

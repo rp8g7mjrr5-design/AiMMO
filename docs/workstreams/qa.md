@@ -10,7 +10,9 @@ Owns quality, tests, CI, and operations. See `docs/workstreams.md` for ownership
 - [x] Unit runner fails tests that hit a SCRIPT ERROR or log an ERROR (this PR, `ws/qa/unit-script-errors`)
 - [ ] Triage `docs/playtest.md` every run and fix crashes first (2026-11-22 evening: still empty)
 - [x] Client smoke test at night as well as noon, with both screenshots kept as CI artifacts and a day/night brightness check (this PR, `ws/qa/night-smoke`)
-- [ ] Health endpoint or heartbeat log so Railway restarts a hung server
+- [x] Railway restarts a hung server: watchdog in `docker/entrypoint.sh` probes a WebSocket handshake, asks a frozen server to save, kills it if it can't, exits 70 so `ON_FAILURE` restarts it; `tests/ops/run_watchdog_test.py` in CI (this PR, `ws/qa/hung-server-watchdog`)
+- [ ] Watchdog follow-up: build the Docker image in CI (`docker build` + run the watchdog test inside the image) so a broken Dockerfile or a missing tool in the slim image fails before Railway does
+- [ ] Watchdog follow-up: once the live server has run with it for a day, check Railway's logs for any `[watchdog] no answer` lines on a healthy server (long autosaves or GC pauses) and tune `AIMMO_WATCHDOG_*`
 - [x] Save-compatibility test: load every file in `tests/fixtures/` with the current `CharacterData` and the current migrations on Postgres; must stay green when gameplay adds inventory (Week 02) (this PR, `ws/qa/save-compat-all-fixtures`)
 - [x] Save-compat follow-up: once gameplay's inventory lands, check that every loaded character's items survive too (extend `_check_account` to compare `inventory_items` rows before/after), and retire the shared-DB `test_save_compat.gd` once the new test covers its password check (this PR, `ws/qa/save-compat-items`)
 - [ ] Server performance check in the bot test: tick time, memory, and bandwidth per player logged and asserted under a budget
