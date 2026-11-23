@@ -21,6 +21,10 @@ var _clock_sync_timer := 0.0
 var clock_offset := 0.0
 ## Which resource nodes are used up, and when they come back (see Gathering).
 var gathering := Gathering.new_state()
+## Unit tests only: when >= 0, now_seconds() returns this instead of the real clock, and with
+## no net every message goes to test_outbox instead of the network.
+var test_now := -1.0
+var test_outbox: Array = []
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -107,6 +111,7 @@ func _tick() -> void:
 		ch.z = p.z
 		ch.yaw = s.yaw
 		entries.append_array([id, p.x, p.y, p.z, s.yaw])
+	_tick_channels(now_seconds())
 	if entries.is_empty():
 		return
 	for id in sessions:
@@ -115,7 +120,7 @@ func _tick() -> void:
 
 
 func _on_peer_connected(id: int) -> void:
-	sessions[id] = {"logged_in": false, "character": {}, "move": Vector2.ZERO, "yaw": 0.0, "seq": -1, "last_chat": -1000.0, "last_gather": -1000.0, "login_attempts": 0}
+	sessions[id] = {"logged_in": false, "character": {}, "move": Vector2.ZERO, "yaw": 0.0, "seq": -1, "last_chat": -1000.0, "last_gather": -1000.0, "channel": {}, "login_attempts": 0}
 	print("[server] peer %d connected" % id)
 
 
@@ -123,6 +128,8 @@ func _on_peer_disconnected(id: int) -> void:
 	if not sessions.has(id):
 		return
 	var s: Dictionary = sessions[id]
+	if GatherChannel.is_active(s.channel):
+		gather_cancel(id, "disconnected")
 	sessions.erase(id)
 	if s.logged_in:
 		if not store.save_character(s.character):
@@ -202,6 +209,11 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 	print("[server] %s logged in as peer %d (%s) at %s" % [ch.name, id, "new" if is_new else "returning", CharacterData.position(ch)])
 
 
+## Real seconds on the server's monotonic clock (what Gathering and GatherChannel call `now`).
+func now_seconds() -> float:
+	return test_now if test_now >= 0.0 else Time.get_ticks_msec() / 1000.0
+
+
 ## The authoritative world clock in world seconds (see WorldClock).
 func world_seconds() -> float:
 	return WorldClock.now_seconds(clock_offset)
@@ -248,6 +260,10 @@ func _on_chat(id: int, text: String) -> void:
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [gather(id, ChatCommands.argument(clean))])
 		return
+	if ChatCommands.is_channel(clean):
+		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
+		_channel_command(id, ChatCommands.argument(clean))
+		return
 	if ChatCommands.is_craft(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [craft(id, "" if ChatCommands.name_of(clean) == "recipes" else ChatCommands.argument(clean))])
@@ -275,12 +291,14 @@ func gather(id: int, kind_word: String = "") -> String:
 	if not sessions.has(id) or not sessions[id].logged_in:
 		return ""
 	var s: Dictionary = sessions[id]
-	var now := Time.get_ticks_msec() / 1000.0
+	var now := now_seconds()
 	var ws := world_seconds()
 	Gathering.respawn_due(gathering, now)
 	var kind = Gathering.parse_kind(kind_word)
 	if kind == null:
 		return "Gather what? Try /gather, or /gather ash, pine, stone or sap."
+	if GatherChannel.is_active(s.channel):
+		return Gathering.refusal("cooldown", gathering, -1, CharacterData.position(s.character), now, ws, kind)
 	var pos := CharacterData.position(s.character)
 	var node_id := Gathering.pick_target(gathering, pos, now, ws, kind)
 	if node_id < 0:
@@ -300,6 +318,148 @@ func gather(id: int, kind_word: String = "") -> String:
 	if got.depleted:
 		print("[gather] node %d depleted for %ds" % [node_id, int(got.respawn)])
 	return Gathering.success(node_id, added, Inventory.count(s.character.inventory, got.item), got.depleted, tool)
+
+
+## Starts a timed gather (GatherChannel) on node `node_id` for player `id`: the same checks
+## as an instant gather (reach from the server's own position, depletion, night-only, the
+## player's cooldown), plus "busy" if a gather is already running and "full" if the pack has
+## no room for that node's item. Returns {ok, reason, seconds}. On success the channel runs
+## in _tick_channels and ends in _gather_event "done" or "cancelled".
+## Protocol v3's c2s_gather_start calls this directly.
+func gather_start(id: int, node_id: int) -> Dictionary:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return {"ok": false, "reason": "offline", "seconds": 0.0}
+	var s: Dictionary = sessions[id]
+	if GatherChannel.is_active(s.channel):
+		return {"ok": false, "reason": "busy", "seconds": 0.0}
+	var now := now_seconds()
+	Gathering.respawn_due(gathering, now)
+	var pos := CharacterData.position(s.character)
+	var node := ResourceNodes.get_by_id(node_id)
+	var inv: Dictionary = s.character.inventory
+	var kind := str(node.get("kind", ""))
+	var why := Gathering.check(gathering, node_id, pos, now, world_seconds(), s.last_gather, Gathering.cooldown_for(kind, inv))
+	if why == "" and Inventory.count(inv, str(ResourceNodes.kind_info(kind).item)) >= Inventory.MAX_STACK:
+		why = "full"
+	if why != "":
+		return {"ok": false, "reason": why, "seconds": 0.0}
+	var secs := GatherChannel.seconds_for(kind, inv)
+	s.channel = GatherChannel.start(node_id, pos, now, secs)
+	_gather_event(id, "begin", node_id, {"seconds": secs})
+	return {"ok": true, "reason": "", "seconds": secs}
+
+
+## Stops player `id`'s running gather: no charge used, no cooldown spent. `reason` is
+## "moved", "far", "stopped" (the player asked) or "disconnected".
+func gather_cancel(id: int, reason: String = "stopped") -> void:
+	if not sessions.has(id):
+		return
+	var s: Dictionary = sessions[id]
+	if not GatherChannel.is_active(s.channel):
+		return
+	var node_id := int(s.channel.node_id)
+	s.channel = {}
+	_gather_event(id, "cancelled", node_id, {"reason": reason})
+
+
+## Every tick: cancel gathers whose player walked off, finish the ones that are due.
+func _tick_channels(now: float) -> void:
+	for id in sessions.keys():
+		var s: Dictionary = sessions[id]
+		if not s.logged_in or not GatherChannel.is_active(s.channel):
+			continue
+		var pos := CharacterData.position(s.character)
+		var why := GatherChannel.cancel_reason(s.channel, pos)
+		if why != "":
+			gather_cancel(id, why)
+		elif GatherChannel.is_due(s.channel, now):
+			_finish_channel(id, now)
+
+
+## A gather ran its full time: re-check the node (someone may have emptied it meanwhile),
+## then take a charge and fill the pack. A node that went away ends the gather with nothing
+## taken and no cooldown, like a cancel.
+func _finish_channel(id: int, now: float) -> void:
+	var s: Dictionary = sessions[id]
+	var ch: Dictionary = s.channel
+	s.channel = {}
+	var node_id := int(ch.node_id)
+	var pos := CharacterData.position(s.character)
+	var ws := world_seconds()
+	Gathering.respawn_due(gathering, now)
+	var why := GatherChannel.finish_check(gathering, ch, pos, now, ws)
+	if why != "":
+		_gather_event(id, "cancelled", node_id, {"reason": why})
+		return
+	var kind := str(ResourceNodes.get_by_id(node_id).kind)
+	var inv: Dictionary = s.character.inventory
+	var tool := Gathering.tool_for(kind, inv)
+	var got := Gathering.take(gathering, node_id, now)
+	var added := give_item(id, got.item, Gathering.amount_for(kind, inv))
+	if added <= 0:
+		Gathering.give_back(gathering, node_id)
+		_gather_event(id, "cancelled", node_id, {"reason": "full"})
+		return
+	s.last_gather = now
+	if got.depleted:
+		print("[gather] node %d depleted for %ds" % [node_id, int(got.respawn)])
+	_gather_event(id, "done", node_id, {"item": got.item, "count": added, "tool": tool, "depleted": got.depleted})
+
+
+## Where a timed gather's begin / cancelled / done is told to players. Today only the
+## gatherer hears it, as a system line (the "/channel" dev command). Protocol v3 replaces
+## this with s2c_gather_begin / s2c_gather_end to everyone in view, s2c_gather_result and
+## s2c_inventory to the gatherer, and s2c_node_state when a node empties.
+func _gather_event(id: int, event: String, node_id: int, info: Dictionary) -> void:
+	if not sessions.has(id):
+		return
+	var s: Dictionary = sessions[id]
+	var now := now_seconds()
+	var pos := CharacterData.position(s.character)
+	var text := ""
+	match event:
+		"begin":
+			text = GatherChannel.begin_text(node_id, float(info.seconds))
+		"done":
+			text = Gathering.success(node_id, int(info.count), Inventory.count(s.character.inventory, str(info.item)), bool(info.depleted), str(info.tool))
+		"cancelled":
+			var reason := str(info.reason)
+			if reason in ["moved", "far", "stopped"]:
+				text = GatherChannel.cancel_text(reason)
+			elif reason != "disconnected":
+				text = Gathering.refusal(reason, gathering, node_id, pos, now, world_seconds())
+	if text != "":
+		_send(id, "s2c_system", [text])
+
+
+## The hidden "/channel" dev command: "/channel [kind]" starts a timed gather on the node
+## "/gather [kind]" would pick, "/channel stop" cancels. For bots and debugging only (owner
+## direction: chat is for talking); players get this through protocol v3's press-E.
+func _channel_command(id: int, word: String) -> void:
+	var s: Dictionary = sessions[id]
+	if word.strip_edges().to_lower() in ["stop", "cancel"]:
+		if GatherChannel.is_active(s.channel):
+			gather_cancel(id, "stopped")
+		else:
+			_send(id, "s2c_system", ["You are not gathering."])
+		return
+	var kind = Gathering.parse_kind(word)
+	if kind == null:
+		_send(id, "s2c_system", ["Gather what? Try /channel, or /channel ash, pine, stone or sap."])
+		return
+	var now := now_seconds()
+	var ws := world_seconds()
+	var pos := CharacterData.position(s.character)
+	Gathering.respawn_due(gathering, now)
+	var node_id := Gathering.pick_target(gathering, pos, now, ws, kind)
+	if node_id < 0:
+		_send(id, "s2c_system", [Gathering.refusal("none", gathering, -1, pos, now, ws, kind)])
+		return
+	var r := gather_start(id, node_id)
+	if r.ok:
+		return # the "begin" event already told the player
+	var reason := "cooldown" if r.reason == "busy" else str(r.reason)
+	_send(id, "s2c_system", [Gathering.refusal(reason, gathering, node_id, pos, now, ws, kind)])
 
 
 ## A player crafts ("/craft axe"), or lists the recipes ("/craft" or "/recipes"). The
@@ -365,6 +525,9 @@ func take_item(id: int, item: String, qty: int) -> bool:
 ## Sends an RPC only if the peer is still fully connected. A peer that has started
 ## disconnecting but whose disconnect signal has not fired yet has no channels left.
 func _send(id: int, method: StringName, args: Array) -> void:
+	if net == null:
+		test_outbox.append([id, str(method), args])
+		return
 	if not _is_live(id):
 		return
 	Callable(net, "rpc_id").callv([id, method] + args)
