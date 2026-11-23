@@ -1006,3 +1006,44 @@ reconnect ok). Python harness tests pass. No client files touched, so no client 
 probe). If CI ever shows "the fresh player never stood at node", the walk to the ring is blocked
 by something; raise `WALK_TIMEOUT` or pick the next gate node. Follow-ups in the backlog: a
 level-4 edge veteran, and the same pair for Toolcraft 5 recipes.
+
+## 2026-11-23 — gather and craft feedback within 100 ms (client smoke)
+
+**Fun:** a player who presses E always sees something answer them at once; "nothing happened
+when I pressed E" now fails the Test check instead of reaching players.
+
+**Built:** `tests/client_smoke/feedback_check.gd`, run by `tests/client_smoke/run.sh` after the
+render shots (so the nodes it empties never change the render numbers). A fresh character
+(`Feel<8 digits>`, so it starts with an empty pack and no axe even on a reused local data
+folder) walks with real input to the nearest ash and stone and presses E (`Input.action_press`
+at the top of a frame, so the client sees "just pressed" like a key) until it holds a stone
+axe's parts, then walks to the bench, presses E and clicks the stone axe's real Craft button
+(`button.pressed.emit()`). Seven kinds of feedback are timed from the press: press -> bar,
+bar full -> haul toast (with icon), bench press -> window, Craft -> "Working...", Craft ->
+"Crafted" toast (craft sound state printed). Samples go to `feedback.json`.
+
+**The limit, and why it isn't a flat 100 ms:** CI and this container draw in software at
+~125-135 ms a frame, and any client needs two frames to show a server's answer (the frame
+that handles the press and sends it, the frame that reads the reply and draws it). Measured
+locally: press -> bar 236-278 ms (1 frame after the press frame), craft -> toast ~140 ms,
+local feedback (window, "Working...") on the press frame itself. So each sample must be within
+100 ms + two median frames (about 133 ms on a 60 fps machine, ~360 ms on CI), and also within
+2 frames after the press regardless of frame rate. I first capped the frame slack at 100 ms,
+but then a slower CI runner (200 ms frames) would fail a perfectly good client, so the frame
+cap (`MAX_FRAMES`) does that job instead. A client that adds a tween delay, a timer or waits a
+tick fails the frame rule even on a slow runner.
+
+**Didn't work first time:** the haul toast came back as "never": it actually arrives a few ms
+*before* the client's own bar is full, because the bar starts when `s2c_gather_begin` arrives
+(one network hop after the server started the clock). The wait now counts feedback that is
+already showing as 0 ms. A `--resolution 480x270 --graphics=low` run barely helped (98 vs
+130 ms frames; the cost is the world, not the pixels), so the check runs at the normal size.
+
+**Tests:** 557 unit tests pass (Postgres), incl. `test_qa_feedback_check.gd`; client smoke
+passes (feedback check, style, render budget); bot test 8 x 180 s WebSocket + Postgres +
+`--fun-check` passes.
+
+**Next run:** watch the first CI run's `[feedback]` lines and `median frame`; if CI frames are
+far slower than local, nothing needs changing (the limit scales), but if frames > 2 shows up
+there, look at the RPC poll order before blaming the client. Follow-ups in the backlog: a
+refused press and a cancel, and the XP floater.

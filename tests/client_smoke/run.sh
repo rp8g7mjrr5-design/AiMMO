@@ -13,6 +13,10 @@
 # share, neon, warm/cool and a not-black, not-grey night on the noon and night shots, against
 # tests/client_smoke/style_baseline.json, written to style_stats.json, plus contact_sheet.html
 # of every screenshot for the CI artifact.
+# Then the feedback check (tests/client_smoke/feedback_check.gd, design bible "Fun comes first"):
+# a fresh character presses E on an ash and a stone, then crafts a stone axe at the workbench,
+# and every press must show its bar, toast or window within 100 ms (plus the two frames any
+# client needs to draw a server's answer); the times go to feedback.json.
 # Needs xvfb-run and Mesa (software OpenGL).
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -43,6 +47,7 @@ run_client login --screenshot="$OUT/login.png" --quit-after=5
 AIMMO_TIME_OF_DAY=0.5 run_client world --screenshot="$OUT/world.png" --quit-after=8 --name=SmokeTester --password=smoke123 --address=127.0.0.1:$PORT --autoconnect
 AIMMO_TIME_OF_DAY=0.0 run_client night --screenshot="$OUT/world-night.png" --quit-after=8 --name=SmokeTester --password=smoke123 --address=127.0.0.1:$PORT --autoconnect
 camera_fail=0
+feedback_fail=0
 AIMMO_TIME_OF_DAY=0.5 timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --rendering-driver opengl3 --audio-driver Dummy \
   --path "$REPO/game" -s tests/client_smoke/camera_shots.gd -- --shots="$OUT" --name=SmokeCamera --password=smoke123 \
   --address=127.0.0.1:$PORT --autoconnect > "$OUT/client-camera.log" 2>&1 || camera_fail=1
@@ -54,8 +59,16 @@ for shot in noon:0.5 night:0.0; do
     --password=smoke123 --address=127.0.0.1:$PORT --autoconnect > "$OUT/client-render-${shot%%:*}.log" 2>&1 || true
 done
 
+# Feedback: a fresh character every run (it must start with an empty pack and no axe),
+# after the render shots so the nodes it empties never change what they measure.
+AIMMO_TIME_OF_DAY=0.5 timeout 150 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --rendering-driver opengl3 --audio-driver Dummy \
+  --path "$REPO/game" -s tests/client_smoke/feedback_check.gd -- --out="$OUT/feedback.json" --name="Feel$(date +%s | tail -c 9)" \
+  --password=smoke123 --address=127.0.0.1:$PORT --autoconnect > "$OUT/client-feedback.log" 2>&1 || feedback_fail=1
+
 fail=$camera_fail
 [ $camera_fail -eq 0 ] || { echo "camera shots FAILED:"; grep "\[camera\]" "$OUT/client-camera.log" || true; }
+grep "\[feedback\]" "$OUT/client-feedback.log" || true
+[ $feedback_fail -eq 0 ] || { echo "feedback check FAILED"; fail=1; }
 for f in login.png world.png world-night.png camera.png camera-hill.png; do
   [ -s "$OUT/$f" ] || { echo "missing screenshot $f"; fail=1; }
 done
