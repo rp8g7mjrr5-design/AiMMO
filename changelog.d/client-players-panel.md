@@ -1,2 +1,0 @@
-- Press O (or the new "Players" button, which always shows how many are online) to see everyone in the valley with their total level. No more typing /who.
-- Someone who just walked in glows gold with "just arrived", and when anyone levels up their row lights up with "+1", so you can put a name to that burst of ember light across the meadow.
