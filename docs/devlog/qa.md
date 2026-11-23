@@ -796,3 +796,45 @@ Client smoke not run: nothing the client loads changed.
 
 **Next run:** check #106 and this PR landed. Then "chat is for talking" if `--dev-commands`
 is on `main`; otherwise the gather_start fun-metrics follow-up or the screenshot style check.
+
+## 2026-11-23 — steady `main`: stale skills test, craft-window race, dead-time gate (`ws/qa/steady-main`)
+
+Budget 18/40, playtest inbox empty, claim taken, no open qa PR (#106 and #107 landed).
+
+**`main` was red** at bb48678 (#102): `test_client_skills_window::test_goal_skips_unlocks_not_in_the_world_yet`
+assumed Toolcraft 5 is "coming soon", and gameplay's #110 built it. Client's #111 already
+carries the fix, but #111 is stuck on a flaky bot check (below), so `main` would stay red. I
+applied #111's hunk byte for byte (tests/unit is qa's), so whichever lands second merges clean.
+
+**Flake 1, `client_craft_window` (failed #111's ENet run):** "window would say You need 1 pine
+wood and 1 ember sap more, server said You need 1 ember sap more". The window was short one
+pine wood: another behaviour's instant `/gather` (gameplay_gathering) pays with no
+gather_begun/ended, so the "quiet moment" guard never saw it. The behaviour now listens to
+`bot.command_sent` and waits 2 s after any `/gather`, `/craft` or `/channel` line, and skips
+the prediction check for a press that a pack-changing line followed (counted as
+`raced_presses`; it fired once in my 180 s run, so the race is real). Unit test
+`test_qa_craft_window_race.gd`.
+
+**Flake 2, my own dead-time gate from #106 (failed `main` at b603fb2):** `longest_dead_s_median`
+50.75 vs baseline 35 (fails above 45). Pulled the nine CI runs since #98 with `fun_trend.py`:
+dead median 31-51 (median 40.5), worst 55-72. Three local runs were too few. New: baseline
+40, slack 15 (fails above 55), worst limit 85 (pre-#98 CI saw 81.8). This loosens the gate;
+dead time is mostly bots wandering, follow-up added to gate something tighter.
+
+**Baseline follow-up done:** the same nine runs levelled 8/8 every time and rewards/min was
+9.6-11.1 (median 10.0), so `rewards_per_min_median` 8 -> 10 (fails below 8) and
+`bots_levelled_min` 6 -> 7.
+
+**`fun_trend` display bug:** `_f(40.5, 0)` printed "4" (rstrip("0") ate the integer's zero),
+so the dead column read "51 / 7". Only strips decimals now; ops test added.
+
+**Noticed:** `client_craft_window` crafted 0 of 64 presses this run, every torch refused
+"missing"; the ok path isn't exercised in the bot test. Follow-up in the backlog.
+
+**Tests:** 450 Godot unit tests pass with Postgres; Python ops 14, bot_test 22. Bot test
+8 x 180 s WebSocket + Postgres `--fun-check` PASSED in 242 s (8/8 levelled, dead median 43.8,
+rewards/min 9.6, first level-up 34.7 s gathering); 8 x 45 s ENet PASSED. Client smoke not
+run: nothing the client loads changed.
+
+**Next run:** check this PR landed and `main` went green. Then the gather_start fun-metrics
+follow-up or the screenshot style check; "chat is for talking" still waits on `--dev-commands`.
