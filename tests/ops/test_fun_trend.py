@@ -83,6 +83,18 @@ class FunTrend(unittest.TestCase):
         self.assertIn("2/2", row)         # bots levelled
         self.assertIn("40.2 / 43.8", row)  # first level-up gathering median / worst
 
+    def test_whole_numbers_keep_their_zeros(self):
+        # The dead-time column printed 40.5 / 70.5 as "4 / 7" (2026-11-23): trailing zeros of
+        # whole numbers were stripped along with the decimals'.
+        self.assertEqual(fun_trend._f(40.5, 0), "40")
+        self.assertEqual(fun_trend._f(70.0, 0), "70")
+        self.assertEqual(fun_trend._f(100, 1), "100")
+        self.assertEqual(fun_trend._f(10.0), "10")
+        self.assertEqual(fun_trend._f(9.50), "9.5")
+        self.assertEqual(fun_trend._f(0.10, 2), "0.1")
+        s = {"longest_dead_s_median": 50.75, "longest_dead_s_worst": 70.5}
+        self.assertEqual(fun_trend._pair(s, "longest_dead_s", 0), "51 / 70")
+
     def test_bot_without_reward_shows_never(self):
         s = fun_trend.summary_from_log(job_log((CI_RUN, [bot(-1, 90, 0.1, 0.0), bot(8, 20, 0.1, 9.0)])))
         row = fun_trend.format_row({"created_at": "2026-11-23T12:00:00Z", "head_sha": "abcdef0", "conclusion": "failure"}, s)

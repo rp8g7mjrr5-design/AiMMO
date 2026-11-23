@@ -12,7 +12,10 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## It crafts torches (anywhere) or a campfire (at the bench) only, never a tool, so
 ## gameplay_crafting's "/craft axe" answers stay as it expects. Presses wait for a quiet
 ## moment: no gather of ours running or just ended (gameplay_gather_v3 checks the pack a
-## second after each haul) and not near a disconnect (qa_gather_ledger's reconnect check).
+## second after each haul), no instant "/gather" or "/craft" chat line of another behaviour
+## just sent (they change the pack with no gather_begun; a /gather paid between the window's
+## last s2c_inventory and the press once made the window short one pine wood, qa
+## 2026-11-23), and not near a disconnect (qa_gather_ledger's reconnect check).
 
 const WindowScript := preload("res://client/craft_window.gd")
 const FIRST_PRESS := 6.0 ## s after login
@@ -30,6 +33,7 @@ var _sent := "" ## recipe id pressed and not answered yet
 var _sent_at := 0.0
 var _gathering := false
 var _gather_ended_at := -1000.0
+var _pack_command_at := -1000.0 ## last /gather or /craft chat line this bot sent
 var _toolcraft_xp := 0
 var presses := 0
 var answers := 0
@@ -37,6 +41,7 @@ var crafted := 0
 var predicted := 0
 var pack_checks := 0
 var bench_frames := 0
+var raced_presses := 0
 
 
 func setup(net: Node) -> void:
@@ -57,6 +62,7 @@ func setup(net: Node) -> void:
 		if peer == int(bot.my_id):
 			_gathering = false
 			_gather_ended_at = bot.elapsed)
+	bot.command_sent.connect(_on_command_sent)
 
 
 func on_login(_reconnect: bool, character: Dictionary) -> void:
@@ -88,9 +94,16 @@ func on_play(delta: float) -> void:
 		_press(p)
 
 
+func _on_command_sent(text: String) -> void:
+	if changes_pack(text):
+		_pack_command_at = bot.elapsed
+
+
 ## No gather of ours running or just finished, and no disconnect or end of run coming up.
 func _quiet() -> bool:
 	if _gathering or bot.elapsed - _gather_ended_at < QUIET_AFTER_GATHER:
+		return false
+	if bot.elapsed - _pack_command_at < QUIET_AFTER_GATHER:
 		return false
 	var stop_at: float = bot.disconnect_at if bot.phase == "playing_1" else bot.duration
 	return bot.elapsed < stop_at - QUIET_BEFORE_DISCONNECT
@@ -130,7 +143,11 @@ func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
 	var r: Dictionary = WindowScript.row(_w.pack, recipe_id, p)
 	var d := Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ)
 	var edge: bool = bool(Crafting.RECIPES.get(recipe_id, {}).get("bench", false)) and absf(d - Crafting.BENCH_RANGE) < EDGE
-	if not edge:
+	# A pack-changing chat line sent after the press may still have reached the server first.
+	var raced: bool = _pack_command_at >= _sent_at - QUIET_AFTER_GATHER
+	if raced:
+		raced_presses += 1
+	if not edge and not raced:
 		predicted += 1
 		if ok != (r.reason == ""):
 			fail("%s: server said ok=%s (%s), window row said '%s'" % [recipe_id, ok, text, r.reason])
@@ -150,6 +167,12 @@ func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
 	_sent = ""
 
 
+## True for chat lines the server may answer by changing the pack (instant /gather, /craft,
+## and /channel, the timed gather). Static so tests/unit/test_qa_craft_window_race.gd can check it.
+static func changes_pack(text: String) -> bool:
+	return ChatCommands.is_gather(text) or ChatCommands.is_craft(text) or ChatCommands.is_channel(text)
+
+
 func on_finish() -> void:
 	stat("presses", presses)
 	stat("answers", answers)
@@ -157,6 +180,7 @@ func on_finish() -> void:
 	stat("predicted", predicted)
 	stat("pack_checks", pack_checks)
 	stat("bench_frames", bench_frames)
+	stat("raced_presses", raced_presses)
 	if presses < 1:
 		fail("never found a quiet moment to press Craft")
 	if pack_checks < 1:
