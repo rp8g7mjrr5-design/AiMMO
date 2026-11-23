@@ -73,7 +73,7 @@ const UNLOCKS := {
 	},
 	"toolcraft": {
 		3: {"name": "Bench sense", "text": "the first Toolcraft recipes at the workbench", "soon": true},
-		5: {"name": "Ember-hardened tools", "text": "a better axe and pickaxe that gather faster", "soon": true},
+		5: {"name": "Ember-hardened tools", "text": "harden your axe and pickaxe at the workbench: quicker gathers, more from each"},
 	},
 }
 

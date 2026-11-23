@@ -18,14 +18,20 @@ const BENCH_RANGE := 6.0 ## metres from the bench's centre to use it
 
 ## Recipe and item ids are PERMANENT: products are stored in inventory_items.item.
 ## `needs`: item id -> quantity used up. `makes`: how many you get. `bench`: needs the
-## workbench (a torch can be twisted together anywhere).
+## workbench (a torch can be twisted together anywhere). `level`: [skill, level] needed to
+## make it (Skills, Toolcraft unlocks). `upgrades`: the tool this one replaces; it is used up
+## by the recipe, and once you carry the better tool the old one counts as owned too.
 const RECIPES := {
 	"stone_axe": {"label": "stone axe", "needs": {"ash_wood": 3, "stone": 2}, "makes": 1, "bench": true, "tool": true},
 	"stone_pickaxe": {"label": "stone pickaxe", "needs": {"pine_wood": 3, "stone": 3}, "makes": 1, "bench": true, "tool": true},
 	"torch": {"label": "torch", "needs": {"pine_wood": 1, "ember_sap": 1}, "makes": 3, "bench": false, "tool": false},
 	"campfire": {"label": "campfire", "needs": {"ash_wood": 2, "pine_wood": 2, "stone": 4}, "makes": 1, "bench": true, "tool": false},
+	"ember_axe": {"label": "ember axe", "needs": {"ember_sap": 1, "ember_heartwood": 4, "stone_axe": 1}, "makes": 1, "bench": true, "tool": true,
+		"level": ["toolcraft", 5], "upgrades": "stone_axe"},
+	"ember_pickaxe": {"label": "ember pickaxe", "needs": {"ember_sap": 1, "veinstone": 4, "stone_pickaxe": 1}, "makes": 1, "bench": true, "tool": true,
+		"level": ["toolcraft", 5], "upgrades": "stone_pickaxe"},
 }
-const RECIPE_ORDER := ["stone_axe", "stone_pickaxe", "torch", "campfire"]
+const RECIPE_ORDER := ["stone_axe", "stone_pickaxe", "torch", "campfire", "ember_axe", "ember_pickaxe"]
 
 ## Plain words players type, to recipe ids.
 const WORDS := {
@@ -33,6 +39,8 @@ const WORDS := {
 	"pickaxe": "stone_pickaxe", "pick": "stone_pickaxe", "stone_pickaxe": "stone_pickaxe", "stone_pick": "stone_pickaxe",
 	"torch": "torch", "torches": "torch",
 	"campfire": "campfire", "fire": "campfire", "camp_fire": "campfire",
+	"ember_axe": "ember_axe", "ember_hatchet": "ember_axe",
+	"ember_pickaxe": "ember_pickaxe", "ember_pick": "ember_pickaxe",
 }
 
 
@@ -73,14 +81,42 @@ static func missing(inv: Dictionary, id: String) -> Dictionary:
 	return out
 
 
+## [skill, level] needed to make `id`, or [] when anyone can.
+static func required(id: String) -> Array:
+	return RECIPES.get(id, {}).get("level", [])
+
+
+## True when `skills` (skill id -> XP) is high enough to make `id`.
+static func level_ok(id: String, skills: Dictionary) -> bool:
+	var need := required(id)
+	return need.is_empty() or Skills.level_of(skills, str(need[0])) >= int(need[1])
+
+
+## The tool you carry that makes crafting `id` pointless: `id` itself, or a better tool
+## that upgrades it (an ember axe means you never need a stone axe again). "" for none.
+static func owned_tool(inv: Dictionary, id: String) -> String:
+	if not makes_tool(id):
+		return ""
+	if Inventory.count(inv, id) > 0:
+		return id
+	for other in RECIPE_ORDER:
+		if str(RECIPES[other].get("upgrades", "")) == id and Inventory.count(inv, other) > 0:
+			return other
+	return ""
+
+
 ## Why `id` can't be crafted from `inv` by a player at `pos`, or "" if it can.
-## Reasons, in the order they are checked: "unknown", "owned" (a tool you already carry),
-## "bench" (needs the workbench, which is too far), "missing", "full" (no room for it).
-static func check(inv: Dictionary, id: String, pos: Vector3) -> String:
+## Reasons, in the order they are checked: "unknown", "level" (a Toolcraft level you don't
+## have yet; only checked when `skills` is given, so the server always passes them),
+## "owned" (a tool you already carry, or a better one), "bench" (needs the workbench, which
+## is too far), "missing", "full" (no room for it).
+static func check(inv: Dictionary, id: String, pos: Vector3, skills: Variant = null) -> String:
 	if not is_recipe(id):
 		return "unknown"
 	var r: Dictionary = RECIPES[id]
-	if r.tool and Inventory.count(inv, id) > 0:
+	if skills is Dictionary and not level_ok(id, skills):
+		return "level"
+	if owned_tool(inv, id) != "":
 		return "owned"
 	if r.bench and not near_bench(pos):
 		return "bench"
@@ -89,6 +125,22 @@ static func check(inv: Dictionary, id: String, pos: Vector3) -> String:
 	if Inventory.count(inv, id) + int(r.makes) > Inventory.MAX_STACK:
 		return "full"
 	return ""
+
+
+## "An ember axe needs Toolcraft 5. You're Toolcraft 3."
+static func level_text(id: String, skills: Dictionary) -> String:
+	var need := required(id)
+	if need.is_empty():
+		return ""
+	var skill := str(need[0])
+	return "%s %s needs %s %d. You're %s %d." % [article(id).capitalize(), str(RECIPES[id].label),
+		Skills.label(skill), int(need[1]), Skills.label(skill), Skills.level_of(skills, skill)]
+
+
+## "a" or "an" for a recipe's label.
+static func article(id: String) -> String:
+	var label := str(RECIPES.get(id, {}).get("label", id))
+	return "an" if "aeiou".contains(label.left(1)) else "a"
 
 
 ## Ingredients as words: "3 ash wood and 2 stone".
@@ -109,16 +161,21 @@ static func bench_hint(pos: Vector3) -> String:
 	return "The workbench is %d m to the %s, at the heart of Spawn Meadow." % [dist, Gathering.direction_name(off)]
 
 
-## The reply for a refused craft (reason from check()).
-static func refusal(reason: String, inv: Dictionary, id: String, pos: Vector3) -> String:
+## The reply for a refused craft (reason from check(); pass the player's skills for "level").
+static func refusal(reason: String, inv: Dictionary, id: String, pos: Vector3, skills: Dictionary = {}) -> String:
 	var label := str(RECIPES.get(id, {}).get("label", id))
 	match reason:
+		"level":
+			return level_text(id, skills)
 		"owned":
-			return "You already carry a %s; it never wears out." % label
+			var have := owned_tool(inv, id)
+			if have != "" and have != id:
+				return "You already carry %s %s, which does a %s's work better." % [article(have), Inventory.label(have), label]
+			return "You already carry %s %s; it never wears out." % [article(id), label]
 		"bench":
-			return "A %s needs the workbench. %s" % [label, bench_hint(pos)]
+			return "%s %s needs the workbench. %s" % [article(id).capitalize(), label, bench_hint(pos)]
 		"missing":
-			return "You need %s more to make a %s." % [needs_text(missing(inv, id)), label]
+			return "You need %s more to make %s %s." % [needs_text(missing(inv, id)), article(id), label]
 		"full":
 			return "No room in your pack for another %s." % label
 	return "Craft what? %s" % recipes_text(inv)
@@ -134,18 +191,26 @@ static func success(id: String, made: int, inv: Dictionary) -> String:
 			return "You craft a stone axe. Ash and pine give more, and faster, with it in your pack."
 		"stone_pickaxe":
 			return "You craft a stone pickaxe. Stone gives more, and faster, with it in your pack."
-	return "You craft a %s (%d in your pack)." % [r.label, Inventory.count(inv, id)]
+		"ember_axe":
+			return "You harden your axe in ember sap: an ember axe! Every chop is quicker and gives more."
+		"ember_pickaxe":
+			return "You harden your pickaxe in ember sap: an ember pickaxe! Every strike is quicker and gives more."
+	return "You craft %s %s (%d in your pack)." % [article(id), r.label, Inventory.count(inv, id)]
 
 
 ## "Recipes: stone axe (3 ash wood and 2 stone, at the workbench) ..." with a mark on the
-## ones you can make from your pack right now (ignoring where you stand).
+## ones you can make from your pack right now (ignoring where you stand and your level),
+## and the Toolcraft level the later ones need.
 static func recipes_text(inv: Dictionary) -> String:
 	var parts := PackedStringArray()
 	for id in RECIPE_ORDER:
 		var r: Dictionary = RECIPES[id]
 		var where := ", at the workbench" if r.bench else ", anywhere"
+		var need := required(id)
+		if not need.is_empty():
+			where += ", %s %d" % [Skills.label(str(need[0])), int(need[1])]
 		var ready := ""
-		if r.tool and Inventory.count(inv, id) > 0:
+		if owned_tool(inv, id) != "":
 			ready = " (have it)"
 		elif missing(inv, id).is_empty():
 			ready = " (ready)"

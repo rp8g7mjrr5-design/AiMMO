@@ -12,7 +12,7 @@ class_name GatherChannel
 
 ## How long one gather takes, bare-handed, per node kind. Rocks are a little slower, the
 ## seep a little quicker (sap is scooped, not chopped). A tool (Gathering.tool_for) scales
-## it by Gathering.TOOL_SPEED.
+## it by Gathering.tool_speed (stone 0.5, ember-hardened 0.35).
 const SECONDS := {"ash": 2.0, "pine": 2.0, "stone": 2.4, "ember_sap": 1.6}
 const DEFAULT_SECONDS := 2.0
 ## Moving further than this (flat metres) from where the gather started cancels it. Small
@@ -24,8 +24,7 @@ const MOVE_TOLERANCE := 0.5
 ## (every level is a little quicker, Skills.speed_factor).
 static func seconds_for(kind: String, inv: Dictionary, level: int = 1) -> float:
 	var base := float(SECONDS.get(kind, DEFAULT_SECONDS))
-	if Gathering.tool_for(kind, inv) != "":
-		base *= Gathering.TOOL_SPEED
+	base *= Gathering.tool_speed(Gathering.tool_for(kind, inv))
 	return base * Skills.speed_factor(level)
 
 

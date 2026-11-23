@@ -92,7 +92,7 @@ func test_info_gives_the_tier2_values() -> void:
 		var item := str(ResourceNodes.TIER2[kind].item)
 		check(Inventory.is_item(item), "%s is a real item" % item)
 		check(not Inventory.label(item).contains("_"), "%s has a label" % item)
-		check(not Inventory.ITEMS.has(item), "%s waits in NEW_ITEMS until world draws its icon" % item)
+		check(Inventory.ITEMS.has(item) and Inventory.ITEM_ORDER.has(item), "%s is in ITEMS now that world drew its icon" % item)
 
 
 func test_level_gate() -> void:

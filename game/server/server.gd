@@ -687,9 +687,10 @@ func _craft(id: int, recipe: String) -> Dictionary:
 	var s: Dictionary = sessions[id]
 	var inv: Dictionary = s.character.inventory
 	var pos := CharacterData.position(s.character)
-	var why := Crafting.check(inv, recipe, pos)
+	var skills := skills_of(id)
+	var why := Crafting.check(inv, recipe, pos, skills)
 	if why != "":
-		return {"ok": false, "reason": why, "text": Crafting.refusal(why, inv, recipe, pos)}
+		return {"ok": false, "reason": why, "text": Crafting.refusal(why, inv, recipe, pos, skills)}
 	var r: Dictionary = Crafting.RECIPES[recipe]
 	var taken := {}
 	for item in r.needs:
