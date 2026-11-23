@@ -63,6 +63,11 @@ CLAIM release <stream> "<PR link or why>" # last thing you do, whether you shipp
 A claim nobody refreshed for 150 minutes belongs to a run that died and the next run takes it
 over. Never take or release another stream's claim.
 
+**Older scheduled prompts.** The scheduled tasks that start the workers and the integrator
+can't be edited, and some still say "keep at most one open PR" or "squash-merge". The owner
+replaced those rules on 2026-11-23: this file wins. Take your claim as soon as you've read
+this, if you didn't take it before cloning.
+
 ## Worker procedure (each run)
 
 0. **Budget check first.** Follow `docs/budget.md`. If your stream has hit its weekly cap and
