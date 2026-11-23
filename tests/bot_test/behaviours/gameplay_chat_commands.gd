@@ -3,16 +3,21 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ##
 ## A few seconds after each login, every bot types /time and then /who. The server must
 ## answer the sender alone with a system message, and must never broadcast a command line
-## as ordinary chat. Chat has a 0.5 s cooldown shared with bot.gd's own chatter, so a
-## command that gets no answer is retried a few times before it counts as a failure.
+## as ordinary chat. Commands share a 0.5 s cooldown with the other behaviours' commands
+## (the gather prompt's presses, /channel, /craft, /bag). A line the cooldown drops is
+## answered with ChatCommands.TOO_FAST, so the bot resends it shortly without spending a try;
+## a command that gets no answer at all is retried a few times before it counts as a failure.
 
 const COMMANDS := ["/time", "/who"]
 const FIRST_DELAY := 2.0
 const RETRY_AFTER := 3.0
 const MAX_TRIES := 4
+const TOO_FAST_RETRY := 0.6 ## resend this soon after the server said "too fast"
+const MAX_TOO_FAST := 12 ## per command, so a stuck cooldown still ends in a failure
 
 var _step := 0 ## index into COMMANDS for the current login
 var _tries := 0
+var _too_fast := 0
 var _next_at := 0.0
 var _waiting := false
 var _logins := 0
@@ -28,6 +33,7 @@ func on_login(_reconnect: bool, _character: Dictionary) -> void:
 	_logins += 1
 	_step = 0
 	_tries = 0
+	_too_fast = 0
 	_waiting = false
 	_next_at = bot.elapsed + FIRST_DELAY + bot.rng.randf_range(0.0, 1.0)
 
@@ -48,6 +54,13 @@ func on_play(_delta: float) -> void:
 func _on_system(text: String) -> void:
 	if not _waiting or _step >= COMMANDS.size():
 		return
+	if text == ChatCommands.TOO_FAST:
+		# Maybe ours, maybe another behaviour's line: either way resend soon, try refunded.
+		if _too_fast < MAX_TOO_FAST:
+			_too_fast += 1
+			_tries = maxi(0, _tries - 1)
+			_next_at = minf(_next_at, bot.elapsed + TOO_FAST_RETRY + bot.rng.randf_range(0.0, 0.3))
+		return
 	var cmd: String = COMMANDS[_step]
 	var ok := false
 	if cmd == "/time":
@@ -59,6 +72,7 @@ func _on_system(text: String) -> void:
 	answered[cmd] += 1
 	_step += 1
 	_tries = 0
+	_too_fast = 0
 	_waiting = false
 	_next_at = bot.elapsed + 1.0
 

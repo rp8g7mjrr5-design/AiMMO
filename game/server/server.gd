@@ -130,7 +130,7 @@ func _tick() -> void:
 
 
 func _on_peer_connected(id: int) -> void:
-	sessions[id] = {"logged_in": false, "character": {}, "move": Vector2.ZERO, "yaw": 0.0, "seq": -1, "last_chat": -1000.0, "last_gather": -1000.0, "channel": {}, "login_attempts": 0, "inv_dirty": false}
+	sessions[id] = {"logged_in": false, "character": {}, "move": Vector2.ZERO, "yaw": 0.0, "seq": -1, "last_chat": -1000.0, "last_command": -1000.0, "last_too_fast": -1000.0, "last_gather": -1000.0, "channel": {}, "login_attempts": 0, "inv_dirty": false}
 	print("[server] peer %d connected" % id)
 
 
@@ -260,13 +260,20 @@ func _on_chat(id: int, text: String) -> void:
 	var s: Dictionary = sessions[id]
 	if not s.logged_in:
 		return
-	var now := Time.get_ticks_msec() / 1000.0
-	if now - s.last_chat < GameConfig.CHAT_COOLDOWN:
-		return
+	var now := now_seconds()
 	var clean := Validation.clean_chat(text)
 	if clean == "":
 		return
-	s.last_chat = now
+	# Talk and slash commands have separate cooldowns: a press of E (sent as /gather until
+	# protocol v3) must not eat the line a player just typed, and the other way round.
+	var key := "last_command" if ChatCommands.is_command(clean) else "last_chat"
+	if now - float(s.get(key, -1000.0)) < GameConfig.CHAT_COOLDOWN:
+		# Never drop a line silently: say so, at most once per cooldown window.
+		if now - float(s.get("last_too_fast", -1000.0)) >= GameConfig.CHAT_COOLDOWN:
+			s.last_too_fast = now
+			_send(id, "s2c_system", [ChatCommands.TOO_FAST])
+		return
+	s[key] = now
 	if ChatCommands.is_gather(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [gather(id, ChatCommands.argument(clean))])
