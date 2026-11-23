@@ -98,6 +98,7 @@ func _on_unstuck(ok: bool, text: String, wait_seconds: float) -> void:
 		fail("s2c_unstuck_result we didn't ask for: %s" % text)
 		return
 	_asked_at = -1.0
+	_tell_fun_metrics()
 	var from_spawn := Vector2(_asked_from.x - GameConfig.SPAWN_POINT.x, _asked_from.z - GameConfig.SPAWN_POINT.z).length()
 	if ok:
 		homes += 1
@@ -156,3 +157,16 @@ func on_finish() -> void:
 		fail("never saw anyone else in the roster")
 	if _logins > 0 and not _first_done:
 		fail("never asked to return to Spawn Meadow")
+
+
+## The answer to "Return to Spawn Meadow" is the game answering a press (the player is moved
+## or told they are already home), but qa's fun metrics don't listen for s2c_unstuck_result
+## yet, so since the ask goes through bot.send_play (an action) it counted as a 5 s wait with
+## no feedback and failed --fun-check. Until qa hooks net.unstuck_result in
+## qa_fun_metrics.gd (request filed in docs/workstreams/qa.md), report it here. Counting it
+## twice later is harmless: feedback at the same moment changes nothing.
+func _tell_fun_metrics() -> void:
+	for b in bot.behaviours:
+		var fm = b.get("m")
+		if fm is Object and fm.has_method("feedback"):
+			fm.feedback(bot.elapsed)
