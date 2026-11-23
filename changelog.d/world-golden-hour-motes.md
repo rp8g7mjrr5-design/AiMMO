@@ -1,0 +1,3 @@
+- Golden hour lasts: the sun now spends most of the day in warm, low light, with a golden haze in the valley floors that glows when you look toward the sun.
+- Nights are moonlit blue instead of green-black, so the ember ash crowns, veins and lanterns really glow against them.
+- From dusk to dawn, ember motes drift up out of every ember ash and sap seep: follow the sparks to find something worth gathering (fewer on Low graphics, more on High).

@@ -10,15 +10,21 @@ class_name SkyClock
 ## Time of day is a fraction: 0.0 midnight, 0.25 sunrise, 0.5 noon, 0.75 sunset.
 
 ## Sky keys by sun height (sine of elevation). Each: [height, top, horizon, fog/ground, light].
-## Day keeps the late-afternoon palette from the design bible; dusk leans on the ember orange.
+## Emberlight part 4 (art bible section 5, "golden-hour bias"): the warm keys reach far up the
+## sky, so the sun spends most of the day in golden light and only the top of the arc is
+## noon, which is short and still warm. Nights are moonlit `SHADE` blue with blue haze, never
+## black, so the ember glow carries the light.
 const KEYS := [
-	[-1.00, Color(0.02, 0.03, 0.08), Color(0.06, 0.08, 0.16), Color(0.06, 0.07, 0.12), Color(0.55, 0.65, 0.95)],
-	[-0.22, Color(0.03, 0.05, 0.12), Color(0.10, 0.12, 0.22), Color(0.09, 0.10, 0.16), Color(0.55, 0.65, 0.95)],
-	[-0.06, Color(0.12, 0.14, 0.30), Color(0.62, 0.36, 0.30), Color(0.32, 0.25, 0.26), Color(0.90, 0.55, 0.40)],
-	[0.06, Color(0.26, 0.38, 0.66), Color(0.98, 0.62, 0.38), Color(0.72, 0.56, 0.46), Color(1.00, 0.70, 0.48)],
-	[0.30, Color(0.36, 0.55, 0.82), Color(0.93, 0.78, 0.62), Color(0.85, 0.78, 0.70), Color(1.00, 0.92, 0.80)],
-	[1.00, Color(0.32, 0.54, 0.86), Color(0.82, 0.84, 0.86), Color(0.82, 0.83, 0.84), Color(1.00, 0.98, 0.94)],
+	[-1.00, Color(0.03, 0.05, 0.15), Color(0.08, 0.12, 0.26), Palette.NIGHT_HAZE, Palette.MOONLIGHT],
+	[-0.22, Color(0.04, 0.07, 0.18), Color(0.12, 0.15, 0.30), Palette.NIGHT_HAZE, Palette.MOONLIGHT],
+	[-0.06, Color(0.12, 0.14, 0.32), Color(0.66, 0.36, 0.28), Color(0.34, 0.26, 0.30), Color(0.92, 0.52, 0.36)],
+	[0.06, Color(0.26, 0.38, 0.66), Color(0.99, 0.60, 0.34), Color(0.78, 0.56, 0.42), Color(1.00, 0.66, 0.42)],
+	[0.30, Color(0.32, 0.50, 0.80), Color(0.97, 0.74, 0.50), Palette.HAZE, Palette.GOLDEN_LIGHT],
+	[0.65, Color(0.33, 0.53, 0.83), Color(0.93, 0.80, 0.63), Palette.HAZE, Color(1.00, 0.86, 0.66)],
+	[1.00, Color(0.32, 0.54, 0.86), Color(0.86, 0.84, 0.80), Color(0.86, 0.82, 0.75), Color(1.00, 0.94, 0.84)],
 ]
+
+const NIGHT_LIGHT := 0.26 ## moonlight energy at full night: dim, but you can see the meadow by it
 
 
 ## World seconds that land on this day fraction on day 1 (inverse of
@@ -48,6 +54,13 @@ static func star_alpha(frac: float) -> float:
 	return clampf(inverse_lerp(-0.02, -0.20, sun_height(frac)), 0.0, 1.0)
 
 
+## 0 by day, 1 at full night: how far the world's paint leans to night colours (Emberlight's
+## `ember_night`: the ground drains of green and shadows go bluer, so the moon reads blue and
+## every ember glow pops). Starts in the blue hour, a little after the lamps are lit.
+static func night_amount(frac: float) -> float:
+	return smoothstep(0.02, -0.25, sun_height(frac))
+
+
 ## Everything the world needs for one moment: colours, light direction, and energies.
 static func sample(frac: float) -> Dictionary:
 	var h := sun_height(frac)
@@ -70,7 +83,7 @@ static func sample(frac: float) -> Dictionary:
 	# crosses the horizon so the swap is never visible.
 	var light_dir := sun_direction(frac) if sun_up else moon_direction(frac)
 	var lift := clampf(absf(h) / 0.12, 0.0, 1.0)
-	var energy := lerpf(0.0, 1.0, lift) if sun_up else lerpf(0.0, 0.22, lift)
+	var energy := lerpf(0.0, 1.0, lift) if sun_up else lerpf(0.0, NIGHT_LIGHT, lift)
 	var ambient := lerpf(0.18, 0.5, clampf(inverse_lerp(-0.2, 0.3, h), 0.0, 1.0))
 	return {
 		"frac": frac,
@@ -83,6 +96,7 @@ static func sample(frac: float) -> Dictionary:
 		"light_energy": energy,
 		"ambient_energy": ambient,
 		"stars": star_alpha(frac),
+		"night": night_amount(frac),
 		"sun_dir": sun_direction(frac),
 		"moon_dir": moon_direction(frac),
 	}

@@ -75,6 +75,7 @@ func _process(delta: float) -> void:
 
 func apply(frac: float) -> void:
 	var s := SkyClock.sample(frac)
+	Emberlight.set_night(s.night)
 	if sky_mat:
 		sky_mat.set_shader_parameter("top_color", s.sky_top)
 		sky_mat.set_shader_parameter("horizon_color", s.sky_horizon)
@@ -95,6 +96,8 @@ func apply(frac: float) -> void:
 		sun.visible = s.light_energy > 0.01
 	# Lanterns, ember-ash leaves and sap seeps glow from the same clock (siblings under World).
 	Lamps.apply_glow(get_parent(), Lamps.night_glow(frac))
+	# Ember motes rise near the ash and the seeps from dusk until dawn.
+	Motes.apply(get_parent(), Motes.amount(frac))
 
 
 ## The sky itself: a code-only shader with a colour gradient, a sun disk, a moon, and stars.
