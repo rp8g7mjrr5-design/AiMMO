@@ -353,8 +353,7 @@ func _apply_shake(id: int, t: float) -> void:
 	for e in _current_parts(id):
 		if not _shake_moves(id, e[0]):
 			continue
-		var mm := (_root.get_node(e[0]) as MultiMeshInstance3D).multimesh
-		mm.set_instance_transform(e[1], _shaken(id, _base_xform(e), t))
+		NodeProps.put_xform(_root, e[0], e[1], _shaken(id, _base_xform(e), t))
 	if id == _hl_id and _hl_target > 0.0:
 		_write_shell()
 
