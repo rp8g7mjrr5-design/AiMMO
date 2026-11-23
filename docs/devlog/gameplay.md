@@ -705,3 +705,47 @@ every bot showed `spent_seen=0` (before: up to 3). Full 8 x 180 s websocket run 
 filled it, and a small item started on top would have been rushed. Next run: if #89 has
 landed, take the top gameplay backlog item from `main` (tier-2 nodes need `skill_level` in
 `gather_start`/`gather`, see the part 1 notes).
+
+## 2026-11-23 (run after #89): bots level up in the bot test, no false "never gathered", flood guard
+
+**Why it's more fun.** Mostly plumbing for fun: qa can now time "first level-up" on every
+bot-test run (the moment the skills milestone is about), so a change that makes levelling
+slower shows up red instead of silently. The flood guard keeps a busy grove smooth for the
+players standing in it.
+
+**Picked.** The two qa requests on my bot behaviour (requests first), plus the small
+flood-guard item. #89 had landed, so nothing of mine was open. Not tier-2 nodes this run:
+two requests plus a full test cycle filled it, and tier-2 wants a fresh run.
+
+**Built.**
+- `tests/bot_test/behaviours/gameplay_gather_v3.gd`: works one skill (Felling: 27 ash/pine
+  nodes within 80 m of spawn vs 5 stone), keeps pressing E after the three checks until
+  Felling 2 (`LEVEL_GOAL`), tracks empty nodes from `s2c_nodes`/`s2c_node_state` and
+  "depleted" refusals, picks the nearest live node from where it stands, widens the search
+  40/80/120/160 m and then waits 5 s for a respawn instead of giving up (`MAX_NODES` 40 per
+  login). "Never started a single timed gather" now fails only if a node refused for a reason
+  other than "depleted". Found on the way: `WAIT_FIRST` waited for
+  `gameplay_gathering._phase_gathered`, which stays false when that behaviour runs out of
+  nodes, so the bot sat idle all login; it now goes once gameplay_gathering lets go (or after
+  30 s). New stats: `levelled`, `focus_level`, `waited_respawn`.
+- `server.gd`: `PLAY_REQUEST_GAP` (0.1 s) per player and kind for `c2s_gather_start` and
+  `c2s_craft` via `_play_allowed`; floods are dropped silently. Ported from the duplicate-v3
+  patch by hand. Three v3 tests that sent a second request in the same instant now step the
+  test clock by the gap (+0.01 s: 100.0 + 0.1 - 100.0 is just under 0.1 in floats).
+
+**Results.** 383 unit tests pass with Postgres. Bot test 8 x 180 s websocket with
+`--fun-check` PASSED: **8 of 8 bots levelled up**, median 32.7 s of gathering to the first
+level (qa's limit 90 s), worst 39.9 s, 109 s wall clock median; every bot `gave_up=0`.
+8 x 45 s ENet PASSED. Client smoke passed.
+
+**Notes to next run.** Take Milestone 1 part 3 (tier-2 nodes gated by level). The bot now
+reaches Felling 2 only; a live check of the level gate needs a fixture character already
+near level 5 (follow-up in the backlog). If a real client ever double-sends a start inside
+100 ms it gets no answer for the second; client's prompt waits for begin/end, so fine today.
+
+## 2026-11-23, PR #98 fix run (merge main, XP-bar race in CI)
+- PR #98 was red and conflicted. Conflict: the director rewrote `docs/workstreams/gameplay.md` on main; I took main's version and re-applied this PR's ticks (flood guard, both qa requests).
+- Red CI: `client_xp_meter` failed on 3 of 8 bots with "bar landed at 0.000, server progress is 0.6". Cause: bot.gd freezes a bot for 1.5 s before its mid-run disconnect and doesn't call `on_play` then; a gather already running finishes in that freeze and pays XP; after the reconnect `client_xp_meter.on_login` clears the meter but keeps `_pending`, so its next check reads an empty bar. Main rarely hit it because bots used to gather in short bursts; this PR keeps them pressing E until Felling 2, so a gain right before the disconnect became likely.
+- The real fix is one line in client's behaviour (reset `_pending` in `on_login`); that file isn't ours, so I filed the request in `docs/workstreams/client.md` and worked around it: `gameplay_gather_v3` doesn't start a gather within `QUIET_BEFORE_DISCONNECT` (5 s) of `bot.disconnect_at`. `/gather`, crafting and qa's ledger can still hit the race rarely until client fixes it.
+- Tests (local, Postgres): 397 unit tests pass; bot test 8 x 180 s websocket `--fun-check` PASSED, 8 of 8 levelled, median 35.7 s gathered to first level; client smoke passed.
+- Next run: no new item this run (stopped after the fix to keep it small; PR #98 is still the one landing). Top unblocked item is Milestone 1 part 3 (tier-2 nodes gated by level).
