@@ -1108,3 +1108,48 @@ way (it is what `current_seconds` reads). Screenshot:
 
 **Next run:** move system notices to centre screen (last piece of the chat-to-UI item), or
 Return to Spawn Meadow, or left-click gather.
+
+## 2026-11-23: system notices centre screen (`ws/client/centre-notices`)
+
+**Fun:** a refusal ("Chat is for talking", "this ash is spent, back in about 3 minutes, the
+next one is 23 m north-east") now pops up just above the reticle where your eyes already are,
+with a soft low "nope", instead of scrolling past in a chat box you weren't reading. Chat is
+left with only what people say and who arrives or leaves. Last piece of the "chat is for
+talking" item (owner direction 1).
+
+**Built:** `NoticeLine` (`game/client/notice_line.gd`): a centre notice 150 px above screen
+centre, first sentence as a 20 px warm headline, the rest as a 15 px detail line; pops (1.12
+-> 1.0 in 0.14 s), holds 2.4 to 6 s by length, fades over 0.6 s; a new notice replaces the
+old one, the same notice again just holds longer. `NoticeLine.route(text, paired_reason)`:
+"X has arrived." / "X has left." and lines over 220 chars or with newlines (dev command
+answers) stay in chat; a server line arriving within 1 s of a gather refusal whose toast
+already says it all (full, day, busy, cooldown, level, far, unknown) is dropped; everything
+else is centre screen. "depleted" is the one refusal whose server line adds something (when
+it comes back, where the next node is), so it shows centre. The login welcome is a centre
+notice (gold, no nope) instead of the first chat line. `Sfx.nope()`: D4 then B-flat 3,
+0.34 s, quiet, played on every gather refusal toast and every unpaired centre refusal (never
+twice for one refusal). Test hook `--show-notice[=text]` for screenshots.
+
+**Why drop rather than show the toast-paired lines:** the bottom toast is where your eyes are
+while gathering; saying "Your pack is full" there and "Your pack can't hold any more ash
+wood" centre screen is the same thing twice. Only new information earns the centre.
+
+**Tests:** 6 unit tests in `test_client_notice_line.gd` (routing, toast pairing, splitting,
+hold/fade/pop, the node replacing/repeating/fading, the nope's length and level), plus
+`test_client_chat_feed` now checks joins stay in chat and a refusal goes centre. New bot
+behaviour `client_notices` runs NoticeLine on every real `s2c_system` in the client's order,
+pairs it with the bot's own `s2c_gather_end`, and fails on a non-presence line in chat, a
+notice not showing its headline, a drop with no toast behind it, or a notice up past its
+hold. Unit tests 545 passed with Postgres; client smoke passed; 8-bot 180 s WebSocket bot
+test PASSED (per bot about 55 system lines: ~30 centre, ~22 in chat (joins/leaves and long
+dev answers), 2 dropped behind a toast, 12 to 18 gather refusals).
+
+**Didn't work first time:** `test_client_chat_feed` builds a bare `client.gd` without `_ready`,
+so `notice_line` was null in `_on_system`; it now falls back to chat when the notice isn't set
+up (only ever in that test). The first bot run failed on two test bugs of mine: the "stayed up
+past its hold" check counted from when the notice first appeared, not from the newest
+notice that replaced it, and the behaviour's NoticeLine was never freed, so its labels leaked
+at exit (Godot's leak lines count as error logs). Both fixed; the second run passed.
+
+**Next run:** left-click gather (action camera follow-up), or Return to Spawn Meadow, or
+client-side prediction.

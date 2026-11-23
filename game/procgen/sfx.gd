@@ -14,6 +14,33 @@ static func arrive() -> AudioStreamWAV:
 	return _tones([[523.25, 0.12], [659.25, 0.12], [783.99, 0.3]], 0.3)
 
 
+## A refusal ("that line wasn't sent", "this ash is spent"): a soft, low falling pair, quiet
+## and short (about 0.3 s), so a "no" is heard without sounding like an error box.
+const NOPE_NOTES := [[0.0, 293.66], [0.11, 233.08]] ## D4 then B-flat 3
+
+
+static func nope() -> AudioStreamWAV:
+	var data := PackedByteArray()
+	var length := 0.34
+	for i in int(RATE * length):
+		var t := float(i) / RATE
+		var v := 0.0
+		for n in NOPE_NOTES:
+			var d: float = t - float(n[0])
+			if d >= 0.0:
+				var f: float = n[1]
+				v += (sin(TAU * f * d) * 0.85 + sin(TAU * f * 2.0 * d) * 0.12) * minf(1.0, d * 120.0) * exp(-d * 16.0)
+		var s16 := int(clampf(v * 0.22, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = RATE
+	wav.stereo = false
+	wav.data = data
+	return wav
+
+
 ## A crafted item: two soft wooden knocks on the bench, then a bright rising pair.
 static func craft() -> AudioStreamWAV:
 	var data := PackedByteArray()

@@ -43,6 +43,8 @@ var gather_watch := GatherWatch.new() ## everyone's gathers -> node hits and emp
 var sfx_haul := {} ## node kind -> AudioStreamPlayer for Sfx.haul(kind)
 var craft_window: CraftWindow
 var sfx_craft: AudioStreamPlayer
+var notice_line: NoticeLine ## centre-screen system notices (chat is for talking)
+var sfx_nope: AudioStreamPlayer
 var reticle: Reticle
 var controls_overlay: ControlsOverlay
 var skills_window: SkillsWindow
@@ -222,6 +224,12 @@ func _screenshot_later(path: String, wait: float) -> void:
 		await get_tree().create_timer(maxf(0.0, wait - 0.4)).timeout
 		players_panel.on_roster(_players_spec(str(_args["open-players"]), players_panel.entries, true))
 		await get_tree().create_timer(0.4).timeout
+	elif _args.has("show-notice"):
+		# Test hook (--show-notice): a centre-screen refusal notice, just before the shot.
+		await get_tree().create_timer(maxf(0.0, wait - 0.4)).timeout
+		var words = _args["show-notice"]
+		notice_line.show_notice(words if words is String and words != "" else "This ember ash is spent; it comes back in about 3 minutes. The nearest ember ash is 23 m to the north-east.")
+		await get_tree().create_timer(0.4).timeout
 	elif _args.has("show-toast"):
 		# Test hook (--show-toast=ash_wood): a "+2 Ash wood" toast with its icon, just before the shot.
 		await get_tree().create_timer(maxf(0.0, wait - 0.4)).timeout
@@ -393,6 +401,7 @@ func _process(delta: float) -> void:
 	perf_overlay.step(delta)
 	xp_meter.step(delta)
 	level_up_banner.step(delta)
+	notice_line.step(delta)
 	pack_window.step(delta)
 	players_panel.step(delta)
 	_step_goal(delta)
@@ -587,7 +596,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	cam.place(Vector3(character.x, character.y, character.z), character.yaw + PI)
 	craft_window.seed_pack(character.get("inventory"))
 	pack_window.seed_pack(character.get("inventory"))
-	_on_system(message)
+	notice_line.show_notice(message, false) # "Welcome back, Ash." centre screen, not in chat
 	sfx_arrive.play()
 
 
@@ -606,6 +615,7 @@ func _on_server_disconnected() -> void:
 	xp_meter.visible = false
 	xp_meter.hide_all()
 	level_up_banner.hide_all()
+	notice_line.hide_all()
 	gather_watch.reset()
 	craft_window.reset()
 	_highlight_target(-1)
@@ -674,7 +684,16 @@ func _on_system(text: String) -> void:
 	var echo := gather_prompt != null and gather_prompt.on_system(text)
 	if echo:
 		return # the bar and the toast already said it
-	chat_feed.append(chat_log, ChatFeed.system_line(TimeDial.current_seconds(), text))
+	if notice_line == null: # not set up (unit tests of the chat handlers): chat as before
+		chat_feed.append(chat_log, ChatFeed.system_line(TimeDial.current_seconds(), text))
+		return
+	var paired := notice_line.paired_reason() != "" # its refusal already played the nope
+	match notice_line.on_system(text):
+		"chat": # someone arrived or left (or a long dev answer): about people, so chat
+			chat_feed.append(chat_log, ChatFeed.system_line(TimeDial.current_seconds(), text))
+		"notice":
+			if not paired and sfx_nope != null:
+				sfx_nope.play()
 
 
 # --- timed gathering (protocol v3, Net/Play) ---
@@ -688,7 +707,9 @@ func _on_gather_begun(peer: int, node_id: int, seconds: float) -> void:
 func _on_gather_ended(peer: int, node_id: int, reason: String) -> void:
 	_apply_node_ops(gather_watch.ended(peer, node_id, reason))
 	if peer == my_id:
-		gather_prompt.on_ended(node_id, reason)
+		if gather_prompt.on_ended(node_id, reason) != "":
+			notice_line.note_refusal(reason) # the server's longer line may only repeat it
+			sfx_nope.play()
 
 
 func _on_gather_result(item_id: String, count: int) -> void:
@@ -1004,6 +1025,18 @@ func _build_ui() -> void:
 	xp_meter.visible = false
 	ui.add_child(xp_meter)
 	xp_meter.setup(theme)
+	# System notices and refusals, centre screen just above the reticle (chat is for talking).
+	notice_line = NoticeLine.new()
+	notice_line.anchor_left = 0.5
+	notice_line.anchor_right = 0.5
+	notice_line.anchor_top = 0.5
+	notice_line.anchor_bottom = 0.5
+	notice_line.offset_left = -NoticeLine.WIDTH * 0.5
+	notice_line.offset_right = NoticeLine.WIDTH * 0.5
+	notice_line.offset_top = -150
+	notice_line.offset_bottom = -150 + NoticeLine.HEIGHT
+	ui.add_child(notice_line)
+	notice_line.setup(theme)
 	level_up_banner = LevelUpBanner.new()
 	level_up_banner.anchor_left = 0.5
 	level_up_banner.anchor_right = 0.5
@@ -1179,6 +1212,10 @@ func _build_audio() -> void:
 	sfx_craft.stream = Sfx.craft()
 	sfx_craft.volume_db = -4.0
 	add_child(sfx_craft)
+	sfx_nope = AudioStreamPlayer.new()
+	sfx_nope.stream = Sfx.nope()
+	sfx_nope.volume_db = -9.0
+	add_child(sfx_nope)
 	sfx_level_up = AudioStreamPlayer.new()
 	sfx_level_up.stream = Sfx.level_up()
 	sfx_level_up.volume_db = -3.0
