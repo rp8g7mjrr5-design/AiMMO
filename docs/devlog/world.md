@@ -169,3 +169,24 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Known / not done.** Decorative scatter trees still have plain trunks and no camera clearance; the same goes for flora, lanterns and the workbench (follow-ups in the backlog). From straight behind, the bedroll mostly hides under the head.
 
 **Next run.** Item icons for the inventory UI, unless the client asks for decoration clearance first.
+
+## 2026-11-23: procedural item icons (and the close-up stat fix)
+**Why this.** Item icons were next in my backlog, and the gather toast and the coming inventory window both want them: "+2 ash wood" as plain text is a weaker payoff than a little stack of logs popping up. Client's request (skip ARM_MIN looks in `world_closeup`'s stat) came first as a small bug fix in the same PR.
+
+**Built.**
+- New `game/procgen/item_icons.gd` (`ItemIcons`). `shapes(item)` is pure data: a short back-to-front list of circles, capsules, rounded boxes and polygons in a 0..1 square. `image(item, size)` rasterises them with signed distance fields (one anti-aliased edge per shape, a top-left light gradient across each shape, a dark outline round the union of the outlined shapes, a soft drop shadow, a warm halo behind glowing shapes). `texture(item, size)` caches an `ImageTexture`; `tint(item)` gives a matching colour; `has_icon(item)`.
+- Icons: ash wood (two pale logs with growth rings and an ember leaf), pine wood (two reddish logs and a needle sprig), stone (a faceted chunk with the outcrop's quartz seam and studs), ember sap (a glowing amber drop with a highlight), stone axe, stone pickaxe (both with lashing), torch (handle, wrap, flame with halo), campfire (stone ring, crossed pine and ash logs, flame). Unknown ids get a cloth bundle, so a retired item in an old save still shows a picture.
+- `world_closeup` bot behaviour: the client-column count now skips looks where the client's arm is already at `ARM_MIN` (the bot stands inside a prop's footprint), and the header comment says the columns are shared now. The stat reads 0 on all 8 bots.
+
+**Decisions.**
+- SDF maths on an `Image`, not a SubViewport render: it runs headless, so unit tests and bots check every pixel, and there are no imported fonts or textures (hard rule 3).
+- Flat shapes with a light gradient and an outline, rather than tiny 3D renders: reads at 24 to 32 px, and it is in our own style (soft, warm, low-poly) rather than any other game's.
+- Cost: about 90 ms for a 64 px icon the first time (GDScript per-pixel; a bounding-circle early-out took it from ~135 ms with identical pixels). Cached after that. I asked the client to warm the cache after login instead of on the first toast.
+
+**Didn't work.** The new margin test caught four icons touching the edge on my first try (wood logs' right ends, the pine sprig's top, torch handle, campfire stones; outline plus drop shadow add about 0.06 of the square). Pulled them in; every icon now leaves 3+ px clear at 64 px. First try also failed to compile because `s.h - Vector2(...)` on a Dictionary value can't be type-inferred; typed it explicitly.
+
+**Tested.** 227 unit tests with Postgres (6 new in `tests/unit/test_world_item_icons.gd`: every item has its own icon, sensible coverage and nothing clipped, all icons distinct from each other, glowing items glow and cold ones don't, deterministic and cached, unknown ids get the bundle). 8-bot 180 s websocket bot test passed (new behaviour `world_item_icons.gd`: each bot draws all 8 icons plus every id in its pack at every login, 16 per bot; `camera_inside_mesh_with_client_columns=0` on every bot). Client smoke test passed (day 0.695, night 0.108, same as before). I rendered a sheet of all icons at 128 and 48 px and looked at it: each reads clearly at small size.
+
+**Known / not done.** Nothing shows the icons yet; the client wires them up (request filed). No "selected" variant or slot frame.
+
+**Next run.** Decoration clearance (camera columns for scatter trees, rocks, flora, lanterns, workbench) or roots on scatter trees, unless a request comes in.

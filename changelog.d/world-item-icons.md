@@ -1,0 +1,1 @@
+- Every item now has its own hand-drawn (well, code-drawn) icon: stacked logs with growth rings for ash and pine wood, a stone chunk with its pale quartz seam, a glowing drop of ember sap, the stone axe and pickaxe, a lit torch and a crackling campfire. They'll show up in your pack and on gather pop-ups as the UI picks them up.

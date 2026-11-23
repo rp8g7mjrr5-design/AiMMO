@@ -5,10 +5,12 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## over-the-shoulder camera would, and checks the resource nodes nearby: each one's
 ## close-up detail (root flares, bark ridges, seam studs) is there and inside the node's
 ## solid columns, and a camera arm pulled in against NodeProps.inside_solid() never ends
-## inside a prop. It also counts how often the client's own (older, smaller) prop columns
-## would leave the camera inside a mesh, so the summary shows what wiring
-## NodeProps.inside_solid() into the camera fixes. Every joining player's avatar must carry
-## its pack and bedroll on its back.
+## inside a prop. It also counts how often the client's real camera arm
+## (ActionCamera.clear_arm, which now uses the same shared NodeProps.inside_solid columns)
+## still leaves the camera inside a mesh; that stat should read 0. Looks where the arm is
+## already pulled all the way in to ARM_MIN are skipped, because then the bot itself stands
+## inside a prop's footprint and no arm length could clear it. Every joining player's
+## avatar must carry its pack and bedroll on its back.
 
 const Cam := preload("res://client/action_camera.gd")
 const YAWS := 8
@@ -60,10 +62,11 @@ func on_play(delta: float) -> void:
 		var shoulder := Cam.shoulder_point(me, yaw, 1.0)
 		var client_arm := Cam.clear_arm(shoulder, yaw, Cam.PITCH_DEFAULT, Cam.DIST_DEFAULT, Callable(Terrain, "height"), near)
 		var cam := Cam.camera_point(shoulder, yaw, Cam.PITCH_DEFAULT, client_arm)
-		for n in near:
-			if NodeProps.inside_solid(cam, n):
-				inside_with_client_columns += 1
-				break
+		if client_arm > Cam.ARM_MIN:
+			for n in near:
+				if NodeProps.inside_solid(cam, n):
+					inside_with_client_columns += 1
+					break
 		var arm := _world_arm(shoulder, yaw, near)
 		var safe := Cam.camera_point(shoulder, yaw, Cam.PITCH_DEFAULT, arm)
 		if arm > Cam.ARM_MIN:
