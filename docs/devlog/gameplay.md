@@ -681,3 +681,27 @@ that one bot logs in as (`tests/fixtures/` is ours; the bot launcher is qa's).
 camera-relative W/A/S/D, clamp/validate) + `s2c_roster`; freeze `net_v4.gd` and
 `net_play_v4.gd`, put new RPCs on Play, never Net. If yaw changes `c2s_input`'s arguments,
 that's on Net: arguments don't shift numbering, but run the protocol test anyway.
+
+## 2026-11-23 (run after v4): PR #89 red on a flaky gathering bot check, fixed
+
+**What broke.** #89's CI passed the 180 s websocket bot test but failed the 45 s ENet one:
+`bot_7: [gameplay_gathering] never gathered anything (tried 5 nodes, 3 spent)`. Not caused by
+v4: the identical failure (same bot, same counts) hit world's #79 run at 06:44, because the
+test world clock and spawns are deterministic. bot_7 walked 187 m (twice the others): it
+spawns far from the nodes, the other bots had already emptied nodes 1 and 5, and in a ~15 s
+login it kept walking to nodes the server had already told it were spent.
+
+**Fix (my own behaviour, `tests/bot_test/behaviours/gameplay_gathering.gd`).** The bot now
+listens to `nodes_depleted` / `node_state`, skips nodes it knows are empty, picks each next
+node nearest-from-where-it-stands (not nearest-from-login), and drops a target that empties
+while it is still walking. The first node of a login is still one of the nearest four so
+bots spread out. Merged `main` into the branch (no conflicts) rather than rebasing.
+
+**Results.** 366 unit tests pass with Postgres. Five 45 s ENet runs passed, and after the fix
+every bot showed `spent_seen=0` (before: up to 3). Full 8 x 180 s websocket run with
+`--fun-check` and the client smoke test: both passed (bot test PASSED in 233 s).
+
+**Note to next run.** No new item this run: diagnosing the flake and the full test cycle
+filled it, and a small item started on top would have been rushed. Next run: if #89 has
+landed, take the top gameplay backlog item from `main` (tier-2 nodes need `skill_level` in
+`gather_start`/`gather`, see the part 1 notes).
