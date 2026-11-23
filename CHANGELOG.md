@@ -5,6 +5,9 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- The game now updates itself! Open it and it grabs the newest version of Ashgrove before you log in, with a little ember progress bar. Download the client one last time and you never have to again.
+- Got turned away for an old version? The game now restarts and updates on its own instead of sending you to the Releases page.
+- The world now knows the true shape of every forest tree, rock, birch, mossy boulder, meadow lantern and the workbench, so the camera can slide in smoothly in front of them instead of ending up inside a trunk or a boulder. It switches on as soon as the camera picks it up.
 - Every "+2 Ash wood" pop-up now shows a little picture of what you got: the cut log, the quartz-seamed stone, the glowing drop of ember sap. Crafting pops up the axe, pickaxe, torch or campfire you just made.
 - The workbench shows each recipe's picture and a tiny icon by every part, so you can tell at a glance which pile you still need.
 - The Spawn Meadow workbench now has its own little iron lantern. After dark it pools warm light over the planks, so you can walk straight back to the bench at night.

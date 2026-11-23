@@ -1,1 +1,0 @@
-- The world now knows the true shape of every forest tree, rock, birch, mossy boulder, meadow lantern and the workbench, so the camera can slide in smoothly in front of them instead of ending up inside a trunk or a boulder. It switches on as soon as the camera picks it up.
