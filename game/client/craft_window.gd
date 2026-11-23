@@ -79,7 +79,8 @@ static func item_for_label(label: String) -> String:
 
 ## The pack after a server line, or null if the line says nothing about the pack.
 ## Knows "Your pack: ...", gather successes ("(6 in your pack)") and, when `crafted` names the
-## recipe just sent, "You craft ..." (ingredients used up, product added).
+## recipe just sent (or, if it doesn't, the recipe the line itself names: a craft typed as a dev
+## command or sent by something else), "You craft ..." (ingredients used up, product added).
 static func apply_line(inv: Dictionary, text: String, crafted: String = "") -> Variant:
 	var listed: Variant = parse_pack(text)
 	if listed != null:
@@ -89,6 +90,8 @@ static func apply_line(inv: Dictionary, text: String, crafted: String = "") -> V
 		var out := inv.duplicate()
 		out[str(gain.item)] = int(gain.in_pack)
 		return out
+	if text.begins_with("You craft") and not Crafting.is_recipe(crafted):
+		crafted = crafted_in(text)
 	if text.begins_with("You craft") and Crafting.is_recipe(crafted):
 		var r: Dictionary = Crafting.RECIPES[crafted]
 		var out := inv.duplicate()
@@ -98,6 +101,18 @@ static func apply_line(inv: Dictionary, text: String, crafted: String = "") -> V
 		out[crafted] = m.get_string(1).to_int() if m else mini(Inventory.MAX_STACK, Inventory.count(out, crafted) + int(r.makes))
 		return out
 	return null
+
+
+## The recipe a "You craft ..." line (Crafting.success) is about, or "" if none matches:
+## "You craft a stone axe. ..." -> "stone_axe", "You craft 3 torches (6 in your pack)." -> "torch".
+static func crafted_in(text: String) -> String:
+	for id in Crafting.RECIPE_ORDER:
+		var label: String = Crafting.RECIPES[id].label
+		if text.begins_with("You craft a %s." % label) or text.begins_with("You craft a %s (" % label):
+			return id
+		if RegEx.create_from_string("^You craft \\d+ %ses \\(" % label).search(text):
+			return id
+	return ""
 
 
 ## One recipe as the window shows it, for a pack and a position:

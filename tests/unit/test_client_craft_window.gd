@@ -53,8 +53,32 @@ func test_mirror_follows_gathers_and_crafts() -> void:
 	var tserver := {"torch": 5}
 	var t: Variant = CraftWindow.apply_line(tinv, Crafting.success("torch", 3, tserver), "torch")
 	check_eq(Inventory.to_wire(t), {"torch": 5}, "torch craft")
-	check_eq(CraftWindow.apply_line(inv, "You craft a stone axe.", ""), null, "a craft we didn't ask for changes nothing")
 	check_eq(CraftWindow.apply_line(inv, "Ash: hello"), null, "chat changes nothing")
+
+
+## A craft the window didn't send (typed as a dev command, or another bot behaviour's) still
+## moves the mirror: "You craft" lines only ever describe your own pack. This was the
+## client_craft_window bot flake (window kept {ash 6, stone 2}, server had 3 ash and an axe).
+func test_mirror_follows_crafts_it_did_not_send() -> void:
+	for id in Crafting.RECIPE_ORDER:
+		var r: Dictionary = Crafting.RECIPES[id]
+		var inv := {}
+		for item in r.needs:
+			inv[item] = int(r.needs[item]) + 1
+		var server := inv.duplicate()
+		for item in r.needs:
+			Inventory.remove(server, item, int(r.needs[item]))
+		Inventory.add(server, id, int(r.makes))
+		var line := Crafting.success(id, int(r.makes), server)
+		check_eq(CraftWindow.crafted_in(line), id, "the line names %s: %s" % [id, line])
+		var after: Variant = CraftWindow.apply_line(inv, line)
+		check_eq(Inventory.to_wire(after), Inventory.to_wire(server), "mirror == server after an unsent %s" % id)
+	# The exact flake: 6 ash, 2 stone, then someone else's "/craft axe".
+	var flake: Variant = CraftWindow.apply_line({"ash_wood": 6, "stone": 2}, Crafting.success("stone_axe", 1, {}))
+	check_eq(Inventory.to_wire(flake), {"ash_wood": 3, "stone_axe": 1}, "the bot-test flake")
+	check_eq(CraftWindow.crafted_in("You craft a stone pickaxe. Stone gives more."), "stone_pickaxe", "pickaxe is not the axe")
+	check_eq(CraftWindow.crafted_in("You crafted nothing"), "", "unknown craft line")
+	check_eq(CraftWindow.apply_line({"stone": 1}, "You craft a moon."), null, "a recipe we don't know changes nothing")
 
 
 func test_rows_agree_with_the_server_rules() -> void:

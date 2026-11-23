@@ -507,3 +507,46 @@ the same `--main-pack` engine flag.
 **Notes:** `OS.get_cmdline_args()` is empty in exported builds, so engine flags (like
 `--rendering-driver`) are not carried over on the restart; players don't pass any. Bumping
 `GODOT_VERSION` means everyone needs one new download (the engine is in the exe), so do it rarely.
+
+## 2026-11-23 (morning): camera keeps out of decoration, bench glows, craft-window flake (ws/client/camera-clears-decoration)
+
+**Why this item:** the top item (gathering on protocol v3) is still blocked: main is on
+protocol v2. Three requests from other streams were open, all small and all from world (plus
+one flake), so they come first. I shipped them as one PR: one feature (camera clearance for
+decoration) plus the bench highlight wiring (one line) and a bug fix (the flake).
+
+**Fun, in one sentence:** walking through the forest or past the lanterns and workbench, the
+camera now slides in front of trunks and boulders instead of putting you inside a wall of bark,
+and the bench lights up warm the moment you can use it, the same "this is ready" cue as a node
+in reach.
+
+**Built:**
+- `ActionCamera.camera_solids(pos, radius = DIST_MAX + 3)`: `ResourceNodes.near + WorldSolids.near`,
+  exactly as world asked. `client.gd` passes it to `cam.step`. Gathering and look-to-interact
+  still use `ResourceNodes.near` only. `clear_arm` needed no change: `NodeProps.inside_solid`
+  already dispatches on `columns`.
+- `_update_bench` calls `Workbench.set_highlight(world.get_node_or_null("Workbench"), at_bench and free)`
+  every frame, so it is lit exactly while the prompt shows (hidden while typing or a window is open).
+- **Flake root cause:** not a race. The bot's window mirror never sends "/craft" itself (it
+  only listens), while `gameplay_crafting` sends "/craft axe" on the same bot. `apply_line`
+  only applied a "You craft ..." line when `crafted` named the recipe the window had sent, so
+  another sender's successful craft was ignored and the next "Your pack" line disagreed. A
+  unit test even asserted "a craft we didn't ask for changes nothing", which was the wrong
+  call: "You craft" lines are only ever about your own pack. New `CraftWindow.crafted_in(text)`
+  reads the recipe from the server's own success wording (`Crafting.success`), and
+  `apply_line` uses it when nothing was sent. In the real client this also fixes a dev-command
+  `/craft` leaving the window stale.
+
+**Tests:** `test_client_action_camera::test_camera_solids_include_decoration` (workbench and
+nodes are in the set, an arm backing straight into the widest decorative column pulls in before
+it, both via `clear_arm` and a settled `step`), `test_client_craft_window::test_mirror_follows_crafts_it_did_not_send`
+(every recipe, the exact flake numbers, axe vs pickaxe). New bot behaviour
+`client_camera_solids.gd`: 8 looks a second through the client's own `camera_solids`, fails if
+the camera ends inside anything.
+
+**Not tested directly:** the bench highlight call has no unit test of its own (it is one line in
+`client.gd` calling world's tested `Workbench.set_highlight`); the smoke run still loads the
+client with it and fails on any script error.
+
+**Notes to next run:** still the v3 gathering item first. If v3 is not on main, the F1 controls
+overlay (third item, replaces `/help`) is the best no-dependency item.
