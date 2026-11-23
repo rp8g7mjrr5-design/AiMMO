@@ -23,11 +23,15 @@ func _stats(img: Image) -> Dictionary:
 
 
 ## Every item a player can hold: ITEM_ORDER plus the ones gameplay keeps in NEW_ITEMS until
-## they have an icon (the tier-2 materials), without repeats once they move over.
+## they move over, plus any UNDRAWN item world has drawn since (the ember tools), without
+## repeats once they move over.
 func _all_items() -> Array:
 	var out: Array = Inventory.ITEM_ORDER.duplicate()
 	for item in Inventory.NEW_ITEMS:
 		if not out.has(item):
+			out.append(item)
+	for item in Inventory.UNDRAWN:
+		if not out.has(item) and ItemIcons.has_icon(item):
 			out.append(item)
 	return out
 
@@ -117,3 +121,17 @@ func test_tier2_materials_look_richer_than_their_tier1() -> void:
 		check(rich.warm > plain.warm + 15, "%s glows more than %s (%d vs %d)" % [pair[0], pair[1], rich.warm, plain.warm])
 		check(ItemIcons.tint(pair[0]) != ItemIcons.tint(pair[1]), "%s tints differently from %s" % pair)
 		check(ItemIcons.tint(pair[0]) != ItemIcons.tint(ItemIcons.FALLBACK), "%s does not tint like the bundle" % pair[0])
+
+
+func test_ember_tools_are_drawn_and_burn_hotter_than_stone() -> void:
+	# Gameplay's Toolcraft 5 tools: the stone tools' shapes with coal-dark heads and an
+	# ember edge, so upgrading reads at a glance in the pack and on the craft toast.
+	for pair in [["ember_axe", "stone_axe"], ["ember_pickaxe", "stone_pickaxe"]]:
+		check(ItemIcons.has_icon(pair[0]), "%s has its own icon" % pair[0])
+		check(ItemIcons.shapes(pair[0]).any(func(s): return s.get("glow", 0.0) > 0.0), "%s has a halo" % pair[0])
+		var hot := _stats(ItemIcons.image(pair[0], 48))
+		var cold := _stats(ItemIcons.image(pair[1], 48))
+		check(hot.warm >= 20 and hot.warm > cold.warm + 15, "%s edge glows (%d vs %d)" % [pair[0], hot.warm, cold.warm])
+		check(ItemIcons.tint(pair[0]) != ItemIcons.tint(pair[1]), "%s tints differently from %s" % pair)
+	for item in Inventory.UNDRAWN:
+		check(ItemIcons.has_icon(item), "UNDRAWN %s is drawn now (gameplay can move it into ITEMS)" % item)
