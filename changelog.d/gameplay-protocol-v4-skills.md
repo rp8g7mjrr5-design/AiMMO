@@ -1,0 +1,1 @@
+- Your game now hears about every bit of XP the moment you earn it, every level-up with the unlock it gives, and every level-up of the players around you, so XP pops, level-up banners and that ember burst over a friend's head can show up as they happen. (This update brings protocol v4: your game updates itself the next time you launch it.)

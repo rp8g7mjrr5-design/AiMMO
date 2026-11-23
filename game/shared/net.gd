@@ -45,6 +45,16 @@ signal nodes_depleted(depleted_ids: Array)
 signal node_state(node_id: int, depleted: bool)
 signal craft_result(recipe_id: String, ok: bool, text: String)
 
+# --- protocol v4, carried by Net/Play: skills and XP ---
+## At login: skill id -> total XP for every skill.
+signal skills_changed(skills: Dictionary)
+## You earned `gained` XP in `skill`, now `total_xp` (right after the gather/craft result).
+signal xp_gained(skill: String, gained: int, total_xp: int)
+## You reached `level` in `skill`; `unlocks` are the named unlocks reached ({level, name, text}).
+signal level_up(skill: String, level: int, unlocks: Array)
+## Another player in view (peer_id) reached `level` in `skill`: show the burst.
+signal level_up_seen(peer_id: int, skill: String, level: int)
+
 var last_ack_seq := -1
 var play: Node
 
