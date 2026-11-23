@@ -504,3 +504,55 @@ the gathering checks and the probe). Client smoke not run: nothing the client lo
 **Next run:** the "chat is for talking" item if `--dev-commands` is on main; otherwise the
 fun-metrics follow-up (count `c2s_gather_start` and `s2c_gather_*` in `qa_fun_metrics` and
 re-take the baseline), then the render budget in CI.
+
+## 2026-11-23 — render budget in CI
+
+Budget 12/40, playtest inbox empty. My open PR #81 (real gathering in CI) has CI running with
+auto-merge on, so this item branches from `main` and does not touch the bot test. The top
+backlog item is in #81; the second ("chat is for talking", `--dev-commands`) is still blocked:
+`main` has no `--dev-commands` flag yet. Took the third: the render budget.
+
+**Fun it protects:** the Emberlight look only works if it runs at 60 fps on a 2020 laptop. A
+stutter at spawn is the first thing a new player feels; now no PR can add trees, glows or
+props that quietly double the frame's cost.
+
+**Built:** `tests/client_smoke/render_stats.gd` (a `-s` SceneTree script like
+`camera_shots.gd`) boots the real `main.tscn`, times the world build (from the scene entering
+the tree to `ready`, since the client builds the world synchronously in `start()`), logs in as
+`SmokeRender`, settles 5 s, samples 30 frames of `Performance` monitors and takes the worst
+frame. It also counts distinct materials and triangles per world part over the world *as
+built*. `render_budget.py` rolls the noon and night shots into `render_stats.json` (in the CI
+artifact), prints a table and fails over the ceilings or more than 20% over the baseline for
+draw calls and primitives. Over an art-bible target but under the ceiling is a printed note.
+Frame time and world build time are reported only.
+
+**What it found:** spawn draws **1.98M primitives a frame** against the art bible's 600k, and
+the world has **30 distinct materials** against 24. Draw calls 217-219 (of 300), texture
+memory 9.2 MB (of 32), world build 0.85-1.1 s. The scene is only ~578k triangles; the frame
+is ~3x that because the sun's shadow cascades redraw it (120 m shadow distance, client default
+shadow quality "high", while the art bible says Medium is the default). Per the art bible,
+ceilings are today's numbers (primitives 2.05M for a little measurement room; materials 30
+exactly). Filed with world (slim flora/nodes, fewer shadow casters, merge materials) and
+client (default shadows to Medium).
+
+**Didn't work:**
+- First timing attempt checked `client.world` right after `root.add_child` in `_initialize`:
+  the add is deferred to the first frame there, so it read -1. Connected to `main.ready`.
+- Materials came out 45, then 46: I was counting the whole `world` node, and avatars live under
+  it; each avatar brings ~15 materials and they vary by name. Now only the world's children as
+  built are counted (30, stable over 4 runs). Avatars still count in the per-frame monitors,
+  as they should.
+- Unit test meshes: `BoxMesh` has no surface data on the headless dummy renderer, and freeing a
+  `MeshInstance3D` after the last reference to its `ArrayMesh` logs `Parameter "m" is null`.
+  The test builds `ArrayMesh`es with SurfaceTool and keeps them referenced.
+
+**Tests:** 295 unit tests pass with Postgres (new `test_qa_render_stats.gd`: worst-frame and
+MB maths, material counting incl. overrides and multimeshes, triangle counts indexed and not);
+13 Python tests in the new `test_render_budget.py` (new CI step); the client smoke test passed
+twice with the render budget (about 40 s longer). Bot test 8 bots x 180 s WebSocket + Postgres
+with `--fun-check`: the first run failed on `[gameplay_gather_v3] never started a single timed
+gather` (that bot found all 8 nodes it tried `depleted`; nothing in this PR touches the bot test,
+filed with gameplay), the rerun passed in 186 s. 8 x 45 s ENet passed.
+
+**Next run:** check #81 and this PR landed. Then the art-free server lint (next Emberlight
+item, small), unless `--dev-commands` is on main, in which case "chat is for talking in CI".
