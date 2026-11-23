@@ -85,6 +85,13 @@ static func load_all(dir: String = DIR) -> Array:
 	return [out, errors]
 
 
+## The behaviours named in `names` (all of them when `names` is empty), in load order.
+static func only(behaviours: Array, names: PackedStringArray) -> Array:
+	if names.is_empty():
+		return behaviours
+	return behaviours.filter(func(b): return names.has(b.name))
+
+
 static func _extends(script: Script, base: Script) -> bool:
 	var s := script
 	while s != null:

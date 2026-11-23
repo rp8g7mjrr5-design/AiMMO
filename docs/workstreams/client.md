@@ -4,7 +4,7 @@ Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
 
 ## Backlog (top = next)
 - [x] (owner request 2026-11-23, in review, ws/client/auto-update) **Self-updating client.** Install once; every launch fetches the latest release's `update.json`, downloads the newer game pack with a progress bar, and restarts into it with `--main-pack` (`game/client/updater.gd`). CI publishes `AiMMO-<os>.pck` and `update.json` with each release.
-- [ ] **Top priority (director, owner request 2026-11-22): gathering that feels like an MMO.** Needs gameplay's protocol v3 (top of its backlog, 2026-11-23). Follow "How gathering feels" in `docs/design_bible.md`. Can be built ahead against a local stub of the v3 messages, then wired once v3 is on `main`.
+- [x] (in review, ws/client/timed-gathering: E starts/cancels by node id, bar over the server's seconds, result toast and per-kind haul sound, spent nodes skipped and shown empty with the last hit first (`GatherWatch`), refusal notices centre screen, gather echoes out of chat. Not yet: the avatar gather swing, see follow-ups) **Top priority (director, owner request 2026-11-22): gathering that feels like an MMO.** Needs gameplay's protocol v3 (top of its backlog, 2026-11-23). Follow "How gathering feels" in `docs/design_bible.md`. Can be built ahead against a local stub of the v3 messages, then wired once v3 is on `main`.
   - Interact prompt: when `ResourceNodes.nearest(my_pos)` is within `GATHER_RANGE`, highlight it (ask world, or a simple emissive pass yourself) and show "[E] Chop Ember Ash" / "[E] Chop Pine" / "[E] Mine Stone" / "[E] Collect Ember Sap" near the bottom centre. Hidden while typing in chat.
   - E key (new `interact` input action, rebindable later) or left-click on a node within reach sends `c2s_gather_start(node_id)`. Moving, jumping or E again sends `c2s_gather_cancel()`.
   - Gather bar on `s2c_gather_begin`, filling over the server's `seconds`, with the node's name; clears on `s2c_gather_end`. Your own avatar faces the node and plays a looping procedural gather swing (arms via `WalkAnim`'s pivots); other players' avatars play it too on their `s2c_gather_begin`.
@@ -52,6 +52,10 @@ Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
 - [ ] Follow-up: soft procedural footstep sounds in time with the walk cycle (`WalkAnim.phase` crosses 0 and PI on each footstep)
 
 - [x] Follow-up (action camera): pull the camera in for flora too (birches, boulders, the Props forest), not just resource node props (ws/client/camera-clears-decoration, via world's `WorldSolids.near`).
+- [ ] Follow-up (timed gathering): your avatar faces the node and plays a looping procedural gather swing (arms via `WalkAnim`'s pivots) while `GatherWatch.running` has its peer; the same for other players. Their yaw comes from snapshots, so turn only the rendered body.
+- [ ] Follow-up (timed gathering): a quieter, positional haul sound for other players' "done" ends near you (an `AudioStreamPlayer3D` at the node).
+- [ ] Follow-up (timed gathering): switch the workbench window to `c2s_craft` / `s2c_craft_result` (it already seeds from `s2c_inventory` since this PR).
+- [ ] Follow-up (timed gathering): smoke screenshot with the bar mid-fill (needs a test hook that walks to a node and presses E).
 - [ ] Follow-up (action camera): left-click a node under the reticle to gather (bible: "E or left-click"); wire with the v3 gather messages.
 - [ ] Follow-up (action camera): smoke screenshot with a node under the reticle and the prompt showing (the smoke player spawns in the empty meadow centre; needs a spawn-offset test hook or a walk step).
 - [ ] Follow-up (action camera): free-look / shoulder keys in the key rebinding window and the F1 controls overlay.

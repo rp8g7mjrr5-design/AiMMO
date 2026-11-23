@@ -1,10 +1,11 @@
 extends "res://tests/bot_test/bot_behaviour.gd"
 ## Client: item icons on a real server. Each bot starts the client's IconShelf thread at
-## launch, exactly as the client does, and keeps a GatherPrompt fed with every system line.
+## launch, exactly as the client does, and keeps a GatherPrompt fed with s2c_inventory and
+## s2c_gather_result, as the client does.
 ## Checks, without sending anything of its own:
 ## - the shelf finishes drawing every icon while the bot is still logging in or playing (and
 ##   reports how long it took, so a slow icon change shows up here before players feel it);
-## - every gather success the server sends becomes a toast with that item's own icon (never
+## - every gather result the server sends becomes a toast with that item's own icon (never
 ##   the fallback bundle), at toast size, straight from the shelf.
 
 const PromptScript := preload("res://client/gather_prompt.gd")
@@ -24,7 +25,8 @@ func setup(net: Node) -> void:
 	_w = PromptScript.new()
 	_w.setup(Theme.new())
 	_w.icons = _shelf
-	net.system_message.connect(_on_system)
+	net.inventory_changed.connect(func(items: Dictionary): _w.pack = items)
+	net.gather_result.connect(_on_result)
 
 
 func on_play(_delta: float) -> void:
@@ -32,15 +34,12 @@ func on_play(_delta: float) -> void:
 		_ready_ms = Time.get_ticks_msec() - _started_ms
 
 
-func _on_system(text: String) -> void:
+func _on_result(item: String, count: int) -> void:
 	if _w == null:
 		return
-	var gain: Dictionary = PromptScript.parse_gain(text)
-	if not _w.on_system(text):
-		return
-	var item := str(gain.item)
+	_w.on_result(item, count)
 	if item == "" or not ItemIcons.has_icon(item):
-		fail("gather toast has no icon of its own: %s" % text)
+		fail("gather toast has no icon of its own: %s" % item)
 		return
 	if _w.toast_item() != item:
 		fail("toast for %s shows the %s icon" % [item, _w.toast_item()])
