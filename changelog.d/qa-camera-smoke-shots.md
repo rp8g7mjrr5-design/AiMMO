@@ -1,0 +1,1 @@
+- Every update now takes photos from the new over-the-shoulder camera before it ships, and fails if your character drifts off your left side, the aiming ring leaves the centre of the screen, or the camera ends up inside a hill. Backing into a slope while looking up is the one we test hardest.
