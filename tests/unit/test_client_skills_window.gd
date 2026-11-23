@@ -46,10 +46,17 @@ func test_goal_picks_the_closest_unlock() -> void:
 
 
 func test_goal_skips_unlocks_not_in_the_world_yet() -> void:
-	# Toolcraft 3 (coming soon) would be the cheapest; it never becomes the goal.
-	var all := {"toolcraft": Skills.xp_for_level(3) - 5}
-	var g := SkillsWindow.next_goal(all)
-	check(str(g.skill) != "toolcraft", "a soon unlock is no goal (got %s)" % g)
+	# Put a skill just short of a "coming soon" unlock, so it would be the cheapest goal; it
+	# never becomes the goal. Found from the data, so it keeps working as soon unlocks get built
+	# (Toolcraft 5 was soon until #110).
+	for s in Skills.ORDER:
+		var u = Skills.next_unlock(s, 0)
+		while u != null and not u.get("soon", false):
+			u = Skills.next_unlock(s, int(u.level))
+		if u == null:
+			continue
+		var g := SkillsWindow.next_goal({s: Skills.xp_for_level(int(u.level)) - 5})
+		check(g.is_empty() or str(g.name) != str(u.name), "a soon unlock is no goal (got %s)" % g)
 	for s in Skills.ORDER:
 		var u = Skills.next_unlock(s, 0)
 		while u != null:

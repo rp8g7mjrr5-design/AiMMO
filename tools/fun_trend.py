@@ -91,7 +91,11 @@ def summary_from_log(log: str):
 def _f(v, digits=1):
     if v is None:
         return "-"
-    return f"{v:.{digits}f}".rstrip("0").rstrip(".") if isinstance(v, (int, float)) else str(v)
+    if not isinstance(v, (int, float)):
+        return str(v)
+    text = f"{v:.{digits}f}"
+    # Trim trailing zeros of the decimals only: 40 must stay "40", not "4".
+    return text.rstrip("0").rstrip(".") if "." in text else text
 
 
 def _pair(s, key, digits=1):
