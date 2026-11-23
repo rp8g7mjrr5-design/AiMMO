@@ -73,6 +73,10 @@ var _args := {} ## command-line test hooks
 func start(p_net: Node, args: Dictionary) -> void:
 	net = p_net
 	settings = ClientSettings.load_from()
+	# The saved Graphics level must be in force before the world is built: flora and motes
+	# read Quality.level when they build, so a saved Low starts thin instead of building the
+	# full Medium world and thinning it afterwards (qa's request, 2026-11-23).
+	Quality.use(settings.graphics_quality)
 	icon_shelf.start() # draws while you're on the login screen, so the first toast never hitches
 	_setup_input()
 	_build_ui()
@@ -357,8 +361,7 @@ func _apply_settings(s: ClientSettings) -> void:
 	camera.far = s.draw_distance
 	camera.fov = s.field_of_view
 	cam.side = s.shoulder_side()
-	Quality.level = s.graphics_quality
-	Quality.apply_renderer(s.graphics_quality)
+	Quality.use(s.graphics_quality)
 	for sun in world.find_children("*", "DirectionalLight3D", true, false):
 		sun.shadow_enabled = s.shadow_quality > 0
 		if s.shadow_quality > 0:
@@ -796,10 +799,14 @@ func _update_goal(flash: bool) -> void:
 		_goal_flash = SkillsWindow.GOAL_FLASH_SECONDS
 
 
+## The goal line steps aside while the level-up banner (just below it) is up, and its gold
+## "new goal" flash waits for the banner to go, so the two read one after the other.
 func _step_goal(delta: float) -> void:
+	var banner_a := level_up_banner.current_alpha()
+	goal_label.modulate.a = SkillsWindow.goal_alpha(banner_a)
 	if _goal_flash <= 0.0:
 		return
-	_goal_flash = maxf(0.0, _goal_flash - delta)
+	_goal_flash = SkillsWindow.goal_flash_after(_goal_flash, delta, banner_a > 0.0)
 	goal_label.add_theme_color_override("font_color", SkillsWindow.goal_colour(_goal_flash / SkillsWindow.GOAL_FLASH_SECONDS))
 
 

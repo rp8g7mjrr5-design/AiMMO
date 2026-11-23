@@ -1273,3 +1273,46 @@ per tick rather than per input, so a quick tap shorter than a tick can be walked
 tick server-side; the ease hides it (at most 0.3 m).
 
 **Next run:** the art checks out of the bot behaviours (qa's request), or the F3 prediction numbers.
+
+## 2026-11-23: the level-up moment reads clean, and a saved Low really starts Low (ws/client/level-up-reads-clean)
+
+**Why this:** the backlog's top item (camera heading with input) is still blocked on
+gameplay's v5 facing yaw, so I took qa's open bug request first (requests and bugs come
+first), plus two small level-up follow-ups that make Milestone 1's payoff land. What a player
+will feel: when you level, the XP bar fills to the brim and stays there glowing while the
+banner says "Felling 5", instead of snapping back to empty underneath it; and the goal line
+no longer sits on top of the banner, it comes back in gold with your new goal as the banner
+hands over.
+
+**Built:**
+- `XpMeter`: a gain that crosses a level eases up to full over `FILL_SECONDS`, holds full for
+  `LEVEL_HOLD` 0.6 s with the bar brightened (`FULL_GLOW` on `self_modulate`), then slides
+  from empty into the new level over `WRAP_SECONDS` 0.35 s. Rest is at 1.5 s, before the bar
+  starts fading at 3 s; the hold ends (1.15 s) before the banner starts fading (1.45 s).
+  `settle_seconds(levels)`, `holding_full`, `settled()`, `levels_crossed()` are new.
+- Goal line: `SkillsWindow.goal_alpha(banner_alpha)` = 1 - banner alpha, and
+  `goal_flash_after` freezes the gold "new goal" flash while the banner is up, so it plays as
+  the banner fades. `LevelUpBanner.current_alpha()` feeds it.
+- Low graphics bug (qa): `Quality.use(level)` sets `Quality.level` and pushes the shadow map;
+  `client.start()` now calls it with the saved level before `WorldBuilder.build()`, and
+  `_apply_settings` uses it too. World's `_QualityWatch` already thinned flora within half a
+  second after `_apply_settings`, so before this the world was built at Medium and then
+  thinned; now the first build is light, and anything world builds once (not watched) gets
+  the right level.
+
+**Tests:** new unit tests `test_a_level_up_holds_the_bar_full_while_the_banner_pops`,
+`test_goal_line_steps_aside_for_the_level_up_banner`, `test_current_alpha_follows_the_banner`,
+`test_saved_level_is_in_force_before_the_world_builds` (checks the call order in client.gd
+by source, and that a first `Flora.build()` on Low is already thinned). The
+`client_xp_meter` bot behaviour now waits for `settled()` instead of `FILL_SECONDS` and fails
+if a level-up gain isn't holding the bar full (stat `level_holds`: 1 per bot in the 8-bot
+run). Unit tests: 622 passed with Postgres. 8-bot 180 s WebSocket bot test: PASSED.
+Client smoke test: passed; the Low shot now measures warmth 0.160 against noon's 0.094
+(before this qa saw it within 0.001), so it is really drawing differently.
+
+**Didn't do:** the goal line still uses its own wording (`goal_text`); it agrees with the
+banner's `next_text` today, so I left it. Two level-ups in one gain still replace each
+other in the banner (separate follow-up).
+
+**Next run:** the art checks out of the bot behaviours (director item), or the F3 prediction
+numbers.

@@ -1,0 +1,3 @@
+- Level up and your XP bar now fills to the brim and holds there, glowing, while the banner shouts your new level, then rolls over into the next one.
+- The "next goal" line under the compass steps aside for the level-up banner and comes back glowing gold with your new goal as the banner fades.
+- Picked Low graphics on an older laptop? It now really starts on Low: the world is built light from the first frame instead of building everything and thinning it afterwards.

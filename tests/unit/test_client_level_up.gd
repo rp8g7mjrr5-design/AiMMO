@@ -67,6 +67,18 @@ func test_node_shows_swallows_and_hides() -> void:
 	b.free()
 
 
+func test_current_alpha_follows_the_banner() -> void:
+	var b := LevelUpBanner.new()
+	b.setup(Theme.new())
+	check_near(b.current_alpha(), 0.0, 0.0001, "nothing up")
+	b.on_level_up("felling", 5, [])
+	b.step(0.5)
+	check_near(b.current_alpha(), 1.0, 0.0001, "fully up mid-banner")
+	b.step(LevelUpBanner.DURATION)
+	check_near(b.current_alpha(), 0.0, 0.0001, "gone")
+	b.free()
+
+
 func test_level_up_sound() -> void:
 	var w := Sfx.level_up()
 	var samples := w.data.size() / 2

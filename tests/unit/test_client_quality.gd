@@ -68,6 +68,26 @@ func test_saved_and_old_files() -> void:
 	check_eq(ClientSettings.from_config(bad).graphics_quality, Quality.LOW, "negative clamps")
 
 
+func test_saved_level_is_in_force_before_the_world_builds() -> void:
+	# qa's request: a saved Low must thin flora when the world is first built, not only after a
+	# Settings change. Quality.use is what client.start() calls before WorldBuilder.build().
+	Quality.use(Quality.LOW)
+	check_eq(Quality.level, Quality.LOW)
+	check_near(Flora.quality_density(), Quality.flora_density(Quality.LOW), 0.0001, "flora reads the saved level")
+	var flora := Flora.build()
+	check_near(float(flora.get_meta("density", -1.0)), Quality.flora_density(Quality.LOW), 0.0001, "the first build is already thinned")
+	flora.free()
+	Quality.use(99)
+	check_eq(Quality.level, Quality.HIGH, "out of range clamps")
+	Quality.use(Quality.MEDIUM) # the rest of the suite runs on Medium
+	check_eq(Quality.level, Quality.MEDIUM)
+	# client.gd puts the saved level in force before it builds the world.
+	var src := FileAccess.get_file_as_string("res://client/client.gd")
+	var use_at := src.find("Quality.use(settings.graphics_quality)")
+	var build_at := src.find("WorldBuilder.build()")
+	check(use_at > 0 and build_at > 0 and use_at < build_at, "Quality.use runs before WorldBuilder.build() in start()")
+
+
 func test_level_names() -> void:
 	check_eq(Quality.level_name(Quality.LOW), "Low")
 	check_eq(Quality.level_name(Quality.HIGH), "High")

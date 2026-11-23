@@ -173,6 +173,11 @@ func _apply() -> void:
 	scale = Vector2(s, s)
 
 
+## The banner's alpha right now (0 when it isn't up).
+func current_alpha() -> float:
+	return alpha(_age) if _age != INF else 0.0
+
+
 ## Is the banner on screen right now?
 func showing() -> bool:
 	return _age != INF and alpha(_age) > 0.0

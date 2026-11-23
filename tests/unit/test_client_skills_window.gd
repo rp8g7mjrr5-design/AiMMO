@@ -104,6 +104,22 @@ func test_goal_colour_flashes_gold_and_settles() -> void:
 	check(SkillsWindow.GOAL_FLASH_SECONDS < 2.0, "the flash is short")
 
 
+func test_goal_line_steps_aside_for_the_level_up_banner() -> void:
+	check_near(SkillsWindow.goal_alpha(0.0), 1.0, 0.0001, "no banner: the goal line shows")
+	check_near(SkillsWindow.goal_alpha(1.0), 0.0, 0.0001, "banner fully up: hidden")
+	check_near(SkillsWindow.goal_alpha(LevelUpBanner.alpha(LevelUpBanner.DURATION - LevelUpBanner.FADE_SECONDS * 0.5)), 0.5, 0.0001, "cross-fades as the banner goes")
+	check_near(SkillsWindow.goal_alpha(LevelUpBanner.alpha(LevelUpBanner.DURATION)), 1.0, 0.0001, "back when it's gone")
+	check_near(SkillsWindow.goal_alpha(7.0), 0.0, 0.0001, "clamped")
+	# The new goal's gold flash waits behind the banner and plays as it hands over.
+	var flash := SkillsWindow.GOAL_FLASH_SECONDS
+	for i in 30:
+		flash = SkillsWindow.goal_flash_after(flash, 0.1, true)
+	check_near(flash, SkillsWindow.GOAL_FLASH_SECONDS, 0.0001, "held while the banner is up")
+	flash = SkillsWindow.goal_flash_after(flash, 0.5, false)
+	check_near(flash, SkillsWindow.GOAL_FLASH_SECONDS - 0.5, 0.0001, "runs once it's gone")
+	check_near(SkillsWindow.goal_flash_after(0.2, 1.0, false), 0.0, 0.0001, "never below zero")
+
+
 func test_k_opens_it() -> void:
 	ControlsOverlay.install_input()
 	check_eq(ControlsOverlay.key_text("toggle_skills"), "K")
