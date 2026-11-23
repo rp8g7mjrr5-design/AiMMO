@@ -5,6 +5,10 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- Aim and click: left-click a tree, rock or seep under your crosshair to start gathering it, and hold the button to keep going, just like holding E.
+- Clicking again while you chop keeps you chopping, so mashing the button never breaks your swing. E or walking off still stops.
+- The F1 controls list now shows "Left click" next to E for gathering.
+- Every build now puts the server on a stopwatch while eight test players chop, mine and chat: if a tick gets slow, the world stops moving 20 times a second, memory creeps up or each player's connection has to carry much more, the update is held back before you ever feel lag.
 - Chat is for talking now, all the way: "slow down", "chat is for talking", "this ash is spent, it comes back in about 3 minutes" and your welcome all pop up in the middle of the screen, right above your crosshair, and fade on their own. Only what players say (and who arrives or leaves) is left in chat.
 - A soft low "nope" plays with every refusal, so you hear a full pack or an empty node without taking your eyes off the tree.
 - Quarrying and Tapping now have the same promise as Felling: head for the rocks (or the sap seeps on your first night) and your first level lands inside a minute and a half.

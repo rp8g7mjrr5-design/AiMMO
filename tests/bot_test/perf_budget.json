@@ -1,0 +1,27 @@
+{
+	"_about": "Server performance budget for the 8-bot bot test (tests/bot_test/perf_report.py). 'max'/'min' are hard limits: --perf-check fails past them. 'baseline' is what a healthy main measured; a metric in 'baseline_gated' fails when it is more than worse_ratio times its baseline, the others only print a note (CI machines differ in speed). Re-take the baseline when a note says a metric is well under it.",
+	"_taken": "2026-11-23, local 4-core run, 8 bots x 180 s WebSocket + Postgres: CPU 1.25 ms/tick (worst 5 s 2.49), 20.0 ticks/s, RSS 96.7 MB peak and flat, 60.5 kbit/s down and 43.0 up per player",
+	"min_duration_s": 120,
+	"max": {
+		"_why": "A tick is 50 ms at 20 ticks/s. The average may use under a third of it and the worst 5 s under 70%, so the server has room for many more than 8 players before ticks slip. Memory and bandwidth ceilings are about 4x today's numbers: well under what Railway and a home connection allow.",
+		"cpu_ms_per_tick": 15,
+		"cpu_ms_per_tick_peak": 35,
+		"rss_peak_mb": 400,
+		"rss_growth_mb": 64,
+		"down_kbps_per_player_max": 256,
+		"up_kbps_per_player_max": 160
+	},
+	"min": {
+		"_why": "Players feel a server that slips below 18 ticks/s as rubber-banding.",
+		"tick_rate_min": 18,
+		"players_measured": 8
+	},
+	"baseline": {
+		"cpu_ms_per_tick": 1.25,
+		"rss_peak_mb": 96.7,
+		"down_kbps_per_player_median": 60.5,
+		"up_kbps_per_player_median": 43.0
+	},
+	"baseline_gated": ["down_kbps_per_player_median", "up_kbps_per_player_median"],
+	"worse_ratio": 1.5
+}

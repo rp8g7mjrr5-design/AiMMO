@@ -1153,3 +1153,37 @@ at exit (Godot's leak lines count as error logs). Both fixed; the second run pas
 
 **Next run:** left-click gather (action camera follow-up), or Return to Spawn Meadow, or
 client-side prediction.
+
+## 2026-11-23: left-click gathering (ws/client/left-click-gather)
+
+**Built:** the action camera's "E or left-click" (owner direction 3). A new `click_use`
+action (left mouse button) lives in `ControlsOverlay.DEFAULT_MOUSE` and is installed next to
+the keys; F1 shows it as "Left click" beside E. `GatherPrompt.target` now says whether its
+node is `aimed` (under the reticle) and `decide` takes `click_held` / `click_pressed`.
+
+**Calls I made, and why:**
+- A click only takes the node under the reticle, never the nearest-node fallback E uses.
+  Clicking at the sky to look around shouldn't start chopping the tree beside you.
+- A click never cancels. Players mash the button in action games; mashing should keep you
+  chopping, not toggle the swing on and off. E or moving still stops.
+- Only a click the game itself took counts: `_unhandled_input` sets `_click_tap` /
+  `_click_down` when the cursor is captured. `Input.is_action_just_pressed` alone would also
+  fire for the click on a window's Close button or the Pack button, and start a gather the
+  same frame the window shut.
+- Holding the button after a refusal or after E stopped you waits until you let go (shares
+  `_hold_blocked` with E).
+
+**Tests:** 4 unit tests in `test_client_click_gather.gd` (decide rules, `aimed` on real nodes,
+the widget's click/hold/E-stop sequence, binding and F1 row); `test_client_controls_overlay`
+accepts mouse defaults. New bot behaviour `client_click_gather`: on every server-begun gather
+of the bot's own, it aims a camera at that node and checks the click path asks for that very
+node and that a click mid-gather wouldn't stop it; it sends nothing. Unit tests 584 passed with
+Postgres; 8-bot 180 s WebSocket bot test PASSED (21 to 28 gathers checked per bot, 0 skipped);
+client smoke passed.
+
+**Didn't work first time:** nothing failed this run. Known gap: the bot check builds its own
+camera eye 2.2 m above the bot, not the real `ActionCamera` arm, so it proves the aim rules,
+not the exact shoulder offset (that path is unit tested in `test_client_action_camera`).
+
+**Next run:** client-side prediction (unblocked since v3's `ack_seq`), or the art-check move
+out of the bot behaviours, or Return to Spawn Meadow once v5 is on `main`.

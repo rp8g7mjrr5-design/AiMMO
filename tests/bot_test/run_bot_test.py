@@ -35,8 +35,14 @@ runs, and two bots (behaviour qa_chat_gate) type /gather, /bag and /who: each li
 the "Chat is for talking" hint, change nothing, never be broadcast, and plain talk must still
 reach the other bot. Skip it with --no-chat-gate.
 
+Every run also samples the server process while the bots play (tests/bot_test/perf_report.py):
+CPU milliseconds per tick, ticks per second the bots saw, peak memory and its growth, and on
+WebSocket runs the bytes per second to and from each player, measured on the wire with `ss`.
+It prints them and writes perf_metrics.json; with --perf-check the run fails when they break
+tests/bot_test/perf_budget.json.
+
 Usage:
-  python3 tests/bot_test/run_bot_test.py [--bots 8] [--duration 180] [--transport enet] [--fun-check]
+  python3 tests/bot_test/run_bot_test.py [--bots 8] [--duration 180] [--transport enet] [--fun-check] [--perf-check]
 
 Uses $DATABASE_URL when set (CI uses a real Postgres); otherwise a temp JSON store.
 Needs `godot` on PATH (or $GODOT).
@@ -49,12 +55,14 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fun_report  # noqa: E402
 import gather_report  # noqa: E402
+import perf_report  # noqa: E402
 
 # The respawn probe waits at most this long after the bots for its node to come back.
 MAX_PROBE_WAIT = 150.0
@@ -125,6 +133,27 @@ def stop_server(server, log: Path, stop_file: Path, label: str) -> list:
     if "[server] stopped cleanly" not in log.read_text(errors="replace"):
         problems.append(f"{label} did not report a clean stop")
     return problems + scan_log(log, label)
+
+
+class PerfSampler(threading.Thread):
+    """Samples the server once a second (perf_report.sample) until stop() is called."""
+
+    def __init__(self, pid: int, port: int, with_net: bool):
+        super().__init__(daemon=True)
+        self.pid, self.port, self.with_net = pid, port, with_net
+        self.samples = []
+        self._stop_event = threading.Event()
+
+    def run(self):
+        t0 = time.time()
+        while not self._stop_event.is_set():
+            self.samples.append([time.time() - t0, perf_report.sample(self.pid, self.port, self.with_net)])
+            self._stop_event.wait(1.0)
+
+    def stop(self) -> list:
+        self._stop_event.set()
+        self.join(timeout=10)
+        return self.samples
 
 
 def seed_veteran(env: dict, work: Path, name: str):
@@ -205,6 +234,9 @@ def main() -> int:
     ap.add_argument("--fun-check", action="store_true",
                     help="fail on fun-metric limits and regressions against the baseline")
     ap.add_argument("--fun-baseline", default=str(fun_report.BASELINE), help="baseline JSON for --fun-check")
+    ap.add_argument("--perf-check", action="store_true",
+                    help="fail when server CPU, tick rate, memory or bandwidth break perf_budget.json")
+    ap.add_argument("--perf-budget", default=str(perf_report.BUDGET), help="budget JSON for --perf-check")
     ap.add_argument("--no-level-gate", action="store_true", help="skip the tier-2 level-gate check")
     ap.add_argument("--no-chat-gate", action="store_true", help="skip the chat-gate phase (dev commands off)")
     a = ap.parse_args()
@@ -234,6 +266,9 @@ def main() -> int:
         print("[bot-test] FAIL: server did not start")
         return 1
 
+    # The server's own resources while the main bots play (not the probe/pair/gate phases after).
+    sampler = PerfSampler(server.pid, port, a.transport == "websocket")
+    sampler.start()
     bots = []
     for i in range(a.bots):
         name = f"bot{run_tag}_{i + 1}"
@@ -256,6 +291,8 @@ def main() -> int:
         if server.poll() is not None:
             problems.append(f"server exited early with code {server.returncode}")
             break
+
+    perf_samples = sampler.stop()
 
     # Real gathering across the run, then the respawn probe while the server is still up.
     rows = {}
@@ -412,6 +449,31 @@ def main() -> int:
     elif a.fun_check:
         problems.append("fun metrics: no bot reported qa_fun_metrics")
 
+    tick_rates = []
+    for name, _, result, _ in bots[:a.bots]:
+        try:
+            r = json.loads(result.read_text())["stats"]["behaviours"]["qa_snapshot_flow"]["tick_rate"]
+            tick_rates.append(r if r > 0 else None)
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    perf = perf_report.summarise(perf_samples, perf_report.server_tick_rate(), tick_rates)
+    print(perf_report.table(perf))
+    print("[bot-test] perf summary: " + json.dumps(perf, separators=(",", ":")))
+    budget = perf_report.load_budget(Path(a.perf_budget))
+    perf_problems, perf_notes = perf_report.check(perf, budget, a.transport == "websocket")
+    if a.duration < budget.get("min_duration_s", 120):
+        perf_notes += [f"(short run, not checked) {p}" for p in perf_problems]
+        perf_problems = []
+    (work / "perf_metrics.json").write_text(json.dumps(
+        {"bots": a.bots, "duration_s": a.duration, "transport": a.transport, "summary": perf,
+         "budget": budget, "problems": perf_problems, "notes": perf_notes, "samples": perf_samples}, indent=1))
+    for n in perf_notes:
+        print(f"[bot-test] perf note: {n}")
+    for v in perf_problems:
+        print(f"[bot-test] perf: {v}" + ("" if a.perf_check else " (not checked: no --perf-check)"))
+    if a.perf_check:
+        problems += [f"server performance: {v}" for v in perf_problems]
+
     took = time.time() - t0
     if took < a.duration:
         problems.append(f"test ran only {took:.0f}s")
@@ -424,7 +486,7 @@ def main() -> int:
     print(f"[bot-test] PASSED in {took:.0f}s")
     if not a.keep:
         for f in work.rglob("*"):
-            if f.is_file() and f.name != "fun_metrics.json":
+            if f.is_file() and f.name not in ("fun_metrics.json", "perf_metrics.json"):
                 f.unlink()
     return 0
 
