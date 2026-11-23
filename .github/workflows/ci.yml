@@ -1,12 +1,26 @@
 name: CI
 
-# Every push and PR: unit tests, the 3-minute bot test, and a client smoke test.
-# Pushes to main then deploy the server to Railway and publish client builds as a Release.
+# Every PR and every push to main: unit tests, the 3-minute bot test, and a client smoke test.
+# Pushes to main then publish client builds as a Release. Railway deploys the server itself
+# from main (railway.json watchPatterns: only when server files change).
+#
+# Worker branches are tested once, by their PR run (the required "Test" check). A push to a
+# branch with no PR runs nothing, so a PR's commit is not tested twice.
+#
+# Docs-only changes (docs/, changelog.d/, *.md at the root) still run the unit tests, which
+# lint the patch notes, but skip the bot tests and the client smoke test: nothing the game
+# runs changed. Any other file runs everything.
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Also redeploy the server to Railway with the CLI (needs RAILWAY_TOKEN)"
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -33,8 +47,20 @@ jobs:
     env:
       # Throwaway CI database, not a secret.
       DATABASE_URL: postgres://aimmo:aimmo_ci_only@127.0.0.1:5432/aimmo_test
+    outputs:
+      code: ${{ steps.changes.outputs.code }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: What changed (docs-only changes skip the slow tests)
+        id: changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          BEFORE: ${{ github.event.before }}
+        run: python3 .github/scripts/changed_code.py
+
       - uses: ./.github/actions/setup-godot
         with:
           version: ${{ env.GODOT_VERSION }}
@@ -43,9 +69,11 @@ jobs:
         run: godot --headless --path game -s tests/unit/run_all.gd
 
       - name: Protocol-mismatch test (old clients are told to update, not left hanging)
+        if: steps.changes.outputs.code == 'true'
         run: python3 tests/protocol/run_protocol_test.py --transport websocket
 
       - name: Watchdog test (a frozen server is restarted, a healthy one is left alone)
+        if: steps.changes.outputs.code == 'true'
         run: python3 tests/ops/run_watchdog_test.py
 
       - name: Dockerfile checks (fast, no Docker)
@@ -58,18 +86,23 @@ jobs:
         run: python3 tests/ops/run_image_test.py --image aimmo-server:ci
 
       - name: Fun-metrics report tests
+        if: steps.changes.outputs.code == 'true'
         run: python3 -m unittest discover -s tests/bot_test -p 'test_*.py'
 
       - name: Bot test (8 bots, 3 minutes, WebSocket, Postgres, fun metrics checked)
+        if: steps.changes.outputs.code == 'true'
         run: python3 tests/bot_test/run_bot_test.py --bots 8 --duration 180 --transport websocket --fun-check
 
       - name: Bot test smoke (8 bots, 45 seconds, ENet)
+        if: steps.changes.outputs.code == 'true'
         run: python3 tests/bot_test/run_bot_test.py --bots 8 --duration 45 --transport enet
 
       - name: Install virtual display for the client smoke test
+        if: steps.changes.outputs.code == 'true'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri >/dev/null
 
       - name: Client smoke test
+        if: steps.changes.outputs.code == 'true'
         timeout-minutes: 8
         run: tests/client_smoke/run.sh build/client-smoke
 
@@ -87,10 +120,13 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # Railway's GitHub autodeploy already deploys every server change on main, so deploying again
+  # here restarted the server twice per merge (players were kicked twice). This job is now only
+  # a manual redeploy: Actions -> CI -> Run workflow on main, with "deploy" ticked.
   deploy:
     name: Deploy server to Railway
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -114,7 +150,7 @@ jobs:
   release:
     name: Build clients and publish release
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -122,6 +158,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-godot
+        if: needs.test.outputs.code == 'true'
         with:
           version: ${{ env.GODOT_VERSION }}
           templates: "true"
@@ -138,6 +175,16 @@ jobs:
           start = m.end()
           nxt = re.search(r"^## ", text[start:], re.M)
           body = text[start:start + nxt.start()] if nxt else text[start:]
+          # Fragments the integrator hasn't folded into CHANGELOG.md yet still reach the notes,
+          # so the integrator can fold a few times a day instead of after every merge.
+          import glob
+          pending = []
+          for f in sorted(glob.glob("changelog.d/*.md")):
+              if os.path.basename(f).lower() == "readme.md":
+                  continue
+              pending += [l.rstrip() for l in open(f, encoding="utf-8") if l.strip()]
+          if pending:
+              body = "\n".join(pending) + "\n" + body.strip()
           open("release-notes.md", "w", encoding="utf-8").write(body.strip() + "\n")
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               out.write(f"tag=week-{m.group(1)}\n")
@@ -145,6 +192,7 @@ jobs:
           PY
 
       - name: Bake the public server address into the client
+        if: needs.test.outputs.code == 'true'
         env:
           AIMMO_PUBLIC_SERVER: ${{ vars.AIMMO_PUBLIC_SERVER }}
         run: |
@@ -155,6 +203,7 @@ jobs:
           fi
 
       - name: Bake the build number and update address into the client
+        if: needs.test.outputs.code == 'true'
         # The installed game checks update.json on the latest release at startup and
         # downloads a newer game pack when this build number is behind (game/client/updater.gd).
         run: |
@@ -162,6 +211,7 @@ jobs:
           echo "https://github.com/$GITHUB_REPOSITORY/releases/latest/download" > game/client/update_url.txt
 
       - name: Export clients
+        if: needs.test.outputs.code == 'true'
         run: |
           set -euo pipefail
           for p in client-linux client-windows client-macos; do
@@ -197,7 +247,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.notes.outputs.tag }}
           TITLE: ${{ steps.notes.outputs.title }}
+          CODE: ${{ needs.test.outputs.code }}
         run: |
+          if [ "$CODE" != "true" ]; then
+            # Docs or patch notes only: refresh the notes, keep the builds (installed games
+            # would otherwise download an identical update).
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release edit "$TAG" --title "$TITLE" --notes-file release-notes.md
+            fi
+            exit 0
+          fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             # A fix pushed later in the same week updates that week's release.
             gh release edit "$TAG" --title "$TITLE" --notes-file release-notes.md
