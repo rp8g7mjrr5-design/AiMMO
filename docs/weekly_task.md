@@ -19,13 +19,17 @@ the next week. The update must be live and playable by the weekend.
 - Check each workstream ran this week and look for stuck PRs. Close PRs stuck over 24 hours with a reason, and put the item back in its backlog.
 
 ## 3. Name the week
+- **Fun check first.** Play the week through the bot test's fun metrics and the smoke
+  screenshots: is a fresh character's first minute more fun than last week? Name the most fun
+  thing added, and the most boring or slow thing left, and put fixing that near the top of
+  the right stream's backlog.
 - Pick the week's headline: the most player-visible thing merged this week.
 - Set the current `## Week NN — <headline>` heading in `CHANGELOG.md` and tidy that week's bullets into fun, clear patch notes.
 - Write `docs/devlog/week-NN.md`: what each stream shipped, what didn't work, known bugs, and specific notes for next week.
 
 ## 4. Plan
 - Update `docs/roadmap.md` so it always covers the next 4 to 6 weeks.
-- Rebalance every stream's backlog to match the roadmap and the North star. Each stream should have at least 5 well-sized items, cross-stream dependencies ordered correctly, and requests between streams answered.
+- Rebalance every stream's backlog to match the roadmap and the North star, fun first. Each stream should have at least 5 well-sized items, cross-stream dependencies ordered correctly, and requests between streams answered.
 - If the design vision changed, log it in the design bible's revision history with the reason.
 
 ## 5. Ship

@@ -4,7 +4,7 @@ This is the AI-owned vision for AiMMO. It may evolve, but every change is logged
 Revision history at the bottom with its reason, so the game does not flip-flop.
 
 ## North star
-**Make the Greatest MMO of all time.** This is the owner's stated goal, and the measure every weekly choice is judged against. "Greatest" here means the MMO players most want to come back to: a world that feels alive, systems that are deep but never broken, and a community that grows because people enjoy being in it together. When two options compete, pick the one that moves AiMMO closer to that, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5).
+**Make the Greatest MMO of all time.** This is the owner's stated goal, and the measure every weekly choice is judged against. The number one way there is to make it **fun**: if it isn't fun, it isn't the best (see "Fun comes first" under Owner directions). "Greatest" here means the MMO players most want to come back to: a world that feels alive, systems that are deep but never broken, and a community that grows because people enjoy being in it together. When two options compete, pick the one that moves AiMMO closer to that, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5).
 
 ## Pillars
 1. **A world that feels lived in, not grinded.** Players should want to log in to see what changed and who is around, not to tick a daily chore.
@@ -13,10 +13,59 @@ Revision history at the bottom with its reason, so the game does not flip-flop.
 4. **Cooperation first.** The early game rewards people for being near each other: shared gathering, group events, a town built together. PvP, if it ever comes, is opt-in.
 
 ## Owner directions (standing rules)
-The owner plays and tests; the AI designs everything else. On three things the owner has
-given a direction, and these are standing rules: they win over any other design choice, and
+The owner plays and tests; the AI designs everything else. The owner has given the
+directions below, and these are standing rules: they win over any other design choice, and
 the weekly review and director may refine them but never reverse them. Everything not
-covered here (systems, lore, balance, roadmap) stays the AI's call.
+covered here (systems, lore, balance, roadmap) stays the AI's call. Fun comes first and sits
+above the numbered directions: when two choices both respect directions 1 to 3, pick the
+more fun one.
+
+### Fun comes first (the first rule)
+**If it isn't fun, it isn't the greatest MMO.** Fun is how we measure the North star. Every
+change, in every stream, is judged first by one question: *does this make the game more fun
+to play, right now, for a real player?* "Technically correct but boring" is not done.
+What that means in practice:
+- **Tight feedback.** Every player action answers within about 100 ms on the client: a
+  sound, a motion, a flash, a number, a camera nudge. The server still decides the result;
+  the client shows that the input landed at once and confirms or corrects it.
+- **Short loops that pay off.** A new player gets a first reward (an item, a craft, a
+  discovery) within about 60 seconds of spawning, and something new to want within about
+  5 minutes. Every loop (gather, craft, explore, fight) ends in a payoff the player can see,
+  hear and use, and the payoff feeds the next loop.
+- **Juice.** Hits, pickups and crafts get layered feedback: a hit reaction, particles, a
+  pitch-varied procedural sound, a toast, the item flying into the pack. Make small things
+  feel good before adding more things.
+- **No dead time.** Avoid long walks with nothing to see, waits with nothing to do, empty
+  menus and silent screens. If a player waits, give them something to watch or decide.
+- **Clear goals, always.** The player should always know one thing they could do next and
+  why it would be good.
+- **Surprise and discovery.** Reward curiosity: a rare drop, a hidden spot, a creature doing
+  something odd, the world changing at night.
+- **Better together.** Doing something near another player should be more fun than doing it
+  alone (shared node bonuses, group moments, seeing each other's effects).
+- **Fair and readable.** Never punish players for things they couldn't see coming. Lose
+  little on failure; never lose a whole session's progress.
+- **Cut boring work.** Grind, busywork and chores don't ship. If a system only works by
+  making players repeat something dull, redesign it.
+
+How each stream applies it:
+- **gameplay:** tune timings and rewards for pace (gather and craft times, drop rates,
+  respawns) and add the server events the client needs for feedback (hit, crit, rare drop,
+  level-up). Prefer a rewarding loop over a deep but slow one.
+- **world:** make places worth walking to: landmarks in view, something to find along every
+  path, visible reactions (nodes shake, leaves fall, sparks fly), and a world that changes.
+- **client:** responsiveness and juice: instant input feedback, animation, sound, camera
+  feel, toasts and clear goals on screen. Never leave the player staring at nothing.
+- **qa:** measure fun, not only correctness (see "Fun checks" below), and file "this feels
+  slow or boring" as a bug with numbers.
+- **integrator and director:** a PR that makes nothing more fun, or makes the game slower or
+  duller, is sent back or reprioritised. Backlogs are ordered by player fun first.
+
+**Fun checks.** Each worker PR has a "Why it's more fun" line: one or two sentences on what a
+player will feel that they didn't before, or, for pure plumbing, which upcoming fun it
+unblocks. The bot test reports fun metrics for a fresh character (time to first reward,
+longest stretch with no feedback, rewards per minute, loops completed) and fails when they
+get worse past a threshold, so the game can't quietly get slower or emptier.
 
 ### 1. Chat is for talking
 Chat exists only so players can talk to each other. **No gameplay goes through chat.**
@@ -126,6 +175,7 @@ See `docs/roadmap.md` for dates. The intended stack of systems:
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 00 (2026-11-23, fun first):** Added "Fun comes first" at the top of the owner directions. The owner said the number one way to make the greatest MMO is to make it fun, and if it isn't fun it isn't the best. Turned that into concrete guidance (tight feedback, short loops that pay off, juice, no dead time), a lens for each stream, a "Why it's more fun" line on every worker PR, and bot-test fun metrics in qa. Directions 1 to 3 (chat is for talking, the action camera, how gathering feels) and "Inspired by, never copied" are unchanged.
 - **Week 00 (2026-11-22, owner directions):** Added "Owner directions": chat is for talking only (slash commands move to keys and windows, debug commands only behind `--dev-commands`), an over-the-shoulder action camera with always-on mouse look and camera-relative movement, gathering that targets what the reticle is on, and an "Inspired by, never copied" section. The owner loves how New World's camera and gathering feel and asked for that feel, while the AI keeps designing everything else; the guardrails keep us to mechanics and feel, never names, lore, art, UI or text.
 - **Week 00 (2026-11-22, gathering feel):** Added "How gathering feels". The owner disliked typing `/gather` and pointed at mainstream MMOs as the model, so gathering becomes walk up, prompt, press E or click, timed gather bar with animation, item toast, and visibly emptied nodes. `/gather` is kept only as a debug fallback.
 - **Week 00 (follow-up):** Added the owner's north star, "Make the Greatest MMO of all time", above the pillars so every weekly session measures its choices against it.
