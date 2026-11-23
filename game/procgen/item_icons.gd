@@ -3,7 +3,9 @@ class_name ItemIcons
 ##
 ## Every item in `Inventory.ITEMS` has a little picture: logs with a cut end for wood, a grey
 ## chunk with a quartz seam for stone, a glowing drop for ember sap, the two stone tools, a
-## lit torch and a campfire. They match what the world draws (the outcrop's pale seam, the
+## lit torch and a campfire, and the two tier-2 materials: ember heartwood (an old grey log
+## whose cut end glows like a coal) and veinstone (a deep mauve chunk split by glowing
+## veins with gold flecks), drawn like the old ember ash and the rich seam. They match what the world draws (the outcrop's pale seam, the
 ## seep's ember glow, the ash's warm leaves), so a "+2 ash wood" toast looks like the tree
 ## you just hit.
 ##
@@ -101,6 +103,10 @@ static func tint(item: String) -> Color:
 			return QUARTZ
 		"ember_sap", "torch", "campfire":
 			return SAP
+		"ember_heartwood":
+			return Palette.OLD_ASH_LEAF
+		"veinstone":
+			return Palette.RICH_FLECK
 		"stone_axe", "stone_pickaxe":
 			return STONE.lightened(0.2)
 	return CLOTH
@@ -319,6 +325,42 @@ static func _recipe(item: String) -> Array:
 				_capsule(Vector2(0.22, 0.70), Vector2(0.80, 0.40), 0.03, QUARTZ, {"outline": false, "shade": 0.1}),
 				_circle(Vector2(0.36, 0.63), 0.035, QUARTZ.lightened(0.3), {"outline": false, "shade": 0.0}),
 				_circle(Vector2(0.62, 0.49), 0.03, QUARTZ.lightened(0.3), {"outline": false, "shade": 0.0}),
+			]
+		"ember_heartwood":
+			# One fat old log, greyer than ash wood, its heart still a live coal: the old ember
+			# ash's grey bark and gold crown, so the pick reads "rarer" at a glance.
+			var a := [
+				_capsule(Vector2(0.74, 0.34), Vector2(0.34, 0.62), 0.17, Palette.OLD_ASH_BARK, {"shade": 0.26}),
+				_capsule(Vector2(0.70, 0.30), Vector2(0.46, 0.47), 0.016, Palette.OLD_ASH_BARK.darkened(0.35), {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.78, 0.42), Vector2(0.56, 0.58), 0.015, Palette.OLD_ASH_BARK.darkened(0.35), {"outline": false, "shade": 0.0}),
+				# A glowing crack along the bark, like the old ash's vein cracks.
+				_poly([Vector2(0.74, 0.24), Vector2(0.62, 0.34), Vector2(0.66, 0.36), Vector2(0.52, 0.46), Vector2(0.60, 0.40), Vector2(0.58, 0.38)], Palette.EMBER, {"outline": false, "shade": 0.0}),
+				_circle(Vector2(0.34, 0.62), 0.15, ASH_CUT.darkened(0.12), {"shade": 0.1}),
+				_circle(Vector2(0.34, 0.62), 0.11, RING.darkened(0.1), {"outline": false, "shade": 0.0}),
+				# The heart: a live coal in the middle of the rings, with a warm halo.
+				_circle(Vector2(0.34, 0.62), 0.08, Palette.EMBER, {"outline": false, "shade": 0.1, "glow": 0.34}),
+				_circle(Vector2(0.34, 0.62), 0.05, Palette.EMBER_CORE, {"outline": false, "shade": 0.0}),
+			]
+			# Two small gold leaves from the old crown.
+			a.append(_box(Vector2(0.70, 0.17), Vector2(0.10, 0.045), -0.5, Palette.OLD_ASH_LEAF, {"round": 0.04}))
+			a.append(_box(Vector2(0.82, 0.24), Vector2(0.07, 0.035), 0.5, Palette.OLD_ASH_LEAF.darkened(0.1), {"round": 0.03}))
+			return a
+		"veinstone":
+			# A deep mauve chunk like the rich seam, split by a glowing ember vein and dotted
+			# with gold flecks: plain stone, but obviously worth more.
+			return [
+				_poly([Vector2(0.12, 0.58), Vector2(0.22, 0.30), Vector2(0.44, 0.14), Vector2(0.72, 0.18), Vector2(0.90, 0.44), Vector2(0.80, 0.78), Vector2(0.50, 0.88), Vector2(0.22, 0.80)], Palette.RICH_STONE, {"shade": 0.3}),
+				_poly([Vector2(0.44, 0.14), Vector2(0.72, 0.18), Vector2(0.90, 0.44), Vector2(0.60, 0.42)], Palette.RICH_STONE.darkened(0.18), {"outline": false, "shade": 0.1}),
+				# The vein: a zig-zag crack of ember light across the face.
+				_capsule(Vector2(0.18, 0.66), Vector2(0.38, 0.52), 0.032, Palette.EMBER, {"outline": false, "shade": 0.0, "glow": 0.22}),
+				_capsule(Vector2(0.38, 0.52), Vector2(0.52, 0.62), 0.032, Palette.EMBER, {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.52, 0.62), Vector2(0.80, 0.38), 0.032, Palette.EMBER, {"outline": false, "shade": 0.0, "glow": 0.22}),
+				_capsule(Vector2(0.20, 0.65), Vector2(0.78, 0.39), 0.012, Palette.EMBER_CORE, {"outline": false, "shade": 0.0}),
+				# Gold flecks.
+				_circle(Vector2(0.34, 0.36), 0.03, Palette.RICH_FLECK, {"outline": false, "shade": 0.0}),
+				_circle(Vector2(0.62, 0.30), 0.024, Palette.RICH_FLECK, {"outline": false, "shade": 0.0}),
+				_circle(Vector2(0.44, 0.76), 0.028, Palette.RICH_FLECK, {"outline": false, "shade": 0.0}),
+				_circle(Vector2(0.70, 0.66), 0.022, Palette.RICH_FLECK, {"outline": false, "shade": 0.0}),
 			]
 		"ember_sap":
 			return [

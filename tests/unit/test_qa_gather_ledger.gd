@@ -43,15 +43,17 @@ func test_gatherers_on() -> void:
 	check_eq(GatherLedger.gatherers_on(ch, 99), 0)
 
 
-func test_pair_node_is_the_nearest_live_day_node() -> void:
+func test_pair_node_is_the_nearest_live_day_tier1_node() -> void:
 	var spawn := GameConfig.SPAWN_POINT
 	var first := GatherLedger.pair_node({}, [], spawn)
 	check(first >= 0, "there is a node to share")
 	var n := ResourceNodes.get_by_id(first)
 	check(not bool(ResourceNodes.kind_info(str(n.kind)).night_only), "never a night-only seep")
+	check_eq(Gathering.required_level(n), 1, "never a tier-2 node a fresh bot can't work")
 	var d := Vector2(n.pos.x, n.pos.z).length()
 	for other in ResourceNodes.near(spawn, d - 0.01):
-		check(bool(ResourceNodes.kind_info(str(other.kind)).night_only), "only seeps are nearer: %d" % other.id)
+		check(bool(ResourceNodes.kind_info(str(other.kind)).night_only) or Gathering.required_level(other) > 1,
+				"only seeps and tier-2 nodes are nearer: %d" % other.id)
 	var second := GatherLedger.pair_node({first: true}, [], spawn)
 	check(second >= 0 and second != first, "an empty node is skipped")
 	check_eq(GatherLedger.pair_node({}, [first], spawn), second, "the probe's node is skipped")

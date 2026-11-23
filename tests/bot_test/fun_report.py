@@ -31,6 +31,7 @@ COMPARED = {
     "longest_dead_s": ("longest_dead_s_median", False),
     "longest_wait_s": ("longest_wait_s_median", False),
     "rewards_per_min": ("rewards_per_min_median", True),
+    "first_level_up_gather_s": ("first_level_up_gather_s_median", False),
 }
 
 

@@ -59,9 +59,36 @@ class FunReport(unittest.TestCase):
         for key in base["baseline"]:
             self.assertIn(key, [k for k, _ in fun_report.COMPARED.values()])
         b = base["baseline"]
-        s = fun_report.summarise({"a": row(first=b["first_reward_s_median"], wait=b["longest_wait_s_median"],
-                                           rpm=b["rewards_per_min_median"])})
-        self.assertEqual(fun_report.check(s, base), [])
+        rows = {}
+        for i in range(int(base["limits"].get("bots_levelled_min", 1))):
+            r = row(first=b["first_reward_s_median"], wait=b["longest_wait_s_median"],
+                    rpm=b["rewards_per_min_median"], dead=b["longest_dead_s_median"])
+            r.update({"first_level_up_s": 100.0, "first_level_up_gather_s": b["first_level_up_gather_s_median"],
+                      "gather_s": 45.0, "level_ups": 1, "levels_per_10_min": 3.4})
+            rows["bot_%d" % i] = r
+        self.assertEqual(fun_report.check(fun_report.summarise(rows), base), [])
+
+    def test_dead_time_and_level_up_regressions(self):
+        base = json.loads(json.dumps(BASE))
+        base["limits"]["longest_dead_s_worst"] = 75
+        base["baseline"].update({"longest_dead_s_median": 35.0, "first_level_up_gather_s_median": 35.0})
+        base["slack"].update({"longest_dead_s": 10.0, "first_level_up_gather_s": 8.0})
+
+        def lv(gathered, dead=35.0):
+            r = row(dead=dead)
+            r.update({"first_level_up_s": gathered + 60, "first_level_up_gather_s": gathered, "gather_s": gathered + 5})
+            return r
+        # Inside 20% + slack (35 -> 44 dead, 35 -> 42 gathering): noise, passes.
+        self.assertEqual(fun_report.check(fun_report.summarise({"a": lv(42, dead=44)}), base), [])
+        probs = fun_report.check(fun_report.summarise({"a": lv(45, dead=46)}), base)
+        self.assertTrue(any("longest_dead_s_median got" in p for p in probs), probs)
+        self.assertTrue(any("first_level_up_gather_s_median got" in p for p in probs), probs)
+        # One bot idle for 80 s breaks the worst-case limit even with a good median.
+        probs = fun_report.check(fun_report.summarise({"a": lv(30), "b": lv(30), "c": lv(30, dead=80)}), base)
+        self.assertEqual(probs, ["longest dead time 80 s, limit 75 s"])
+        # No bot levelled: the level-up median has no value, which fails against a baseline.
+        probs = fun_report.check(fun_report.summarise({"a": row()}), base)
+        self.assertTrue(any("first_level_up_gather_s_median: no value" in p for p in probs), probs)
 
     def test_level_up_limits(self):
         def lv(first_gather, gather_s=60.0):
