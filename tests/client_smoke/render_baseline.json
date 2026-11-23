@@ -1,0 +1,10 @@
+{
+  "_doc": "Render budget for tests/client_smoke/render_budget.py (art bible section 7). art_bible: the targets. ceilings: what fails the Test check today. On 2026-11-23 the spawn shot was already over two targets, so those ceilings are today's number with a little room (primitives measured 1,980,677 noon / 1,981,697 night, about 3x the scene's ~580k triangles because the sun's shadow passes draw the scene again; 30 distinct materials in the world as built, avatars not counted). Ceilings only go down: world lowers them when it slims the world. baseline: the worst frame per shot on 2026-11-23 (llvmpipe, 1280x720); a PR that raises draw calls or primitives more than `regression` over it fails.",
+  "art_bible": {"draw_calls": 300, "primitives": 600000, "materials": 24, "texture_mem_mb": 32, "world_build_s": 3.0},
+  "ceilings": {"draw_calls": 300, "primitives": 2050000, "materials": 30, "texture_mem_mb": 32},
+  "regression": 0.2,
+  "baseline": {
+    "noon": {"draw_calls": 217, "primitives": 1980677},
+    "night": {"draw_calls": 219, "primitives": 1981697}
+  }
+}

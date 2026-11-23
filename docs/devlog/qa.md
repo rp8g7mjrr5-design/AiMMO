@@ -504,3 +504,103 @@ the gathering checks and the probe). Client smoke not run: nothing the client lo
 **Next run:** the "chat is for talking" item if `--dev-commands` is on main; otherwise the
 fun-metrics follow-up (count `c2s_gather_start` and `s2c_gather_*` in `qa_fun_metrics` and
 re-take the baseline), then the render budget in CI.
+
+## 2026-11-23 — Skills and XP in CI (Milestone 1), time to first level-up
+
+Budget 13/40. Playtest inbox still empty. My open PR #84 (render budget) had its Test run
+going with auto-merge on, so nothing to fix. Gameplay's skills (PR #85) landed at 07:42 UTC,
+which unblocked my Milestone 1 items, and milestone items come before anything not a bug.
+"Chat is for talking" is still blocked: `--dev-commands` isn't on main.
+
+**Fun it protects:** the long road only feels good if a level you earned stays earned, and
+if the first one comes quickly. Now CI fails an update that loses XP on load or logout, and
+it times the first level-up in seconds of real gathering.
+
+**What gameplay already covered (didn't duplicate):** `gameplay_skills` checks the login
+character carries skills, XP never drops (also across a reconnect), level-up lines agree with
+`/skills`; `test_gameplay_skills.gd` has the curve tests (they already run in CI with the
+other unit tests) and loads `week01_skills.sql`.
+
+**What I added:**
+- `test_qa_save_compat.gd`: every fixture's `character_skills` rows load with exact XP
+  (the unknown `old_lore` id too); characters from before 0003 load at level 1 / 0 XP in
+  every skill; the round-trip saves +25 XP in every skill and reads it back from the table;
+  a stale save (the XP from before) must not lower it; no row may be deleted. **Proved it
+  catches it:** changing PgStore's upsert from `GREATEST(...)` to `EXCLUDED.xp` fails it.
+- `verify_store.gd` after the bot test: each saved character holds at least the XP its bot
+  knew of (`skills_floor` from `qa_gather_ledger`: the login character plus the start XP of
+  every level announced). A floor, not exact, because without protocol v4 the client only
+  sees XP at login and on level-ups.
+- Fun metrics: `first_level_up_s`, `first_level_up_gather_s` (time actually holding a timed
+  gather, from our own `s2c_gather_begun`/`ended`), `gather_s`, `level_ups`,
+  `levels_per_10_min`; a second table in the report. Limit: 90 s of gathering on the slowest
+  bot, and a bot that gathered longer than 90 s without levelling fails too.
+
+**Honest caveat:** on my run no bot levelled up. Each bot gathers only 9 to 26 s of its
+174 s (nodes near spawn run dry with 8 bots, 37 emptied; the rest is wandering), about 100 to
+150 XP split over three skills, and level 2 needs 150 in one. Gameplay's PR run saw 5 of 8,
+so it's close to the edge. The limit is therefore real but doesn't bite today; I didn't set
+`bots_levelled_min` or a median baseline, since either would fail or flake. Filed with
+gameplay: keep bots gathering one skill and walking to fresh nodes. Rough maths from the
+run: ~5.5 XP per second of gathering, so level 2 would take ~27 s of gathering in one
+skill, well inside 90.
+
+**Tests:** 338 unit tests pass with Postgres; 16 Python tests; bot test 8 x 180 s WebSocket +
+Postgres with `--fun-check` passed (241 s, verify 9/9 with skills). Client smoke not run:
+nothing the client loads changed.
+
+**Next run:** if PR #84 or this one is red, fix it first. Then "chat is for talking" if
+`--dev-commands` is on main; otherwise the fun-metrics follow-up (count `c2s_gather_start`
+as an action) or the art-free server lint.
+
+## 2026-11-23 — render budget in CI
+
+Budget 12/40, playtest inbox empty. My open PR #81 (real gathering in CI) has CI running with
+auto-merge on, so this item branches from `main` and does not touch the bot test. The top
+backlog item is in #81; the second ("chat is for talking", `--dev-commands`) is still blocked:
+`main` has no `--dev-commands` flag yet. Took the third: the render budget.
+
+**Fun it protects:** the Emberlight look only works if it runs at 60 fps on a 2020 laptop. A
+stutter at spawn is the first thing a new player feels; now no PR can add trees, glows or
+props that quietly double the frame's cost.
+
+**Built:** `tests/client_smoke/render_stats.gd` (a `-s` SceneTree script like
+`camera_shots.gd`) boots the real `main.tscn`, times the world build (from the scene entering
+the tree to `ready`, since the client builds the world synchronously in `start()`), logs in as
+`SmokeRender`, settles 5 s, samples 30 frames of `Performance` monitors and takes the worst
+frame. It also counts distinct materials and triangles per world part over the world *as
+built*. `render_budget.py` rolls the noon and night shots into `render_stats.json` (in the CI
+artifact), prints a table and fails over the ceilings or more than 20% over the baseline for
+draw calls and primitives. Over an art-bible target but under the ceiling is a printed note.
+Frame time and world build time are reported only.
+
+**What it found:** spawn draws **1.98M primitives a frame** against the art bible's 600k, and
+the world has **30 distinct materials** against 24. Draw calls 217-219 (of 300), texture
+memory 9.2 MB (of 32), world build 0.85-1.1 s. The scene is only ~578k triangles; the frame
+is ~3x that because the sun's shadow cascades redraw it (120 m shadow distance, client default
+shadow quality "high", while the art bible says Medium is the default). Per the art bible,
+ceilings are today's numbers (primitives 2.05M for a little measurement room; materials 30
+exactly). Filed with world (slim flora/nodes, fewer shadow casters, merge materials) and
+client (default shadows to Medium).
+
+**Didn't work:**
+- First timing attempt checked `client.world` right after `root.add_child` in `_initialize`:
+  the add is deferred to the first frame there, so it read -1. Connected to `main.ready`.
+- Materials came out 45, then 46: I was counting the whole `world` node, and avatars live under
+  it; each avatar brings ~15 materials and they vary by name. Now only the world's children as
+  built are counted (30, stable over 4 runs). Avatars still count in the per-frame monitors,
+  as they should.
+- Unit test meshes: `BoxMesh` has no surface data on the headless dummy renderer, and freeing a
+  `MeshInstance3D` after the last reference to its `ArrayMesh` logs `Parameter "m" is null`.
+  The test builds `ArrayMesh`es with SurfaceTool and keeps them referenced.
+
+**Tests:** 295 unit tests pass with Postgres (new `test_qa_render_stats.gd`: worst-frame and
+MB maths, material counting incl. overrides and multimeshes, triangle counts indexed and not);
+13 Python tests in the new `test_render_budget.py` (new CI step); the client smoke test passed
+twice with the render budget (about 40 s longer). Bot test 8 bots x 180 s WebSocket + Postgres
+with `--fun-check`: the first run failed on `[gameplay_gather_v3] never started a single timed
+gather` (that bot found all 8 nodes it tried `depleted`; nothing in this PR touches the bot test,
+filed with gameplay), the rerun passed in 186 s. 8 x 45 s ENet passed.
+
+**Next run:** check #81 and this PR landed. Then the art-free server lint (next Emberlight
+item, small), unless `--dev-commands` is on main, in which case "chat is for talking in CI".

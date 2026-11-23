@@ -7,7 +7,7 @@ const CONFIG_PATH := "user://client.cfg"
 var net: Node
 var world: Node3D
 var camera: Camera3D
-var avatars := {} ## peer id -> {node, body: Node3D, anim: WalkAnim, target: Vector3, yaw: float, name: String}
+var avatars := {} ## peer id -> {node, body: Node3D, anim: WalkAnim, swing: GatherSwing, target: Vector3, yaw: float, name: String}
 var my_id := 0
 var logged_in := false
 var seq := 0
@@ -238,6 +238,11 @@ func _process(delta: float) -> void:
 		var anim: WalkAnim = a.anim
 		anim.step(n.position, delta)
 		anim.apply(a.body)
+		# While gathering, the rendered body turns to the node and swings at it.
+		var swing: GatherSwing = a.swing
+		var gathering: Dictionary = ResourceNodes.get_by_id(int(gather_watch.running[id])) if gather_watch.running.has(id) else {}
+		swing.step(delta, gathering, n.position, n.rotation.y)
+		swing.apply(a.body)
 	if not logged_in:
 		# Slow orbit over the world behind the login screen.
 		cam_yaw += delta * 0.05
@@ -573,7 +578,7 @@ func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, ya
 		for tag in node.find_children("*", "Label3D", false, false):
 			tag.visible = false
 	world.add_child(node)
-	avatars[id] = {"node": node, "body": node.get_node("Body"), "anim": WalkAnim.new(), "target": pos, "yaw": yaw, "name": player_name}
+	avatars[id] = {"node": node, "body": node.get_node("Body"), "anim": WalkAnim.new(), "swing": GatherSwing.new(), "target": pos, "yaw": yaw, "name": player_name}
 
 
 ## Puts the built avatar under a steady root so the walk cycle can bob and sway the body

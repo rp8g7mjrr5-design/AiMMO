@@ -202,6 +202,8 @@ def main() -> int:
             if "final_pack" in ledger:
                 expected[name].update({"pack": ledger["final_pack"], "running_node": ledger.get("running_node", -1),
                                        "running_amount": ledger.get("running_amount", 0)})
+            if "skills_floor" in ledger:
+                expected[name]["skills_floor"] = ledger["skills_floor"]
 
     # Data-loss check: boot storage in a fresh process and compare saved positions.
     if expected:

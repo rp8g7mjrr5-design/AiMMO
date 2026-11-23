@@ -1,3 +1,0 @@
-- The long road begins: every log you fell, rock you split and seep you tap now earns XP in **Felling**, **Quarrying** or **Tapping**, and every craft at the bench trains **Toolcraft**. Your first level comes within about a minute of gathering.
-- Each level makes that skill's gathers a little quicker, and named unlocks are on the way: at Felling 10 every chop gives an extra log, at Tapping 5 every seep an extra drop of sap. A line in chat cheers each level and tells you what's next.
-- Better together: gather or craft within a stone's throw of another settler and you learn a quarter faster.

@@ -5,6 +5,10 @@
 # night shot is not clearly darker than the day shot (tests/client_smoke/image_stats.gd).
 # Then two shots from the action camera (tests/client_smoke/camera_shots.gd): reticle centred and
 # your character left of centre, and backed against a hill without clipping into the ground.
+# Then the render budget (tests/client_smoke/render_stats.gd + render_budget.py, art bible
+# section 7): draw calls, primitives, world materials and texture memory at the noon and night
+# spawn shots, written to render_stats.json and failed over the ceilings or the 20% ratchet in
+# tests/client_smoke/render_baseline.json.
 # Needs xvfb-run and Mesa (software OpenGL).
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -39,6 +43,13 @@ AIMMO_TIME_OF_DAY=0.5 timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT
   --path "$REPO/game" -s tests/client_smoke/camera_shots.gd -- --shots="$OUT" --name=SmokeCamera --password=smoke123 \
   --address=127.0.0.1:$PORT --autoconnect > "$OUT/client-camera.log" 2>&1 || camera_fail=1
 
+# Render budget: its own character, so the camera walk above never moves the spawn view.
+for shot in noon:0.5 night:0.0; do
+  AIMMO_TIME_OF_DAY="${shot#*:}" timeout 120 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --rendering-driver opengl3 --audio-driver Dummy \
+    --path "$REPO/game" -s tests/client_smoke/render_stats.gd -- --stats-out="$OUT/render-${shot%%:*}.json" --name=SmokeRender \
+    --password=smoke123 --address=127.0.0.1:$PORT --autoconnect > "$OUT/client-render-${shot%%:*}.log" 2>&1 || true
+done
+
 fail=$camera_fail
 [ $camera_fail -eq 0 ] || { echo "camera shots FAILED:"; grep "\[camera\]" "$OUT/client-camera.log" || true; }
 for f in login.png world.png world-night.png camera.png camera-hill.png; do
@@ -49,6 +60,8 @@ if [ $fail -eq 0 ]; then
     --day="$OUT/world.png" --night="$OUT/world-night.png" > "$OUT/brightness.log" 2>&1 || fail=1
   cat "$OUT/brightness.log"
 fi
+python3 "$REPO/tests/client_smoke/render_budget.py" --shot noon="$OUT/render-noon.json" \
+  --shot night="$OUT/render-night.json" --out "$OUT/render_stats.json" || fail=1
 if grep -hE "SCRIPT ERROR|Parse Error|Compile Error" "$OUT"/*.log; then fail=1; fi
 [ "$(grep -c "SmokeTester logged in" "$OUT/server.log")" -ge 2 ] || { echo "client did not log in for both world shots"; fail=1; }
 # The camera run walks its character to a slope, so it plays a separate character and the

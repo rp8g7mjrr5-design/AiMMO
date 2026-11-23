@@ -110,6 +110,49 @@ func test_command_queue_spaces_lines_past_the_cooldown() -> void:
 	bot.free()
 
 
+func test_first_level_up_counts_gathering_seconds() -> void:
+	var m := FunMetrics.new()
+	m.start_play(0.0)
+	m.gather_begun(10.0)
+	m.gather_ended(13.0) # 3 s
+	m.gather_begun(20.0)
+	m.gather_begun(22.0) # restarted: 2 s counted, new one runs
+	m.level_up(25.0) # 3 s into the running one: 3 + 2 + 3 = 8 s of gathering
+	m.gather_ended(26.0)
+	m.level_up(40.0)
+	m.stop_play(60.0)
+	var r := m.result()
+	check_near(r.first_level_up_s, 25.0, 0.001, "from first login")
+	check_near(r.first_level_up_gather_s, 8.0, 0.001, "only time spent gathering")
+	check_near(r.gather_s, 9.0, 0.001, "all gathering")
+	check_eq(r.level_ups, 2)
+	check_near(r.levels_per_10_min, 20.0, 0.001, "2 levels in 1 minute of play")
+	check_eq(r.feedback_events, 2, "a level-up line is feedback")
+
+
+func test_gather_stops_at_disconnect_and_never_levelled() -> void:
+	var m := FunMetrics.new()
+	m.start_play(0.0)
+	m.gather_begun(5.0)
+	m.stop_play(9.0) # hung up mid-gather: 4 s
+	m.gather_ended(30.0) # offline: nothing more
+	m.start_play(40.0)
+	m.stop_play(50.0)
+	var r := m.result()
+	check_near(r.gather_s, 4.0, 0.001)
+	check_near(r.first_level_up_s, -1.0, 0.001, "never levelled")
+	check_near(r.first_level_up_gather_s, -1.0, 0.001)
+	check_eq(r.level_ups, 0)
+
+
+func test_level_up_lines() -> void:
+	check(FunMetrics.is_level_up("Felling is now level 2! Your gathers are a little quicker. Next: Felling 5, Old ember ash."), "the level-up line")
+	check(FunMetrics.is_level_up(Skills.level_up_text(Skills.gain({}, "toolcraft", 200))), "Skills' own text")
+	check(not FunMetrics.is_level_up("You gather 2 ash wood."), "a gather line isn't one")
+	check(not FunMetrics.is_level_up("bot_3: Felling is now level 2!"), "chat isn't a level-up")
+	check_eq(FunMetrics.items_in("Felling is now level 2!"), 0, "not a reward")
+
+
 func test_command_queue_is_bounded() -> void:
 	var bot: Node = BotScript.new()
 	for i in BotScript.MAX_QUEUED_COMMANDS + 2:

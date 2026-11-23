@@ -1,0 +1,2 @@
+- Everything you can gather now carries glowing ember cracks: up the bark of gatherable ash and pine, along the outcrop's stone, over the seep's rim stones. They pulse with the valley's slow heartbeat, so a node you can use stands out from plain scenery by day and by night, and an emptied node goes dark until it grows back.
+- Resource nodes, birches, mossy boulders and wildflowers now share the painted Emberlight look with the rest of the forest: warm light, blue-leaning shade, darker where they meet the ground.

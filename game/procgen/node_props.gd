@@ -11,11 +11,20 @@ class_name NodeProps
 ## `set_depleted()` swaps one node between its live and depleted look by showing and hiding
 ## its MultiMesh instances, so no meshes are created or freed while playing.
 
-const LAYERS := ["NodeTrunks", "NodeAshCrowns", "NodePineTiers", "NodeStones", "NodeSapPools", "NodeStumps", "NodeDetail"]
+const LAYERS := ["NodeTrunks", "NodeAshCrowns", "NodePineTiers", "NodeStones", "NodeSapPools", "NodeStumps", "NodeDetail", "NodeVeins"]
 const GLOW_LAYER := "NodeSapPools" ## drawn with a warm emissive material
 ## Small boxes that only matter up close, behind the action camera's shoulder: root flares
 ## and bark ridges on trees and stumps, quartz studs along the outcrop's seam. Shadowless.
 const DETAIL_LAYER := "NodeDetail"
+## Ember veins (docs/art_bible.md, "Signature motifs"): thin glowing cracks through the bark,
+## along the outcrop's seam and across the seep's rim stones, the art bible's "if it glows
+## ember, you can use it". Live look only, so an emptied node goes dark. Each crack is a few
+## thin boxes on the Emberlight glow material, marked as vein by instance alpha 0, so they
+## beat with the valley's heartbeat. Richer tiers (node "tier", default 1) get more cracks.
+const VEIN_LAYER := "NodeVeins"
+const VEIN := Color(0.95, 0.65, 0.26, 0.0) ## alpha 0: all vein (Emberlight glow reads 1 - alpha)
+const VEIN_CRACKS := {"ash": 3, "pine": 2, "stone": 2, "ember_sap": 3} ## at tier 1
+const MAX_VEIN_PARTS := 10 ## NodeFx's glow shell holds 10 parts per layer
 
 ## Colours. Live nodes are lifted above the decoration palette so they stand out.
 const ASH_NODE_LEAF := Color(0.93, 0.50, 0.24)
@@ -63,6 +72,7 @@ static func parts(node: Dictionary, depleted: bool = false) -> Array:
 		out.append({"layer": DETAIL_LAYER, "xform": Transform3D(b, origin + turn * (local_pos * s)), "color": color})
 	var drng := RandomNumberGenerator.new()
 	drng.seed = GameConfig.WORLD_SEED + 227 + int(node.id) * 7919
+	var rim_angles: Array = []
 	match node.kind:
 		"ash":
 			if depleted:
@@ -94,6 +104,7 @@ static func parts(node: Dictionary, depleted: bool = false) -> Array:
 			# a few glowing shards poke up so the seep reads from a distance (and at night).
 			for i in 5:
 				var a := TAU * i / 5.0 + rng.randf() * 0.4
+				rim_angles.append(a)
 				put.call("NodeStones", Vector3(cos(a) * 0.95, 0.15, sin(a) * 0.95), Vector3(0.6, 0.5, 0.55), SAP_RIM, a)
 			if depleted:
 				put.call("NodeStumps", Vector3(0, 0.05, 0), Vector3(2.0, 0.1, 2.0), SAP_DRY)
@@ -112,7 +123,102 @@ static func parts(node: Dictionary, depleted: bool = false) -> Array:
 		"stone":
 			if not depleted:
 				_seam_studs(put_detail, drng, node.rot)
+	if not depleted:
+		# Veins last, with their own rng, so every older part is exactly as before.
+		var vrng := RandomNumberGenerator.new()
+		vrng.seed = GameConfig.WORLD_SEED + 239 + int(node.id) * 7919
+		var put_vein := func(local_basis: Basis, local_pos: Vector3, size: Vector3) -> void:
+			var b := turn * local_basis * Basis.from_scale(size * s)
+			out.append({"layer": VEIN_LAYER, "xform": Transform3D(b, origin + turn * (local_pos * s)), "color": VEIN})
+		_veins(put_vein, vrng, str(node.kind), node.rot, vein_cracks(str(node.kind), int(node.get("tier", 1))), rim_angles)
 	return out
+
+
+## How many ember cracks a live node of `kind` and `tier` shows: richer tiers glow more.
+static func vein_cracks(kind: String, tier: int = 1) -> int:
+	return VEIN_CRACKS.get(kind, 0) + maxi(tier - 1, 0)
+
+
+static func _veins(put_vein: Callable, rng: RandomNumberGenerator, kind: String, rot: float, cracks: int, rim_angles: Array) -> void:
+	var budget := MAX_VEIN_PARTS
+	match kind:
+		"ash", "pine":
+			# Zig-zag cracks running up the trunk between the root flares and the crown.
+			var top := 1.8 if kind == "ash" else 1.05
+			var start := rng.randf() * TAU
+			for c in cracks:
+				if budget < 2:
+					break
+				var a := start + TAU * c / float(cracks) + rng.randf_range(-0.3, 0.3)
+				var y0 := rng.randf_range(0.25, 0.45)
+				var y2 := rng.randf_range(top - 0.35, top)
+				var y1 := lerpf(y0, y2, rng.randf_range(0.4, 0.6))
+				var pts: Array = []
+				for k in 3:
+					var y: float = [y0, y1, y2][k]
+					var ak: float = a + [0.0, rng.randf_range(0.12, 0.22) * (1 if c % 2 == 0 else -1), rng.randf_range(-0.05, 0.05)][k]
+					var r := 0.36 - 0.12 * y / 2.8 # the trunk's radius at this height
+					var out_dir := Vector3(cos(ak), 0.0, -sin(ak))
+					pts.append([out_dir * r + Vector3(0, y, 0), (out_dir + Vector3(0, 0.043, 0)).normalized()])
+				budget -= _crack(put_vein, pts, 0.045, 0.03)
+		"stone":
+			# Ember lines along the big stone (world-axis ellipsoid, half sizes (1.1, 0.9, 0.9)
+			# round local (0, 0.6, 0)), on the faces the quartz seam leaves free.
+			var half := Vector3(1.1, 0.9, 0.9)
+			var unturn := Basis(Vector3.UP, -rot)
+			var start := rng.randf() * TAU
+			for c in cracks:
+				if budget < 2:
+					break
+				var phi := start + TAU * c / float(cracks) + rng.randf_range(-0.3, 0.3)
+				var pts: Array = []
+				for k in 3:
+					var ph := phi + lerpf(-0.35, 0.35, k / 2.0) + rng.randf_range(-0.08, 0.08)
+					var th := lerpf(0.75, 0.1, k / 2.0) + rng.randf_range(-0.06, 0.06)
+					var d := Vector3(sin(ph) * cos(th), sin(th), cos(ph) * cos(th))
+					var surf := Vector3(half.x * d.x, half.y * d.y, half.z * d.z)
+					var normal := Vector3(d.x / half.x, d.y / half.y, d.z / half.z).normalized()
+					pts.append([unturn * surf + Vector3(0, 0.6, 0), unturn * normal])
+				budget -= _crack(put_vein, pts, 0.06, 0.035)
+		"ember_sap":
+			# A crack over the top of some rim stones, running in towards the glowing pool.
+			# Each rim stone is a world-axis ellipsoid, half sizes (0.3, 0.25, 0.275).
+			var half := Vector3(0.3, 0.25, 0.275)
+			var unturn := Basis(Vector3.UP, -rot)
+			for c in mini(cracks, rim_angles.size()):
+				if budget < 2:
+					break
+				var a: float = rim_angles[(c * 2) % rim_angles.size()]
+				var centre := Vector3(cos(a) * 0.95, 0.15, sin(a) * 0.95)
+				var inward := -(Basis(Vector3.UP, rot) * Vector3(cos(a), 0.0, sin(a))) # towards the pool, world axes
+				var base_phi := atan2(inward.x, inward.z)
+				var pts: Array = []
+				for k in 3:
+					var ph := base_phi + PI + lerpf(-0.6, 0.6, k / 2.0) * 0.5 + rng.randf_range(-0.1, 0.1)
+					var th: float = [0.55, 1.2, 0.55][k] + rng.randf_range(-0.05, 0.05)
+					if k == 2:
+						ph = base_phi + rng.randf_range(-0.2, 0.2) # down the pool side
+					var d := Vector3(sin(ph) * cos(th), sin(th), cos(ph) * cos(th))
+					var surf := Vector3(half.x * d.x, half.y * d.y, half.z * d.z)
+					var normal := Vector3(d.x / half.x, d.y / half.y, d.z / half.z).normalized()
+					pts.append([unturn * surf + centre, unturn * normal])
+				budget -= _crack(put_vein, pts, 0.04, 0.025)
+
+
+## One crack: a thin box between each pair of neighbouring surface points ([point, normal],
+## node-local at scale 1), its flat face along the surface. Returns how many boxes it drew.
+static func _crack(put_vein: Callable, pts: Array, width: float, depth: float) -> int:
+	for k in pts.size() - 1:
+		var p0: Vector3 = pts[k][0]
+		var p1: Vector3 = pts[k + 1][0]
+		var n: Vector3 = ((pts[k][1] as Vector3) + (pts[k + 1][1] as Vector3)).normalized()
+		var along := p1 - p0
+		var length := along.length() + width # overlap at the joints so the crack is unbroken
+		var y := along.normalized()
+		var z := (n - y * n.dot(y)).normalized()
+		var x := y.cross(z)
+		put_vein.call(Basis(x, y, z), (p0 + p1) * 0.5 + z * (depth * 0.15), Vector3(width, length, depth))
+	return pts.size() - 1
 
 
 ## Three root flares where the trunk meets the ground, so a tree (or its stump) grows out of
@@ -319,7 +425,54 @@ static func _meshes() -> Dictionary:
 	stump.radial_segments = 6
 	stump.rings = 1
 	var detail := BoxMesh.new()
-	return {"NodeTrunks": trunk, "NodeAshCrowns": crown, "NodePineTiers": tier, "NodeStones": stone, "NodeSapPools": pool, "NodeStumps": stump, DETAIL_LAYER: detail}
+	var vein := BoxMesh.new()
+	# Baked vertex colours (Emberlight): dark where the part meets the ground, lighter up its
+	# height. Same vertices, so the solid columns and NodeFx's shells are unchanged.
+	return {
+		"NodeTrunks": Emberlight.bake(trunk, 0.45, 1.6),
+		"NodeAshCrowns": Emberlight.bake(crown, 0.35),
+		"NodePineTiers": Emberlight.bake(tier, 0.40),
+		"NodeStones": Emberlight.bake(stone, 0.40, 1.5),
+		"NodeSapPools": pool,
+		"NodeStumps": Emberlight.bake(stump, 0.35),
+		DETAIL_LAYER: Emberlight.bake(detail, 0.25),
+		VEIN_LAYER: vein,
+	}
+
+
+## Which shared Emberlight material each node layer uses (docs/art_bible.md, section 7):
+## bark, stone and stumps share `solid` with the scatter forest; pine tiers share its
+## `foliage`; node ash leaves have their own named foliage material (they glow brighter at
+## night than the decorative ones, from one number in Lamps.apply_glow); the sap pools a
+## named glow material (a whole-surface glow, swelling with the heartbeat); veins the plain
+## `glow` material, where instance alpha marks the vein.
+static func layer_material(layer: String) -> ShaderMaterial:
+	match layer:
+		"NodeAshCrowns":
+			var leaf := Emberlight.material("foliage", "node_ash_leaf")
+			if not leaf.has_meta("configured"): # once: apply_glow changes the energy later
+				leaf.set_meta("configured", true)
+				leaf.set_shader_parameter("emission_color", Lamps.EMBER)
+				leaf.set_shader_parameter("sway", 0.03) # gentler, so NodeFx's still glow shell keeps up
+			return leaf
+		"NodePineTiers":
+			return Emberlight.material("foliage")
+		GLOW_LAYER:
+			var sap := Emberlight.material("glow", "sap")
+			if not sap.has_meta("configured"):
+				sap.set_meta("configured", true)
+				sap.set_shader_parameter("emission_color", SAP_GLOW)
+				sap.set_shader_parameter("emission_energy", Lamps.SAP_DAY)
+				sap.set_shader_parameter("pulse_depth", 0.35)
+			return sap
+		VEIN_LAYER:
+			var vein := Emberlight.material("glow")
+			# A touch under the shader's default, so a vein reads ember orange with a hot core on
+			# the beat rather than clipping to white in the noon sun.
+			vein.set_shader_parameter("vein_energy", 1.4)
+			return vein
+		_:
+			return Emberlight.material("solid")
 
 
 static func _multimesh(node_name: String, mesh: Mesh, instances: Array, glow: bool) -> MultiMeshInstance3D:
@@ -331,25 +484,10 @@ static func _multimesh(node_name: String, mesh: Mesh, instances: Array, glow: bo
 	for i in instances.size():
 		mm.set_instance_transform(i, instances[i][0])
 		mm.set_instance_color(i, (instances[i][1] as Color).srgb_to_linear())
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.9
-	if glow:
-		# Wet, glossy sap: a low roughness and a clearcoat give it a moving highlight up close.
-		mat.roughness = 0.14
-		mat.metallic_specular = 0.8
-		mat.clearcoat_enabled = true
-		mat.clearcoat = 1.0
-		mat.clearcoat_roughness = 0.05
-		mat.emission_enabled = true
-		mat.emission = SAP_GLOW
-		mat.emission_energy_multiplier = 0.9
-	elif node_name == "NodeAshCrowns":
-		Lamps.add_ember_emission(mat) # lit at night by Lamps.apply_glow
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = node_name
 	mmi.multimesh = mm
-	mmi.material_override = mat
-	if glow or node_name == DETAIL_LAYER:
+	mmi.material_override = layer_material(node_name)
+	if glow or node_name == DETAIL_LAYER or node_name == VEIN_LAYER:
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mmi

@@ -35,15 +35,21 @@ func test_trees_and_outcrops_get_close_up_detail() -> void:
 
 
 func test_older_parts_are_unchanged() -> void:
-	# Detail is appended after every older part, so the first parts are the old ones in the
-	# old order, on the old layers. Spot-check the old counts per kind.
+	# Detail is appended after every older part, and ember veins after the detail, so the
+	# first parts are the old ones in the old order, on the old layers. Spot-check the old
+	# counts per kind.
 	var old := {"ash": 3, "pine": 5, "stone": 4, "ember_sap": 9}
 	for kind in old:
 		var parts := NodeProps.parts(_first_of(kind))
 		for i in old[kind]:
-			check(parts[i].layer != NodeProps.DETAIL_LAYER, "%s part %d is an old part" % [kind, i])
+			check(parts[i].layer != NodeProps.DETAIL_LAYER and parts[i].layer != NodeProps.VEIN_LAYER, "%s part %d is an old part" % [kind, i])
+		var seen_vein := false
 		for i in range(old[kind], parts.size()):
-			check_eq(parts[i].layer, NodeProps.DETAIL_LAYER, "%s part %d is new detail" % [kind, i])
+			if parts[i].layer == NodeProps.VEIN_LAYER:
+				seen_vein = true
+			else:
+				check(not seen_vein, "%s part %d: veins come after all detail" % [kind, i])
+				check_eq(parts[i].layer, NodeProps.DETAIL_LAYER, "%s part %d is new detail" % [kind, i])
 
 
 func test_every_vertex_is_inside_the_solid_columns() -> void:
