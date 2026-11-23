@@ -11,7 +11,10 @@ Fails on: any bot failure, any server/bot crash, any ERROR line in a log, a desy
 Long runs (>= 120 s) also check real gathering as a whole (tests/bot_test/gather_report.py)
 and then run the respawn probe: one fresh bot, only the qa_gather_ledger behaviour, logs in
 while a node the bots emptied is still empty, waits for it to come back and gathers it.
-Every saved character must hold exactly the pack the server last sent its bot.
+Alongside the probe, two more fresh bots gather one node together on purpose (the pair
+check, qa_gather_ledger's pair mode), so "two players on one node" never depends on where
+the 8 bots happen to walk. Every saved character must hold exactly the pack the server last
+sent its bot.
 
 Every run also prints the fun metrics (tests/bot_test/fun_report.py) and writes
 fun_metrics.json into the work directory, which is kept for the CI artifact. With
@@ -42,6 +45,8 @@ import gather_report  # noqa: E402
 MAX_PROBE_WAIT = 150.0
 # Probe run length past its node's due time: respawn slack, walk, gather, reconnect.
 PROBE_PLAY = 36.0
+# Pair bots' run length: pick, walk ~35 m, wait for each other, gather, reconnect.
+PAIR_PLAY = 50.0
 
 REPO = Path(__file__).resolve().parents[2]
 GAME = REPO / "game"
@@ -65,6 +70,12 @@ def scan_log(path: Path, label: str) -> list:
 
 def _ledger(stats: dict) -> dict:
     return stats.get("behaviours", {}).get("qa_gather_ledger", {}) or {}
+
+
+def bot_cmd(name: str, port: int, transport: str, duration: float, result: Path, *extra: str) -> list:
+    return [GODOT, "--headless", "--path", str(GAME), "--", "--bot", f"--name={name}",
+            f"--password=pw-{name}", f"--address=127.0.0.1:{port}", f"--transport={transport}",
+            f"--duration={duration:.1f}", f"--result={result}", *extra]
 
 
 def main() -> int:
@@ -134,8 +145,20 @@ def main() -> int:
     if rows:
         print("[bot-test] gathering: " + gather_report.summary(rows))
     problems += [f"gathering: {g}" for g in gather_report.check(rows, a.duration, a.bots)]
+    pair_bots = []
     if a.duration >= gather_report.LONG_RUN and server.poll() is None and rows:
         pick = gather_report.pick_probe(rows, time.time())
+        # The pair goes first and never touches the probe's node; it plays while the probe waits.
+        avoid = [f"--pair-avoid={pick[0]}"] if pick else []
+        lead = f"bot{run_tag}_pairA"
+        for name, extra in ((lead, ["--gather-pair=lead", *avoid]),
+                            (f"bot{run_tag}_pairB", ["--gather-pair=follow", f"--pair-leader={lead}"])):
+            result = work / f"{name}.json"
+            log = work / f"{name}.log"
+            cmd = bot_cmd(name, port, a.transport, PAIR_PLAY, result, "--expect-peers=0",
+                          "--only-behaviour=qa_gather_ledger", *extra)
+            pair_bots.append((name, subprocess.Popen(cmd, stdout=open(log, "w"), stderr=subprocess.STDOUT, env=env), result, log))
+            time.sleep(1.0)
         if pick is None:
             if any(_ledger(s).get("depleted") for s in rows.values()):
                 problems.append("gathering: every emptied node came back during the run, none left for the respawn probe")
@@ -151,10 +174,8 @@ def main() -> int:
                 result = work / f"{name}.json"
                 log = work / f"{name}.log"
                 dur = due - time.time() + PROBE_PLAY
-                cmd = [GODOT, "--headless", "--path", str(GAME), "--", "--bot", f"--name={name}",
-                       f"--password=pw-{name}", f"--address=127.0.0.1:{port}", f"--transport={a.transport}",
-                       f"--duration={dur:.1f}", f"--result={result}", "--expect-peers=0",
-                       "--only-behaviour=qa_gather_ledger", f"--gather-probe={node}", f"--probe-due={due:.3f}"]
+                cmd = bot_cmd(name, port, a.transport, dur, result, "--expect-peers=0",
+                              "--only-behaviour=qa_gather_ledger", f"--gather-probe={node}", f"--probe-due={due:.3f}")
                 p = subprocess.Popen(cmd, stdout=open(log, "w"), stderr=subprocess.STDOUT, env=env)
                 try:
                     p.wait(timeout=dur + 90)
@@ -162,6 +183,20 @@ def main() -> int:
                     p.kill()
                     problems.append(f"{name}: hung and was killed")
                 bots.append((name, p, result, log))
+        pair_rows = {}
+        for name, p, result, log in pair_bots:
+            try:
+                p.wait(timeout=PAIR_PLAY + 90)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                problems.append(f"{name}: hung and was killed")
+            bots.append((name, p, result, log))
+            try:
+                pair_rows[name] = json.loads(result.read_text())["stats"]
+            except (OSError, ValueError, KeyError):
+                pass
+        problems += [f"gathering: {g}" for g in gather_report.check_pair(pair_rows)]
+        print("[bot-test] pair: " + ", ".join(f"{n} {_ledger(s).get('pair')}" for n, s in sorted(pair_rows.items())))
 
     stop_file.write_text("stop")
     try:

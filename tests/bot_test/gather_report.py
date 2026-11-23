@@ -7,7 +7,9 @@ checks the run as a whole in long runs:
 
 - at least MIN_GATHERERS bots finished a timed gather through c2s_gather_start;
 - at least one gather was cancelled by walking away and one by c2s_gather_cancel;
-- two players worked one node at the same time somewhere;
+- two players worked one node at the same time: not left to where the 8 bots happen to
+  walk (that flaked, see docs/devlog/qa.md), but checked by check_pair() on the pair bots
+  the harness sends to one node on purpose (qa_gather_ledger's pair mode);
 - at least one node was emptied, so pick_probe() can choose one for the respawn probe
   (a fresh player who sees it empty, hears it come back, and gathers it).
 
@@ -41,10 +43,27 @@ def check(rows: dict, duration: float, bots: int) -> list:
         problems.append("no gather was cancelled by walking away")
     if not any(int(b.get("stopped", 0)) > 0 for b in v3):
         problems.append("no gather was cancelled with c2s_gather_cancel")
-    if bots >= 2 and max((int(b.get("shared_node_max", 0)) for b in ledger), default=0) < 2:
-        problems.append("no two players ever gathered one node at the same time")
     if not any(b.get("depleted") for b in ledger):
         problems.append("no node was ever emptied, so respawn could not be checked")
+    return problems
+
+
+def check_pair(rows: dict) -> list:
+    """rows: {bot: stats} of the two pair bots. Both must report the same node, both must have
+    seen two gatherers on it at once, and at least one of them must have been paid (the other
+    may find the node emptied by the first one's finish)."""
+    pairs = [_b(s, "qa_gather_ledger").get("pair") or {} for s in rows.values()]
+    if len(pairs) != 2 or not all(pairs):
+        return [f"pair: expected 2 pair bots with results, got {sum(1 for p in pairs if p)}"]
+    problems = []
+    nodes = {int(p.get("node", -1)) for p in pairs}
+    if len(nodes) != 1 or -1 in nodes:
+        problems.append(f"pair: the two bots went to different nodes {sorted(nodes)}")
+    if not all(p.get("together") for p in pairs):
+        problems.append("pair: no two players ever gathered one node at the same time")
+    if not any(p.get("end") == "done" for p in pairs):
+        problems.append("pair: neither player was paid for the shared gather "
+                        f"(ended {[p.get('end') for p in pairs]})")
     return problems
 
 

@@ -33,8 +33,38 @@ class GatherReport(unittest.TestCase):
     def test_each_missing_case_is_named(self):
         rows = {f"b{i}": bot(walked_off=0, stopped=0, shared=1) for i in range(8)}
         text = " | ".join(gr.check(rows, 180, 8))
-        for want in ["walking away", "c2s_gather_cancel", "same time", "emptied"]:
+        for want in ["walking away", "c2s_gather_cancel", "emptied"]:
             self.assertIn(want, text)
+
+    def test_shared_node_by_chance_is_no_longer_required(self):
+        rows = {f"b{i}": bot(shared=1) for i in range(8)}
+        rows["b0"] = bot(shared=1, depleted=[(40, 1000.0, 180.0, False)])
+        self.assertEqual(gr.check(rows, 180, 8), [], "the pair check covers it, not luck")
+
+    @staticmethod
+    def pair(a, b):
+        return {"pairA": {"behaviours": {"qa_gather_ledger": {"pair": a}}},
+                "pairB": {"behaviours": {"qa_gather_ledger": {"pair": b}}}}
+
+    def test_pair_good(self):
+        rows = self.pair({"role": "lead", "node": 3, "together": True, "end": "done"},
+                         {"role": "follow", "node": 3, "together": True, "end": "depleted"})
+        self.assertEqual(gr.check_pair(rows), [])
+
+    def test_pair_not_together(self):
+        rows = self.pair({"node": 3, "together": True, "end": "done"},
+                         {"node": 3, "together": False, "end": "done"})
+        self.assertIn("same time", " ".join(gr.check_pair(rows)))
+
+    def test_pair_different_nodes_and_unpaid(self):
+        text = " ".join(gr.check_pair(self.pair({"node": 3, "together": True, "end": "depleted"},
+                                                {"node": 4, "together": True, "end": "depleted"})))
+        self.assertIn("different nodes", text)
+        self.assertIn("paid", text)
+
+    def test_pair_missing_bot(self):
+        self.assertIn("expected 2", gr.check_pair({"pairA": {"behaviours": {"qa_gather_ledger": {"pair": {"node": 1}}}}})[0])
+        self.assertIn("expected 2", gr.check_pair({})[0])
 
     def test_probe_picks_soonest_due(self):
         rows = {"a": bot(depleted=[(1, 1000.0, 240.0, False), (2, 1010.0, 180.0, False)]),
