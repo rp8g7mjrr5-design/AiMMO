@@ -19,6 +19,8 @@ const FIRST_LEVEL_LIMIT := 90.0 ## roadmap: level 2 within 90 s of the first gat
 const LEVEL5_LIMIT := 600.0 ## roadmap: level 5 within about 10 minutes
 const LEVEL5_SLACK := 60.0 ## "about": bare-handed (no axe ever) may run this much over
 const FELLING_KINDS := ["ash", "pine"]
+const QUARRYING_KINDS := ["stone"]
+const TAPPING_KINDS := ["ember_sap"]
 
 
 func _server(pos: Vector3, inv: Dictionary) -> Node:
@@ -34,12 +36,21 @@ func _server(pos: Vector3, inv: Dictionary) -> Node:
 	return srv
 
 
-## The nearest tier-1 ash or pine that has a charge left right now, or {}.
-func _next_tree(srv: Node, pos: Vector3) -> Dictionary:
+## Sets the server's world clock to midnight now, so night-only nodes give for the next
+## ~8 real minutes (night is 0.78 to 0.22 of a 40-minute day; the fake clock `test_now`
+## doesn't move the world clock, which reads the wall clock).
+func _midnight(srv: Node) -> void:
+	var raw := WorldClock.now_seconds()
+	var want := -WorldClock.START_FRACTION * WorldClock.DAY_SECONDS # day fraction 0.0
+	srv.clock_offset = want - fposmod(raw, WorldClock.DAY_SECONDS)
+
+
+## The nearest tier-1 node of one of `kinds` that has a charge left right now, or {}.
+func _next_tree(srv: Node, pos: Vector3, kinds: Array = FELLING_KINDS) -> Dictionary:
 	var best := {}
 	var best_d := INF
 	for n in ResourceNodes.all():
-		if not FELLING_KINDS.has(str(n.kind)) or int(n.get("tier", 1)) != 1:
+		if not kinds.has(str(n.kind)) or int(n.get("tier", 1)) != 1:
 			continue
 		if Gathering.is_depleted(srv.gathering, int(n.id), srv.test_now):
 			continue
@@ -50,18 +61,25 @@ func _next_tree(srv: Node, pos: Vector3) -> Dictionary:
 	return best
 
 
-## Plays `seconds` of game time from the first gather on. Returns {first_level, level5,
-## gathers, walked, full (a wood stack hit Inventory.MAX_STACK on the way)} (times in seconds since the first gather started, -1 if not reached).
-func _play(inv: Dictionary, seconds: float) -> Dictionary:
+## Plays `seconds` of game time from the first gather on, working only `kinds` (Felling by
+## default) and watching `skill`. Returns {first_level, level5, gathers, walked, full (a
+## stack of what it gathers hit Inventory.MAX_STACK on the way)} (times in seconds since the
+## first gather started, -1 if not reached). `night` starts the world clock at midnight.
+func _play(inv: Dictionary, seconds: float, kinds: Array = FELLING_KINDS, skill: String = "felling", night: bool = false) -> Dictionary:
 	var srv := _server(GameConfig.SPAWN_POINT, inv)
+	if night:
+		_midnight(srv)
 	var s: Dictionary = srv.sessions[1]
+	var items: Array = []
+	for k in kinds:
+		items.append(str(ResourceNodes.KINDS[k].item))
 	var out := {"first_level": -1.0, "level5": -1.0, "gathers": 0, "walked": 0.0, "full": false}
 	var first := -1.0
 	var stand_off := ResourceNodes.GATHER_RANGE - 0.5
 	while first < 0.0 or srv.test_now - first < seconds:
 		var pos := CharacterData.position(s.character)
-		var tree := _next_tree(srv, pos)
-		if tree.is_empty(): # every tree in the valley is empty: wait a second for a respawn
+		var tree := _next_tree(srv, pos, kinds)
+		if tree.is_empty(): # every node of these kinds is empty: wait a second for a respawn
 			srv.test_now += 1.0
 			srv._respawn_nodes(srv.test_now)
 			continue
@@ -88,10 +106,10 @@ func _play(inv: Dictionary, seconds: float) -> Dictionary:
 			if srv.test_now > ends + 1.0:
 				break
 		out.gathers += 1
-		for item in ["ash_wood", "pine_wood"]:
+		for item in items:
 			if Inventory.count(s.character.inventory, item) >= Inventory.MAX_STACK:
 				out.full = true
-		var level := Skills.level_of(s.character.skills, "felling")
+		var level := Skills.level_of(s.character.skills, skill)
 		if level >= 2 and out.first_level < 0.0:
 			out.first_level = srv.test_now - first
 		if level >= 5 and out.level5 < 0.0:
@@ -124,6 +142,33 @@ func test_with_a_stone_axe_first_session() -> void:
 		"with an axe: Felling 2 within %d s of the first gather (took %.1f s)" % [FIRST_LEVEL_LIMIT, r.first_level])
 	check(r.level5 >= 0.0 and r.level5 <= LEVEL5_LIMIT,
 		"with an axe: Felling 5 within 10 minutes (took %.1f s)" % r.level5)
+
+
+func test_quarrying_first_session() -> void:
+	# Every gathering skill's first level lands inside the roadmap's 90 s, not only Felling's:
+	# a player who heads for the rocks first gets the same early payoff.
+	var r := _play({}, LEVEL5_LIMIT, QUARRYING_KINDS, "quarrying")
+	_report("quarrying bare-handed", r)
+	check(r.first_level >= 0.0 and r.first_level <= FIRST_LEVEL_LIMIT,
+		"quarrying: level 2 within %d s of the first gather (took %.1f s)" % [FIRST_LEVEL_LIMIT, r.first_level])
+
+
+func test_quarrying_with_a_stone_pickaxe() -> void:
+	var r := _play({"stone_pickaxe": 1}, LEVEL5_LIMIT, QUARRYING_KINDS, "quarrying")
+	_report("quarrying pickaxe", r)
+	check(r.first_level >= 0.0 and r.first_level <= FIRST_LEVEL_LIMIT,
+		"quarrying with a pickaxe: level 2 within %d s (took %.1f s)" % [FIRST_LEVEL_LIMIT, r.first_level])
+	check(r.level5 >= 0.0 and r.level5 <= LEVEL5_LIMIT,
+		"quarrying with a pickaxe: level 5 within 10 minutes (took %.1f s)" % r.level5)
+
+
+func test_tapping_first_night() -> void:
+	# Sap only gives at night, one charge a seep, 10 minutes to come back, but 30 XP a gather:
+	# a player who goes tapping on their first night still feels a level inside 90 s.
+	var r := _play({}, FIRST_LEVEL_LIMIT + 30.0, TAPPING_KINDS, "tapping", true)
+	_report("tapping at night", r)
+	check(r.first_level >= 0.0 and r.first_level <= FIRST_LEVEL_LIMIT,
+		"tapping at night: level 2 within %d s of the first gather (took %.1f s)" % [FIRST_LEVEL_LIMIT, r.first_level])
 
 
 func test_the_first_level_is_not_instant() -> void:

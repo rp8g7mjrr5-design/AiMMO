@@ -869,3 +869,15 @@ No new bot behaviour: the bot-test server keeps dev commands on (it has to, for 
 **Tests.** `test_gameplay_vitals.gd` (9 tests). No bot behaviour: there is nothing a player or bot can do with it until it is wired. Unit 526/526 locally; bot test below.
 
 **Next run:** if #128 or this PR is red, fix it first. Check whether client and world answered the Bench sense requests; if so, the lantern goes in (the design is in the backlog follow-up). Otherwise wire `Vitals` into the session and tick (no bump), or the chat-gate default.
+
+## 2026-11-23 evening: every gathering skill's first level is paced (pace-every-skill)
+
+**Picked.** Bench sense (`ember_lantern`) is still waiting on client and world. qa answered the stack-cap request, but client's `test_client_pack_window` still hard-codes "12 of 99" and a 99 "(full)" stack, so raising `MAX_STACK` would turn CI red from a file gameplay doesn't own; request filed in `docs/workstreams/client.md`. `Vitals` wiring would change nothing a player can see until client sends sprint/dodge. So this run took the next item that guards fun directly: the roadmap's "first level within 90 s" promise for Quarrying and Tapping, not only Felling. Fun in one sentence: a player who heads for the rocks or the sap first gets the same early level-up a woodcutter does, and the test keeps it that way.
+
+**Built.** `test_gameplay_first_session_pace.gd`: `_play` / `_next_tree` take the node kinds and the skill, `_midnight(srv)` sets `clock_offset` so the world clock reads midnight (the fake `test_now` doesn't move it; ~8 real minutes of night are left, far more than the run). New tests: `test_quarrying_first_session`, `test_quarrying_with_a_stone_pickaxe` (level 5 within 10 min too), `test_tapping_first_night`. Numbers: Quarrying bare-handed level 2 at 55.6 s (level 5 at 9.7 min), pickaxe 40.1 s (6.7 min); Tapping at night level 2 at 60.4 s after 8 seeps and a lot of walking (1 charge each). Curve unchanged: nothing failed.
+
+Also dropped `gameplay_roster_v5._tell_fun_metrics` (qa's `qa_fun_metrics` hears `net.unstuck_result` itself now).
+
+**Didn't do.** Tapping level 5 isn't checked: sap is night-only with 10-minute respawns, so it is meant to be a slow, special skill. If players find Tapping 2 -> 3 too sparse, give seeps 2 charges rather than more XP.
+
+**Next run:** if client fixed `test_client_pack_window`, raise `MAX_STACK` to 999 (flip the pace test's "fills a wood stack" check: at 999 Felling 5 never fills one; cover the full-stack rule from `test_gameplay_gather_channel` instead). Otherwise the lantern if client and world answered, else `Vitals` wiring or the chat-gate default.
