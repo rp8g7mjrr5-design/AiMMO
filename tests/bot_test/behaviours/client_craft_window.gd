@@ -1,25 +1,62 @@
 extends "res://tests/bot_test/bot_behaviour.gd"
-## Client: the workbench window on a real server. Each bot keeps the client's CraftWindow
-## (closed) fed with exactly what the real client gets: the login character's pack and every
-## system line. Checks, without sending any chat of its own (chat shares one 0.5 s cooldown):
-## - whenever the server describes the pack ("Your pack: ...", from gameplay_inventory's /bag),
-##   the window's mirror already matched it, through every gather in between;
-## - whenever the server refuses "/craft axe" for missing parts (gameplay_crafting), the
-##   window's stone axe row said "missing" too, with the same words;
+## Client: the workbench window on a real server, over protocol v3 (no chat commands).
+## Each bot keeps the client's CraftWindow fed exactly as the real client does (the login
+## character's pack, every s2c_inventory, every craft_result) and presses its Craft button
+## a few times per login, so the press goes out as `net.play.c2s_craft` like a player's:
+## - the window's pack always equals the server's last s2c_inventory;
+## - every press is answered by craft_result for that recipe, the window shows the server's
+##   own words, and its row had predicted the answer (Ready <-> ok, and a "missing" refusal
+##   in exactly the server's words);
+## - every successful craft also pays Toolcraft XP (the "+N Toolcraft" floater);
 ## - the "[E] Use Workbench" prompt shows exactly within Crafting.BENCH_RANGE.
+## It crafts torches (anywhere) or a campfire (at the bench) only, never a tool, so
+## gameplay_crafting's "/craft axe" answers stay as it expects. Presses wait for a quiet
+## moment: no gather of ours running or just ended (gameplay_gather_v3 checks the pack a
+## second after each haul) and not near a disconnect (qa_gather_ledger's reconnect check).
 
 const WindowScript := preload("res://client/craft_window.gd")
+const FIRST_PRESS := 6.0 ## s after login
+const PRESS_GAP := 12.0 ## s between presses
+const MAX_PRESSES := 4 ## per login
+const QUIET_AFTER_GATHER := 2.0
+const QUIET_BEFORE_DISCONNECT := 6.0
+const ANSWER_TIMEOUT := 3.0
+const EDGE := 1.5 ## m either side of BENCH_RANGE where position lag may flip the bench check
 
 var _w: PanelContainer
+var _next_press := INF
+var _presses := 0
+var _sent := "" ## recipe id pressed and not answered yet
+var _sent_at := 0.0
+var _gathering := false
+var _gather_ended_at := -1000.0
+var _toolcraft_xp := 0
+var presses := 0
+var answers := 0
+var crafted := 0
+var predicted := 0
 var pack_checks := 0
-var refusal_checks := 0
 var bench_frames := 0
 
 
 func setup(net: Node) -> void:
 	_w = WindowScript.new()
 	_w.setup(Theme.new())
-	net.system_message.connect(_on_system)
+	_w.craft_requested.connect(func(id: String):
+		if bot.multiplayer.multiplayer_peer != null:
+			bot.net.play.c2s_craft.rpc_id(1, id))
+	net.inventory_changed.connect(_on_inventory)
+	net.craft_result.connect(_on_craft_result)
+	net.xp_gained.connect(func(skill: String, _g: int, _t: int):
+		if skill == "toolcraft":
+			_toolcraft_xp += 1)
+	net.gather_begun.connect(func(peer: int, _n: int, _s: float):
+		if peer == int(bot.my_id):
+			_gathering = true)
+	net.gather_ended.connect(func(peer: int, _n: int, _r: String):
+		if peer == int(bot.my_id):
+			_gathering = false
+			_gather_ended_at = bot.elapsed)
 
 
 func on_login(_reconnect: bool, character: Dictionary) -> void:
@@ -27,9 +64,13 @@ func on_login(_reconnect: bool, character: Dictionary) -> void:
 	_w.seed_pack(character.get("inventory"))
 	if not _w.pack_known:
 		fail("login character gave the window no pack")
+	_sent = ""
+	_gathering = false
+	_presses = 0
+	_next_press = bot.elapsed + FIRST_PRESS + bot.rng.randf_range(0.0, 2.0)
 
 
-func on_play(_delta: float) -> void:
+func on_play(delta: float) -> void:
 	if not bot.have_pos:
 		return
 	var p: Vector3 = bot.my_pos
@@ -39,34 +80,89 @@ func on_play(_delta: float) -> void:
 		fail("workbench prompt %s at %.2f m" % [at, d])
 	if at:
 		bench_frames += 1
-	_w.pos = p
+	_w.tick(delta, p)
+	if _sent != "" and bot.elapsed - _sent_at > ANSWER_TIMEOUT:
+		fail("craft %s was never answered (%.1f s)" % [_sent, bot.elapsed - _sent_at])
+		_sent = ""
+	if _sent == "" and _presses < MAX_PRESSES and bot.elapsed >= _next_press and _quiet():
+		_press(p)
 
 
-func _on_system(text: String) -> void:
-	var listed: Variant = WindowScript.parse_pack(text)
-	if text.begins_with("Your pack") and listed == null:
-		fail("window can't read the pack line: %s" % text)
-	if listed != null and _w.pack_known:
-		pack_checks += 1
-		if Inventory.to_wire(_w.pack) != Inventory.to_wire(listed):
-			fail("window thought the pack was %s, server says %s" % [Inventory.to_wire(_w.pack), text])
-	if text.begins_with("You need") and text.ends_with("to make a stone axe.") and _w.pack_known:
-		var r: Dictionary = WindowScript.row(_w.pack, "stone_axe", bot.my_pos)
-		if r.reason == "missing":
-			refusal_checks += 1
-			var want := Crafting.refusal("missing", _w.pack, "stone_axe", bot.my_pos)
+## No gather of ours running or just finished, and no disconnect or end of run coming up.
+func _quiet() -> bool:
+	if _gathering or bot.elapsed - _gather_ended_at < QUIET_AFTER_GATHER:
+		return false
+	var stop_at: float = bot.disconnect_at if bot.phase == "playing_1" else bot.duration
+	return bot.elapsed < stop_at - QUIET_BEFORE_DISCONNECT
+
+
+func _press(p: Vector3) -> void:
+	var id := "torch"
+	if WindowScript.row(_w.pack, "campfire", p).reason == "" and Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ) < Crafting.BENCH_RANGE - EDGE:
+		id = "campfire"
+	_presses += 1
+	_next_press = bot.elapsed + PRESS_GAP
+	if not _w.craft(id):
+		fail("the window refused a Craft press for %s (pack known %s)" % [id, _w.pack_known])
+		return
+	presses += 1
+	_sent = id
+	_sent_at = bot.elapsed
+
+
+func _on_inventory(items: Dictionary) -> void:
+	var want := Inventory.to_wire(Inventory.normalize(items))
+	_w.seed_pack(items)
+	pack_checks += 1
+	if Inventory.to_wire(_w.pack) != want:
+		fail("window pack %s, server sent %s" % [Inventory.to_wire(_w.pack), want])
+
+
+func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
+	if _sent == "":
+		return # not ours (nothing else sends c2s_craft today)
+	if recipe_id != _sent:
+		fail("pressed %s, the answer was for %s" % [_sent, recipe_id])
+	answers += 1
+	# The pack follows the result on the server's next tick, so the window still holds the
+	# pack the server judged: its row must have said the same thing.
+	var p: Vector3 = bot.my_pos
+	var r: Dictionary = WindowScript.row(_w.pack, recipe_id, p)
+	var d := Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ)
+	var edge: bool = bool(Crafting.RECIPES.get(recipe_id, {}).get("bench", false)) and absf(d - Crafting.BENCH_RANGE) < EDGE
+	if not edge:
+		predicted += 1
+		if ok != (r.reason == ""):
+			fail("%s: server said ok=%s (%s), window row said '%s'" % [recipe_id, ok, text, r.reason])
+		elif not ok and r.reason == "missing":
+			var want := Crafting.refusal("missing", _w.pack, recipe_id, p)
 			if want != text:
 				fail("window would say %s, server said %s" % [want, text])
-		elif r.reason != "bench":
-			fail("server refused the axe for missing parts, window row said %s" % r.reason)
-	_w.on_system(text)
+	var shown: Dictionary = _w.on_craft_result(recipe_id, ok, text)
+	if _w.status_label.text != text:
+		fail("window shows '%s', server said '%s'" % [_w.status_label.text, text])
+	if _w.is_waiting():
+		fail("window still waiting after the answer")
+	if ok:
+		crafted += 1
+		if str(shown.crafted) != recipe_id:
+			fail("a successful %s made no toast" % recipe_id)
+	_sent = ""
 
 
 func on_finish() -> void:
+	stat("presses", presses)
+	stat("answers", answers)
+	stat("crafted", crafted)
+	stat("predicted", predicted)
 	stat("pack_checks", pack_checks)
-	stat("refusal_checks", refusal_checks)
 	stat("bench_frames", bench_frames)
+	if presses < 1:
+		fail("never found a quiet moment to press Craft")
 	if pack_checks < 1:
-		fail("never saw a pack line to check the window against")
+		fail("never got an s2c_inventory to check the window against")
+	# s2c_xp is sent before the craft_result it belongs to.
+	if _toolcraft_xp < crafted:
+		fail("%d crafts but only %d Toolcraft XP gains" % [crafted, _toolcraft_xp])
 	if _w:
 		_w.free()
