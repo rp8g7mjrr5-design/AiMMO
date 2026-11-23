@@ -1,0 +1,62 @@
+"""Unit tests for gather_report.py (run: python3 -m unittest discover -s tests/bot_test -p 'test_*.py')."""
+import unittest
+
+import gather_report as gr
+
+
+def bot(completed=2, walked_off=1, stopped=1, shared=1, depleted=()):
+    return {"behaviours": {
+        "gameplay_gather_v3": {"completed": completed, "walked_off": walked_off, "stopped": stopped},
+        "qa_gather_ledger": {"shared_node_max": shared, "depleted": [list(d) for d in depleted], "respawned": []}}}
+
+
+class GatherReport(unittest.TestCase):
+    def good(self):
+        rows = {f"b{i}": bot() for i in range(8)}
+        rows["b0"] = bot(shared=2, depleted=[(40, 1000.0, 180.0, False)])
+        return rows
+
+    def test_good_run_passes(self):
+        self.assertEqual(gr.check(self.good(), 180, 8), [])
+
+    def test_short_runs_are_not_checked(self):
+        self.assertEqual(gr.check({"b": bot(completed=0)}, 45, 8), [])
+
+    def test_too_few_gatherers(self):
+        rows = self.good()
+        for k in ["b1", "b2", "b3", "b4", "b5"]:
+            rows[k] = bot(completed=0)
+        p = gr.check(rows, 180, 8)
+        self.assertEqual(len(p), 1)
+        self.assertIn("only 3 of 8", p[0])
+
+    def test_each_missing_case_is_named(self):
+        rows = {f"b{i}": bot(walked_off=0, stopped=0, shared=1) for i in range(8)}
+        text = " | ".join(gr.check(rows, 180, 8))
+        for want in ["walking away", "c2s_gather_cancel", "same time", "emptied"]:
+            self.assertIn(want, text)
+
+    def test_probe_picks_soonest_due(self):
+        rows = {"a": bot(depleted=[(1, 1000.0, 240.0, False), (2, 1010.0, 180.0, False)]),
+                "b": bot(depleted=[(2, 1010.4, 180.0, False)])}
+        self.assertEqual(gr.pick_probe(rows, now=1100.0), (2, 1190.0))
+
+    def test_probe_uses_latest_emptying(self):
+        rows = {"a": bot(depleted=[(2, 1000.0, 180.0, False), (2, 1190.0, 180.0, False)]),
+                "b": bot(depleted=[(2, 1189.5, 180.0, False)])}
+        self.assertEqual(gr.pick_probe(rows, now=1200.0), (2, 1369.5))
+
+    def test_probe_skips_night_only_and_too_soon(self):
+        rows = {"a": bot(depleted=[(7, 1000.0, 600.0, True), (2, 1000.0, 180.0, False)])}
+        self.assertIsNone(gr.pick_probe(rows, now=1175.0), "due in 5 s is too soon, the seep is night-only")
+        self.assertEqual(gr.pick_probe(rows, now=1100.0), (2, 1180.0))
+
+    def test_summary_mentions_counts(self):
+        s = gr.summary(self.good())
+        self.assertIn("by 8 bots", s)
+        self.assertIn("most_on_one_node=2", s)
+        self.assertIn("nodes_emptied=1", s)
+
+
+if __name__ == "__main__":
+    unittest.main()

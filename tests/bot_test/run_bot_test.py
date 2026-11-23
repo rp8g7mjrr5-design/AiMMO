@@ -8,6 +8,11 @@ cleanly, boots storage again, and checks every bot's final position was saved.
 Fails on: any bot failure, any server/bot crash, any ERROR line in a log, a desync
 (position off the shared terrain), or data loss (saved position missing or wrong).
 
+Long runs (>= 120 s) also check real gathering as a whole (tests/bot_test/gather_report.py)
+and then run the respawn probe: one fresh bot, only the qa_gather_ledger behaviour, logs in
+while a node the bots emptied is still empty, waits for it to come back and gathers it.
+Every saved character must hold exactly the pack the server last sent its bot.
+
 Every run also prints the fun metrics (tests/bot_test/fun_report.py) and writes
 fun_metrics.json into the work directory, which is kept for the CI artifact. With
 --fun-check the run also fails when they break the limits or got worse than
@@ -31,6 +36,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fun_report  # noqa: E402
+import gather_report  # noqa: E402
+
+# The respawn probe waits at most this long after the bots for its node to come back.
+MAX_PROBE_WAIT = 150.0
+# Probe run length past its node's due time: respawn slack, walk, gather, reconnect.
+PROBE_PLAY = 36.0
 
 REPO = Path(__file__).resolve().parents[2]
 GAME = REPO / "game"
@@ -50,6 +61,10 @@ def scan_log(path: Path, label: str) -> list:
         if any(m in line for m in ERROR_MARKERS):
             problems.append(f"{label}: {line.strip()}")
     return problems
+
+
+def _ledger(stats: dict) -> dict:
+    return stats.get("behaviours", {}).get("qa_gather_ledger", {}) or {}
 
 
 def main() -> int:
@@ -109,6 +124,45 @@ def main() -> int:
             problems.append(f"server exited early with code {server.returncode}")
             break
 
+    # Real gathering across the run, then the respawn probe while the server is still up.
+    rows = {}
+    for name, _, result, _ in bots:
+        try:
+            rows[name] = json.loads(result.read_text())["stats"]
+        except (OSError, ValueError, KeyError):
+            pass
+    if rows:
+        print("[bot-test] gathering: " + gather_report.summary(rows))
+    problems += [f"gathering: {g}" for g in gather_report.check(rows, a.duration, a.bots)]
+    if a.duration >= gather_report.LONG_RUN and server.poll() is None and rows:
+        pick = gather_report.pick_probe(rows, time.time())
+        if pick is None:
+            if any(_ledger(s).get("depleted") for s in rows.values()):
+                problems.append("gathering: every emptied node came back during the run, none left for the respawn probe")
+        else:
+            node, due = pick
+            wait = due - gather_report.PROBE_LEAD - time.time()
+            if wait > MAX_PROBE_WAIT:
+                problems.append(f"gathering: the next node back (#{node}) is {wait:.0f}s away, over the probe's {MAX_PROBE_WAIT:.0f}s limit")
+            else:
+                print(f"[bot-test] respawn probe: node {node} due back in {due - time.time():.0f}s, probe starts in {max(0, wait):.0f}s")
+                time.sleep(max(0.0, wait))
+                name = f"bot{run_tag}_probe"
+                result = work / f"{name}.json"
+                log = work / f"{name}.log"
+                dur = due - time.time() + PROBE_PLAY
+                cmd = [GODOT, "--headless", "--path", str(GAME), "--", "--bot", f"--name={name}",
+                       f"--password=pw-{name}", f"--address=127.0.0.1:{port}", f"--transport={a.transport}",
+                       f"--duration={dur:.1f}", f"--result={result}", "--expect-peers=0",
+                       "--only-behaviour=qa_gather_ledger", f"--gather-probe={node}", f"--probe-due={due:.3f}"]
+                p = subprocess.Popen(cmd, stdout=open(log, "w"), stderr=subprocess.STDOUT, env=env)
+                try:
+                    p.wait(timeout=dur + 90)
+                except subprocess.TimeoutExpired:
+                    p.kill()
+                    problems.append(f"{name}: hung and was killed")
+                bots.append((name, p, result, log))
+
     stop_file.write_text("stop")
     try:
         server.wait(timeout=30)
@@ -143,7 +197,11 @@ def main() -> int:
         if "qa_fun_metrics" in s.get("behaviours", {}):
             fun_rows[name] = s["behaviours"]["qa_fun_metrics"]
         if "final_position" in s:
-            expected[name] = s["final_position"]
+            ledger = _ledger(s)
+            expected[name] = {"pos": s["final_position"]}
+            if "final_pack" in ledger:
+                expected[name].update({"pack": ledger["final_pack"], "running_node": ledger.get("running_node", -1),
+                                       "running_amount": ledger.get("running_amount", 0)})
 
     # Data-loss check: boot storage in a fresh process and compare saved positions.
     if expected:
