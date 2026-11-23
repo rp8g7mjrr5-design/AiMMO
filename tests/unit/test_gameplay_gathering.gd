@@ -118,7 +118,7 @@ func test_parse_kind_and_command() -> void:
 	check(not ChatCommands.is_gather("gather"), "plain chat is not a command")
 	check_eq(ChatCommands.argument("/gather  ember sap "), "ember sap")
 	check_eq(ChatCommands.argument("/gather"), "")
-	check(ChatCommands.HELP.contains("/gather"), "listed in /help")
+	check(not ChatCommands.HELP.contains("/gather"), "hidden from /help since v3 (players press E)")
 
 
 func test_success_line() -> void:

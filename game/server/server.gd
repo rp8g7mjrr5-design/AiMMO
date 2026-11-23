@@ -65,6 +65,9 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.login_requested.connect(_on_login)
 	net.input_received.connect(_on_input)
 	net.chat_requested.connect(_on_chat)
+	net.gather_start_requested.connect(_on_gather_start)
+	net.gather_cancel_requested.connect(_on_gather_cancel)
+	net.craft_requested.connect(_on_craft)
 	get_tree().set_auto_accept_quit(false)
 	print("[server] listening on port %d via %s, protocol v%d" % [port, transport, GameConfig.PROTOCOL_VERSION])
 	print("[server] world clock: ", WorldClock.describe(world_seconds()))
@@ -126,7 +129,7 @@ func _tick() -> void:
 		return
 	for id in sessions:
 		if sessions[id].logged_in:
-			_send(id, "s2c_snapshot", [tick, entries])
+			_send(id, "s2c_snapshot", [tick, entries, int(sessions[id].seq)])
 
 
 func _on_peer_connected(id: int) -> void:
@@ -301,6 +304,28 @@ func _on_chat(id: int, text: String) -> void:
 			_send(other, "s2c_chat", [s.character.name, clean])
 
 
+## c2s_gather_start(node_id): press E at a node. Only logged-in players; a bad id is
+## answered like any refusal (gather_request).
+func _on_gather_start(id: int, node_id: int) -> void:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return
+	gather_request(id, node_id)
+
+
+## c2s_gather_cancel(): the player let go. No charge used, no cooldown spent.
+func _on_gather_cancel(id: int) -> void:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return
+	gather_cancel(id, "stopped")
+
+
+## c2s_craft(recipe_id): the crafting window's Make button.
+func _on_craft(id: int, recipe_id: String) -> void:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return
+	craft_request(id, recipe_id)
+
+
 ## A player gathers from the node they stand at ("/gather", or "/gather pine" for one kind).
 ## The server checks reach (from its own copy of the position), depletion, night-only
 ## nodes and the per-player cooldown, then puts the items in the pack via give_item.
@@ -376,8 +401,9 @@ func gather_cancel(id: int, reason: String = "stopped") -> void:
 	if not GatherChannel.is_active(s.channel):
 		return
 	var node_id := int(s.channel.node_id)
+	var audience: Array = s.channel.get("audience", [])
 	s.channel = {}
-	_gather_event(id, "cancelled", node_id, {"reason": reason})
+	_gather_event(id, "cancelled", node_id, {"reason": reason, "audience": audience})
 
 
 ## Every tick: cancel gathers whose player walked off, finish the ones that are due.
@@ -405,9 +431,10 @@ func _finish_channel(id: int, now: float) -> void:
 	var pos := CharacterData.position(s.character)
 	var ws := world_seconds()
 	_respawn_nodes(now)
+	var audience: Array = ch.get("audience", [])
 	var why := GatherChannel.finish_check(gathering, ch, pos, now, ws)
 	if why != "":
-		_gather_event(id, "cancelled", node_id, {"reason": why})
+		_gather_event(id, "cancelled", node_id, {"reason": why, "audience": audience})
 		return
 	var kind := str(ResourceNodes.get_by_id(node_id).kind)
 	var inv: Dictionary = s.character.inventory
@@ -416,21 +443,23 @@ func _finish_channel(id: int, now: float) -> void:
 	var added := give_item(id, got.item, Gathering.amount_for(kind, inv))
 	if added <= 0:
 		Gathering.give_back(gathering, node_id)
-		_gather_event(id, "cancelled", node_id, {"reason": "full"})
+		_gather_event(id, "cancelled", node_id, {"reason": "full", "audience": audience})
 		return
 	s.last_gather = now
 	if got.depleted:
 		_node_changed(node_id, true, got.respawn)
-	_gather_event(id, "done", node_id, {"item": got.item, "count": added, "tool": tool, "depleted": got.depleted})
+	_gather_event(id, "done", node_id, {"item": got.item, "count": added, "tool": tool, "depleted": got.depleted, "audience": audience})
 
 
 ## Where a timed gather's begin / cancelled / done is told to players:
-## - everyone in view (players_in_view) gets s2c_gather_begin(peer, node, seconds) and
-##   s2c_gather_end(peer, node, "done" | reason), so they see the gatherer work;
+## - everyone in view (players_in_view) gets s2c_gather_begin(peer, node, seconds), and
+##   s2c_gather_end(peer, node, "done" | reason) goes to everyone who got the begin (kept in
+##   the channel's "audience", even if they walked out of view meanwhile, so nobody is left
+##   watching a gather that never ends) plus anyone in view now;
 ## - the gatherer also gets s2c_gather_result(item, count) on "done" for the haul toast
 ##   (s2c_inventory follows from give_item), and a system line, which is what the
 ##   "/channel" dev command and today's clients read.
-## The s2c_gather_* RPCs arrive with protocol v3; until then _send skips them.
+## The s2c_gather_* RPCs are on Net/Play since protocol v3.
 func _gather_event(id: int, event: String, node_id: int, info: Dictionary) -> void:
 	if not sessions.has(id):
 		return
@@ -442,7 +471,10 @@ func _gather_event(id: int, event: String, node_id: int, info: Dictionary) -> vo
 	match event:
 		"begin":
 			text = GatherChannel.begin_text(node_id, float(info.seconds))
-			for other in players_in_view(pos):
+			var watchers := players_in_view(pos)
+			if GatherChannel.is_active(s.channel):
+				s.channel.audience = watchers
+			for other in watchers:
 				_send(other, "s2c_gather_begin", [id, node_id, float(info.seconds)])
 		"done":
 			text = Gathering.success(node_id, int(info.count), Inventory.count(s.character.inventory, str(info.item)), bool(info.depleted), str(info.tool))
@@ -455,7 +487,12 @@ func _gather_event(id: int, event: String, node_id: int, info: Dictionary) -> vo
 			elif reason != "disconnected":
 				text = Gathering.refusal(reason, gathering, node_id, pos, now, world_seconds())
 	if reason != "":
-		for other in players_in_view(pos):
+		var to := players_in_view(pos)
+		for other in info.get("audience", []):
+			if not to.has(other) and sessions.has(other) and sessions[other].logged_in:
+				to.append(other)
+		to.sort()
+		for other in to:
 			if other != id or reason != "disconnected":
 				_send(other, "s2c_gather_end", [id, node_id, reason])
 	if text != "":

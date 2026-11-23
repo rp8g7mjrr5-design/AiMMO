@@ -1,0 +1,314 @@
+extends "res://tests/bot_test/bot_behaviour.gd"
+## Bot behaviour (gameplay): protocol v3's real gathering, the way a player's press of E
+## works, over Net/Play's RPCs instead of chat.
+##
+## Every login: the pack (s2c_inventory) and the empty-node list (s2c_nodes) must arrive, and
+## snapshots must carry our own ack_seq (never ahead of the inputs we sent, never going back).
+##
+## In long runs (LONG_RUN; CI's 180 s run), once gameplay_gathering.gd is done steering the
+## bot for this login (it runs after us each frame and would hold the bot still), the bot
+## walks to the nearest wood or stone node and, with c2s_gather_start(node_id):
+##   1. starts and walks away at once: the server must end it "moved"/"far", nothing paid;
+##   2. starts and sends c2s_gather_cancel(): it must end "stopped", nothing paid;
+##   3. starts and holds still: s2c_gather_end "done", then s2c_gather_result and a bigger
+##      pack in s2c_inventory.
+## With 8 bots and the client gather prompt, nodes run dry and are shared: a refusal or an
+## emptied node sends the bot on to the next one (stat "contested"). It also watches other
+## bots: every s2c_gather_begin from someone else must be followed by its s2c_gather_end, so
+## no client is left showing a gather that never stops.
+
+const SETTLE := 1.0
+const LONG_RUN := 120.0
+const SEARCH_RADIUS := 40.0
+const MAX_NODES := 10
+const STOP_AT := 1.2
+const WALK_TIMEOUT := 20.0
+const ANSWER_TIMEOUT := 3.0 ## a start must be answered (begin or end) within this
+const RETRY_SOON := 0.6 ## after a "cooldown"/"busy" refusal
+const END_SLACK := 2.5
+const LOGIN_STATE_TIMEOUT := 6.0
+## "Standing still" for this behaviour. Not exactly zero: client_gather_prompt.gd (today's
+## client, which still sends /gather) "holds E" whenever bot.move is zero, and its instant
+## gathers every 1.6 s keep the player's 1.5 s gather cooldown busy, so c2s_gather_start was
+## refused "cooldown" every time (first run of this behaviour: 7 of 8 bots never started).
+## A real player's press of E is one or the other, never both. This drift is about 1 cm over
+## a whole gather, far inside GatherChannel's 0.5 m move tolerance.
+const STILL := Vector2(0.001, 0.0)
+
+enum Step { WAIT_FIRST, GOTO, START, RUNNING, IDLE }
+enum Test { WALK_AWAY, CANCEL, HOLD, DONE }
+
+var _step := Step.IDLE
+var _test := Test.WALK_AWAY
+var _targets: Array = []
+var _target := -1
+var _login_nodes := 0
+var _since := 0.0
+var _next_at := 0.0
+var _answer_by := 0.0
+var _ends_by := 0.0
+var _walk := Vector2.ZERO
+var _cancel_sent := false
+var _result_count := 0
+var _pack_before := 0
+var _item := ""
+var _pack: Dictionary = {}
+var _got_pack := false
+var _got_nodes := false
+var _login_at := 0.0
+var _state_checked := false
+var _last_ack := -1
+var _others := {} ## peer -> [node, ends_by]
+var started := 0
+var completed := 0
+var walked_off := 0
+var stopped := 0
+var contested := 0
+var refused := 0
+var nodes_tried := 0
+var gave_up := 0
+var saw_others := 0
+var others_ended := 0
+var acks := 0
+var refusal_reasons := {}
+
+
+func setup(net: Node) -> void:
+	net.gather_begun.connect(_on_begun)
+	net.gather_ended.connect(_on_ended)
+	net.gather_result.connect(_on_result)
+	net.inventory_changed.connect(func(items: Dictionary): _pack = items; _got_pack = true)
+	net.nodes_depleted.connect(func(_ids: Array): _got_nodes = true)
+	net.snapshot_ack.connect(_on_ack)
+
+
+func on_login(_reconnect: bool, _character: Dictionary) -> void:
+	_step = Step.WAIT_FIRST if float(bot.duration) >= LONG_RUN else Step.IDLE
+	_test = Test.WALK_AWAY
+	_login_at = bot.elapsed
+	_state_checked = false
+	_got_pack = false
+	_got_nodes = false
+	_last_ack = -1
+	_others.clear()
+
+
+func _on_ack(ack: int) -> void:
+	acks += 1
+	if ack > int(bot.seq):
+		fail("ack_seq %d is ahead of the last input we sent (%d)" % [ack, bot.seq])
+	if ack < _last_ack:
+		fail("ack_seq went back from %d to %d" % [_last_ack, ack])
+	_last_ack = ack
+
+
+func _gathering() -> Object:
+	for b in bot.behaviours:
+		if b.name == "gameplay_gathering":
+			return b
+	return null
+
+
+func _plan() -> void:
+	_targets.clear()
+	_login_nodes = 0
+	for n in ResourceNodes.near(bot.my_pos, SEARCH_RADIUS):
+		if not ResourceNodes.kind_info(n.kind).get("night_only", false):
+			_targets.append(n.id)
+	_next_node()
+
+
+func _next_node() -> void:
+	if _targets.is_empty() or _login_nodes >= MAX_NODES:
+		gave_up += 1
+		_step = Step.IDLE
+		return
+	_target = _targets.pop_front()
+	_login_nodes += 1
+	nodes_tried += 1
+	_since = bot.elapsed
+	_step = Step.GOTO
+
+
+func _start() -> void:
+	_step = Step.START
+	_answer_by = bot.elapsed + ANSWER_TIMEOUT
+	_item = str(ResourceNodes.kind_info(str(ResourceNodes.get_by_id(_target).kind)).item)
+	_pack_before = int(_pack.get(_item, 0))
+	_result_count = 0
+	_cancel_sent = false
+	bot.net.play.c2s_gather_start.rpc_id(1, _target)
+
+
+func on_play(_delta: float) -> void:
+	if not _state_checked and bot.elapsed - _login_at > LOGIN_STATE_TIMEOUT:
+		_state_checked = true
+		if not _got_pack:
+			fail("no s2c_inventory after login")
+		if not _got_nodes:
+			fail("no s2c_nodes after login")
+		if acks == 0:
+			fail("no snapshot ack_seq after login")
+	for peer in _others.keys():
+		if bot.elapsed > float(_others[peer][1]):
+			fail("saw peer %d start gathering node %d but never saw it end" % [peer, _others[peer][0]])
+			_others.erase(peer)
+	match _step:
+		Step.WAIT_FIRST:
+			var g = _gathering()
+			if g == null or (not g._active and g._phase_gathered):
+				_plan()
+		Step.GOTO:
+			var node := ResourceNodes.get_by_id(_target)
+			var off: Vector3 = node.pos - bot.my_pos
+			var flat := Vector2(off.x, off.z)
+			if bot.elapsed - _since > WALK_TIMEOUT:
+				_next_node()
+			elif flat.length() > STOP_AT:
+				bot.move = flat.normalized()
+				bot.yaw = atan2(bot.move.x, bot.move.y)
+			else:
+				bot.move = STILL
+				_step = Step.START
+				_next_at = bot.elapsed + SETTLE
+				_answer_by = INF
+		Step.START:
+			bot.move = STILL
+			if _answer_by == INF:
+				if bot.elapsed >= _next_at:
+					_start()
+			elif bot.elapsed > _answer_by:
+				fail("c2s_gather_start(%d) was never answered" % _target)
+				_step = Step.IDLE
+		Step.RUNNING:
+			match _test:
+				Test.WALK_AWAY:
+					bot.move = _walk
+					bot.yaw = atan2(_walk.x, _walk.y)
+				Test.CANCEL:
+					bot.move = STILL
+					if not _cancel_sent and bot.elapsed >= _next_at:
+						_cancel_sent = true
+						bot.net.play.c2s_gather_cancel.rpc_id(1)
+				_:
+					bot.move = STILL
+			if bot.elapsed > _ends_by:
+				fail("gather on node %d (test %d) never ended" % [_target, _test])
+				_step = Step.IDLE
+
+
+func _on_begun(peer: int, node_id: int, seconds: float) -> void:
+	if peer != int(bot.my_id):
+		saw_others += 1
+		_others[peer] = [node_id, bot.elapsed + seconds + END_SLACK]
+		if _step == Step.RUNNING and node_id == _target:
+			contested += 1
+		return
+	if _step != Step.START or node_id != _target:
+		fail("begin for node %d we didn't ask for (target %d)" % [node_id, _target])
+		return
+	if seconds <= 0.0 or seconds > 10.0:
+		fail("odd gather time %.2f s" % seconds)
+	started += 1
+	_ends_by = bot.elapsed + seconds + END_SLACK
+	_step = Step.RUNNING
+	if _test == Test.WALK_AWAY:
+		var a: float = bot.rng.randf() * TAU
+		_walk = Vector2(cos(a), sin(a))
+	elif _test == Test.CANCEL:
+		_next_at = bot.elapsed + minf(0.5, seconds * 0.3)
+
+
+func _on_ended(peer: int, node_id: int, reason: String) -> void:
+	if peer != int(bot.my_id):
+		if _others.has(peer):
+			others_ended += 1
+			_others.erase(peer)
+		return
+	if node_id != _target:
+		return
+	match _step:
+		Step.START:
+			# Refused before it began.
+			refused += 1
+			refusal_reasons[reason] = int(refusal_reasons.get(reason, 0)) + 1
+			if reason in ["cooldown", "busy"]:
+				_answer_by = INF
+				_next_at = bot.elapsed + RETRY_SOON
+			else:
+				_next_node() # spent, out of reach, full: next node
+		Step.RUNNING:
+			match _test:
+				Test.WALK_AWAY:
+					if reason in ["moved", "far"]:
+						walked_off += 1
+						_test = Test.CANCEL
+						_targets.push_front(_target) # its charge is still there
+						_next_node()
+					elif reason == "done":
+						fail("walked away but the gather still paid out")
+						_step = Step.IDLE
+					else:
+						contested += 1
+						_next_node()
+				Test.CANCEL:
+					if reason == "stopped":
+						stopped += 1
+						_test = Test.HOLD
+						_step = Step.START
+						_answer_by = INF
+						_next_at = bot.elapsed + SETTLE # same node, straight away: no cooldown spent
+					elif reason == "done":
+						# The cancel crossed the finish on the wire; possible on a short gather.
+						_test = Test.HOLD
+						_check_payout()
+					elif reason in ["moved", "far"]:
+						fail("cancel test: ended %s while standing still" % reason)
+						_step = Step.IDLE
+					else:
+						contested += 1
+						_next_node()
+				Test.HOLD:
+					if reason == "done":
+						_check_payout()
+					elif reason in ["moved", "far", "stopped"]:
+						fail("gather ended %s while standing still at %s" % [reason, bot.my_pos])
+						_step = Step.IDLE
+					else:
+						contested += 1 # emptied by another bot while we worked
+						_next_node()
+
+
+func _on_result(item_id: String, count: int) -> void:
+	if item_id == "" or count <= 0:
+		fail("empty gather result %s x%d" % [item_id, count])
+	_result_count += count
+
+
+## After "done": the result (sent just before the end) and the pack update (next tick).
+func _check_payout() -> void:
+	completed += 1
+	_step = Step.IDLE
+	_test = Test.DONE
+	if _result_count <= 0:
+		fail("gather done but no s2c_gather_result")
+	bot.get_tree().create_timer(1.0).timeout.connect(func():
+		if int(_pack.get(_item, 0)) <= _pack_before and int(_pack.get(_item, 0)) < Inventory.MAX_STACK:
+			fail("gather done but the pack never showed more %s (%d before, %s now)" % [_item, _pack_before, _pack]))
+
+
+func on_finish() -> void:
+	stat("started", started)
+	stat("completed", completed)
+	stat("walked_off", walked_off)
+	stat("stopped", stopped)
+	stat("contested", contested)
+	stat("refused", refused)
+	stat("nodes_tried", nodes_tried)
+	stat("gave_up", gave_up)
+	stat("saw_others", saw_others)
+	stat("others_ended", others_ended)
+	stat("acks", acks)
+	stat("refusal_reasons", refusal_reasons)
+	if float(bot.duration) >= LONG_RUN and nodes_tried > 0 and started == 0:
+		fail("never started a single timed gather")

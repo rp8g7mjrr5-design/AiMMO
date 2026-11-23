@@ -476,3 +476,66 @@ by walking away), 8 x 45 s ENet passed.
 
 **Notes to next run (v3).** Unchanged from the eighth run, plus: the bot behaviours that
 parse system lines ignore TOO_FAST already; keep it that way in `gameplay_gather_v3.gd`.
+
+## 2026-11-22 (tenth run, 22:20 Chicago / 04:20 UTC on the 23rd): protocol v3
+
+**The bump and the date.** The last three runs held v3 for "one bump per day in the
+owner's day" (Chicago). This run starts at 22:20 Chicago on the 22nd, so the same rule says
+the PR must not land before 00:00 Chicago. Built and tested the whole bump now and opened the
+PR only after midnight Chicago (I scheduled a wake for it), so the rule holds and no run is wasted.
+
+**What shipped.**
+- `game/shared/net_play.gd`: the `Net/Play` child that `net.gd` makes in `_ready`, with every
+  v3 RPC (`c2s_gather_start`, `c2s_gather_cancel`, `c2s_craft`, `s2c_gather_begin`,
+  `s2c_gather_end`, `s2c_gather_result`, `s2c_inventory`, `s2c_nodes`, `s2c_node_state`,
+  `s2c_craft_result`). Each re-emits a signal declared on `Net`, so callers use `net.<signal>`.
+  Net's own RPC list is byte-for-byte v2's, so v1/v2 clients still reach the login check and
+  get "out of date" (qa's protocol test; my unit test also compares against `net_v2.gd`).
+- `ack_seq`: third argument of `s2c_snapshot`, per recipient (the session's last applied
+  `seq`, -1 before any input). I did not change the `snapshot` signal (client.gd and bot.gd
+  connect it with two arguments; changing it would have broken another stream's file).
+  Instead `Net` emits `snapshot_ack(ack_seq)` first and keeps `last_ack_seq`.
+- Server: `_on_gather_start` / `_on_gather_cancel` / `_on_craft` (logged-in only) call the
+  prepared `gather_request`, `gather_cancel(id, "stopped")`, `craft_request`.
+- **Bug found while writing the bot behaviour:** `s2c_gather_end` went to `players_in_view`
+  at the *end*, so a watcher who walked out of view during someone's 2 s gather got the
+  begin and never the end: their client would show that player chopping forever. The
+  channel now remembers its begin audience and the end goes to them plus anyone in view.
+- `/gather` dropped from `/help` (still works, hidden); the empty-pack line says "press E".
+- `PROTOCOL_VERSION` 3. No `tests/protocol/net_v3.gd` needed for this bump (v2 copy exists).
+
+**Tests.** `tests/unit/test_gameplay_protocol_v3.gd` (8 tests: RPCs on Play not Net, every
+RPC reaches its signal and the ack comes before the snapshot, press E / let go / re-press with
+no cooldown, handlers ignore peers not logged in, bad node ids refused out loud, Make button,
+per-player ack in snapshots, the walk-off watcher). The routing test in
+`test_gameplay_v3_hooks.gd` now checks Play is found after `_ready`. New bot behaviour
+`gameplay_gather_v3.gd` replaces `gameplay_gather_channel.gd` (`/channel` is no longer used by
+any bot): login state arrives, ack_seq never ahead of our inputs or going back, walk away ->
+"moved", `c2s_gather_cancel` -> "stopped", hold -> "done" + result + bigger pack, and every
+other bot's begin we see must be followed by its end.
+
+Results: 245 unit tests pass with Postgres; protocol test passes on websocket and ENet (v1,
+v2 and protocol-2/4 clients told to update, current client logs in); watchdog test passes;
+bot test 8 x 180 s websocket PASSED (every bot: 6-7 starts, 2 walk-offs, 2 cancels, 2
+completions, ~40 other bots' gathers seen begin and end, ~3550 acks); 8 x 45 s ENet PASSED;
+client smoke test passed.
+
+**What didn't work first.** The first 180 s run failed: 7 of 8 bots never started a timed
+gather. `client_gather_prompt.gd` (today's client, still on `/gather`) "holds E" whenever
+`bot.move` is zero, and its instant gather every 1.6 s kept the 1.5 s gather cooldown busy,
+so every `c2s_gather_start` was refused "cooldown" (retries landed in lock-step with the
+prompt). A real player's E press is one or the other, never both, so the behaviour now
+"stands still" with a 1 mm/s drift (`STILL`) that the prompt doesn't count as holding E;
+about 1 cm over a gather, well inside the 0.5 m tolerance. Once the client's press-E sends
+`c2s_gather_start` this goes away; `refusal_reasons` is a stat now so it's visible.
+
+**Not done.** Gather/craft system lines still go out next to the RPCs, because today's client
+reads them; drop them for v3 clients once the client switches (backlog follow-up). qa's
+watchdog log-noise request is still parked (eighth run). The chat-command gate (owner
+direction 1) still waits for the client's press-E to send `c2s_gather_start`.
+
+**Notes to next run.** Next protocol bump (v4: facing yaw + `s2c_roster`) must copy today's
+`net.gd` to `tests/protocol/net_v3.gd` *and* note that `net_play.gd` is part of v3 too: the
+qa compat test only reads `net.gd`, so if v4 adds RPCs to `Play`, v3 clients' Play numbering
+shifts. That's harmless for login (Net is unchanged) since v3 clients are refused anyway, but
+put new v4 RPCs on Play freely; never on Net.
