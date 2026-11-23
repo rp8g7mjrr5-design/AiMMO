@@ -26,7 +26,12 @@ func test_row_texts() -> void:
 	check_eq(SkillsWindow.xp_text(all, "felling"), "%s XP to level 4" % SkillsWindow._grouped(Skills.xp_for_level(4) - xp))
 	check_eq(SkillsWindow.xp_text({"tapping": Skills.xp_for_level(Skills.CAP)}, "tapping"), "Max level")
 	check_eq(SkillsWindow.next_text(all, "felling"), "Level 5: Old ember ash, work the old ember ashes past the meadow")
-	check_eq(SkillsWindow.next_text({}, "toolcraft"), "Level 3: Bench sense, the first Toolcraft recipes at the workbench (coming soon)")
+	# Bench sense is "coming soon" until gameplay's ember lantern recipe lands; either way the
+	# line names it, and says "(coming soon)" exactly while the data says so.
+	var bench = Skills.next_unlock("toolcraft", 1)
+	var bench_line := SkillsWindow.next_text({}, "toolcraft")
+	check(bench_line.begins_with("Level %d: %s" % [int(bench.level), str(bench.name)]), bench_line)
+	check_eq(bench_line.ends_with(" (coming soon)"), bool(bench.get("soon", false)), bench_line)
 	check_eq(SkillsWindow.next_text({"felling": Skills.xp_for_level(25)}, "felling"), "", "nothing named past Heartwood")
 
 
@@ -43,6 +48,24 @@ func test_goal_picks_the_closest_unlock() -> void:
 	check_eq(str(g.skill), "quarrying")
 	check_eq(int(g.need), Skills.xp_for_level(5) - Skills.xp_for_level(4) - 30)
 	check_eq(SkillsWindow.goal_key(all), "quarrying:5")
+
+
+func test_goal_follows_the_skills_you_train() -> void:
+	# A fresh character is pointed where the game starts (the first skill), never at a
+	# Toolcraft unlock it has no materials for, however cheap that unlock is.
+	check_eq(str(SkillsWindow.next_goal({}).skill), str(Skills.ORDER[0]))
+	check_eq(str(SkillsWindow.next_goal({"toolcraft": 0, "tapping": 0}).skill), str(Skills.ORDER[0]), "0 XP is untrained")
+	# Only trained skills compete: a little Toolcraft makes Toolcraft the goal, a little
+	# Quarrying on top makes whichever is closer win.
+	var g := SkillsWindow.next_goal({"toolcraft": 10})
+	check(g.is_empty() or str(g.skill) == "toolcraft", "only toolcraft is trained (got %s)" % g)
+	var both := {"tapping": 10, "quarrying": Skills.xp_for_level(5) - 5}
+	check_eq(SkillsWindow.goal_key(both), "quarrying:5", "the closer of the trained skills")
+	# Past the last unlock of everything you've trained: the untrained skills step in.
+	var done := {str(Skills.ORDER[0]): Skills.xp_for_level(Skills.CAP)}
+	var after := SkillsWindow.next_goal(done)
+	check(not after.is_empty(), "a goal is still offered")
+	check(str(after.get("skill", "")) != str(Skills.ORDER[0]), "from another skill (got %s)" % after)
 
 
 func test_goal_skips_unlocks_not_in_the_world_yet() -> void:

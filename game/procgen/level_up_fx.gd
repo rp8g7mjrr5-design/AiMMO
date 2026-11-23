@@ -50,6 +50,10 @@ var daylight := 0.0 ## 0 night .. 1 full day, read from the sky when the burst s
 ## so tests and bots read these instead of the MultiMesh.
 var column_now := {}
 var beam_now := {}
+## Where every spark the last frame drew sits, relative to the avatar's feet (hidden sparks
+## left out). Same reason as above: on the dummy renderer the Sparks MultiMesh reads back
+## identity transforms, so a check of the MultiMesh passes whatever the sparks do.
+var sparks_now := PackedVector3Array()
 var _sparks: Array = []
 var _column_mat: ShaderMaterial
 var _ring_mat: ShaderMaterial
@@ -229,8 +233,12 @@ func _apply() -> void:
 	ring.multimesh.set_instance_transform(0, Transform3D(Basis.from_scale(Vector3(maxf(r.radius, 0.001), 1.0, maxf(r.radius, 0.001))), Vector3(0, 0.06, 0)))
 	_ring_mat.set_shader_parameter("strength", r.strength)
 	var mm := (get_node("Sparks") as MultiMeshInstance3D).multimesh
+	sparks_now.clear()
 	for i in _sparks.size():
-		mm.set_instance_transform(i, spark_at(_sparks[i], age))
+		var sxf := spark_at(_sparks[i], age)
+		mm.set_instance_transform(i, sxf)
+		if not sxf.basis.get_scale().is_zero_approx():
+			sparks_now.append(sxf.origin)
 		if age == 0.0:
 			mm.set_instance_color(i, (_sparks[i].color as Color).srgb_to_linear())
 			mm.set_instance_custom_data(i, Color(_sparks[i].glow, 0, 0, 0))

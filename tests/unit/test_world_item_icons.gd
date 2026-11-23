@@ -24,7 +24,7 @@ func _stats(img: Image) -> Dictionary:
 
 ## Every item a player can hold: ITEM_ORDER plus the ones gameplay keeps in NEW_ITEMS until
 ## they move over, plus any UNDRAWN item world has drawn since (the ember tools), without
-## repeats once they move over.
+## repeats once they move over, plus items world drew ahead of gameplay (DRAWN_AHEAD).
 func _all_items() -> Array:
 	var out: Array = Inventory.ITEM_ORDER.duplicate()
 	for item in Inventory.NEW_ITEMS:
@@ -33,7 +33,15 @@ func _all_items() -> Array:
 	for item in Inventory.UNDRAWN:
 		if not out.has(item) and ItemIcons.has_icon(item):
 			out.append(item)
+	for item in DRAWN_AHEAD:
+		if not out.has(item):
+			out.append(item)
 	return out
+
+
+## Icons world drew before gameplay added the item (gameplay's request in world's backlog):
+## they get every check the real items get, so they are ready the moment the item exists.
+const DRAWN_AHEAD := ["ember_lantern"]
 
 
 func test_every_item_has_its_own_icon() -> void:
@@ -133,5 +141,23 @@ func test_ember_tools_are_drawn_and_burn_hotter_than_stone() -> void:
 		var cold := _stats(ItemIcons.image(pair[1], 48))
 		check(hot.warm >= 20 and hot.warm > cold.warm + 15, "%s edge glows (%d vs %d)" % [pair[0], hot.warm, cold.warm])
 		check(ItemIcons.tint(pair[0]) != ItemIcons.tint(pair[1]), "%s tints differently from %s" % pair)
-	for item in Inventory.UNDRAWN:
-		check(ItemIcons.has_icon(item), "UNDRAWN %s is drawn now (gameplay can move it into ITEMS)" % item)
+	# Only the ember tools: anything else in Inventory.UNDRAWN is allowed to wait for its
+	# icon (that is what UNDRAWN is for; gameplay's request, 2026-11-23).
+
+
+func test_ember_lantern_glows_and_reads_apart_from_torch_and_campfire() -> void:
+	# Gameplay's "Bench sense" lantern: a lantern with an ember inside. It glows like the
+	# other fire items but must not be mistaken for the torch or campfire in a pack slot.
+	check(ItemIcons.has_icon("ember_lantern"), "ember_lantern has its own icon")
+	var s := _stats(ItemIcons.image("ember_lantern", 48))
+	check(s.warm >= 20, "ember_lantern has a bright warm core (%d)" % s.warm)
+	check(ItemIcons.shapes("ember_lantern").any(func(sh): return sh.get("glow", 0.0) > 0.0), "ember_lantern has a halo")
+	check(ItemIcons.tint("ember_lantern") != ItemIcons.tint(ItemIcons.FALLBACK), "ember_lantern does not tint like the bundle")
+	var a := ItemIcons.image("ember_lantern", 24)
+	for other in ["torch", "campfire"]:
+		var b := ItemIcons.image(other, 24)
+		var diff := 0.0
+		for y in 24:
+			for x in 24:
+				diff += absf(a.get_pixel(x, y).a - b.get_pixel(x, y).a)
+		check(diff / (24 * 24) > 0.12, "ember_lantern's silhouette differs from %s (%.3f)" % [other, diff / (24 * 24)])

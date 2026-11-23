@@ -7,7 +7,7 @@ extends TestCase
 func test_every_listed_action_is_bound() -> void:
 	ControlsOverlay.install_input()
 	for action in ControlsOverlay.listed_actions():
-		check(ControlsOverlay.DEFAULT_BINDS.has(action), "%s has a default key" % action)
+		check(ControlsOverlay.DEFAULT_BINDS.has(action) or ControlsOverlay.DEFAULT_MOUSE.has(action), "%s has a default key or button" % action)
 		check(InputMap.has_action(action), "%s is in the InputMap" % action)
 		check(ControlsOverlay.key_text(action) != "?", "%s shows a key name" % action)
 

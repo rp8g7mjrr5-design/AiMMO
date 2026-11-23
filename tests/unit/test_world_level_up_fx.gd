@@ -140,3 +140,103 @@ func test_play_reads_the_sky_and_draws_the_beam_in_the_column_multimesh() -> voi
 	check(fx.column_now.strength > 0.0, "column still finishing")
 	check((fx.get_node("Column") as MultiMeshInstance3D).visible, "column still showing")
 	avatar.free()
+
+
+## One burst run frame by frame on a real avatar, the way the client plays it, checking what
+## the node actually drew each frame (sparks_now, column_now, beam_now). Returns
+## {lit, beam_top, frames, sparks_seen, done} or fails checks as it goes.
+## `restart_at` > 0 plays a second level-up that far in (two skills on one gather).
+func _run_burst(avatar: Node3D, seed_value: int, day: float, fps: float, restart_at: float = -1.0) -> Dictionary:
+	var fx := LevelUpFx.play(avatar, seed_value, day)
+	var frame := 1.0 / fps
+	var out := {"lit": false, "beam_top": 0.0, "frames": 0, "sparks_seen": 0, "done": false, "restarted": false}
+	var stray := 0
+	var beam_late := 0
+	for i in int((LevelUpFx.DURATION + 1.0) * fps) + 30:
+		out.done = fx.advance(frame)
+		out.frames += 1
+		var light := fx.get_node("Light") as OmniLight3D
+		if light.visible and light.light_energy > 1.0:
+			out.lit = true
+		out.beam_top = maxf(out.beam_top, float(fx.beam_now.height))
+		if fx.age >= LevelUpFx.BEAM_TIME and float(fx.beam_now.strength) > 0.0:
+			beam_late += 1
+		for p in fx.sparks_now:
+			out.sparks_seen += 1
+			if p.y < 0.0 or Vector2(p.x, p.z).length() > 2.0:
+				stray += 1
+		if restart_at > 0.0 and not out.restarted and fx.age > restart_at:
+			out.restarted = true
+			var again := LevelUpFx.play(avatar, seed_value + 1000, day)
+			check(again == fx and fx.age == 0.0, "seed %d: a second level-up restarts the burst" % seed_value)
+		if out.done:
+			break
+	check_eq(stray, 0, "seed %d: every drawn spark stays round the avatar and above its feet" % seed_value)
+	check_eq(beam_late, 0, "seed %d: sky beam gone by BEAM_TIME" % seed_value)
+	check(not fx.visible and not (fx.get_node("Light") as OmniLight3D).visible and fx.sparks_now.is_empty(), "seed %d: burst ends with nothing showing" % seed_value)
+	check(fx.position == Vector3.ZERO, "seed %d: burst sits at the avatar's feet, so it follows the avatar" % seed_value)
+	var count := 0
+	for ch in avatar.get_children():
+		if ch is LevelUpFx:
+			count += 1
+	check_eq(count, 1, "seed %d: one burst on the avatar" % seed_value)
+	return out
+
+
+## The checks the world_level_up_fx bot behaviour used to run inside every bot (11 bursts
+## each), now once here over 64 seeds, day and night, with and without a restart, at the
+## spots players actually level: the meadow, a few ash and stone nodes, the tier-2 landmarks.
+func test_bursts_play_cleanly_on_a_real_avatar_everywhere() -> void:
+	var avatar := AvatarBuilder.rig()
+	var spots: Array = [Vector3.ZERO]
+	var nodes := ResourceNodes.all()
+	for i in range(0, nodes.size(), 37):
+		spots.append(nodes[i].pos)
+	for n in ResourceNodes.tier2():
+		spots.append(n.pos)
+	var total_sparks := 0
+	var day_beams := 0
+	for seed_value in 64:
+		var spot: Vector3 = spots[seed_value % spots.size()]
+		avatar.position = Vector3(spot.x, Terrain.height(spot.x, spot.z), spot.z)
+		var day := 1.0 if seed_value % 2 == 0 else 0.0
+		var restart := 0.6 if seed_value % 4 == 1 else -1.0
+		var r := _run_burst(avatar, seed_value * 31 + 2, day, 30.0, restart)
+		check(r.lit, "seed %d: the light came on" % seed_value)
+		check(r.done, "seed %d: the burst finished" % seed_value)
+		total_sparks += int(r.sparks_seen)
+		if day > 0.5:
+			check(float(r.beam_top) >= 20.0, "seed %d: day beam reached %.1f m" % [seed_value, r.beam_top])
+			day_beams += 1
+	check(total_sparks > 64 * LevelUpFx.SPARKS, "sparks were really drawn (%d spark-frames)" % total_sparks)
+	check_eq(day_beams, 32, "every day burst checked its beam")
+	avatar.free()
+
+
+## A slow laptop and a 144 Hz screen see the same burst: it lasts DURATION whatever the
+## frame rate, and the beam clears the trees on both.
+func test_burst_lasts_the_same_at_any_frame_rate() -> void:
+	var avatar := AvatarBuilder.rig()
+	for fps in [15.0, 30.0, 60.0, 144.0]:
+		var r := _run_burst(avatar, 7, 1.0, fps)
+		var seconds: float = float(r.frames) / fps
+		check(seconds >= LevelUpFx.DURATION - 0.001 and seconds <= LevelUpFx.DURATION + 1.0 / fps + 0.001, "%d fps: burst lasts %.3f s" % [int(fps), seconds])
+		check(float(r.beam_top) >= 20.0, "%d fps: beam clears the trees" % int(fps))
+		check(int(r.sparks_seen) > 0, "%d fps: sparks drawn" % int(fps))
+	avatar.free()
+
+
+func test_sparks_now_follows_what_is_drawn() -> void:
+	var avatar := AvatarBuilder.rig()
+	var fx := LevelUpFx.play(avatar, 5, 0.0)
+	check(fx.sparks_now.is_empty(), "no sparks at the very start")
+	fx.advance(0.7)
+	var want := 0
+	for s in LevelUpFx.sparks(5):
+		if not LevelUpFx.spark_at(s, fx.age).basis.get_scale().is_zero_approx():
+			want += 1
+	check(want > 0, "some sparks are up at 0.7 s")
+	check_eq(fx.sparks_now.size(), want, "sparks_now lists exactly the sparks drawn")
+	LevelUpFx.play(avatar, 5, 0.0)
+	check(fx.sparks_now.is_empty(), "a restart clears them")
+	avatar.free()

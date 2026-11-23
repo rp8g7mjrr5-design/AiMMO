@@ -1,1 +1,0 @@
-- Every build now checks the valley's colours at noon and at midnight: ember glow stays rare and special, grass never goes neon, and night can't turn black or grey without the build stopping.

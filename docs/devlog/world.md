@@ -510,3 +510,38 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Decisions.** Whole-world unit tests over "wherever bots walked": the bots only ever touched the ~60 m round spawn, so the unit tests see more. `world_level_up_fx.gd` stays: open PR #133 edits it and touching it here would conflict; follow-up added. The two camera stats (`camera_inside_*`) went with their behaviours; nothing read them in CI.
 
 **Next run.** `world_level_up_fx.gd` once #133 lands, else the gather-swing impact puff.
+
+## 2026-11-23, run: ember lantern icon (ws/world/ember-lantern-icon)
+
+**Open PRs.** None: #133 and #135 both landed.
+
+**Picked** gameplay's request at the top of "Requests from other streams" (requests come first): draw `ember_lantern` in `ItemIcons` for Toolcraft 3's "Bench sense" recipe, and stop `test_ember_tools_are_drawn_and_burn_hotter_than_stone` failing on any undrawn `Inventory.UNDRAWN` id. Fun: when gameplay ships the lantern, the craft toast and pack slot show a proper lantern on day one, not the grey cloth bundle that says "unfinished".
+
+**Built.**
+- `ItemIcons` "ember_lantern": stone foot, two pine posts, stone roof with a carry loop, ember glass with a smoulder-tipped flame inside and a warm halo. Upright and boxy so it reads apart from the slanted torch and the wide campfire at 32 px. Tint `Palette.EMBER_CORE`. No new colour literals (only palette and existing icon constants), so qa's art-lint allowance for `item_icons.gd` is unchanged.
+- `test_world_item_icons`: the UNDRAWN loop is gone (only the ember tools are checked, as asked). A `DRAWN_AHEAD` list puts the lantern through every icon check (own icon, fills the square, no clipping, distinct from every other icon); a new test checks it glows and its silhouette differs from the torch and campfire.
+
+**Didn't work.** First draft had a pine crossbar over the glass; at 128 px the crossbar plus the triangular flame read as a letter "A". Dropped the bar and gave the flame a lopsided tip.
+
+**Decisions.** No bot behaviour: the item doesn't exist yet, so players can't do anything new, and icons are art checks, which belong in unit tests (art bible section 7, last run's art-free bots).
+
+**Next run.** The `world_level_up_fx.gd` move into unit tests (#133 has landed), or the gather-swing impact puff.
+
+## 2026-11-23, run: level-up burst checks out of the bot loop (ws/world/level-up-checks-unit)
+
+**Open PRs.** None of world's open.
+
+**Picked** the top unticked backlog item: move `world_level_up_fx.gd`'s checks into `test_world_level_up_fx.gd` now that #133 has landed. Fun: nothing new on screen; it keeps the loudest moment of Milestone 1 (the level-up burst) looking right by checking it far harder than the bots did, and takes one more art build out of every bot, so bot runs for every stream are lighter. Plumbing, kept small.
+
+**Built.**
+- `LevelUpFx.sparks_now`: the positions of the sparks the last frame actually drew. Last run found the dummy renderer reads MultiMesh transforms back as identity, so the old bot spark checks passed whatever the sparks did. Mutation-checked: pushing sparks out to 2.6 m fails the new tests (and the old pure one).
+- Three unit tests: 64 bursts frame by frame (day and night, a restart mid-burst on a quarter of them, at the meadow, 11 node spots and the 8 tier-2 landmarks), the burst lasting `DURATION` at 15/30/60/144 fps with the beam clearing 20 m, and `sparks_now` matching what's drawn.
+- `world_ground_truth.gd` keeps the network part: our own `s2c_level_up` names a real skill at a level above the last one (and at most `Skills.CAP`), and every `s2c_level_up_seen` is about a player we have a snapshot position for (so the client has an avatar to burst over) within `VIEW_RANGE` + 30 m. Removed `world_level_up_fx.gd`.
+
+**Found.** Bots see other players' level-ups from 80 to 105 m, not the 45 m I tuned the daylight beam for. Follow-up added: look at a noon burst from 100 m.
+
+**Decisions.** "Seen without avatar" is a stat, not a failure: a level-up can race a newly joined player's first snapshot, and a flaky world check would block every stream. It read 0 on all 8 bots. Asked qa to drop the behaviour from `art_lint_allow.json` (their file).
+
+**Tested.** Unit suite with Postgres: 587 pass. 8-bot 180 s websocket bot test passed (7 of 8 bots levelled; 1 to 4 level-ups seen per bot). Client smoke test passed.
+
+**Next run.** The gather-swing impact puff, or the far-away level-up look check.

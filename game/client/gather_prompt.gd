@@ -68,13 +68,16 @@ var _toast_age := INF
 ## A tier-2 node above your level (`skills`: skill id -> XP) shows what it needs, greyed:
 ## "Old Ember Ash · Felling 5 (1,205 XP to go)".
 ## {id, kind, label, can: bool (false for a spent node, a seep in daylight or a node above
-## your level), needs_level: bool, text, doing}.
+## your level), needs_level: bool, aimed: bool (the reticle is on it, so a left-click takes
+## it; false for the nearest-node fallback), text, doing}.
 static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look := Vector3.ZERO, spent_ids := {}, skills := {}) -> Dictionary:
 	var in_reach := ResourceNodes.near(pos, ResourceNodes.GATHER_RANGE)
 	if in_reach.is_empty():
 		return {}
 	var live: Array = in_reach.filter(func(n): return not spent_ids.has(int(n.id)))
 	var n: Dictionary = pick(live, eye, look) if not live.is_empty() else in_reach[0]
+	var aimed := not live.is_empty() and look != Vector3.ZERO \
+		and int(ActionCamera.aimed_node(eye, look.normalized(), live).get("id", -1)) == int(n.id)
 	var info := ResourceNodes.info(n)
 	var label := str(info.get("label", n.kind))
 	var what := _what(str(n.kind), label)
@@ -95,6 +98,7 @@ static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look
 		"label": label,
 		"can": not is_spent and not night_only and not too_low,
 		"needs_level": too_low,
+		"aimed": aimed,
 		"text": text,
 		"doing": doing_for(n),
 	}
@@ -147,14 +151,20 @@ static func pick(in_reach: Array, eye: Vector3, look: Vector3) -> Dictionary:
 
 ## What E does this frame. `held` / `pressed` (just pressed) for E, `moving` for any movement
 ## key, `target` from target(), `gathering` while your own gather runs, `waiting` while a
-## start is unanswered, `blocked` after a refusal until E is let go.
+## start is unanswered, `blocked` after a refusal until E (and the mouse button) is let go.
+## `click_held` / `click_pressed` are the left mouse button (action camera: "E or left-click").
+## A click only takes the node under the reticle (`target.aimed`), never the nearest-node
+## fallback, so clicking at the sky doesn't start chopping the tree beside you. And a click
+## never stops a gather: hammering the button while you chop keeps chopping (E or moving stops).
 ## {"op": "start", "node": id}, {"op": "cancel"}, or {} for nothing.
-static func decide(held: bool, pressed: bool, moving: bool, target: Dictionary, gathering: bool, waiting: bool, blocked: bool) -> Dictionary:
+static func decide(held: bool, pressed: bool, moving: bool, target: Dictionary, gathering: bool, waiting: bool, blocked: bool, click_held: bool = false, click_pressed: bool = false) -> Dictionary:
 	if gathering:
 		return {"op": "cancel"} if pressed or moving else {}
 	if waiting or moving or target.is_empty() or not bool(target.get("can", false)):
 		return {}
 	if pressed or (held and not blocked):
+		return {"op": "start", "node": int(target.id)}
+	if bool(target.get("aimed", false)) and (click_pressed or (click_held and not blocked)):
 		return {"op": "start", "node": int(target.id)}
 	return {}
 
@@ -187,6 +197,26 @@ static func notice_for(reason: String, node_id: int) -> String:
 ## bar, toast and notices already say it, so they stay out of chat (chat is for talking).
 static func is_echo(text: String) -> bool:
 	return text.begins_with("You start gathering") or text.begins_with("You gather ") or text.begins_with("You stop gathering")
+
+
+## Reads the server's full-stack line ("Your pack can't hold any more ash wood. You leave it,
+## but the work still counts.", see Gathering.full_text) into {item, label}, or {} for any other.
+static func parse_full(text: String) -> Dictionary:
+	var m := RegEx.create_from_string("^Your pack can't hold any more (.+?)\\. You leave it").search(text)
+	if m == null:
+		return {}
+	var label := m.get_string(1)
+	for id in Inventory.ITEM_ORDER:
+		if Inventory.label(id).to_lower() == label.to_lower():
+			return {"item": id, "label": label}
+	return {"item": "", "label": label}
+
+
+## The full-stack toast: "Pack full: Ash wood (99) · XP still counts". The XP floater shows
+## the gain itself; this says why no "+2" came with it.
+static func full_toast_text(item: String, in_pack: int) -> String:
+	var label := Inventory.label(item) if item != "" else "that"
+	return "Pack full: %s (%d) · XP still counts" % [label.left(1).to_upper() + label.substr(1), in_pack]
 
 
 ## Reads the server's success line ("You gather 2 ash wood from the ember ash (6 in your
@@ -275,17 +305,18 @@ func _make_label(font_size: int, color: Color) -> Label:
 
 
 ## Called every logged-in frame with where you stand, E held / just pressed, whether you are
-## moving, and (optionally) the camera's eye and look direction for look-to-interact.
+## moving, (optionally) the camera's eye and look direction for look-to-interact, and the
+## left mouse button held / just pressed (click-to-gather on the aimed node).
 ## Returns what to send now: {"op": "start", "node": id} (c2s_gather_start), {"op": "cancel"}
 ## (c2s_gather_cancel), or {}.
-func update(delta: float, pos: Vector3, world_seconds: float, now: float, held: bool, pressed: bool = false, moving: bool = false, eye := Vector3.ZERO, look := Vector3.ZERO) -> Dictionary:
+func update(delta: float, pos: Vector3, world_seconds: float, now: float, held: bool, pressed: bool = false, moving: bool = false, eye := Vector3.ZERO, look := Vector3.ZERO, click_held: bool = false, click_pressed: bool = false) -> Dictionary:
 	_target = target(pos, world_seconds, eye, look, spent, skills)
-	if not held:
+	if not held and not click_held:
 		_hold_blocked = false
 	var waiting := _asked_node >= 0 and now - _asked_at < ASK_TIMEOUT
 	if not waiting:
 		_asked_node = -1
-	var op := decide(held, pressed, moving, _target, not _channel.is_empty(), waiting, _hold_blocked)
+	var op := decide(held, pressed, moving, _target, not _channel.is_empty(), waiting, _hold_blocked, click_held, click_pressed)
 	if op.get("op", "") == "start":
 		_asked_node = int(op.node)
 		_asked_at = now
@@ -338,8 +369,14 @@ func on_result(item_id: String, count: int) -> void:
 	show_toast(toast_text({"qty": count, "label": Inventory.label(item_id), "in_pack": in_pack}), item_id)
 
 
-## A system line: true if it is an echo of your timed gather (keep it out of chat).
+## A system line: true if it is an echo of your timed gather (keep it out of chat). A gather
+## that finished on a full stack (no s2c_gather_result, the XP still lands) gets its own
+## quiet toast here instead of a centre-screen refusal: the work counted, nothing went wrong.
 func on_system(text: String) -> bool:
+	var full := parse_full(text)
+	if not full.is_empty():
+		show_toast(full_toast_text(str(full.item), int(pack.get(full.item, Inventory.MAX_STACK))), str(full.item), NOTICE)
+		return true
 	return is_echo(text)
 
 

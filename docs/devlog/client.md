@@ -1153,3 +1153,77 @@ at exit (Godot's leak lines count as error logs). Both fixed; the second run pas
 
 **Next run:** left-click gather (action camera follow-up), or Return to Spawn Meadow, or
 client-side prediction.
+
+## 2026-11-23: left-click gathering (ws/client/left-click-gather)
+
+**Built:** the action camera's "E or left-click" (owner direction 3). A new `click_use`
+action (left mouse button) lives in `ControlsOverlay.DEFAULT_MOUSE` and is installed next to
+the keys; F1 shows it as "Left click" beside E. `GatherPrompt.target` now says whether its
+node is `aimed` (under the reticle) and `decide` takes `click_held` / `click_pressed`.
+
+**Calls I made, and why:**
+- A click only takes the node under the reticle, never the nearest-node fallback E uses.
+  Clicking at the sky to look around shouldn't start chopping the tree beside you.
+- A click never cancels. Players mash the button in action games; mashing should keep you
+  chopping, not toggle the swing on and off. E or moving still stops.
+- Only a click the game itself took counts: `_unhandled_input` sets `_click_tap` /
+  `_click_down` when the cursor is captured. `Input.is_action_just_pressed` alone would also
+  fire for the click on a window's Close button or the Pack button, and start a gather the
+  same frame the window shut.
+- Holding the button after a refusal or after E stopped you waits until you let go (shares
+  `_hold_blocked` with E).
+
+**Tests:** 4 unit tests in `test_client_click_gather.gd` (decide rules, `aimed` on real nodes,
+the widget's click/hold/E-stop sequence, binding and F1 row); `test_client_controls_overlay`
+accepts mouse defaults. New bot behaviour `client_click_gather`: on every server-begun gather
+of the bot's own, it aims a camera at that node and checks the click path asks for that very
+node and that a click mid-gather wouldn't stop it; it sends nothing. Unit tests 584 passed with
+Postgres; 8-bot 180 s WebSocket bot test PASSED (21 to 28 gathers checked per bot, 0 skipped);
+client smoke passed.
+
+**Didn't work first time:** nothing failed this run. Known gap: the bot check builds its own
+camera eye 2.2 m above the bot, not the real `ActionCamera` arm, so it proves the aim rules,
+not the exact shoulder offset (that path is unit tested in `test_client_action_camera`).
+
+**Next run:** client-side prediction (unblocked since v3's `ack_seq`), or the art-check move
+out of the bot behaviours, or Return to Spawn Meadow once v5 is on `main`.
+
+## 2026-11-23: gameplay's three requests (ws/client/long-road-ready)
+
+**Why this and not prediction:** the worker procedure puts requests from other streams first,
+and three gameplay requests were waiting on client tests: raising `Inventory.MAX_STACK` to
+999 (the long road needs it), the Toolcraft 3 ember lantern recipe, and a toast for gathers
+that end on a full stack. All three were small and unblock gameplay's next runs.
+
+**Built:**
+- `test_client_pack_window` builds its texts from `Inventory.MAX_STACK` and `Crafting.RECIPES`
+  instead of pinning "99" and today's recipe list. A new test proves "999" fits a 68 px slot
+  at the count's 15 px font.
+- The goal line (`SkillsWindow.next_goal`) now only weighs skills you have XP in. A fresh
+  character is pointed at `Skills.ORDER[0]` (Felling 5). If every trained skill is past its
+  last built unlock, the untrained skills compete again. Gameplay suggested "skip skills
+  at 0 XP". I took that, plus the fresh-character fallback, because without it a fresh
+  player (0 XP everywhere) would get no goal or the cheap Toolcraft 3 they have no materials for.
+- The Bench sense row test follows the unlock's `soon` flag, so it holds before and after
+  the lantern lands.
+- `GatherPrompt.parse_full` / `full_toast_text`: the server's "Your pack can't hold any
+  more ash wood. You leave it, but the work still counts." becomes a bottom toast "Pack full:
+  Ash wood (99) · XP still counts" with the item icon, in the warm notice colour. Before
+  this it showed as a centre notice with the "nope" sound, which reads as a mistake although
+  the gather worked and paid XP.
+
+**Tests:** I simulated gameplay's planned changes locally (MAX_STACK 999, the lantern recipe,
+Bench sense not soon). All 171 client tests passed. Only gameplay's own tests failed,
+as expected, and those changes were reverted before committing. New unit tests:
+`test_full_stack_gather_gets_a_quiet_toast`, `test_a_three_digit_stack_fits_its_slot`,
+`test_goal_follows_the_skills_you_train`. The `client_skills_window` bot behaviour now fails
+if the goal is in a skill the bot never trained (stat `goals_in_trained_skills`). Unit tests:
+587 passed with Postgres. 8-bot 180 s WebSocket bot test: PASSED. Client smoke test: passed.
+
+**Didn't work first time:** my first simulation run used a sed pattern that didn't match
+`MAX_STACK := 99 ##`. I caught it from `git diff --stat` and reran.
+
+**Known gap:** no bot fills a stack (99 takes far longer than 3 minutes), so the full-pack
+toast is proven only by unit tests on the server's own `Gathering.full_text` lines.
+
+**Next run:** client-side prediction, or moving the art checks out of the bot behaviours.

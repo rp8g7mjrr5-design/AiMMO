@@ -1047,3 +1047,71 @@ passes (feedback check, style, render budget); bot test 8 x 180 s WebSocket + Po
 far slower than local, nothing needs changing (the limit scales), but if frames > 2 shows up
 there, look at the RPC poll order before blaming the client. Follow-ups in the backlog: a
 refused press and a cancel, and the XP floater.
+
+## 2026-11-23 — server performance budget in the bot test (`ws/qa/server-perf-budget`)
+
+**Fun it protects:** players never feel lag, rubber-banding or a choked connection because a
+PR made the server slower or the snapshots fatter: the build stops first.
+
+**Built:** `tests/bot_test/perf_report.py`. `run_bot_test.py` starts a `PerfSampler` thread
+on the server's pid once the main server listens and stops it when the 8 main bots finish (the
+pair/probe/gate phases after are not counted). Once a second it reads `/proc/<pid>/stat`
+(utime + stime) and `/proc/<pid>/status` (VmRSS), and on WebSocket runs
+`ss -tinH state established '( sport = :PORT )'` for each player's `bytes_sent` /
+`bytes_received`. Summary over the steady window (30 s after start to 10 s before the end):
+CPU ms per tick (average, and worst 5 s), peak RSS and growth in the window, down/up kbit/s
+per player (median, max; connections shorter than 10 s are ignored, so reconnects don't skew
+it). `qa_snapshot_flow` now also reports `tick_rate`, server ticks per second each bot saw
+while playing (tick deltas over time, per session). Printed as a table plus one
+`[bot-test] perf summary: {json}` line (for `tools/fun_trend.py` later), written to
+`perf_metrics.json` (kept for the artifact), and with `--perf-check` (CI's 180 s run) checked
+against `tests/bot_test/perf_budget.json`.
+
+**Decisions:** measured from outside the server so no gameplay file changes and no cost to
+the live server. CPU *time*, not wall time, so a busy CI runner (9 Godot processes) doesn't
+inflate it; it includes Godot's idle frames at `max_fps = 60`, so it's an upper bound on tick
+work. Bandwidth is measured on the wire with `ss` (WebSocket framing included), so it's real
+bytes, not an estimate; ENet (UDP) runs report CPU/memory/ticks only. Hard ceilings are ~4x
+today (CPU avg 15 ms of the 50 ms tick, worst 5 s 35 ms, 400 MB, +64 MB growth, 256/160 kbit/s
+per player max), ticks >= 18/s, at least 8 players measured. Against the baseline only
+bandwidth is gated (1.5x), because bytes don't depend on the machine; CPU and memory drift is a
+note. Runs under 120 s print problems as notes (the 45 s ENet smoke isn't gated).
+
+**Numbers (local, 4 cores, 8 x 180 s WebSocket + Postgres):** 1.25 ms CPU per tick (worst 5 s
+2.49), 20.0 ticks/s on every bot, 96.7 MB peak and flat (0.0 MB growth), 60.5 kbit/s down and
+43.0 kbit/s up per player, 16 connections measured (8 bots x 2 sessions).
+
+**Didn't work first time:** the art-lint allow-list edit missed `world_workbench.gd` (last
+entry, no trailing comma). Up bandwidth looks high: `bot.gd` sends `c2s_input` every frame,
+while `client.gd` sends at the tick rate, so today's up number overstates a real player
+(follow-up filed).
+
+**Same PR:** world's request, the 11 deleted `world_*` behaviours are off `art_lint_allow.json`.
+
+**Next run:** read the first CI run's `server performance` table. If CI's CPU per tick is far
+above 1.25 ms that's fine (only a note), but if `tick_rate_min` is near 18 on CI, the runner is
+starved, not the server: look at the bots' clocks before loosening it.
+
+## 2026-11-23 — image test switches dev commands on for its bots (`ws/qa/image-test-dev-commands`)
+
+**Why it's more fun:** plumbing that unblocks gameplay's #139 (chat is for talking on every
+server, owner direction 1). Without it, #139 turns the image test red because its two bots
+type /time, /who and /skills and get no reply once dev commands default to off.
+
+**Built:** `tests/ops/run_image_test.py`: the `plays` container now starts with
+`AIMMO_DEV_COMMANDS=1` (the image's CMD takes no flags, so the env var is the only switch an
+operator has) and the boots step checks the log says
+`[server] dev commands: on (AIMMO_DEV_COMMANDS)`, so a broken switch fails loudly instead of as
+nine confusing bot failures. The `frozen` container keeps the image's default and only prints
+its `dev commands:` line (a note, not a check), because on `main` before #139 the default is
+`on (local default)` and after it `off (default)`; gating it would make this PR depend on #139.
+
+**Tested locally:** unit tests (Postgres), full bot test 8 x 180 s WebSocket, and the image
+test's `plays` and `frozen` scenarios against an image built from this branch, then again with
+#139's `chat_commands.gd` dropped in (not committed) to prove the fix. The sandbox can't run the
+Dockerfile's apt/curl layer through its proxy, so the local image swapped that one layer for
+the same Godot 4.3 binary copied in; CI builds the real Dockerfile. `contents` was not run
+locally for that reason (it checks the packages that layer installs).
+
+**Next run:** once #139 lands, consider making `frozen` assert `dev commands: off` so the
+public image's default is pinned by a test, not just the unit test on `dev_commands_on`.
