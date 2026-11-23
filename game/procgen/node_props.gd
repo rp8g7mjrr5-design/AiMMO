@@ -43,10 +43,10 @@ const SEAM_STUD := Color(0.84, 0.80, 0.70) ## quartz studs along the outcrop's s
 ## it (the sap glow, so it shines at night and beats with the heartbeat); a rich stone seam is
 ## a wide, deep plum-grey outcrop flecked with bright gold, with ember crystals breaking out
 ## of its top. Both keep the tier-1 layers and materials (no new material, art bible 7).
-const OLD_ASH_LEAF := Color(1.0, 0.64, 0.28)
-const OLD_ASH_BARK := Color(0.50, 0.42, 0.36) ## older, greyer bark than Palette.TRUNK
-const RICH_STONE := Color(0.58, 0.50, 0.57) ## a deeper colour than the grey outcrops
-const RICH_FLECK := Color(1.0, 0.86, 0.52) ## bright gold flecks: "this rock is rich"
+const OLD_ASH_LEAF := Palette.OLD_ASH_LEAF
+const OLD_ASH_BARK := Palette.OLD_ASH_BARK
+const RICH_STONE := Palette.RICH_STONE
+const RICH_FLECK := Palette.RICH_FLECK
 const OLD_ASH_TRUNK := Vector2(1.5, 1.25) ## trunk mesh scale (width, height) against tier 1
 ## The big stone of each outcrop: world-axis ellipsoid half sizes and centre height. Veins
 ## and seam studs sit on its surface.
