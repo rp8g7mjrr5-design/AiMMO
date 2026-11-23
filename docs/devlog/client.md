@@ -426,3 +426,44 @@ panel.
 **Notes to next run:** when gameplay's v3/v4 lands, replace the `/bag` and `/craft` lines with
 `c2s_craft` and feed `s2c_inventory` to `seed_pack` (follow-up in the backlog). Then the top
 gathering item. The F1 controls overlay is still the best no-dependency item after that.
+
+## 2026-11-23 (early morning): item icons on toasts and the workbench (ws/client/item-icons)
+
+**Why this item:** the top item (gathering on protocol v3) is still blocked: main is still on
+protocol v2 (`GameConfig.PROTOCOL_VERSION := 2`, no `s2c_gather_*` RPCs). Requests from other
+streams come first, and world's item-icons request was the only one still open.
+
+**Fun, in one sentence:** every gather now pops a little picture of the log, stone or glowing
+sap drop you just got next to "+2 Ash wood (6)", and every craft pops the tool you made, so the
+reward reads at a glance instead of as a line of text; the workbench shows each recipe's
+picture and an icon by every part.
+
+**Built:** `game/client/icon_shelf.gd` (`IconShelf`). World's `ItemIcons.image` is slow (I
+measured 12 ms at 24 px, 20 ms at 32 px, 74 ms at 64 px per icon here), so the client draws
+every item at the two sizes it uses (32 px for toasts and recipe rows, 18 px for parts) on a
+low-priority `Thread` that starts in `client.start()`, i.e. while you're on the login screen.
+Drawing an `Image` touches no shared state; only `ImageTexture.create_from_image` runs on the
+main thread, lazily, in `texture()`. If an icon isn't drawn yet `texture()` falls back to
+`ItemIcons.texture` (draws it now), so it never returns null and the worst case is the old cost.
+`client._exit_tree` joins the thread. I used my own cache rather than writing into world's
+`ItemIcons._cache`, which is world's file and not thread-safe.
+`GatherPrompt.show_toast(text, item)` puts a 32 px icon left of the text and centres the pair
+(`icon_x`); gather toasts take the item from `parse_gain`, craft toasts from the recipe id.
+`CraftWindow` rows get a product icon, and the parts line is built with `RichTextLabel.add_image`
+instead of bbcode (`parts_bbcode` stays for tests and the bot); parts now carry `item`.
+New test hook `--show-toast=<item>` shows a gather toast just before `--screenshot`.
+
+**Didn't work first time:** the campfire's three parts wrapped onto a second line once each
+had an icon; the window is 600 px wide now (was 520).
+
+**Tests:** 7 unit tests in `tests/unit/test_client_item_icons.gd` (every item at every size,
+same pixels as world's `ItemIcons.image`, threaded draw completes and joins, never null incl.
+unknown items and an early stop, every resource kind's real gather line gets its item's icon,
+icon/text centring, workbench rows). Bot behaviour `client_item_icons.gd` is passive: it starts
+the shelf like the client and checks every real gather success gets its own icon (not the
+bundle). Bot run: 4 to 9 iconed toasts per bot, shelf ready in 0.6 to 1.1 s with 8 bots and a
+server sharing the CPU. Smoke passed.
+
+**Notes to next run:** still the v3 gathering item first. When the inventory window is built,
+use `IconShelf` and add its slot size to `SIZES`. The F1 controls overlay remains the best
+no-dependency item.

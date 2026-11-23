@@ -1,0 +1,2 @@
+- Every "+2 Ash wood" pop-up now shows a little picture of what you got: the cut log, the quartz-seamed stone, the glowing drop of ember sap. Crafting pops up the axe, pickaxe, torch or campfire you just made.
+- The workbench shows each recipe's picture and a tiny icon by every part, so you can tell at a glance which pile you still need.
