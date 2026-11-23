@@ -63,11 +63,40 @@ class FunReport(unittest.TestCase):
                                            rpm=b["rewards_per_min_median"])})
         self.assertEqual(fun_report.check(s, base), [])
 
+    def test_level_up_limits(self):
+        def lv(first_gather, gather_s=60.0):
+            r = row()
+            r.update({"first_level_up_s": -1 if first_gather < 0 else first_gather + 20,
+                      "first_level_up_gather_s": first_gather, "gather_s": gather_s,
+                      "level_ups": 0 if first_gather < 0 else 1, "levels_per_10_min": 2.0})
+            return r
+        base = json.loads(json.dumps(BASE))
+        base["limits"].update({"first_level_up_gather_s_worst": 90, "bots_levelled_min": 2})
+        s = fun_report.summarise({"a": lv(40), "b": lv(70), "c": lv(-1, gather_s=30)})
+        self.assertEqual(s["bots_levelled"], 2)
+        self.assertEqual(s["first_level_up_gather_s_worst"], 70)
+        self.assertEqual(s["first_level_up_gather_s_median"], 55)
+        self.assertEqual(fun_report.check(s, base), [], "a bot that only gathered 30 s may not have levelled yet")
+        slow = fun_report.check(fun_report.summarise({"a": lv(40), "b": lv(95)}), base)
+        self.assertEqual(len(slow), 1)
+        self.assertIn("95 s of gathering", slow[0])
+        stuck = fun_report.check(fun_report.summarise({"a": lv(40), "b": lv(50), "c": lv(-1, gather_s=120)}), base)
+        self.assertEqual(len(stuck), 1)
+        self.assertIn("never levelled up", stuck[0])
+        few = fun_report.check(fun_report.summarise({"a": lv(40), "b": lv(-1, gather_s=10)}), base)
+        self.assertEqual(len(few), 1)
+        self.assertIn("only 1 bot", few[0])
+        # Old rows without the skills fields still summarise (no limit is broken by absence).
+        s = fun_report.summarise({"a": row()})
+        self.assertEqual(s["bots_levelled"], 0)
+        self.assertIsNone(s["first_level_up_gather_s_worst"])
+
     def test_table_prints_every_bot(self):
         rows = {"bot_1": row(), "bot_2": row(first=-1)}
         t = fun_report.table(rows, fun_report.summarise(rows))
         self.assertIn("bot_1", t)
         self.assertIn("never", t)
+        self.assertIn("levelled up", t)
 
 
 if __name__ == "__main__":
