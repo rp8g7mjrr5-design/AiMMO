@@ -90,7 +90,7 @@ func _ask() -> void:
 	_asks += 1
 	_asked_at = bot.elapsed
 	_asked_from = bot.my_pos
-	bot.net.play.c2s_unstuck.rpc_id(1)
+	bot.send_play("c2s_unstuck")
 
 
 func _on_unstuck(ok: bool, text: String, wait_seconds: float) -> void:
