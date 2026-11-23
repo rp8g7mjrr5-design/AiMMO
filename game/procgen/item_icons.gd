@@ -6,7 +6,9 @@ class_name ItemIcons
 ## lit torch and a campfire, and the two tier-2 materials: ember heartwood (an old grey log
 ## whose cut end glows like a coal) and veinstone (a deep mauve chunk split by glowing
 ## veins with gold flecks), drawn like the old ember ash and the rich seam, and the two
-## ember tools (the stone tools' shapes with coal-dark heads and an ember-hot edge). They match what the world draws (the outcrop's pale seam, the
+## ember tools (the stone tools' shapes with coal-dark heads and an ember-hot edge), and the
+## ember lantern (a stone-footed pine lantern with an ember burning behind its glass, the
+## meadow lamps' look in your hand; drawn ahead of gameplay's "Bench sense" recipe). They match what the world draws (the outcrop's pale seam, the
 ## seep's ember glow, the ash's warm leaves), so a "+2 ash wood" toast looks like the tree
 ## you just hit.
 ##
@@ -105,6 +107,8 @@ static func tint(item: String) -> Color:
 			return QUARTZ
 		"ember_sap", "torch", "campfire":
 			return SAP
+		"ember_lantern":
+			return Palette.EMBER_CORE
 		"ember_heartwood":
 			return Palette.OLD_ASH_LEAF
 		"veinstone":
@@ -426,6 +430,26 @@ static func _recipe(item: String) -> Array:
 				_box(Vector2(0.57, 0.47), Vector2(0.07, 0.06), 0.42, LASHING, {"round": 0.02}),
 			]
 			a.append_array(_flame(Vector2(0.59, 0.43), 0.32, 0.32))
+			return a
+		"ember_lantern":
+			# A little stone-and-pine lantern like the meadow's: stone foot, two pine posts, a
+			# stone roof with a carry loop, and warm glass with an ember flame inside. Upright
+			# and boxy so it never reads as the torch (slanted) or the campfire (wide and low).
+			var a := [
+				_capsule(Vector2(0.43, 0.20), Vector2(0.50, 0.12), 0.02, LASHING),
+				_capsule(Vector2(0.50, 0.12), Vector2(0.57, 0.20), 0.02, LASHING),
+				_box(Vector2(0.50, 0.53), Vector2(0.15, 0.19), 0.0, Palette.EMBER, {"glow": 0.42, "shade": 0.12, "round": 0.02}),
+				_capsule(Vector2(0.33, 0.33), Vector2(0.33, 0.74), 0.035, PINE_BARK),
+				_capsule(Vector2(0.67, 0.33), Vector2(0.67, 0.74), 0.035, PINE_BARK),
+				_poly([Vector2(0.28, 0.32), Vector2(0.50, 0.19), Vector2(0.72, 0.32)], STONE_DARK, {"shade": 0.25}),
+				_box(Vector2(0.50, 0.33), Vector2(0.23, 0.035), 0.0, STONE, {"round": 0.015}),
+				_box(Vector2(0.50, 0.78), Vector2(0.24, 0.055), 0.0, STONE, {"shade": 0.28, "round": 0.02}),
+				_box(Vector2(0.50, 0.85), Vector2(0.19, 0.03), 0.0, STONE_DARK, {"round": 0.015}),
+				# The flame behind the glass: a hot core with a smoulder tip.
+				_poly([Vector2(0.42, 0.60), Vector2(0.49, 0.40), Vector2(0.56, 0.50), Vector2(0.58, 0.62)], Palette.SMOULDER, {"outline": false, "shade": 0.0}),
+				_circle(Vector2(0.50, 0.62), 0.065, Palette.EMBER_CORE, {"outline": false, "shade": 0.05}),
+				_poly([Vector2(0.46, 0.61), Vector2(0.50, 0.47), Vector2(0.54, 0.61)], Palette.EMBER_CORE, {"outline": false, "shade": 0.0}),
+			]
 			return a
 		"campfire":
 			var a := []
