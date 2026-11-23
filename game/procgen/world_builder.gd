@@ -127,7 +127,26 @@ static func scatter_meshes() -> Dictionary:
 	rock_mesh.height = 1.0
 	rock_mesh.radial_segments = 5
 	rock_mesh.rings = 2
-	return {"Trunks": trunk_mesh, "AshCrowns": crown_mesh, "PineTiers": cone_mesh, "Rocks": rock_mesh}
+	# Baked vertex colours (Emberlight): dark where the part meets the ground or the trunk,
+	# lightening up its height. Same vertices as the primitive meshes, so the camera solids
+	# and the forest's look-from-afar are unchanged.
+	return {
+		"Trunks": Emberlight.bake(trunk_mesh, 0.45, 1.6),
+		"AshCrowns": Emberlight.bake(crown_mesh, 0.35),
+		"PineTiers": Emberlight.bake(cone_mesh, 0.40),
+		"Rocks": Emberlight.bake(rock_mesh, 0.40, 1.5),
+	}
+
+
+## Which shared Emberlight material each scatter layer uses.
+static func scatter_material(layer: String) -> ShaderMaterial:
+	match layer:
+		"AshCrowns":
+			return Lamps.ember_leaf_material() # foliage, plus the leaves' night glow
+		"PineTiers":
+			return Emberlight.material("foliage")
+		_:
+			return Emberlight.material("solid")
 
 
 ## Every part of every decorative scatter tree and rock, one Array of {layer, xform, color}
@@ -181,13 +200,8 @@ static func _multimesh(node_name: String, mesh: Mesh, instances: Array) -> Multi
 	for i in instances.size():
 		mm.set_instance_transform(i, instances[i][0])
 		mm.set_instance_color(i, (instances[i][1] as Color).srgb_to_linear())
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.9
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = node_name
 	mmi.multimesh = mm
-	if node_name == "AshCrowns":
-		Lamps.add_ember_emission(mat) # ember leaves glow faintly after dark
-	mmi.material_override = mat
+	mmi.material_override = scatter_material(node_name)
 	return mmi

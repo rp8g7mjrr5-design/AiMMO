@@ -233,3 +233,29 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Known / not done.** Nothing changes for players until the client passes the solids. The bench's planks get round 0.9 m columns (see the follow-up). Decorative trees still have no roots.
 
 **Next run.** Roots on the scatter trees, or the lantern flame flicker, unless a request comes in.
+
+## 2026-11-23: Emberlight part 1, the shared shader
+**Why this.** Top of my backlog (owner direction 7, the art bible). The level-up burst is waiting in PR #79 (red only because gameplay's v3 bot behaviours starve on emptied nodes, which the integrator flagged for gameplay; nothing for world to fix), and this item doesn't need its code. What a player feels: the valley stops looking like flat-shaded primitives and starts looking painted, with warm sunny sides, blue-leaning shade, darker hollows, and ash leaves that breathe together at night.
+
+**Built.**
+- New `game/procgen/emberlight.gd` (`Emberlight`): one shader source, three variants (`solid`, `foliage` with height-weighted wind sway, `glow` with ember veins marked by vertex alpha below 1). Custom `light()`: two soft ramp bands, warm key (`warmth`), `SHADE`-tinted shadow side (`shade_strength`), a rim when looking towards the light. `fragment()`: albedo from vertex colours (instance colours multiply in) with a two-octave world-position value noise ("brush", +-7%), emission swelling with the heartbeat. No texture lookups anywhere (unit test).
+- `material(variant, name = "")`: built once, the same instance every call. Five in use after this PR: `solid` (scatter trunks and rocks), `solid/terrain` (rim kept at 0.05 so grazing ground doesn't light up), `foliage` (pine tiers), `foliage/ash_leaf` (ash crowns, with the night glow). `count()` for the 24 budget.
+- The heartbeat: global shader parameter `ember_pulse`, registered at runtime by `Emberlight.ensure_globals()` (project.godot is client's), set every frame by `DayNight._process` from `Emberlight.pulse(world_seconds)`: one beat every 4 s of world time, so every client beats together.
+- Palette tokens `EMBER`, `EMBER_CORE`, `SMOULDER`, `COLD_ASH`, `SOOT`, `SHADE`, `HAZE` in `palette.gd`.
+- Terrain: baked AO per vertex (`TerrainMesh.ao_factor`, from how far a vertex sits below the average of the heights 8 m around it; up to 32% darker in hollows, up to 6% lighter on ridges), still one ground colour per triangle. The chunk now samples a height grid once (441 samples per chunk, down from 1,024).
+- Scatter meshes: `Emberlight.bake(mesh, ao, curve)` gives each primitive an ArrayMesh copy with a bottom-dark gradient (trunks 45%, rocks 40%, pine tiers 40%, crowns 35%). Same vertices, so `WorldSolids` and the forest are unchanged (unit test compares).
+- `Lamps._set_emission` understands Emberlight materials (sets `emission_energy`), `Lamps.ember_leaf_material()`.
+
+**Decisions.**
+- Named variants (`solid/terrain`, `foliage/ash_leaf`) instead of instance uniforms: the ash leaves' night glow is driven from one number for the whole layer, and Godot instance uniforms don't reach MultiMesh instances anyway. Still 4 materials where there were 5 before (terrain plus four scatter StandardMaterial3Ds).
+- The pulse goes through a global uniform set each frame rather than a TIME-based sine in the shader: TIME is per-client uptime, and the bible wants the whole valley to beat together.
+- Divided light by PI in `light()` to match Godot's own Lambert; the noon smoke shot came out at the same brightness as before (0.703 vs 0.697), which confirms it.
+- No new bot behaviour: the art bible (section 7) says art checks belong in unit tests and the smoke test, not in the 8-bot loop, and a shader isn't something a player does over the network. The smoke test covers the real render.
+
+**Didn't work.** My first `ensure_globals()` asked `RenderingServer.global_shader_parameter_get_list()` whether the name existed; in a running game that logs "should never be used outside the editor". Replaced with a static flag. The first bake test compared normals exactly; the ArrayMesh round-trip compresses normals (differences around 1e-5), so it now checks within 0.001. First tuning had shadows too light and crowns too flat; moved the ramp's dark band up (`smoothstep(0.0, 0.15)`) and nudged warmth to 0.10 and shade to 0.30.
+
+**Tested.** 299 unit tests with Postgres (7 new in `tests/unit/test_world_emberlight.gd`: shared materials, scatter on Emberlight within budget, no textures in any variant, the heartbeat's shape and period, bake keeps vertices and darkens the base, terrain AO and gradients, the pulse parameter). 8-bot 180 s websocket bot test passed (8/8 characters persisted). Client smoke test passed (day 0.703, night 0.164; night was 0.103 before, the blue shade term and the wider ramp lift the moonlit side). Rendered noon, golden hour (0.31), midnight and a pine slope on the real renderer before and after and looked at them (copies in the project's `world/emberlight-*.png`).
+
+**Known / not done.** Flora, node props, lamps, workbench, avatars and NodeFx are still StandardMaterial3D (part 2). Nights read green-black, not yet blue-and-ember (part 4's re-key; follow-up filed). Nothing uses the `glow` variant yet; veins come with part 2.
+
+**Next run.** Emberlight part 2 (everything else onto the shared materials, veins on gatherables), unless #79 needs a fix.
