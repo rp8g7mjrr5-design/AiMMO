@@ -389,3 +389,20 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Not measured.** The Low spawn shot: the smoke test only renders Medium. By counting, Low hides ~2,600 of the 5,300 flower instances (about 45k triangles in the scene, more where the flowers are near spawn). Follow-up filed.
 
 **Next run.** Tier-2 icons if gameplay's item ids landed; otherwise Emberlight part 2b (lamps, workbench, avatars, NodeFx + the material-count test).
+
+## 2026-11-23: tier-2 material icons (ws/world/tier2-material-icons)
+
+**Picked** the top backlog item's last piece: gameplay's tier-2 nodes are on `main` and named their materials (`ember_heartwood`, `veinstone`, parked in `Inventory.NEW_ITEMS` until they have icons). A request from another stream, so it comes first. Fun: the first rare thing a player levels toward now pops up in the toast and the pack as its own glowing prize instead of a grey cloth bundle.
+
+**Built.** Two recipes in `ItemIcons`. Ember heartwood: one fat log in the old ash's grey bark (`Palette.OLD_ASH_BARK`), a thin ember crack along it, the cut end's rings around a live coal (`EMBER` with an `EMBER_CORE` centre and a warm halo), and two gold leaves from the old crown (`OLD_ASH_LEAF`). Veinstone: a wider, rounder chunk in `RICH_STONE`, a darker top facet, a zig-zag ember vein with a small halo and a hot core line, and four `RICH_FLECK` gold flecks. `tint()` gives them the old ash's gold and the fleck gold. Every colour comes from `Palette`, so `item_icons.gd` adds no literals for the art lint.
+
+**Decisions.**
+- One log, not two: ash wood is two logs, so a single fatter log reads "different and denser" even at 24 px.
+- Both glow (unlike stone and pine): the rich seam and old ash glow in the world, and the glow is the "this is worth more" signal.
+- `test_world_item_icons` now runs its checks over `ITEM_ORDER` plus `NEW_ITEMS` (deduplicated), so it already covers the move gameplay makes next. New test: each tier-2 icon has more warm pixels than its tier-1 cousin and its own tint.
+
+**Didn't work.** The first heartwood log ran to x 0.99 and clipped (the margin test caught it); shortened it and shrank the cut end.
+
+**Tested.** Unit suite with Postgres (428 pass), 8-bot 180 s websocket bot test (passed, 8 of 8 levelled), client smoke test (passed). Icon sheet checked by eye at 128 px next to ash wood, stone and sap. The night spawn shot is now 624k primitives (613k last run): the tier-2 ring is on `main` now. Chunked `NodeProps` is still the fix; follow-up filed.
+
+**Next run.** Emberlight part 2b (lamps, workbench, avatars, NodeFx, the material-count test), unless a PR of mine needs fixing.
