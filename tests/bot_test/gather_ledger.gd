@@ -59,6 +59,9 @@ static func pair_node(empty: Dictionary, avoid: Array, from: Vector3) -> int:
 			continue
 		if bool(ResourceNodes.kind_info(str(n.kind)).get("night_only", false)):
 			continue
+		# Pair bots are fresh level-1 characters: a tier-2 node would refuse them ("level").
+		if Gathering.required_level(n) > 1:
+			continue
 		var d := Vector2(n.pos.x - from.x, n.pos.z - from.z).length()
 		if d < best_d:
 			best_d = d

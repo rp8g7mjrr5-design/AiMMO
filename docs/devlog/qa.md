@@ -716,3 +716,41 @@ not on `main`.
 **Tests:** 405 unit tests pass with Postgres (art lint green with `skill_icons.gd`). Bot test
 8 x 180 s WebSocket + Postgres with `--fun-check` passed in 240 s (1 of 8 bots levelled; first reward median 7.8 s). Client smoke not run: nothing
 the client loads changed.
+
+## 2026-11-23 — skills and dead-time baselines, pair check skips tier-2 nodes
+
+Budget 16/40, playtest inbox empty, no open qa PR (#94 and #95 landed). Gameplay's #98 is on
+`main`, so the top item (skills CI follow-up) is unblocked.
+
+**Fun it protects:** a fresh player's first level-up inside ~35 s of gathering, and no long
+stretches where nothing happens, are now locked in: a change that makes levelling slower or the
+valley duller fails the Test check instead of shipping quietly.
+
+**Measured first** (three local runs, 8 bots x 180 s, WebSocket + Postgres, `--fun-check`):
+
+| run | levelled | 1st level-up gather s (median / worst) | dead s (median / worst) | rewards/min |
+|---|---|---|---|---|
+| 1 | 8 | 33.7 / 39.8 | 35.1 / 51.9 | 10.6 |
+| 2 | 8 | 34.7 / 43.7 | 38.2 / 54.4 | 10.4 |
+| 3 | 7 | 39.7 / 54.0 | 22.6 / 46.8 | 9.9 |
+
+**Set:** `bots_levelled_min` 6 (not 8: run 3 had a bot that only gathered 38 s, and CI runners
+are slower), `first_level_up_gather_s_median` baseline 35 s with 8 s slack (fails above ~43 s),
+`longest_dead_s_median` 35 s with 10 s slack (fails above ~45 s) plus `longest_dead_s_worst` 75 s
+(worst seen 54), and `rewards_per_min_median` 4.15 -> 8.0 to lock in #98's doubling without
+betting on CI matching local exactly (fails below 6.4). `first_level_up_gather_s` joins
+`COMPARED` in `fun_report.py`; new `test_dead_time_and_level_up_regressions`, and the
+"shipped baseline is lenient on itself" test now builds levelled rows.
+
+**Bug found on the way (would have made `main` flaky):** run 1 failed the pair check: the lead
+bot picked node 403, which is a tier-2 ash at level 5 from gameplay's tier-2 nodes, so both
+fresh bots were refused with `level`. `GatherLedger.pair_node` now skips nodes with
+`Gathering.required_level > 1`; unit test asserts the pick is level 1 and that only seeps and
+tier-2 nodes are nearer. Runs 2 and 3 got lucky with an earlier node. The respawn probe and the
+main ledger didn't hit it, but the tier-2 level-gate item will need its own fixture bot anyway.
+
+**Tests:** 427 unit tests pass with Postgres; 22 Python tests; final bot test 8 x 180 s WebSocket + Postgres with `--fun-check` and the fix passed in 240 s (8 of 8 levelled, pair on node 5 together and paid, level-up gather median 35.7 s, dead median 28.1 s, rewards/min 9.6).
+Client smoke not run: nothing the client loads changed.
+
+**Next run:** if CI levels 8/8 and rewards ~10 across a few `main` runs, raise the baselines
+(backlog follow-up). Then the fun trend tool for the director, or the tier-2 level gate.
