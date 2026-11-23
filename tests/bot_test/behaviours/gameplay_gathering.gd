@@ -60,7 +60,8 @@ func on_login(reconnect: bool, character: Dictionary) -> void:
 	# Nearest first from where we stand, starting a few nodes in so bots spread out.
 	var here := Vector3(character.x, character.y, character.z)
 	for n in ResourceNodes.near(here, SEARCH_RADIUS):
-		if not ResourceNodes.kind_info(n.kind).get("night_only", false):
+		# Never a night-only seep, nor a tier-2 node (level 5; a new character is level 1).
+		if not ResourceNodes.kind_info(n.kind).get("night_only", false) and int(n.get("tier", 1)) == 1:
 			_targets.append(n.id)
 	if _targets.size() > 1:
 		_first = int(_targets[rng.randi_range(0, mini(SPREAD, _targets.size()) - 1)])

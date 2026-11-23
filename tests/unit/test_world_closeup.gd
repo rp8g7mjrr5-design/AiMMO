@@ -61,7 +61,7 @@ func test_every_vertex_is_inside_the_solid_columns() -> void:
 	var worst := 0.0
 	var worst_at := ""
 	for n in ResourceNodes.all():
-		var cols := NodeProps.solid_columns(n.kind, n.scale)
+		var cols := NodeProps.solid_columns(n.kind, n.scale, NodeProps.tier_of(n))
 		for depleted in [false, true]:
 			for p in NodeProps.parts(n, depleted):
 				for v in verts[p.layer]:
