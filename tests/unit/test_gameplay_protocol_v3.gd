@@ -117,8 +117,9 @@ func test_press_e_gathers_and_letting_go_cancels() -> void:
 	check_eq(_sent(srv, "s2c_gather_end"), [[2, [2, n.id, "stopped"]]], "c2s_gather_cancel stops it")
 	check_eq(int(srv.gathering.taken.get(n.id, 0)), 0, "no charge used")
 	check_eq(Inventory.count(srv.sessions[2].character.inventory, "stone"), 0, "nothing paid out")
-	# Straight away again: a cancel spends no cooldown.
+	# Straight away again (a real key press later): a cancel spends no cooldown.
 	srv.test_outbox.clear()
+	srv.test_now += srv.PLAY_REQUEST_GAP + 0.01
 	srv._on_gather_start(2, n.id)
 	check_eq(_sent(srv, "s2c_gather_begin").size(), 1, "starts again at once")
 	_run(srv, float(begin[0][1][2]) + 0.1)
@@ -146,6 +147,7 @@ func test_bad_node_id_is_refused_out_loud() -> void:
 	srv._on_gather_start(2, -5)
 	check_eq(_sent(srv, "s2c_gather_end").size(), 1, "refusal ends the client's bar")
 	check_eq(_sent(srv, "s2c_gather_begin").size(), 0)
+	srv.test_now += srv.PLAY_REQUEST_GAP + 0.01
 	srv._on_gather_start(2, 1 << 30)
 	check_eq(_sent(srv, "s2c_gather_end").size(), 2, "an id past the last node too")
 	srv.free()
@@ -162,6 +164,7 @@ func test_make_button_crafts() -> void:
 	check(res.size() == 1 and res[0][1][0] == "torch" and res[0][1][1] == true, "torch made: %s" % [res])
 	srv._flush_inventories()
 	check_eq(_sent(srv, "s2c_inventory").size(), 1, "one pack update for the whole craft")
+	srv.test_now += srv.PLAY_REQUEST_GAP + 0.01
 	srv._on_craft(2, "torch")
 	check_eq(_sent(srv, "s2c_craft_result")[-1][1][1], false, "second torch refused: nothing left")
 	srv.free()
@@ -207,4 +210,19 @@ func test_watcher_who_walks_off_still_sees_the_end() -> void:
 	for m in _sent(srv, "s2c_gather_end"):
 		to.append(m[0])
 	check_eq(to, [2, 3], "the end goes to everyone who saw the begin")
+	srv.free()
+
+
+## A flooding client gets one answer per PLAY_REQUEST_GAP per kind; the rest are dropped.
+func test_flooded_requests_are_dropped() -> void:
+	var srv := _server({2: Vector3(500, 0, 500)})
+	for i in 20:
+		srv._on_craft(2, "torch")
+	check_eq(_sent(srv, "s2c_craft_result").size(), 1, "one craft answer inside the gap")
+	srv.test_now += srv.PLAY_REQUEST_GAP + 0.01
+	srv._on_craft(2, "torch")
+	check_eq(_sent(srv, "s2c_craft_result").size(), 2, "answered again after the gap")
+	for i in 20:
+		srv._on_gather_start(2, 1 << 30)
+	check_eq(_sent(srv, "s2c_gather_end").size(), 1, "20 gather starts in one tick give one answer")
 	srv.free()

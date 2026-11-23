@@ -16,11 +16,26 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## emptied node sends the bot on to the next one (stat "contested"). It also watches other
 ## bots: every s2c_gather_begin from someone else must be followed by its s2c_gather_end, so
 ## no client is left showing a gather that never stops.
+##
+## It works one skill (FOCUS_KINDS, Felling: ash and pine are the most common nodes near the
+## meadow) and keeps pressing E until that skill reaches LEVEL_GOAL, so most bots level up
+## inside a 180 s run and qa can time the first level-up (qa's request, 2026-11-23). Nodes
+## the server says are empty (s2c_nodes / s2c_node_state) are skipped, the next node is the
+## nearest one from where the bot stands, and when every node in reach is empty it searches
+## wider (SEARCH_RADII) and finally waits for a respawn instead of giving up. "Never started
+## a single timed gather" fails only when a node it tried refused for a reason other than
+## being empty (8 bots can drain every node near spawn; that's not a bug).
 
 const SETTLE := 1.0
 const LONG_RUN := 120.0
-const SEARCH_RADIUS := 40.0
-const MAX_NODES := 10
+const SEARCH_RADII := [40.0, 80.0, 120.0, 160.0]
+const MAX_NODES := 40 ## per login
+const RESPAWN_WAIT := 5.0 ## every node in the widest search is empty: look again after this
+## gameplay_gathering steers first each login; go anyway if it hasn't let go after this.
+const WAIT_FIRST_MAX := 30.0
+const FOCUS_KINDS := ["ash", "pine"]
+const FOCUS_SKILL := "felling"
+const LEVEL_GOAL := 2
 const STOP_AT := 1.2
 const WALK_TIMEOUT := 20.0
 const ANSWER_TIMEOUT := 3.0 ## a start must be answered (begin or end) within this
@@ -36,7 +51,7 @@ const STILL := Vector2.ZERO
 ## per login, moving on when a node empties.
 const FARM_GATHERS := 4
 
-enum Step { WAIT_FIRST, GOTO, START, RUNNING, IDLE }
+enum Step { WAIT_FIRST, GOTO, START, RUNNING, IDLE, WAIT_RESPAWN }
 enum Test { WALK_AWAY, CANCEL, HOLD, FARM, DONE }
 
 var _step := Step.IDLE
@@ -44,6 +59,12 @@ var _test := Test.WALK_AWAY
 var _targets: Array = []
 var _target := -1
 var _login_nodes := 0
+var _radius_i := 0
+var _empty := {} ## node id -> true while the server says it is depleted
+var _focus_level := 1
+var _live_refusals := 0 ## refusals for a reason other than an emptied node
+var levelled := 0
+var waited_respawn := 0
 var _since := 0.0
 var _next_at := 0.0
 var _answer_by := 0.0
@@ -81,7 +102,19 @@ func setup(net: Node) -> void:
 	net.gather_ended.connect(_on_ended)
 	net.gather_result.connect(_on_result)
 	net.inventory_changed.connect(func(items: Dictionary): _pack = items; _got_pack = true)
-	net.nodes_depleted.connect(func(_ids: Array): _got_nodes = true)
+	net.nodes_depleted.connect(_on_nodes_depleted)
+	net.node_state.connect(func(id: int, depleted: bool):
+		if depleted:
+			_empty[id] = true
+		else:
+			_empty.erase(id))
+	net.skills_changed.connect(func(skills: Dictionary):
+		_focus_level = Skills.level_for(int(skills.get(FOCUS_SKILL, 0))))
+	net.level_up.connect(func(skill: String, level: int, _unlocks: Array):
+		if skill == FOCUS_SKILL:
+			if level >= LEVEL_GOAL and _focus_level < LEVEL_GOAL:
+				levelled += 1
+			_focus_level = maxi(_focus_level, level))
 	net.snapshot_ack.connect(_on_ack)
 
 
@@ -95,6 +128,13 @@ func on_login(_reconnect: bool, _character: Dictionary) -> void:
 	_got_nodes = false
 	_last_ack = -1
 	_others.clear()
+
+
+func _on_nodes_depleted(ids: Array) -> void:
+	_got_nodes = true
+	_empty.clear()
+	for id in ids:
+		_empty[int(id)] = true
 
 
 func _on_ack(ack: int) -> void:
@@ -114,20 +154,47 @@ func _gathering() -> Object:
 
 
 func _plan() -> void:
-	_targets.clear()
 	_login_nodes = 0
-	for n in ResourceNodes.near(bot.my_pos, SEARCH_RADIUS):
-		if not ResourceNodes.kind_info(n.kind).get("night_only", false):
-			_targets.append(n.id)
+	_radius_i = 0
+	_fill_targets()
 	_next_node()
 
 
+func _fill_targets() -> void:
+	_targets.clear()
+	for n in ResourceNodes.near(bot.my_pos, SEARCH_RADII[_radius_i]):
+		if n.kind in FOCUS_KINDS:
+			_targets.append(n.id)
+
+
+## The nearest node we haven't seen empty, from where we stand now. Widens the search when
+## the list runs dry, and waits for a respawn at the widest.
 func _next_node() -> void:
-	if _targets.is_empty() or _login_nodes >= MAX_NODES:
+	if _login_nodes >= MAX_NODES:
 		gave_up += 1
 		_step = Step.IDLE
 		return
-	_target = _targets.pop_front()
+	var best := -1
+	var best_d := INF
+	for id in _targets:
+		if _empty.has(id):
+			continue
+		var d := Vector2(ResourceNodes.get_by_id(id).pos.x - bot.my_pos.x, ResourceNodes.get_by_id(id).pos.z - bot.my_pos.z).length()
+		if d < best_d:
+			best_d = d
+			best = id
+	if best < 0:
+		if _radius_i < SEARCH_RADII.size() - 1:
+			_radius_i += 1
+			_fill_targets()
+			_next_node()
+		else:
+			waited_respawn += 1
+			_step = Step.WAIT_RESPAWN
+			_next_at = bot.elapsed + RESPAWN_WAIT
+		return
+	_targets.erase(best)
+	_target = best
 	_login_nodes += 1
 	nodes_tried += 1
 	_since = bot.elapsed
@@ -160,8 +227,14 @@ func on_play(_delta: float) -> void:
 	match _step:
 		Step.WAIT_FIRST:
 			var g = _gathering()
-			if g == null or (not g._active and g._phase_gathered):
+			# Done steering this login, whether it gathered or ran out of nodes.
+			if g == null or (not g._active and bot.elapsed > g._start_at) \
+					or bot.elapsed - _login_at > WAIT_FIRST_MAX:
 				_plan()
+		Step.WAIT_RESPAWN:
+			if bot.elapsed >= _next_at:
+				_fill_targets()
+				_next_node()
 		Step.GOTO:
 			var node := ResourceNodes.get_by_id(_target)
 			var off: Vector3 = node.pos - bot.my_pos
@@ -240,6 +313,10 @@ func _on_ended(peer: int, node_id: int, reason: String) -> void:
 				_answer_by = INF
 				_next_at = bot.elapsed + RETRY_SOON
 			else:
+				if reason == "depleted":
+					_empty[_target] = true
+				else:
+					_live_refusals += 1
 				_next_node() # spent, out of reach, full: next node
 		Step.RUNNING:
 			match _test:
@@ -302,7 +379,7 @@ func _check_payout() -> void:
 	bot.get_tree().create_timer(1.0).timeout.connect(func():
 		if int(_pack.get(item, 0)) <= before and int(_pack.get(item, 0)) < Inventory.MAX_STACK:
 			fail("gather done but the pack never showed more %s (%d before, %s now)" % [item, before, _pack]))
-	if _farmed < FARM_GATHERS:
+	if _farmed < FARM_GATHERS or _focus_level < LEVEL_GOAL:
 		# Press E again straight away: same node, no cooldown (the bar is the pacing).
 		_test = Test.FARM
 		_step = Step.START
@@ -327,5 +404,8 @@ func on_finish() -> void:
 	stat("acks", acks)
 	stat("farmed", farmed)
 	stat("refusal_reasons", refusal_reasons)
-	if float(bot.duration) >= LONG_RUN and nodes_tried > 0 and started == 0:
-		fail("never started a single timed gather")
+	stat("levelled", levelled)
+	stat("focus_level", _focus_level)
+	stat("waited_respawn", waited_respawn)
+	if float(bot.duration) >= LONG_RUN and nodes_tried > 0 and started == 0 and _live_refusals > 0:
+		fail("never started a single timed gather (%d refusals that weren't an emptied node)" % _live_refusals)
