@@ -74,3 +74,69 @@ func test_client_feeds_the_server_clock_to_the_sky() -> void:
 	check(absf(DayNight.now_world_seconds() - server_seconds) < 1.0, "NaN ignored")
 	c.free()
 	_reset_daynight()
+
+
+func test_tooltip_says_what_comes_next() -> void:
+	# 12:00 on day 3: dusk starts at fraction 0.70, night at 0.78.
+	var noon := _seconds_at(0.5, 3)
+	var t := TimeDial.tooltip_text_at(noon)
+	var lines := t.split("\n")
+	check_eq(lines.size(), 4, "four lines, got %s" % t)
+	check_eq(lines[0], "Day 3, 12:00", "exact time")
+	check_eq(lines[1], "Dusk in about %d minutes" % int(round(0.2 * D / 60.0)), "dusk countdown")
+	check_eq(lines[2], "Then night in about %d minutes" % int(round(0.28 * D / 60.0)), "night after it")
+	check_eq(lines[3], "A day in Ashgrove lasts 40 minutes", "day length")
+	# Deep night wraps through midnight to dawn, then day.
+	var late := TimeDial.tooltip_text_at(_seconds_at(0.95, 3))
+	check(late.contains("\nDawn in about"), "night is followed by dawn: %s" % late)
+	check(late.contains("\nThen day in about"), "then day: %s" % late)
+	check(late.begins_with("Day 3, 22:48"), "still day 3 before midnight: %s" % late)
+	# Every hour of the day: next phase is right and both countdowns are positive and ordered.
+	for i in 96:
+		var s := _seconds_at(i / 96.0, 4)
+		var ls := TimeDial.tooltip_text_at(s).split("\n")
+		var nxt: String = TimeDial.PHASE_NAMES[WorldClock.next_phase(s)]
+		check(ls[1].begins_with(nxt + " in "), "step %d: %s should start with %s" % [i, ls[1], nxt])
+		check(not ls[2].to_lower().contains(nxt.to_lower() + " in"), "step %d: second phase differs from the first" % i)
+
+
+func test_until_text_rounds_kindly() -> void:
+	check_eq(TimeDial.until_text(5.0), "in less than a minute", "seconds")
+	check_eq(TimeDial.until_text(59.9), "in less than a minute", "just under a minute")
+	check_eq(TimeDial.until_text(80.0), "in about a minute", "one minute")
+	check_eq(TimeDial.until_text(540.0), "in about 9 minutes", "nine")
+	check_eq(TimeDial.until_text(570.0), "in about 10 minutes", "rounds half up")
+
+
+func test_readout_warns_before_a_phase_change() -> void:
+	# Dusk starts at 0.70; 60 real seconds before is 0.70 - 60/D.
+	var before_dusk := _seconds_at(0.70 - 60.0 / D, 2)
+	var st := TimeDial.state(before_dusk)
+	check_eq(st.soon, "Dusk soon", "warning in the last 90 s of day")
+	check_eq(TimeDial.label_text(st), st.text + " · Dusk soon", "label carries the warning")
+	check(st.text.ends_with("· Day"), "the readout itself is unchanged: %s" % st.text)
+	var before_night := TimeDial.state(_seconds_at(0.78 - 30.0 / D, 2))
+	check_eq(before_night.soon, "Night soon", "night warning")
+	var midday := TimeDial.state(_seconds_at(0.5, 2))
+	check_eq(midday.soon, "", "no warning at noon")
+	check_eq(TimeDial.label_text(midday), midday.text, "plain label at noon")
+	# The warning shows for exactly SOON_SECONDS of each phase change, never longer.
+	var warned := 0
+	for i in 2400:
+		if TimeDial.state(_seconds_at(0.0, 6) + i).soon != "":
+			warned += 1
+	check(absi(warned - 4 * int(TimeDial.SOON_SECONDS)) <= 4, "warned %d s across a day (4 changes x %d s)" % [warned, int(TimeDial.SOON_SECONDS)])
+
+
+func test_hover_area_is_the_dial_and_readout() -> void:
+	var dial := TimeDial.new()
+	dial.setup(Theme.new())
+	dial.size = Vector2(460, 50)
+	check_eq(dial.mouse_filter, Control.MOUSE_FILTER_PASS, "hover reaches the dial")
+	check(dial._has_point(Vector2(TimeDial.RADIUS, TimeDial.RADIUS)), "the disk")
+	check(not dial._has_point(Vector2(455, 45)), "not the empty strip to the right")
+	check(dial._get_tooltip(Vector2.ZERO).begins_with("Day "), "tooltip text")
+	var tip = dial._make_custom_tooltip("Day 1, 06:00")
+	check(tip is PanelContainer, "a styled panel")
+	tip.free()
+	dial.free()

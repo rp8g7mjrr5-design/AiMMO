@@ -266,6 +266,16 @@ static func level_text(node: Dictionary, skills: Dictionary) -> String:
 	return "Needs %s %d. You're %s %d." % [name, required_level(node), name, Skills.level_of(skills, skill)]
 
 
+## "Your pack can't hold any more ash wood. You leave it, but the work still counts." for a
+## timed gather that finished with a full stack: no items, the XP still lands.
+static func full_text(id: int, depleted: bool = false) -> String:
+	var item := str(ResourceNodes.info(ResourceNodes.get_by_id(id)).get("item", ""))
+	var line := "Your pack can't hold any more %s. You leave it, but the work still counts." % Inventory.label(item).to_lower()
+	if depleted:
+		line += " It is spent for now."
+	return line
+
+
 ## "You gather 2 ash wood from the ember ash (6 in your pack). It is spent for now."
 ## Pass the tool's item id (from tool_for) to say it was used.
 static func success(id: int, got: int, in_pack: int, depleted: bool, tool: String = "") -> String:

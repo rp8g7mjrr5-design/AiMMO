@@ -22,6 +22,12 @@ const SOOT := Color("#2B2A2E") ## the darkest value; never pure black anywhere i
 const SHADE := Color("#4A5878") ## shadow tint: shadows lean blue-violet, never grey or black
 const HAZE := Color("#E8C9A0") ## warm golden valley haze by day
 
+# Light and air through the day (SkyClock, Emberlight part 4: golden hour, blue-and-ember nights).
+const GOLDEN_LIGHT := Color(1.0, 0.80, 0.56) ## the low sun's key light: the valley's favourite hour
+const MOONLIGHT := Color(0.50, 0.60, 1.0) ## the night key: SHADE's blue, bright enough to see by
+const NIGHT_HAZE := Color(0.10, 0.13, 0.25) ## valley haze after dark: blue, never black
+const MOTE := Color(1.0, 0.66, 0.30) ## a rising ember mote: EMBER, a touch redder so it reads against EMBER_CORE leaves
+
 # Tier-2 resource nodes (NodeProps, Milestone 1): richer looks than the tier-1 props, so a
 # player can tell from across the meadow which node is worth levelling toward.
 const OLD_ASH_LEAF := Color(1.0, 0.64, 0.28) ## old ember ash crown: brighter, hotter than ASH_LEAF

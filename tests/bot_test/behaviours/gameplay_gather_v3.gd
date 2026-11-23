@@ -354,6 +354,12 @@ func _on_ended(peer: int, node_id: int, reason: String) -> void:
 		return
 	if node_id != _target:
 		return
+	# gameplay_roster_v5 asks "Return to Spawn Meadow" in the bot's last seconds. If our gather
+	# start crossed that ask on the wire, the teleport ends it "moved" (or "far") while we
+	# stood still: that is the unstuck working, not a gathering bug. Stop testing; it's the end.
+	if reason in ["moved", "far"] and bot.elapsed - float(bot.get_meta("unstuck_at", -INF)) <= 3.0:
+		_step = Step.IDLE
+		return
 	match _step:
 		Step.GATE:
 			var node := ResourceNodes.get_by_id(_gate_node)
@@ -440,7 +446,8 @@ func _check_payout() -> void:
 	if _test == Test.FARM:
 		farmed += 1
 		_farmed += 1
-	if _result_count <= 0:
+	# A full stack still finishes "done" and pays XP, but sends no result (nothing landed).
+	if _result_count <= 0 and int(_pack.get(_item, 0)) < Inventory.MAX_STACK:
 		fail("gather done but no s2c_gather_result")
 	var item := _item
 	var before := _pack_before
