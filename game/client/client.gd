@@ -36,6 +36,8 @@ var settings_menu: SettingsMenu
 var time_dial: TimeDial
 var compass: CompassStrip
 var gather_prompt: GatherPrompt
+var craft_window: CraftWindow
+var sfx_craft: AudioStreamPlayer
 var reticle: Reticle
 
 
@@ -77,10 +79,20 @@ func start(p_net: Node, args: Dictionary) -> void:
 		password_edit.text = str(args.password)
 	if args.has("open-settings"):
 		settings_menu.open()
+	if args.has("open-workbench"):
+		_open_workbench_after_login.call_deferred()
 	if args.has("autoconnect"):
 		_on_connect_pressed.call_deferred()
 	if args.has("screenshot"):
 		_screenshot_later(str(args.screenshot), float(args.get("quit-after", "8")))
+
+
+## Test hook (--open-workbench): opens the workbench window once logged in, as E would.
+func _open_workbench_after_login() -> void:
+	while not logged_in or not avatars.has(my_id):
+		await get_tree().process_frame
+	await get_tree().create_timer(1.0).timeout
+	craft_window.open(avatars[my_id].node.position)
 
 
 func _screenshot_later(path: String, wait: float) -> void:
@@ -123,13 +135,20 @@ func _setup_input() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if chat_edit.has_focus():
+		if craft_window.visible:
+			craft_window.close()
+		elif chat_edit.has_focus():
 			chat_edit.release_focus()
 		else:
 			settings_menu.toggle()
 		get_viewport().set_input_as_handled()
 		return
 	if not logged_in or settings_menu.visible:
+		return
+	if craft_window.visible:
+		if event is InputEventKey and event.pressed and not event.echo and event.is_action("interact"):
+			craft_window.close()
+			get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		cam.turn(look_delta(event.relative, settings))
@@ -167,8 +186,13 @@ func _apply_settings(s: ClientSettings) -> void:
 			sun.directional_shadow_max_distance = s.shadow_distance()
 
 
+## True while a window that frees the cursor is open (Settings, the workbench).
+func window_open() -> bool:
+	return settings_menu.visible or craft_window.visible
+
+
 func _move_vector() -> Vector2:
-	if chat_edit.has_focus() or settings_menu.visible:
+	if chat_edit.has_focus() or window_open():
 		return Vector2.ZERO
 	var f := Input.get_action_strength("move_forward") - Input.get_action_strength("move_back")
 	var r := Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
@@ -193,7 +217,7 @@ func _process(delta: float) -> void:
 		return
 	_update_chat_fade(delta)
 	_update_mouse_capture()
-	cam.set_free_look(Input.is_action_pressed("free_look") and not chat_edit.has_focus() and not settings_menu.visible)
+	cam.set_free_look(Input.is_action_pressed("free_look") and not chat_edit.has_focus() and not window_open())
 	var move := _move_vector()
 	_send_accum += delta
 	if _send_accum >= GameConfig.TICK_DT:
@@ -214,6 +238,7 @@ func _process(delta: float) -> void:
 		if compass.due(delta):
 			compass.feed(cam.yaw, me.position, other_positions())
 		_update_gather(delta, me.position, xf.origin, -xf.basis.z)
+		_update_bench(delta, me.position)
 		hud_label.text = "Ashgrove  ·  %d online  ·  %.0f, %.0f" % [avatars.size(), me.position.x, me.position.z]
 
 
@@ -221,13 +246,27 @@ func _process(delta: float) -> void:
 ## "/gather <kind>" chat until protocol v3 adds c2s_gather).
 ## The node it targets is the one under the reticle (look-to-interact), else the nearest.
 func _update_gather(delta: float, my_pos: Vector3, eye: Vector3, look: Vector3) -> void:
-	var held := Input.is_action_pressed("interact") and not chat_edit.has_focus() and not settings_menu.visible
+	var held := Input.is_action_pressed("interact") and not chat_edit.has_focus() and not window_open()
 	var cmd := gather_prompt.update(delta, my_pos, TimeDial.current_seconds(), Time.get_ticks_msec() / 1000.0, held, eye, look)
 	var t := gather_prompt.current_target()
 	reticle.active = not t.is_empty() and bool(t.can)
 	_highlight_target(-1 if t.is_empty() or chat_edit.has_focus() else int(t.id))
 	if cmd != "":
 		net.c2s_chat.rpc_id(1, cmd)
+
+
+## The workbench: "[E] Use Workbench" when you stand at it (and no node is in reach), E opens
+## the crafting window. The window's chat lines ("/bag", "/craft <id>") go out from here.
+func _update_bench(delta: float, my_pos: Vector3) -> void:
+	var at_bench := CraftWindow.near_bench(my_pos) and gather_prompt.current_target().is_empty()
+	var free := not chat_edit.has_focus() and not window_open()
+	gather_prompt.show_hint("[E] Use Workbench" if at_bench and free else "")
+	if at_bench and free and Input.is_action_just_pressed("interact"):
+		craft_window.open(my_pos)
+		sfx_chime.play()
+	var line := craft_window.tick(delta, my_pos)
+	if line != "":
+		net.c2s_chat.rpc_id(1, line)
 
 
 ## World's warm glow on the node E would gather (the one under the reticle, else the nearest).
@@ -246,11 +285,11 @@ func _highlight_target(id: int) -> void:
 ## The cursor is captured (hidden, mouse turns the camera) while you play, and freed while you
 ## type in chat, have Settings open, or the game window is in the background.
 func _update_mouse_capture() -> void:
-	var want := ActionCamera.wants_capture(logged_in, chat_edit.has_focus(), settings_menu.visible, get_window().has_focus())
+	var want := ActionCamera.wants_capture(logged_in, chat_edit.has_focus(), window_open(), get_window().has_focus())
 	var mode := Input.MOUSE_MODE_CAPTURED if want else Input.MOUSE_MODE_VISIBLE
 	if Input.mouse_mode != mode:
 		Input.mouse_mode = mode
-	reticle.visible = logged_in and not settings_menu.visible
+	reticle.visible = logged_in and not window_open()
 
 
 ## Rendered positions of every other player in the world (for the compass strip).
@@ -274,7 +313,7 @@ func _update_chat_fade(delta: float) -> void:
 
 ## Chat stays fully visible while you type in it, have a menu open, or point at it.
 func chat_awake() -> bool:
-	if chat_edit.has_focus() or settings_menu.visible:
+	if chat_edit.has_focus() or window_open():
 		return true
 	return chat_panel.get_global_rect().has_point(get_viewport().get_mouse_position())
 
@@ -329,6 +368,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	help_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
 	cam.place(Vector3(character.x, character.y, character.z), character.yaw + PI)
+	craft_window.seed_pack(character.get("inventory"))
 	_on_system(message)
 	sfx_arrive.play()
 
@@ -345,6 +385,7 @@ func _on_server_disconnected() -> void:
 	compass.visible = false
 	gather_prompt.visible = false
 	gather_prompt.hide_all()
+	craft_window.reset()
 	_highlight_target(-1)
 	hud_label.visible = false
 	help_label.visible = false
@@ -395,6 +436,13 @@ func _on_chat(from_name: String, text: String) -> void:
 func _on_system(text: String) -> void:
 	if gather_prompt:
 		gather_prompt.on_system(text)
+	if craft_window:
+		var r := craft_window.on_system(text)
+		if str(r.crafted) != "":
+			gather_prompt.show_toast(CraftWindow.toast_text(str(r.crafted)))
+			sfx_craft.play()
+		if r.consumed:
+			return # the window's own answers stay in the window (chat is for talking)
 	chat_feed.append(chat_log, ChatFeed.system_line(TimeDial.current_seconds(), text))
 
 
@@ -572,7 +620,7 @@ func _build_ui() -> void:
 
 	help_label = Label.new()
 	help_label.theme = theme
-	help_label.text = "WASD move · mouse look · Alt free look · V shoulder · wheel zoom · E gather · Enter chat · Esc settings"
+	help_label.text = "WASD move · mouse look · Alt free look · V shoulder · wheel zoom · E gather / workbench · Enter chat · Esc settings"
 	help_label.anchor_left = 1.0
 	help_label.anchor_right = 1.0
 	help_label.offset_left = -860
@@ -583,6 +631,12 @@ func _build_ui() -> void:
 	help_label.add_theme_constant_override("outline_size", 6)
 	help_label.visible = false
 	ui.add_child(help_label)
+
+	# The workbench window, centre screen (E at the Spawn Meadow workbench).
+	craft_window = CraftWindow.new()
+	craft_window.setup(theme)
+	craft_window.closed.connect(func(): sfx_chime.play())
+	ui.add_child(craft_window)
 
 	settings_menu = SettingsMenu.new()
 	settings_menu.setup(settings, theme)
@@ -606,6 +660,10 @@ func _build_audio() -> void:
 	sfx_chime.stream = Sfx.chime()
 	sfx_chime.volume_db = -8.0
 	add_child(sfx_chime)
+	sfx_craft = AudioStreamPlayer.new()
+	sfx_craft.stream = Sfx.craft()
+	sfx_craft.volume_db = -4.0
+	add_child(sfx_craft)
 	sfx_arrive = AudioStreamPlayer.new()
 	sfx_arrive.stream = Sfx.arrive()
 	sfx_arrive.volume_db = -6.0
