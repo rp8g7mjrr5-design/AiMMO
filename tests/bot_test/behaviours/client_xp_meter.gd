@@ -3,7 +3,8 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## server's s2c_skills and s2c_xp while the other behaviours gather and craft, and checks:
 ## - every gain shows "+N Skill" and the skill's "Skill L · N XP to L+1" line straight away;
 ## - the meter's running total for that skill equals the server's total (no drift);
-## - the bar lands on the server's progress for that total and then fades away.
+## - the bar lands on the server's progress for that total and then fades away;
+## - a gain that crosses a level holds the bar full (brightened) before it wraps.
 
 const MeterScript := preload("res://client/xp_meter.gd")
 
@@ -14,6 +15,8 @@ var _faded := 0
 var _pending := false ## a gain whose bar hasn't been checked yet
 var _expect := 0.0
 var _age := 0.0
+var _held := 0 ## level-up gains seen holding the bar full
+var _hold_seen := false
 
 
 func setup(net: Node) -> void:
@@ -52,6 +55,7 @@ func _on_xp(skill: String, gained: int, total_xp: int) -> void:
 	_pending = true
 	_expect = Skills.progress(total_xp)
 	_age = 0.0
+	_hold_seen = false
 
 
 func on_play(delta: float) -> void:
@@ -60,7 +64,12 @@ func on_play(delta: float) -> void:
 	var was: bool = _meter.showing()
 	_meter.step(delta)
 	_age += delta
-	if _pending and _age >= MeterScript.FILL_SECONDS:
+	if _pending and not _hold_seen and MeterScript.holding_full(_meter.levels_crossed(), _age):
+		_hold_seen = true
+		_held += 1
+		if absf(_meter.bar.value - 1.0) > 0.001:
+			fail("a level-up gain should hold the bar full, it shows %.3f" % _meter.bar.value)
+	if _pending and _meter.settled():
 		_pending = false
 		_landed += 1
 		if absf(_meter.bar.value - _expect) > 0.001:
@@ -73,5 +82,6 @@ func on_finish() -> void:
 	stat("gains", _gains)
 	stat("landed", _landed)
 	stat("faded", _faded)
+	stat("level_holds", _held)
 	if _meter != null:
 		_meter.free()

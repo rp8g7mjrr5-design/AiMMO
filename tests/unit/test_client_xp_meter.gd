@@ -51,8 +51,9 @@ func test_bar_value_runs_through_full_on_a_level_up() -> void:
 	var saw_high := false
 	var saw_wrap := false
 	var prev := 0.8
-	for i in 41:
-		var v := XpMeter.bar_value(0.8, 0.1, 1, XpMeter.FILL_SECONDS * i / 40.0)
+	var end := XpMeter.settle_seconds(1)
+	for i in 81:
+		var v := XpMeter.bar_value(0.8, 0.1, 1, end * i / 80.0)
 		check(v >= 0.0 and v <= 1.0, "stays a legal bar value")
 		if v > 0.95:
 			saw_high = true
@@ -61,7 +62,31 @@ func test_bar_value_runs_through_full_on_a_level_up() -> void:
 		prev = v
 	check(saw_high, "fills to the top")
 	check(saw_wrap, "wraps to the new level")
-	check_near(XpMeter.bar_value(0.8, 0.1, 1, XpMeter.FILL_SECONDS), 0.1, 0.0001, "lands in the new level")
+	check_near(XpMeter.bar_value(0.8, 0.1, 1, end), 0.1, 0.0001, "lands in the new level")
+	check_near(XpMeter.bar_value(0.8, 0.1, 1, 99.0), 0.1, 0.0001)
+
+
+func test_a_level_up_holds_the_bar_full_while_the_banner_pops() -> void:
+	check_near(XpMeter.bar_value(0.8, 0.1, 1, 0.0), 0.8, 0.0001, "starts where it was")
+	check_near(XpMeter.bar_value(0.8, 0.1, 1, XpMeter.FILL_SECONDS), 1.0, 0.0001, "full when the fill ends")
+	for i in 11:
+		var age := XpMeter.FILL_SECONDS + XpMeter.LEVEL_HOLD * i / 10.0 - 0.0001
+		check_near(XpMeter.bar_value(0.8, 0.1, 1, age), 1.0, 0.0001, "holds full at %.2f s" % age)
+	check(XpMeter.holding_full(1, XpMeter.FILL_SECONDS + 0.1), "brightens while it holds")
+	check(not XpMeter.holding_full(1, 0.1), "not while it fills")
+	check(not XpMeter.holding_full(0, XpMeter.FILL_SECONDS + 0.1), "a gain inside a level never holds")
+	check(not XpMeter.holding_full(1, XpMeter.settle_seconds(1)), "done by the time it settles")
+	check_near(XpMeter.settle_seconds(0), XpMeter.FILL_SECONDS, 0.0001, "within a level: as before")
+	# The hold overlaps the banner's full-alpha stretch, so the full bar and "Felling 5" read together.
+	var banner_full_until := LevelUpBanner.DURATION - LevelUpBanner.FADE_SECONDS
+	check(XpMeter.FILL_SECONDS + XpMeter.LEVEL_HOLD <= banner_full_until, "the bar holds while the banner is fully up")
+	check(XpMeter.settle_seconds(1) < XpMeter.HOLD_SECONDS, "the bar settles before it starts to fade")
+	# Never runs backwards while filling or after the wrap.
+	var prev := 0.0
+	for i in 21:
+		var v := XpMeter.bar_value(0.8, 0.6, 1, XpMeter.FILL_SECONDS + XpMeter.LEVEL_HOLD + XpMeter.WRAP_SECONDS * i / 20.0 + 0.0001)
+		check(v >= prev - 0.0001, "the new level's slide only rises")
+		prev = v
 
 
 func test_fades() -> void:
@@ -87,8 +112,14 @@ func test_node_shows_and_hides() -> void:
 	check(m.level_label.text.begins_with("Felling 2"), m.level_label.text)
 	check(m.showing(), "the gain shows")
 	check_near(m.gain_label.modulate.a, 1.0, 0.0001)
-	m.step(XpMeter.FILL_SECONDS)
+	m.step(XpMeter.FILL_SECONDS + 0.1)
+	check_near(m.bar.value, 1.0, 0.0001, "a level-up holds the bar full first")
+	check(m.bar.self_modulate.r > 1.0, "and brightens it")
+	check(not m.settled(), "not at rest while it holds")
+	m.step(XpMeter.LEVEL_HOLD + XpMeter.WRAP_SECONDS)
+	check(m.settled(), "at rest after the hold and the slide")
 	check_near(m.bar.value, Skills.progress(150), 0.0001, "bar landed")
+	check_eq(m.bar.self_modulate, Color.WHITE, "glow gone")
 	m.step(XpMeter.HOLD_SECONDS + XpMeter.FADE_SECONDS)
 	check(not m.showing(), "faded")
 	check_near(m.gain_label.modulate.a, 0.0, 0.0001)

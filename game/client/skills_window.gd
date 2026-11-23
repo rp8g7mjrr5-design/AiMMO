@@ -128,6 +128,20 @@ static func goal_colour(flash: float) -> Color:
 	return GOAL_COLOUR.lerp(GOLD, clampf(flash, 0.0, 1.0) ** 2)
 
 
+## The goal line sits right above the level-up banner, so it steps aside while the banner
+## shows: its alpha is what the banner leaves (`banner_alpha` = LevelUpBanner.alpha).
+static func goal_alpha(banner_alpha: float) -> float:
+	return 1.0 - clampf(banner_alpha, 0.0, 1.0)
+
+
+## The goal line's gold flash after `delta` more seconds. The flash waits while the level-up
+## banner is up, so the new goal glows as the banner hands over to it, not hidden behind it.
+static func goal_flash_after(flash: float, delta: float, banner_up: bool) -> float:
+	if banner_up:
+		return flash
+	return maxf(0.0, flash - delta)
+
+
 ## 12345 -> "12,345"
 static func _grouped(n: int) -> String:
 	var s := str(absi(n))

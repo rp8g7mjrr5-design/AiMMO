@@ -50,6 +50,13 @@ static func motes_scale(l: int = level) -> float:
 	return float(preset(l).motes)
 
 
+## Puts a level in force: `level` for world code that reads it, and the renderer's shadow map.
+## The client calls it with the saved level before it builds the world, and on every change.
+static func use(l: int) -> void:
+	level = clamp_level(l)
+	apply_renderer(level)
+
+
 ## Pushes the level's shadow map size and filter to the renderer (client only; a no-op headless).
 static func apply_renderer(l: int) -> void:
 	if DisplayServer.get_name() == "headless":

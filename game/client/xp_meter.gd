@@ -7,8 +7,9 @@ extends Control
 ## the XP read as one moment.
 ##
 ## The bar keeps a running total per skill: s2c_skills at login seeds it, each s2c_xp carries
-## the new total. A gain that crosses a level runs the bar to full and on into the new level;
-## the level-up banner and sound are part 2 (s2c_level_up), not this.
+## the new total. A gain that crosses a level runs the bar up to full, holds it there, brighter,
+## for LEVEL_HOLD while the level-up banner pops (part 2, s2c_level_up), then empties and slides
+## into the new level, so the full bar and the banner read as one payoff.
 ##
 ## Pure static helpers (texts, bar value, fades) are unit tested; the node only draws them.
 
@@ -21,6 +22,9 @@ const FLOAT_RISE := 22.0 ## px it rises
 const FILL_SECONDS := 0.55 ## the bar slides from old to new progress over this
 const HOLD_SECONDS := 3.0 ## the bar stays this long after the last gain...
 const FADE_SECONDS := 0.8 ## ...then fades out over this
+const LEVEL_HOLD := 0.6 ## a gain that crosses a level holds the bar full this long...
+const WRAP_SECONDS := 0.35 ## ...then slides from empty into the new level over this
+const FULL_GLOW := Color(1.45, 1.35, 1.15) ## the bar's brightening while it holds full
 const BAR_W := 200.0
 const BAR_H := 5.0
 
@@ -61,17 +65,34 @@ static func gain_motion(before: int, gained: int, total: int) -> Dictionary:
 	}
 
 
-## The bar's value `age` seconds into a gain's slide: eases from `from` to `to`, running
-## through full (and wrapping to empty) once when the gain crossed a level.
+## Seconds from a gain until the bar rests at its new value: FILL_SECONDS within a level; a
+## level-up adds the full-bar hold and the slide into the new level.
+static func settle_seconds(levels: int) -> float:
+	return FILL_SECONDS if levels <= 0 else FILL_SECONDS + LEVEL_HOLD + WRAP_SECONDS
+
+
+## The bar's value `age` seconds into a gain's slide: eases from `from` to `to`. A gain that
+## crossed a level eases up to full, holds full for LEVEL_HOLD, then eases from empty to `to`.
 static func bar_value(from: float, to: float, levels: int, age: float) -> float:
-	var t := clampf(age / FILL_SECONDS, 0.0, 1.0)
-	var e := 1.0 - pow(1.0 - t, 3.0) # ease out: quick start, soft landing
 	if levels <= 0:
-		return lerpf(from, to, e)
-	var v := lerpf(from, 1.0 + to, e)
-	if t >= 1.0:
-		return to
-	return v if v <= 1.0 else v - 1.0
+		return lerpf(from, to, _ease(age / FILL_SECONDS))
+	if age < FILL_SECONDS:
+		return lerpf(from, 1.0, _ease(age / FILL_SECONDS))
+	var after := age - FILL_SECONDS - LEVEL_HOLD
+	if after < 0.0:
+		return 1.0
+	return lerpf(0.0, to, _ease(after / WRAP_SECONDS))
+
+
+## True while a level-crossing gain holds the bar full (it brightens then).
+static func holding_full(levels: int, age: float) -> bool:
+	return levels > 0 and age >= FILL_SECONDS and age < FILL_SECONDS + LEVEL_HOLD
+
+
+## Ease out: quick start, soft landing. t is clamped to 0..1.
+static func _ease(t: float) -> float:
+	var c := clampf(t, 0.0, 1.0)
+	return 1.0 - pow(1.0 - c, 3.0)
 
 
 ## Alpha of the "+12 Felling" floater `age` seconds after the gain.
@@ -169,11 +190,22 @@ func _apply_alpha() -> void:
 	level_label.modulate.a = a
 	bar.modulate.a = a
 	bar.value = bar_value(_from, _to, _levels, _age) if _age != INF else 0.0
+	bar.self_modulate = FULL_GLOW if holding_full(_levels, _age) else Color.WHITE
 
 
 ## Is anything on screen right now?
 func showing() -> bool:
 	return _age != INF and bar_alpha(_age) > 0.0
+
+
+## Has the last gain's bar come to rest (slide, and any level-up hold, done)?
+func settled() -> bool:
+	return _age == INF or _age >= settle_seconds(_levels)
+
+
+## Levels the last gain crossed (0 within a level).
+func levels_crossed() -> int:
+	return _levels
 
 
 func current_skill() -> String:
