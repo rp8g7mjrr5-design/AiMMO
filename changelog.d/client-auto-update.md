@@ -1,2 +1,0 @@
-- The game now updates itself! Open it and it grabs the newest version of Ashgrove before you log in, with a little ember progress bar. Download the client one last time and you never have to again.
-- Got turned away for an old version? The game now restarts and updates on its own instead of sending you to the Releases page.
