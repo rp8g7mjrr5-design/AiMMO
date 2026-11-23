@@ -12,7 +12,8 @@ week added to the current milestone, and moves the "current" marker when a miles
 Every milestone follows the owner directions in `docs/design_bible.md`, especially fun comes
 first, 5 (the long road) and 6 (take the best, then beat it): before a milestone's first
 system PR, its stream writes a few lines in its devlog on which MMO does that feature best,
-what players love and hate about it, and how ours improves on it.
+what players love and hate about it, and how ours improves on it. Everything a milestone puts
+on screen follows the Emberlight art bible (`docs/art_bible.md`) and stays inside its render budget.
 
 ## Milestone 0: Foundations (finishing now)
 Shared world, accounts, movement, chat, persistence, day and night, gathering, crafting at

@@ -9,7 +9,7 @@ AiMMO is a real-time 3D MMO built by its owner and AI together, aiming to be the
 - Never wait for human input and never ask questions. Make the call, write down why, move on.
 - The human's only input channel is `docs/playtest.md` (bugs and crashes only). Treat it as bug reports, not design requests.
 - **Fun comes first.** The owner's number one rule: if it isn't fun, it isn't the greatest MMO. Judge every change by whether it makes the game more fun to play (tight feedback, short loops that pay off, juice, no dead time), and say how in your PR. See "Fun comes first" in `docs/design_bible.md`.
-- The owner's standing directions are in `docs/design_bible.md` under "Owner directions" (fun comes first, chat is for talking only, the action camera, how gathering feels, the whole game feels like a modern action MMO, the long road of skills, take the best and beat it, and "Inspired by, never copied"). Follow them over any other design choice; everything else stays your call.
+- The owner's standing directions are in `docs/design_bible.md` under "Owner directions" (fun comes first, chat is for talking only, the action camera, how gathering feels, the whole game feels like a modern action MMO, the long road of skills, take the best and beat it, a look of our own that is cheap to draw (`docs/art_bible.md`), and "Inspired by, never copied"). Follow them over any other design choice; everything else stays your call.
 - Stay true to `docs/design_bible.md`. You may evolve it, but log every change and its reason in that file's "Revision history" so the vision doesn't flip-flop week to week.
 
 ## Hard rules (never break these)
@@ -36,6 +36,7 @@ AiMMO is a real-time 3D MMO built by its owner and AI together, aiming to be the
 CLAUDE.md                 ← this file
 docs/
   design_bible.md         ← world, lore, art direction, core systems (AI-owned)
+  art_bible.md            ← the Emberlight look and its render budgets (AI-owned)
   roadmap.md              ← ordered milestones toward the vision (AI-owned)
   playtest.md             ← human's bug inbox (read every week)
   devlog/week-NN.md       ← internal notes: what you built, what failed, notes to next week's self

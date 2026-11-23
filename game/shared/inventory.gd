@@ -124,7 +124,7 @@ static func total(inv: Dictionary) -> int:
 static func describe(inv: Dictionary) -> String:
 	var items := held(inv)
 	if items.is_empty():
-		return "Your pack is empty. Stand at a tree or stone and type /gather."
+		return "Your pack is empty. Walk up to a tree or stone and press E."
 	var parts := PackedStringArray()
 	for item in items:
 		parts.append("%d %s" % [count(inv, item), label(item)])

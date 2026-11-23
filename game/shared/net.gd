@@ -2,6 +2,14 @@ extends Node
 ## The one RPC endpoint. It lives at /root/Main/Net on every peer, carries no logic, and
 ## re-emits each RPC as a signal so the server, client, and bots can handle them.
 ## Clients call c2s_* on the server (peer 1). The server calls s2c_* on clients.
+##
+## Net's own RPC list must never change again: Godot numbers RPCs by sorted name, so a new
+## one here would shift c2s_login / s2c_login_result and old clients would hang at login
+## instead of being told to update (tests/protocol/README.md). Every RPC added from v3 on
+## lives on the child node `Net/Play` (net_play.gd), which every role gets from _ready, and
+## re-emits its signal here so callers keep using `net.<signal>`.
+
+const PlayScript := preload("res://shared/net_play.gd")
 
 signal login_requested(peer_id: int, protocol: int, username: String, password: String)
 signal input_received(peer_id: int, seq: int, move: Vector2, yaw: float)
@@ -14,6 +22,37 @@ signal snapshot(tick: int, entries: Array)
 signal chat_message(from_name: String, text: String)
 signal system_message(text: String)
 signal world_time(world_seconds: float)
+## Emitted just before `snapshot`, with the last input seq the server applied for this
+## client (-1 before the first). Also kept in last_ack_seq. Protocol v3.
+signal snapshot_ack(ack_seq: int)
+
+# --- protocol v3, carried by Net/Play (see net_play.gd) ---
+signal gather_start_requested(peer_id: int, node_id: int)
+signal gather_cancel_requested(peer_id: int)
+signal craft_requested(peer_id: int, recipe_id: String)
+## Someone in view (peer_id, maybe you) started a timed gather on node_id, `seconds` long.
+signal gather_begun(peer_id: int, node_id: int, seconds: float)
+## That gather ended: reason "done", or why it stopped ("moved", "far", "stopped",
+## "disconnected", "depleted", "full", ...). Also sent to you alone when a start is refused.
+signal gather_ended(peer_id: int, node_id: int, reason: String)
+## Your gather paid out: what you got, for the haul toast.
+signal gather_result(item_id: String, count: int)
+## Your whole pack, item id -> count, after login and after every change.
+signal inventory_changed(items: Dictionary)
+## At login: every resource node that is empty right now.
+signal nodes_depleted(depleted_ids: Array)
+## A node emptied (true) or came back (false).
+signal node_state(node_id: int, depleted: bool)
+signal craft_result(recipe_id: String, ok: bool, text: String)
+
+var last_ack_seq := -1
+var play: Node
+
+
+func _ready() -> void:
+	play = PlayScript.new()
+	play.name = "Play"
+	add_child(play)
 
 
 # --- client to server ---
@@ -51,8 +90,12 @@ func s2c_player_left(id: int) -> void:
 
 
 ## entries: flat array [id, x, y, z, yaw, id, x, y, z, yaw, ...]
+## ack_seq: the last c2s_input seq the server applied for the receiving player (v3), so the
+## client can replay its newer inputs on top of the server's position.
 @rpc("authority", "call_remote", "unreliable_ordered")
-func s2c_snapshot(tick: int, entries: Array) -> void:
+func s2c_snapshot(tick: int, entries: Array, ack_seq: int) -> void:
+	last_ack_seq = ack_seq
+	snapshot_ack.emit(ack_seq)
 	snapshot.emit(tick, entries)
 
 

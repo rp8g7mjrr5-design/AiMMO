@@ -101,7 +101,9 @@ func test_start_then_complete() -> void:
 	check_eq(Gathering.charges_left(srv.gathering, n.id, srv.test_now), Gathering.CHARGES.pine - 1, "one charge used")
 	var texts := _texts(srv, 2)
 	check(texts.size() == 2 and texts[0].begins_with("You start gathering") and texts[1].begins_with("You gather"), "begin then success: %s" % [texts])
-	check_eq(srv.gather_start(2, n.id).reason, "cooldown", "cooldown after a gather")
+	var again: Dictionary = srv.gather_start(2, n.id)
+	check(again.ok, "the next gather starts at once: the bar is the pacing, no dead time (%s)" % again.reason)
+	check_eq(srv.gather_start(2, n.id).reason, "busy", "but only one at a time")
 	srv.free()
 
 

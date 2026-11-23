@@ -9,7 +9,9 @@ class_name ChatCommands
 ## for talking): it is never listed in HELP or patch notes. Players craft from a window at
 ## the workbench once c2s_craft exists. Names are case-insensitive; extra words are ignored.
 
-const HELP := "Commands: /gather (take from the tree, rock or seep you stand at; /gather pine for one kind), /bag (what you carry), /time (time of day in Ashgrove), /who (who is online), /help."
+## /gather is not listed (owner direction "How gathering feels"): players press E at a node
+## since protocol v3; /gather stays as a hidden debug and bot command.
+const HELP := "Commands: /bag (what you carry), /time (time of day in Ashgrove), /who (who is online), /help."
 const GATHER_NAMES := ["gather", "g", "harvest", "chop", "mine"]
 const CRAFT_NAMES := ["craft", "make", "build", "recipes"]
 ## The timed gather (GatherChannel) as a hidden dev/bot command until protocol v3's
