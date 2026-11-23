@@ -395,8 +395,8 @@ func gather(id: int, kind_word: String = "") -> String:
 
 ## Starts a timed gather (GatherChannel) on node `node_id` for player `id`: the same checks
 ## as an instant gather (reach from the server's own position, depletion, night-only; not
-## the instant gather's cooldown, the bar itself paces it), plus "busy" if a gather is already running and "full" if the pack has
-## no room for that node's item. Returns {ok, reason, seconds}. On success the channel runs
+## the instant gather's cooldown, the bar itself paces it), plus "busy" if a gather is already running. A full stack still
+## starts (it pays XP, not items). Returns {ok, reason, seconds}. On success the channel runs
 ## in _tick_channels and ends in _gather_event "done" or "cancelled".
 ## Protocol v3's c2s_gather_start calls this directly.
 func gather_start(id: int, node_id: int) -> Dictionary:
@@ -414,9 +414,9 @@ func gather_start(id: int, node_id: int) -> Dictionary:
 	# No gather cooldown here: the channel's own server-timed bar is the pacing, so a player
 	# who keeps pressing E goes straight from one gather into the next (no dead time). The
 	# cooldown stays for the instant /gather dev command.
+	# A full stack doesn't stop the gather either: the work still teaches the skill (see
+	# _finish_channel), so a full pack is never a wall on the road to the next level.
 	var why := Gathering.check(gathering, node_id, pos, now, world_seconds(), -INF, 0.0, skills_of(id))
-	if why == "" and Inventory.count(inv, str(ResourceNodes.info(node).item)) >= Inventory.MAX_STACK:
-		why = "full"
 	if why != "":
 		return {"ok": false, "reason": why, "seconds": 0.0}
 	var secs := GatherChannel.seconds_at(node_id, inv, skill_level(id, Skills.skill_for_kind(kind)))
@@ -474,11 +474,10 @@ func _finish_channel(id: int, now: float) -> void:
 	var inv: Dictionary = s.character.inventory
 	var tool := Gathering.tool_for(kind, inv)
 	var got := Gathering.take(gathering, node_id, now)
+	# A full stack takes nothing, but the gather still happened: the charge is used and the
+	# XP is paid (Milestone 1: the first session must reach level 5, and a fresh feller fills
+	# both wood stacks well before that). "done" with count 0: no haul toast, a system line.
 	var added := give_item(id, got.item, Gathering.amount_at(node_id, inv, skill_level(id, Skills.skill_for_kind(kind))))
-	if added <= 0:
-		Gathering.give_back(gathering, node_id)
-		_gather_event(id, "cancelled", node_id, {"reason": "full", "audience": audience})
-		return
 	s.last_gather = now
 	if got.depleted:
 		_node_changed(node_id, true, got.respawn)
@@ -512,9 +511,12 @@ func _gather_event(id: int, event: String, node_id: int, info: Dictionary) -> vo
 			for other in watchers:
 				_send(other, "s2c_gather_begin", [id, node_id, float(info.seconds)])
 		"done":
-			text = Gathering.success(node_id, int(info.count), Inventory.count(s.character.inventory, str(info.item)), bool(info.depleted), str(info.tool))
 			reason = "done"
-			_send(id, "s2c_gather_result", [str(info.item), int(info.count)])
+			if int(info.count) > 0:
+				text = Gathering.success(node_id, int(info.count), Inventory.count(s.character.inventory, str(info.item)), bool(info.depleted), str(info.tool))
+				_send(id, "s2c_gather_result", [str(info.item), int(info.count)])
+			else:
+				text = Gathering.full_text(node_id, bool(info.depleted))
 		"cancelled":
 			reason = str(info.reason)
 			if reason in ["moved", "far", "stopped"]:
