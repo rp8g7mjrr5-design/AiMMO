@@ -16,7 +16,7 @@ COPY game/ /app/game/
 COPY tests/ /app/tests/
 COPY db/ /app/db/
 COPY CHANGELOG.md /app/CHANGELOG.md
-COPY docker/entrypoint.sh /app/entrypoint.sh
+COPY docker/entrypoint.sh docker/probe.sh /app/
 
 # Build Godot's script class cache and import resources at build time, not on every boot.
 RUN godot --headless --path /app/game --import >/dev/null 2>&1 || true \
@@ -28,4 +28,5 @@ ENV AIMMO_TRANSPORT=websocket \
     AIMMO_DATA_DIR=/app/data
 
 EXPOSE 7777
+# The entrypoint also runs a watchdog that restarts a frozen server (see docker/entrypoint.sh).
 CMD ["/app/entrypoint.sh"]

@@ -249,3 +249,53 @@ run: nothing the client loads changed.
 
 **Next run:** v3 gathering in CI if it has landed (and check v3 kept old clients informed),
 otherwise the Railway health check.
+
+## 2026-11-23 — Railway restarts a frozen server
+
+Playtest inbox still empty, no open qa PR, budget 7/40. All three top items are still blocked:
+real gathering in CI and chat-is-for-talking wait on gameplay's v3 (PR #49 open, not merged)
+and `--dev-commands` (not started); camera smoke shots wait on client's action camera (PR #47
+open). Took the next unblocked one, the hung-server restart.
+
+**Why it mattered:** `railway.json` restarts `ON_FAILURE`, which only fires when the process
+exits. A server stuck in a loop, a deadlock, or a Postgres call that never returns would sit
+there accepting TCP connections and serving nobody until the owner noticed.
+
+**Built (all in qa paths, no server code touched):**
+- `docker/probe.sh`: bash `/dev/tcp` WebSocket handshake, passes on `HTTP/1.1 101`. Godot only
+  answers handshakes from its main loop, so it is a real liveness check; the kernel still
+  accepts the TCP connect for a frozen process, so a plain port check would not be. No new
+  packages: the slim image already has bash and coreutils `timeout`.
+- `docker/entrypoint.sh` (now bash): watchdog waits up to 180 s for the first answer, then
+  probes every 20 s (5 s timeout). After 3 misses in a row (~1 minute) it touches the stop
+  file so a slow-but-alive server can still save everyone, waits 20 s, then `kill -KILL`s it.
+  Either way the entrypoint exits 70 so Railway restarts it (a clean stop after the
+  watchdog fired would otherwise exit 0 and *not* be restarted). Off for ENet (it probes
+  WebSocket) and with `AIMMO_WATCHDOG=off`. SIGTERM behaviour is unchanged. Timings are
+  env vars, listed at the top of the script.
+- `tests/ops/run_watchdog_test.py`, new CI step (~50 s): runs the real entrypoint with short
+  timings. healthy (no false alarm, SIGTERM still exits 0 and stops cleanly), recovers
+  (SIGSTOP, watchdog asks it to stop, SIGCONT, server saves and stops cleanly, exit 70,
+  nothing killed), frozen (SIGSTOP for good, killed, exit 70 in ~16 s), enet (watchdog off),
+  probe (fails fast on a closed port, honours its timeout on a silent listener).
+
+**Proved it catches it:** with `AIMMO_PROBE=/bin/true` (a probe that always passes) the frozen
+scenario fails with "entrypoint was still running 31s after the server froze"; with
+`AIMMO_WATCHDOG=off` frozen and recovers both fail.
+
+**Known costs:** each probe makes the server log a `peer N connected` / `disconnected before
+logging in` pair (~3/min). Asked gameplay (optional) to quiet those. Killing a truly frozen
+server loses progress since the last autosave; it was already lost while frozen.
+
+**Didn't work:** wanted to build the image locally to run the test inside it, but Docker
+Hub returned 429 on `debian:bookworm-slim`. Not verified inside the image; the scripts only
+use bash, coreutils and the godot binary already there. Added a backlog item to build the
+image in CI. No unit test: this is shell/ops, the live test is its test, and nothing players
+do changed, so no bot behaviour either.
+
+**Tests:** 179 unit tests pass with Postgres; protocol test passes; watchdog test passes;
+bot test 8 bots x 180s WebSocket + Postgres passed in 185s. Client smoke not run: nothing the
+client loads changed.
+
+**Next run:** v3 gathering in CI if #49 has merged, otherwise camera shots if #47 has, otherwise
+build the image in CI.
