@@ -1,1 +1,0 @@
-- Your Toolcraft 5 ember axe and ember pickaxe finally look the part: coal-black heads with an edge that glows like a live ember, right next to the stone tools they replace.

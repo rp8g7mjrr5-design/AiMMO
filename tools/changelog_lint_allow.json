@@ -1,11 +1,4 @@
 {
   "_why": "CHANGELOG.md lines from Week 00 that still tell players to type a command. Only shrinks: the integrator rewords them (CHANGELOG.md is integrator-only) and drops them here. See tools/changelog_lint.py.",
-  "lines": [
-    "- Ashgrove gives! Walk up to an ember ash, a pine or a stone outcrop and type `/gather` in chat (or `/gather pine` for one kind). Each tree or rock gives a few times, then needs a few minutes to grow back.",
-    "- Nothing in reach? `/gather` points you to the nearest tree or rock: \"The nearest pine is 14 m to the north-east.\"",
-    "- Every settler now carries a pack. Type `/bag` in chat to look inside.",
-    "- **What time is it?** Lost track of the sun? Type `/time` in chat to see the day and hour in Ashgrove, and how long until dawn, day, dusk, or night.",
-    "- **Who's around?** Type `/who` to see who else is wandering Ashgrove right now, and `/help` for the list of commands. Only you see the answers.",
-    "- **Chat that knows when to be quiet.** Chat fades away after a quiet spell and pops back the moment someone speaks, you press Enter, or you hover over it. The time dial's readout fades with it; the little sun keeps shining. The log keeps the latest 150 lines, and the chat box now reminds you that `/help` exists."
-  ]
+  "lines": []
 }
