@@ -1066,3 +1066,45 @@ fixed 330 px list with three rows in a mostly empty box, hence the sizing to row
 Screenshot: `/mnt/project-files/client/players-panel.png`.
 
 **Next run:** Return to Spawn Meadow in the Esc menu (v5 `c2s_unstuck`), or left-click gather.
+
+## 2026-11-23, scheduled run: the time dial tooltip (ws/client/time-dial-tooltip)
+
+**Picked:** the time dial tooltip, the next unticked piece of "every slash command gets real
+UI" (it replaces `/time`). Chosen over Return to Spawn Meadow and left-click gather because it
+is the last reply of `/time`, `/who`, `/bag`, `/help` with no UI, and it fits one run with
+room to test it properly.
+
+**Fun in one sentence:** you see night coming instead of being surprised by it: hover the dial
+for "Dusk in about 9 minutes, then night in about 13", and in the last 90 s of a phase the
+readout itself says "· Night soon", so you can choose to head for the bench lantern or stay
+out for the ember glow.
+
+**Built (all in `game/client/time_dial.gd`):** `tooltip_text_at(world_seconds)` (four lines:
+exact time, next phase with countdown, the phase after with countdown, day length),
+`until_text` ("in less than a minute" / "about a minute" / "about N minutes"), `soon_text`
+and `label_text` (the readout plus "· Dusk soon" in a phase's last `SOON_SECONDS` = 90 s;
+`state().text` itself is unchanged so `ChatFeed`'s timestamp test still holds). The dial is
+now `MOUSE_FILTER_PASS` with `_get_tooltip` (text built when the tooltip opens) and
+`_has_point` limiting the hover to the disk and the readout, not the whole 460 px strip; the
+tooltip is a custom dark panel edged in the current phase's sky colour. Hover only works with
+the cursor free (chat open, or any window up): that is fine, chat open is exactly when your
+eyes are next to the dial, and the "soon" warning covers play with the cursor captured.
+
+**Tests:** 4 new unit tests in `test_client_time_dial.gd` (tooltip lines at noon and late
+night, every 15 in-game minutes the next phase is right; rounding; the warning shows for
+exactly 90 s per change, 4 changes a day; hover area and panel). Bot behaviour
+`client_time_dial` now checks on every `s2c_world_time` that the tooltip agrees with the
+readout, names the server clock's next phase with a matching countdown, and that the warning
+shows iff that phase is 90 s or less away. Unit tests 521 passed with Postgres; 8-bot 180 s
+WebSocket run PASSED (5 tooltips checked per bot; no warnings hit that run, the window is
+90 s of every 40 min, so the unit test covers it); client smoke passed.
+
+**Didn't work first time:** the hand screenshot set `_state` directly and the dial's first
+`refresh` overwrote it with the real clock; pinning `DayNight.pinned_fraction` is the right
+way (it is what `current_seconds` reads). Screenshot:
+`/mnt/project-files/client/time-dial-tooltip.png`.
+
+**Told gameplay** (its Requests) that `/time` can go behind the dev gate once this lands.
+
+**Next run:** move system notices to centre screen (last piece of the chat-to-UI item), or
+Return to Spawn Meadow, or left-click gather.
