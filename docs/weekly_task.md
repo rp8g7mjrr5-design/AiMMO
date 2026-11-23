@@ -28,7 +28,7 @@ the next week. The update must be live and playable by the weekend.
 - Write `docs/devlog/week-NN.md`: what each stream shipped, what didn't work, known bugs, and specific notes for next week.
 
 ## 4. Plan
-- Update `docs/roadmap.md` so it always covers the next 4 to 6 weeks.
+- Update `docs/roadmap.md`: tick what the week finished in the current milestone, move the "current" marker when its "done when" list is all true, and keep the milestones ahead of it sound.
 - Rebalance every stream's backlog to match the roadmap and the North star, fun first. Each stream should have at least 5 well-sized items, cross-stream dependencies ordered correctly, and requests between streams answered.
 - If the design vision changed, log it in the design bible's revision history with the reason.
 

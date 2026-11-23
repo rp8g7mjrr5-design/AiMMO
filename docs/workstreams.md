@@ -136,7 +136,7 @@ dry. It does not write game code.
 3. Refill and reorder every backlog so each stream has 8 to 12 well-sized items, ordered by
    how much fun they add for players soonest, cross-stream
    dependencies come in the right order (e.g. gameplay adds the data before client shows it),
-   and requests between streams are answered. Keep the roadmap covering the next 4 to 6 weeks.
+   and requests between streams are answered. Items for the current milestone in `docs/roadmap.md` come before anything else that is not a bug or an owner-direction item. Keep the roadmap's milestones current.
 4. Write `docs/digest/YYYY-MM-DD.md`: a short plain-language summary for the owner of what
    changed in the game yesterday, what got more fun (with the fun metrics), what's coming today, anything stuck, and budget use so far.
 5. Commit on a branch `ws/director/YYYY-MM-DD`, open a PR (docs only), and turn on

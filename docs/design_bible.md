@@ -4,10 +4,21 @@ This is the AI-owned vision for AiMMO. It may evolve, but every change is logged
 Revision history at the bottom with its reason, so the game does not flip-flop.
 
 ## North star
-**Make the Greatest MMO of all time.** This is the owner's stated goal, and the measure every weekly choice is judged against. The number one way there is to make it **fun**: if it isn't fun, it isn't the best (see "Fun comes first" under Owner directions). "Greatest" here means the MMO players most want to come back to: a world that feels alive, systems that are deep but never broken, and a community that grows because people enjoy being in it together. When two options compete, pick the one that moves AiMMO closer to that, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5).
+**Make the Greatest MMO of all time.** This is the owner's stated goal, and the measure every weekly choice is judged against. In the owner's words: the MMO that beats every other MMO, built by one person and AI together. That is the bar: not "good for a small team", but the game players of today's best action MMOs and of the long-running skill-grind classics would leave them for. The number one way there is to make it **fun**: if it isn't fun, it isn't the best (see "Fun comes first" under Owner directions). "Greatest" here means the MMO players most want to come back to: a world that feels alive, systems that are deep but never broken, and a community that grows because people enjoy being in it together. When two options compete, pick the one that moves AiMMO closer to that, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5).
+
+### The vision in one paragraph (owner direction, 2026-11-23)
+AiMMO plays like a **modern action MMO** and progresses like a **long-road skill MMO**. In your
+hands it feels like the owner's favourite modern MMO (New World): an over-the-shoulder camera,
+aimed action combat with crafted weapons, gathering and crafting as real trade skills, gear
+worth chasing, towns to trade in and territory worth caring about. Over months it feels like
+the classic skill-grind MMO the owner loves (RuneScape): many skills, each levelled to a high
+cap, and every single level unlocks something, so there is always a next goal a few minutes
+away and a far goal you will be proud of. The core loop that ties it together is
+**gather → craft → fight → level up → explore further**, and each turn of the loop opens a
+bit more of Ashgrove. Inspired by both, copied from neither (see "Inspired by, never copied").
 
 ## Pillars
-1. **A world that feels lived in, not grinded.** Players should want to log in to see what changed and who is around, not to tick a daily chore.
+1. **A world that feels lived in, and a road that never ends.** Players log in to see what changed, who is around, and to get one more level, never to tick a daily chore. Long progression, yes; tedium, never (see "The long road").
 2. **Small, honest systems that stack.** Each week adds one system that works with the others. No feature ships half-built.
 3. **Everything is grown, not imported.** Terrain, creatures, items, music, and sound come from code and seeds. The look is a consequence of that: low-poly, flat-shaded, colourful.
 4. **Cooperation first.** The early game rewards people for being near each other: shared gathering, group events, a town built together. PvP, if it ever comes, is opt-in.
@@ -17,7 +28,7 @@ The owner plays and tests; the AI designs everything else. The owner has given t
 directions below, and these are standing rules: they win over any other design choice, and
 the weekly review and director may refine them but never reverse them. Everything not
 covered here (systems, lore, balance, roadmap) stays the AI's call. Fun comes first and sits
-above the numbered directions: when two choices both respect directions 1 to 3, pick the
+above the numbered directions: when two choices both respect directions 1 to 6, pick the
 more fun one.
 
 ### Fun comes first (the first rule)
@@ -45,8 +56,12 @@ What that means in practice:
   alone (shared node bonuses, group moments, seeing each other's effects).
 - **Fair and readable.** Never punish players for things they couldn't see coming. Lose
   little on failure; never lose a whole session's progress.
-- **Cut boring work.** Grind, busywork and chores don't ship. If a system only works by
-  making players repeat something dull, redesign it.
+- **Long road, never tedium.** A long progression is wanted (direction 5, "The long
+  road"); boring work is not. Busywork, chores and dead repetition don't ship. The test is
+  per minute, not per month: every minute of play pays a little (XP you can see, a drop, a
+  step closer to an unlock), and the next unlock is always in sight. If a system only works
+  by making players repeat something dull with nothing showing for it, redesign it. A
+  hundred-level skill is fine; a hundred clicks with no feedback is not.
 
 How each stream applies it:
 - **gameplay:** tune timings and rewards for pace (gather and craft times, drop rates,
@@ -108,6 +123,67 @@ See "How gathering feels" below. The node you gather is the one under the reticl
 gather ends with satisfying feedback: a hit reaction on the node, a sound, a toast, and the
 item landing in your pack.
 
+### 4. The whole game feels like a modern action MMO
+Directions 2 and 3 give the camera and gathering that feel; the owner wants the *whole game*
+to have it, with New World as the reference feel. That means, in our own design and our own
+names:
+- **Action combat, not tab-target.** You aim with the reticle and swing; hits land where you
+  aim. Light and heavy attacks, a block, and a dodge roll on a stamina bar. Enemies telegraph
+  their attacks so a good player can read and avoid them (fair and readable). No auto-attack,
+  no target lock required.
+- **Weapons you made.** Weapons come from crafting, not from vendors. Each weapon type plays
+  differently and has its own mastery that levels by using it, with choices to make as it
+  levels.
+- **Trade skills are real skills.** Gathering, refining (wood to planks, stone and ore to
+  bars) and crafting are each skills with levels, and high-level crafters make gear nobody
+  else can. Crafting is a reason to play, not a menu between fights.
+- **Gear worth chasing.** Gear comes in tiers tied to material tiers and zones, with some
+  rolled variation so two crafts of the same item can differ. Better gear changes your
+  silhouette (art direction: "later, gear changes silhouettes").
+- **A world with places that matter.** Zones get harder as you go out from the Spawn Meadow
+  and hold better materials. Towns are where you trade, craft at better stations and meet
+  people. Later, settlements and territory that groups build up and contest (opt-in, see
+  pillar 4).
+- **Physical and grounded.** Weighty movement, readable animations, sound on every action,
+  day and night that change what is out there.
+
+### 5. The long road: skills that grind well
+The owner loves the long skill grind of the classic skill MMOs (RuneScape is the owner's
+reference) and wants it here, made fun by the rules above. In our own design:
+- **Many skills.** Every activity is a skill: each kind of gathering, each refining craft,
+  each crafting discipline, each weapon, and later things like cooking. Start small (four in
+  Milestone 1) and add skills as systems arrive; never retire one.
+- **A high cap, levelled over months.** Each skill runs to **level 100**. The XP curve is ours
+  (do not reuse another game's table or formula): the first levels come in a minute or two,
+  level 10 inside a first session, level 50 after weeks of regular play, 100 is a long-term
+  badge of honour. Keep the curve's numbers in one data file so they can be tuned.
+- **Every level unlocks something.** No empty levels. Each level gives a small visible gain
+  (a bit faster, a bit more yield, a better chance at a rare find). Every few levels gives a
+  named unlock: a new node tier you can now work, a recipe, a perk, an ability, a cosmetic
+  (tool glow, a title). The skills window always shows the next unlock and how far away it is.
+- **Level-ups are moments.** A level-up is the loudest bit of juice in the game: a sound, a
+  burst of light around the character that others nearby see, a banner naming what you just
+  unlocked.
+- **Your levels gate content, softly.** Higher-tier nodes, recipes and zones ask for levels,
+  so the grind opens the world. Nothing is gated behind payment, luck alone or a daily timer.
+- **No anti-fun limits.** No daily XP caps, no XP that shrinks the longer you play, no
+  chores you must do every day to keep up. Being near other players should *add* XP
+  (better together), never take it away.
+- **A total across skills.** The character panel shows a combined total of every skill's
+  level, so an all-rounder has something to show too. (Pick our own name for it.)
+
+### 6. Take the best, then beat it
+The owner's words: take other MMOs' best features and improve on them, making them better
+than their makers imagined. So before designing any system, ask: *which MMO does this best
+today, what exactly makes it great, what do its players complain about, and how do we keep
+the good part and fix the rest?* Write the answer in a few lines in the PR or devlog. Then
+build **our own improved version**: our design, our numbers, our names, our look. The aim is
+never "as good as" a reference; it is the version players of that game would wish theirs
+had. Examples of the habit: action combat with clearer telegraphs and less input lag than
+anyone's; a skill grind where no level is empty; crafting where a master's work is visibly
+better; a market that is easy to use and hard to exploit. This sits inside "Inspired by,
+never copied": study the feature, never copy its expression.
+
 ### Inspired by, never copied
 We borrow genre mechanics and feel only. Mechanics and feel are free for anyone to use; the
 expression of another game is not. So, always:
@@ -160,14 +236,17 @@ Gathering works the way players already know from mainstream MMOs, never through
 The server times the bar and decides the result; the client only shows it. `/gather` stays as a hidden debug and bot command, not listed in `/help` or patch notes. We borrow the genre's mechanics only: no names, art, UI or sounds from any existing game.
 
 ## Core systems (planned order)
-See `docs/roadmap.md` for dates. The intended stack of systems:
-1. Day and night cycle (shared clock, the world feels alive)
-2. Gathering (wood, stone, ember sap) and an inventory
-3. Crafting simple tools and items
-4. Creatures: gentle wildlife first, then a few dangerous ones in the ridges
-5. Combat and health
-6. A shared town: players contribute resources to communal buildings
-7. Quests and the first chapter of the ember ash mystery
+The order of milestones and what "done" means for each is in `docs/roadmap.md`. In short,
+after the foundations (day and night, gathering, crafting, the action camera, chat-to-UI):
+1. Skills and XP: the first trade skills, levels, unlocks and level-up moments
+2. Action combat with crafted weapons, health, and creatures just outside the Spawn Meadow
+3. Gear tiers: refining, better materials, armour and weapons in tiers
+4. A second zone: harder, richer, opened by gear and levels
+5. Towns and trading: the Hearth, crafting stations, a player market
+6. Parties and group content: shared kills and XP, group events, elite creatures
+7. Territory and opt-in PvP: settlements that groups build up and contest
+The ember ash mystery is told through quests and world events along the way, a chapter per
+milestone from the second one on.
 
 ## Technical principles
 - The server is authoritative for everything that matters. Clients render and request.
@@ -175,6 +254,7 @@ See `docs/roadmap.md` for dates. The intended stack of systems:
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 00 (2026-11-23, vision and roadmap):** The owner gave the game its direction: the New World feel for the whole game (not only the camera and gathering), the RuneScape-style long skill grind, and the goal of beating every other MMO, built by the owner and AI together. Added "The vision in one paragraph" and the core loop (gather → craft → fight → level up → explore further), owner directions 4 (the whole game feels like a modern action MMO), 5 (the long road: many skills to level 100, every level unlocks something) and 6 (take the best, then beat it: study the best version of each feature in other MMOs and build an improved, original one). Reconciled grind with fun: pillar 1 and the old "Cut boring work" bullet become "Long road, never tedium", judged per minute (every minute pays a little, the next unlock is always in sight), so a long grind is wanted and tedium still never ships. The planned order of systems is now the milestone list in `docs/roadmap.md`. "Inspired by, never copied" applies to both reference games: no skill names, XP tables or exact systems from either.
 - **Week 00 (2026-11-23, fun first):** Added "Fun comes first" at the top of the owner directions. The owner said the number one way to make the greatest MMO is to make it fun, and if it isn't fun it isn't the best. Turned that into concrete guidance (tight feedback, short loops that pay off, juice, no dead time), a lens for each stream, a "Why it's more fun" line on every worker PR, and bot-test fun metrics in qa. Directions 1 to 3 (chat is for talking, the action camera, how gathering feels) and "Inspired by, never copied" are unchanged.
 - **Week 00 (2026-11-22, owner directions):** Added "Owner directions": chat is for talking only (slash commands move to keys and windows, debug commands only behind `--dev-commands`), an over-the-shoulder action camera with always-on mouse look and camera-relative movement, gathering that targets what the reticle is on, and an "Inspired by, never copied" section. The owner loves how New World's camera and gathering feel and asked for that feel, while the AI keeps designing everything else; the guardrails keep us to mechanics and feel, never names, lore, art, UI or text.
 - **Week 00 (2026-11-22, gathering feel):** Added "How gathering feels". The owner disliked typing `/gather` and pointed at mainstream MMOs as the model, so gathering becomes walk up, prompt, press E or click, timed gather bar with animation, item toast, and visibly emptied nodes. `/gather` is kept only as a debug fallback.
