@@ -1,0 +1,1 @@
+- **Press F1 for controls.** Every key in the game on one card, drawn as keycaps: move, look, free look, shoulder swap, zoom, gather, the workbench, chat. There's a "?" button in the top-right corner too, so you never have to type /help again.

@@ -24,7 +24,7 @@ Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
 - [ ] **Third (owner direction 1): chat is for talking, so every slash command gets real UI.** Pack window first (the Inventory window item below), then in order:
   - Players panel (default key O, or a button by the compass): who is online, from snapshot names now and gameplay's `s2c_roster` when it lands. Replaces `/who`.
   - Time dial tooltip on hover: "Day 3, 14:05. Dusk in about 9 minutes" via `WorldClock`. Replaces `/time`.
-  - Controls overlay on F1 (and a "?" button): every key, rebind hint. Replaces `/help`. Drop the "/help" hint from the chat box and the patch notes.
+  - [x] (in review, ws/client/controls-overlay) Controls overlay on F1 (and a "?" button): every key, rebind hint. Replaces `/help`. Dropped the "/help" hint from the chat box (`ControlsOverlay`, `game/client/controls_overlay.gd`; default keys now live in `ControlsOverlay.DEFAULT_BINDS`). The old patch notes in `CHANGELOG.md` are the integrator's.
   - Show server refusals and system notices as short centre-screen messages (already started for gathering), not as chat lines; chat shows only what players say plus join/leave lines.
   - Any new feature's controls go in the F1 overlay, never in chat.
 - [ ] **(director, owner direction 7, 2026-11-23: Emberlight, see `docs/art_bible.md`): render settings and a Graphics quality option.** Set the art bible's defaults in `project.godot` and the client: no SDFGI, VoxelGI, SSR or SSIL, SSAO off, one glow pass, one shadowed sun at 120 m or less, camera far plane at the end of the haze. A Graphics setting (Low, Medium default, High) in the Settings window that scales shadow distance, view distance, flora density and motes through one `Quality` value world reads; and an F3 overlay with fps, frame ms, draw calls and triangles so the owner can see the cost while playing. Unit tests for the setting and its saved value.
@@ -63,6 +63,10 @@ Owns how the game feels in your hands. See `docs/workstreams.md` for ownership.
 
 - [ ] Follow-up (auto-update): when gameplay bumps the protocol, the old client restarts and updates on the "out of date" refusal; it matches that text. Ask gameplay for a dedicated refusal code if that wording ever changes.
 - [ ] Follow-up (auto-update): a "Check for updates" button in Settings for players who keep the game open across a release.
+
+- [ ] Follow-up (controls overlay): smoke screenshot with `--open-controls` (the hook is in `client.gd`; `tests/client_smoke/run.sh` is qa's, so ask qa or add it when qa's smoke grows a shot list).
+- [ ] Follow-up (controls overlay): the key rebinding window edits the InputMap and saves it; the overlay already reads the InputMap on every open, so rebinds show with no change there.
+- [ ] Follow-up (controls overlay): add the pack (I), players (O) and skills (K) keys to `DEFAULT_BINDS` and `SECTIONS` as those windows land.
 
 - [ ] Follow-up (camera solids): if profiling ever shows `clear_arm` hot with many solids in reach, narrow `camera_solids` to the current arm length plus a margin instead of DIST_MAX + 3 m.
 
