@@ -56,7 +56,10 @@ and note it in the changelog fragment. From v4 on, the bump PR also adds a froze
    stop there for this run. A worker has at most one open PR.
 3. Pick the top unblocked item from your backlog (requests from other streams and bugs
    first). Size it so it is built and fully tested in this run. Small and working beats big
-   and broken.
+   and broken. **Fun comes first** (design bible, "Fun comes first"): before you build,
+   write down in one sentence what a player will feel that they didn't before. If you can't,
+   pick a smaller slice that does, or add the feedback (sound, motion, toast) that makes it
+   land. Plumbing is fine when it names the fun it unblocks.
 4. Branch `ws/<stream>/<short-slug>` from the latest `main`. Build it within your owned
    paths, following CLAUDE.md (procedural art, add-only migrations, save compatibility,
    no secrets).
@@ -67,7 +70,10 @@ and note it in the changelog fragment. From v4 on, the bump PR also adds a froze
    bullet lines (fun and clear). Append honest notes to `docs/devlog/<stream>.md` (what you
    built, what didn't work, notes to your next run). Update your backlog: tick the item,
    add follow-ups.
-7. Open a PR titled `[<stream>] <what players get>`, then turn on auto-merge with the squash
+7. Open a PR titled `[<stream>] <what players get>`. The PR body starts with a
+   **Why it's more fun** line: one or two sentences on what a player will feel (faster
+   feedback, a shorter loop, a new payoff, less dead time), or which upcoming fun this
+   plumbing unblocks. Then turn on auto-merge with the squash
    method: `gh api -X PUT repos/<owner>/<repo>/pulls/<n>/ccr/auto_merge -f merge_method=squash`
    (or `gh pr merge <n> --auto --squash` where GraphQL is available). Then stop. Never call
    merge yourself; GitHub merges the PR when the required "Test" check is green. If CI goes
@@ -86,6 +92,10 @@ and note it in the changelog fragment. From v4 on, the bump PR also adds a froze
    oldest first:
    - Review against the hard rules: ownership respected, add-only migrations, procedural
      only, no secrets, save compatibility (old fixtures still load), tests added.
+   - Review for fun (design bible, "Fun comes first"): the PR has a "Why it's more fun"
+     line that is true, and it doesn't make the game slower, duller or noisier for players
+     (the bot test's fun metrics didn't get worse). A PR missing the line gets a comment
+     asking for it; one that makes the game less fun is treated like a rule break.
    - **Open PR that breaks a rule:** turn its auto-merge off
      (`gh api -X DELETE repos/<owner>/<repo>/pulls/<n>/ccr/auto_merge`) and leave a PR comment
      with what to fix. The worker fixes it next run and turns auto-merge back on.
@@ -119,13 +129,16 @@ dry. It does not write game code.
 1. Read CLAUDE.md, this file, the design bible, the roadmap, every stream's backlog and the
    last day of `docs/devlog/<stream>.md`, the PRs merged and opened in the last 24 hours, and
    `docs/playtest.md`.
-2. Judge the last day honestly: is the game getting better for players? Are streams
+2. Judge the last day honestly: is the game more fun than yesterday? Check the bot test's
+   fun metrics trend (time to first reward, longest dead time, rewards per minute) and
+   each merged PR's "Why it's more fun" line. Are streams
    duplicating work, blocked on each other, or drifting from the design bible?
-3. Refill and reorder every backlog so each stream has 8 to 12 well-sized items, cross-stream
+3. Refill and reorder every backlog so each stream has 8 to 12 well-sized items, ordered by
+   how much fun they add for players soonest, cross-stream
    dependencies come in the right order (e.g. gameplay adds the data before client shows it),
    and requests between streams are answered. Keep the roadmap covering the next 4 to 6 weeks.
 4. Write `docs/digest/YYYY-MM-DD.md`: a short plain-language summary for the owner of what
-   changed in the game yesterday, what's coming today, anything stuck, and budget use so far.
+   changed in the game yesterday, what got more fun (with the fun metrics), what's coming today, anything stuck, and budget use so far.
 5. Commit on a branch `ws/director/YYYY-MM-DD`, open a PR (docs only), and turn on
    auto-merge (squash) like any other worker PR.
 6. End the run with the digest's text so the owner can read it in the thread.
