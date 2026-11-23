@@ -28,6 +28,7 @@ class_name Emberlight
 const VARIANTS := ["solid", "foliage", "glow"]
 const BEAT_SECONDS := 4.0 ## the heartbeat: one slow beat every 4 s of world time
 const PULSE_PARAM := "ember_pulse"
+const NIGHT_PARAM := "ember_night" ## 0 by day, 1 at full night (SkyClock.night_amount)
 
 static var _shaders: Dictionary = {} # variant -> Shader
 static var _materials: Dictionary = {} # "variant" or "variant/name" -> ShaderMaterial
@@ -70,6 +71,13 @@ static func set_pulse(value: float) -> void:
 	RenderingServer.global_shader_parameter_set(PULSE_PARAM, clampf(value, 0.0, 1.0))
 
 
+## How far the world leans to its night paint, 0..1 (one RenderingServer call; DayNight sets
+## it on every repaint from `SkyClock.night_amount`).
+static func set_night(value: float) -> void:
+	ensure_globals()
+	RenderingServer.global_shader_parameter_set(NIGHT_PARAM, clampf(value, 0.0, 1.0))
+
+
 ## Register the global shader parameters our shaders read. Must run before any of our
 ## shaders compiles; `shader()` calls it.
 static func ensure_globals() -> void:
@@ -79,6 +87,7 @@ static func ensure_globals() -> void:
 	# (global_shader_parameter_get_list is editor-only and logs an error in a game, so we
 	# rely on the flag above: nothing else registers this name.)
 	RenderingServer.global_shader_parameter_add(PULSE_PARAM, RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0)
+	RenderingServer.global_shader_parameter_add(NIGHT_PARAM, RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0)
 
 
 ## A copy of `mesh` (first surface) with baked vertex colours: grey `1 - ao` at the bottom
@@ -149,11 +158,14 @@ shader_type spatial;
 render_mode cull_back, specular_disabled;
 
 global uniform float ember_pulse;
+global uniform float ember_night; // 0 by day, 1 at full night: the paint drains and shadows go blue
 
 uniform float shade_strength = 0.30; // how far the turned-away side leans towards SHADE
 uniform float warmth = 0.10; // how far the lit side leans gold
 uniform float rim_strength = 0.35; // soft rim on silhouettes when looking towards the light
 uniform float brush = 0.07; // world-position paint variation, +- this fraction
+uniform float night_desat = 0.55; // at full night the paint keeps only this much less of its colour
+uniform float night_shade = 0.35; // extra SHADE blue in the shadows at full night
 uniform vec3 emission_color : source_color = vec3(1.0, 0.42, 0.14);
 uniform float emission_energy = 0.0; // a whole-surface glow (the ash leaves at night)
 uniform float pulse_depth = 0.25; // how much emission_energy swells with the heartbeat
@@ -201,6 +213,11 @@ void vertex() {
 void fragment() {
 	float n = value_noise(world_pos.xz * 0.35) * 0.65 + value_noise(world_pos.xz * 1.7 + world_pos.y) * 0.35;
 	ALBEDO = COLOR.rgb * (1.0 + (n - 0.5) * 2.0 * brush);
+	// Night is blue and ember (art bible section 2): the moon drains the greens, so the
+	// ground reads moonlit instead of green-black and every glow stands out against it.
+	// Only the greens drain: warm paint (ash crowns, bark, the lanterns) keeps its colour.
+	float green = smoothstep(-0.02, 0.10, ALBEDO.g - ALBEDO.r);
+	ALBEDO = mix(ALBEDO, vec3(dot(ALBEDO, vec3(0.299, 0.587, 0.114))), ember_night * night_desat * green);
 	ROUGHNESS = 1.0;
 	float beat = ember_pulse;
 	vec3 glow = emission_color * emission_energy * (1.0 - pulse_depth + pulse_depth * 2.0 * beat);
@@ -219,7 +236,7 @@ void light() {
 	DIFFUSE_LIGHT += key * lit / PI;
 	// Cool shadow: what the light doesn't reach leans blue-violet, never grey.
 	float strength = dot(LIGHT_COLOR, vec3(0.299, 0.587, 0.114));
-	DIFFUSE_LIGHT += $SHADE * (1.0 - lit) * shade_strength * strength / PI;
+	DIFFUSE_LIGHT += $SHADE * (1.0 - lit) * (shade_strength + night_shade * ember_night) * strength / PI;
 	// Rim: silhouettes catch the light from behind.
 	float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 4.0) * clamp(dot(LIGHT, -VIEW) * 0.5 + 0.5, 0.0, 1.0);
 	DIFFUSE_LIGHT += LIGHT_COLOR * rim * rim_strength * ATTENUATION / PI;
