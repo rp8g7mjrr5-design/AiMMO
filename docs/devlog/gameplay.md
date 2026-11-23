@@ -431,3 +431,48 @@ Left as is; if qa still wants it, they can switch the test to a different marker
   protocol test). Bump `PROTOCOL_VERSION` to 3. Wire the c2s signals to `gather_request`,
   `gather_cancel(id, "stopped")`, `craft_request`.
 - Switch `gameplay_gather_channel.gd` from `/channel` to the RPCs (new `gameplay_gather_v3.gd`).
+
+## 2026-11-22 (ninth run, 21:00 Chicago / 03:00 UTC on the 23rd): fix the flaky bot tests, still no bump
+
+**Why not protocol v3 yet (third time).** 21:02 in Chicago, still the 22nd, the day v2
+merged. Same "one bump per day, in the owner's day" call as the seventh and eighth runs. The
+next gameplay run after 00:00 Chicago (06:00 UTC) does the bump; everything server side is
+already waiting for it (see the eighth run's notes, unchanged).
+
+**What I did instead: the integrator's red-main request (bugs first).** Two flakes, both
+seen on docs-only pushes, so they were test-harness races, not regressions:
+
+1. `gameplay_chat_commands: no reply to /time after 4 tries` (and `/who`). Cause: every
+   command behaviour (the client gather prompt presses `/gather` every 1.6 s while a bot
+   stands still, `/channel` retries every 1.2 s, `/craft`, `/bag`) and bot.gd's chatter
+   shared one 0.5 s cooldown, and `_on_chat` dropped a line inside it silently. A retry
+   every 3 s can land in someone else's window four times running.
+   Fix, server side (`server.gd` `_on_chat`): talk and slash commands now have separate
+   cooldown stamps (`last_chat`, `last_command`), so chatter never eats a command; and a
+   dropped line gets `ChatCommands.TOO_FAST` ("Slow down a moment: that line wasn't sent.
+   Try again.") to the sender, at most once per cooldown window (`last_too_fast`) so
+   spamming can't make the server spam back. This is a real player fix too: a typed line
+   that vanished without a word, or a press of E that swallowed a sentence, both felt broken.
+   `_on_chat` now uses `now_seconds()` so it is unit testable with `test_now`.
+   Fix, bot side: `gameplay_chat_commands` and `gameplay_inventory` resend 0.6 to 0.9 s after
+   a TOO_FAST and refund the try (capped at 12 refunds so a stuck cooldown still fails).
+2. `gameplay_gather_channel: walked away but the gather still paid out`. Not a server race:
+   behaviours run in file-name order each frame and the last one to set `bot.move` wins.
+   `gameplay_gathering` runs after `gameplay_gather_channel`. The channel behaviour started on
+   *any* "You gather" line, including the client gather prompt's, while `gameplay_gathering`
+   was still active and steering the bot to its own node (or holding it still there), so
+   the "walk away" never happened and the server, correctly, paid out. Now the channel
+   behaviour waits until `gameplay_gathering._active` is false after a good gather (falls
+   back to the old trigger if that behaviour isn't loaded). The server's cancel logic was
+   fine: `_tick` moves players before `_tick_channels`, and the unit tests cover it.
+
+**Tests.** New `tests/unit/test_gameplay_chat_cooldown.gd` (4 tests: talk refused out loud,
+separate buckets, one notice per window, blank lines ignored). 225 unit tests pass with
+Postgres. Bot test 8 x 180 s websocket passed twice locally (every bot answered /time and
+/who on both logins; every bot completed at least one timed gather and cancelled at least one
+by walking away), 8 x 45 s ENet passed.
+
+**Not done.** qa's watchdog log-noise request is still parked (see eighth run).
+
+**Notes to next run (v3).** Unchanged from the eighth run, plus: the bot behaviours that
+parse system lines ignore TOO_FAST already; keep it that way in `gameplay_gather_v3.gd`.

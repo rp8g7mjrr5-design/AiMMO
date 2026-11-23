@@ -2,8 +2,10 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## Bot behaviour (gameplay): the timed gather (GatherChannel) through the hidden "/channel"
 ## dev command, the server path protocol v3's press-E will use.
 ##
-## Starts after gameplay_gathering.gd's first good "/gather" of the login (that behaviour
-## steers the bot until then). Then the bot walks to the nearest wood or stone node and:
+## Starts once gameplay_gathering.gd is done for the login (its first good "/gather", or it
+## gave up): that behaviour runs after this one each frame and sets bot.move while it is
+## active, so starting earlier let it hold the bot still during the walk-away test and the
+## gather paid out (the flaky "walked away but the gather still paid out"). Then the bot walks to the nearest wood or stone node and:
 ##   1. sends "/channel" and walks away as soon as it starts: the server must cancel it
 ##      ("You stop gathering: you moved.") and must not hand anything over;
 ##   2. sends "/channel" again and holds still: the items must come only at the end
@@ -80,8 +82,20 @@ func _next_node() -> void:
 	_step = Step.GOTO
 
 
+## gameplay_gathering.gd's instance on this bot, or null when it isn't loaded.
+func _gathering() -> Object:
+	for b in bot.behaviours:
+		if b.name == "gameplay_gathering":
+			return b
+	return null
+
+
 func on_play(_delta: float) -> void:
 	match _step:
+		Step.WAIT_FIRST:
+			var g = _gathering()
+			if g != null and not g._active and g._phase_gathered:
+				_plan()
 		Step.GOTO:
 			var node := ResourceNodes.get_by_id(_target)
 			var off: Vector3 = node.pos - bot.my_pos
@@ -121,7 +135,7 @@ func on_play(_delta: float) -> void:
 func _on_system(text: String) -> void:
 	match _step:
 		Step.WAIT_FIRST:
-			if text.begins_with("You gather"):
+			if _gathering() == null and text.begins_with("You gather"):
 				_plan()
 		Step.START:
 			if text.begins_with("You start gathering"):

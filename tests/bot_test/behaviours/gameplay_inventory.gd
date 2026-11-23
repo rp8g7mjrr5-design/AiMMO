@@ -3,14 +3,17 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ##
 ## Every login must hand the client a character with an `inventory` Dictionary (bots start
 ## with an empty pack, since nothing gives items yet). A while after each login the bot
-## types /bag and expects its pack described back to it alone. Chat shares a 0.5 s cooldown
-## with bot.gd's chatter and the other command behaviour, so an unanswered /bag is retried.
+## types /bag and expects its pack described back to it alone. Commands share a 0.5 s
+## cooldown with the other command behaviours; a dropped /bag is answered with
+## ChatCommands.TOO_FAST and resent soon, and an unanswered one is retried.
 
 const FIRST_DELAY := 7.0 ## after gameplay_chat_commands' /time and /who
 const RETRY_AFTER := 3.0
 const MAX_TRIES := 5
+const MAX_TOO_FAST := 12
 
 var _tries := 0
+var _too_fast := 0
 var _next_at := 0.0
 var _waiting := false
 var _done := true
@@ -27,6 +30,7 @@ func on_login(_reconnect: bool, character: Dictionary) -> void:
 	if typeof(character.get("inventory")) != TYPE_DICTIONARY:
 		fail("login character has no inventory Dictionary: %s" % character.keys())
 	_tries = 0
+	_too_fast = 0
 	_waiting = false
 	_done = false
 	_next_at = bot.elapsed + FIRST_DELAY + bot.rng.randf_range(0.0, 1.5)
@@ -46,6 +50,12 @@ func on_play(_delta: float) -> void:
 
 
 func _on_system(text: String) -> void:
+	if _waiting and text == ChatCommands.TOO_FAST and _too_fast < MAX_TOO_FAST:
+		# The command cooldown dropped a line (maybe ours): resend soon, try refunded.
+		_too_fast += 1
+		_tries = maxi(0, _tries - 1)
+		_next_at = minf(_next_at, bot.elapsed + 0.6 + bot.rng.randf_range(0.0, 0.3))
+		return
 	if not _waiting or not text.begins_with("Your pack"):
 		return
 	answers += 1
