@@ -11,11 +11,15 @@ render_stats.json, prints a table, and fails when:
 - draw calls or primitives grow by more than `regression` (20%) over the shot's stored
   baseline (the ratchet), the same way the fun metrics work. Update the baseline in the PR that
   changes it, with a reason.
+- a cheaper preset is not cheaper ("cheaper" in the baseline, e.g. {"low": "noon"}: the Low
+  Graphics preset against Medium at the same noon spawn). Low must build a lighter world (scene
+  triangles at least `min_saving` under) and draw fewer primitives and no more draw calls, so
+  picking Low on an old laptop really helps. How much it saves is printed as a note.
 
 Frame time and world build time are reported, not gated: CI renders in software.
 
   python3 tests/client_smoke/render_budget.py --shot noon=/abs/noon.json --shot night=/abs/night.json \
-      --out /abs/render_stats.json
+      --shot low=/abs/low.json --out /abs/render_stats.json
 
 Tested by tests/client_smoke/test_render_budget.py.
 """
@@ -71,6 +75,33 @@ def check(shots: dict, baseline: dict) -> list:
                 out.append(
                     f"{name}: {GATED[k]} {stats[k]} is {pct(stats[k], was)} over the baseline {was} "
                     f"(more than {regression:.0%}); slim it, or update render_baseline.json with a reason")
+    out += check_cheaper(shots, baseline)
+    return out
+
+
+def check_cheaper(shots: dict, baseline: dict) -> list:
+    """Problems for each {cheap: full} pair in baseline["cheaper"] when the cheap shot isn't.
+
+    Only judged when both shots were measured (a missing shot is reported on its own)."""
+    out = []
+    rules = baseline.get("cheaper", {})
+    min_saving = float(baseline.get("min_saving", 0.05))
+    for cheap, full in sorted(rules.items()):
+        c, f = shots.get(cheap), shots.get(full)
+        if c is None or f is None:
+            continue
+        ct, ft = c.get("scene_triangles"), f.get("scene_triangles")
+        if ct is not None and ft:
+            if ct > ft * (1.0 - min_saving):
+                out.append(
+                    f"{cheap}: the world it builds is not lighter than {full}'s: scene triangles {ct} vs {ft} "
+                    f"({pct(ct, ft)}, needs {-min_saving:+.0%} or better); does the preset reach the world?")
+        cp, fp = c.get("primitives"), f.get("primitives")
+        if cp is not None and fp is not None and cp >= fp:
+            out.append(f"{cheap}: draws {cp} primitives, not fewer than {full}'s {fp}")
+        cd, fd = c.get("draw_calls"), f.get("draw_calls")
+        if cd is not None and fd is not None and cd > fd:
+            out.append(f"{cheap}: {cd} draw calls is more than {full}'s {fd}")
     return out
 
 
@@ -91,6 +122,16 @@ def notes(shots: dict, baseline: dict) -> list:
         build = stats.get("world_build_s")
         if build is not None and "world_build_s" in target and build > target["world_build_s"]:
             out.append(f"{name}: world build {build} s is over the art bible's {target['world_build_s']} s (reported only)")
+    for cheap, full in sorted(baseline.get("cheaper", {}).items()):
+        c, f = shots.get(cheap), shots.get(full)
+        if c is None or f is None:
+            continue
+        parts = [f"{GATED[k]} {pct(c[k], f[k])}" for k in RATCHETED if c.get(k) is not None and f.get(k)]
+        if c.get("scene_triangles") is not None and f.get("scene_triangles"):
+            parts.append(f"scene triangles {pct(c['scene_triangles'], f['scene_triangles'])}")
+        if c.get("frame_ms_median") is not None and f.get("frame_ms_median"):
+            parts.append(f"frame {pct(c['frame_ms_median'], f['frame_ms_median'])}")
+        out.append(f"{cheap} vs {full}: " + ", ".join(parts))
     return out
 
 
@@ -114,6 +155,7 @@ def report(shots: dict, baseline: dict) -> dict:
         "ceilings": baseline.get("ceilings", {}),
         "art_bible": baseline.get("art_bible", {}),
         "baseline": baseline.get("baseline", {}),
+        "cheaper": baseline.get("cheaper", {}),
         "problems": check(shots, baseline),
         "notes": notes(shots, baseline),
     }

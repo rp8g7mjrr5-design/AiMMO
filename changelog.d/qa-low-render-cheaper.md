@@ -1,0 +1,1 @@
+- The release checks now measure the Low graphics setting too, and fail any build where picking Low doesn't make the world lighter to draw, so Low keeps helping older computers.

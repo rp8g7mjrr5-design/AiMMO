@@ -1146,3 +1146,32 @@ Postgres PASSED in 276 s, client smoke passed locally (noon notes are the same d
 already shows: night moved toward the art bible since the baseline was taken).
 
 **Next run:** (integrator 2026-11-23: #147 landed first; merged main in and kept both entries.)
+
+## 2026-11-23 — Low must be cheaper than Medium (`ws/qa/low-render-cheaper`)
+
+**Fun:** none on screen; it keeps the Low preset doing its job (a smoother game on an old
+laptop) instead of silently drawing the Medium world, which is what shipped until world's
+QualityWatch fixed the order.
+
+**Built:** `tests/client_smoke/run.sh` runs `render_stats.gd` a third time at noon with the Low
+`settings.cfg` folder (`render-low.json`) and hands it to `render_budget.py` as `--shot low`.
+`render_baseline.json` gained `"cheaper": {"low": "noon"}` and `min_saving` 0.05:
+`check_cheaper` fails when Low's scene triangles are not at least 5% under noon's, its primitives
+are not below noon's, or it has more draw calls. A note prints the saving per measure. Low also
+gets the usual ceilings, but no ratchet baseline (noon's covers it). Six unit tests.
+
+**Decision:** I gate scene triangles with a 5% margin rather than primitives with a margin,
+because the drawn saving today is tiny: Low builds 11% fewer triangles (541k vs 610k: flora
+halved) but draws only 0.7% fewer primitives (432k vs 435k) and 4 fewer draw calls, since the
+thinned flora is mostly far away and culled anyway. Primitives only have to be strictly below
+(noise between runs on the same build was ~100, the margin is 3k). That still catches the bug
+the backlog item was about (Low saved but the world built on Medium: equal numbers). Filed a
+request in world's backlog to make Low cut what's actually drawn; follow-up in mine to then
+raise the primitive gate to a real saving.
+
+**Tests:** unit 605/605 (Postgres), `client_smoke` Python tests 19/19, client smoke test passed
+(render: low vs noon draw calls -1%, primitives -1%, scene triangles -11%), bot test 8 bots /
+180 s / WebSocket / Postgres PASSED in 275 s.
+
+**Next run:** the style notes say noon warmth and most night numbers moved toward the art
+bible since the baseline; a `--write-baseline` refresh may be worth its own small PR.
