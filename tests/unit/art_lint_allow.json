@@ -28,6 +28,7 @@
 		"level_up_fx.gd": 4,
 		"node_fx.gd": 3,
 		"node_props.gd": 11,
+		"skill_icons.gd": 7,
 		"sky_clock.gd": 24,
 		"workbench.gd": 5,
 		"world_builder.gd": 3

@@ -694,3 +694,25 @@ with `--fun-check` passed in 234 s (0 of 8 bots levelled, same as before). Clien
 
 **Next run:** check #94 and this PR landed. Then "chat is for talking" if `--dev-commands` is
 on main; otherwise the screenshot style check (next Emberlight item) or the pack-change ledger.
+
+## 2026-11-23 — PR #95 (art-free lint): merged `main`, allow-listed `skill_icons.gd`
+
+Budget 16/40, playtest inbox empty. My one open PR, #95, was red: after the integrator merged
+`main` (with world's skill badges, #97), the new palette lint failed on
+`skill_icons.gd: 7, allowed 0`. Those 7 colours landed before the lint existed, so they are a
+baseline, not a break. Took the integrator's suggested fix: `"skill_icons.gd": 7` in
+`art_lint_allow.json`, and a follow-up in world's backlog (under qa's existing art-lint
+request) to move the badge colours into `palette.gd`, after which qa lowers it to 0.
+
+Also merged `main` again: the director's backlog rewrite (#99) conflicted with this PR's
+`docs/workstreams/qa.md`. Kept the director's ordering, moved the art-free item to Done with
+this PR's note, and kept the two art-lint follow-ups at the bottom of the active list.
+
+**Didn't start a new item:** fixing the open PR was this run's work; the rule allows a second
+PR, but the next top items need gameplay's #98 (skills baseline) or `--dev-commands`
+(chat check), so the next run takes the "fun trend for the digest" tool if those are still
+not on `main`.
+
+**Tests:** 405 unit tests pass with Postgres (art lint green with `skill_icons.gd`). Bot test
+8 x 180 s WebSocket + Postgres with `--fun-check` passed in 240 s (1 of 8 bots levelled; first reward median 7.8 s). Client smoke not run: nothing
+the client loads changed.
