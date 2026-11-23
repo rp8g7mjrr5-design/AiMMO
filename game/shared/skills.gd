@@ -72,7 +72,7 @@ const UNLOCKS := {
 		15: {"name": "Deep draw", "text": "+1 more ember sap from every seep", "yield": 1},
 	},
 	"toolcraft": {
-		3: {"name": "Bench sense", "text": "the first Toolcraft recipes at the workbench", "soon": true},
+		3: {"name": "Bench sense", "text": "craft ember lanterns at the workbench"},
 		5: {"name": "Ember-hardened tools", "text": "harden your axe and pickaxe at the workbench: quicker gathers, more from each"},
 	},
 }
@@ -163,7 +163,8 @@ static func craft_xp(recipe: String, together: bool = false) -> int:
 	var items := 0
 	for item in r.get("needs", {}):
 		items += int(r.needs[item])
-	return with_bonus(items * CRAFT_XP_PER_ITEM, together)
+	var xp := int(round(items * CRAFT_XP_PER_ITEM * float(r.get("xp_scale", 1.0))))
+	return with_bonus(xp, together)
 
 
 static func with_bonus(xp: int, together: bool) -> int:
