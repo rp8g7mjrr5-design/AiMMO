@@ -23,7 +23,7 @@ const TOO_FAST := "Slow down a moment: that line wasn't sent. Try again."
 ## The only answer a player gets for a "/" line on a server without dev commands: the
 ## controls live on keys and windows, and F1 lists them.
 const NOT_FOR_CHAT := "Chat is for talking. Press F1 for controls."
-## Railway sets these on every deploy; the public server is the only place players play.
+## Railway sets these on every deploy; only used to say "public server" in the start-up line.
 const RAILWAY_VARS := ["RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID",
 	"RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID", "RAILWAY_DEPLOYMENT_ID"]
 const WHO_MAX_NAMES := 20 ## cap the /who list so one line stays readable
@@ -61,11 +61,11 @@ static func is_craft(text: String) -> bool:
 
 
 ## Whether this server runs slash commands. `--dev-commands` (or `--dev-commands=0/1`) wins,
-## then AIMMO_DEV_COMMANDS (1/true/on or 0/false/off). With neither, commands are off on the
-## public server (any of RAILWAY_VARS set) and on everywhere else, so local runs and today's
-## bot test keep their dev tools until qa passes the flag (qa backlog, "chat is for talking,
-## in CI"); then this default can become plain "off". env is a name -> value lookup.
-## Returns [on, why] for the start-up log line.
+## then AIMMO_DEV_COMMANDS (1/true/on or 0/false/off). With neither, commands are off: every
+## server is a player server unless someone asks for dev tools (the bot test passes
+## `--dev-commands`; for a local run add `-- --server --dev-commands`). On Railway the reason
+## names the Railway variable it saw, so the start-up line still says "public server".
+## env is a name -> value lookup. Returns [on, why] for the start-up log line.
 static func dev_commands_on(args: Dictionary, env: Callable = Callable(OS, "get_environment")) -> Array:
 	if args.has("dev-commands"):
 		var v = args["dev-commands"]
@@ -77,7 +77,7 @@ static func dev_commands_on(args: Dictionary, env: Callable = Callable(OS, "get_
 	for name in RAILWAY_VARS:
 		if str(env.call(name)) != "":
 			return [false, "public server (%s)" % name]
-	return [true, "local default"]
+	return [false, "default"]
 
 
 static func _truthy(v: String) -> bool:
