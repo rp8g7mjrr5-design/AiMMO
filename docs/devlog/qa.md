@@ -604,3 +604,52 @@ filed with gameplay), the rerun passed in 186 s. 8 x 45 s ENet passed.
 
 **Next run:** check #81 and this PR landed. Then the art-free server lint (next Emberlight
 item, small), unless `--dev-commands` is on main, in which case "chat is for talking in CI".
+
+## 2026-11-23 — art-free server and palette lints
+
+Budget 15/40, playtest inbox still empty. My open PR #94 (pair gather check) has CI running
+with auto-merge on and no comments, so this item branches from `main` and touches none of its
+files except the docs. Top item (chat is for talking) is still blocked: no `--dev-commands` on
+`main`. The real-gathering and render-budget items are done, so I took the next Emberlight one.
+
+**Fun it protects:** the server stays a lean, art-free process, so 8 or 800 players get the
+same snappy ticks, and the valley keeps one warm palette instead of drifting into a dozen
+nearly-the-same browns as streams add content. Plumbing, but it guards both the "cheap to
+draw" and the "a look of our own" owner directions.
+
+**Built:** `tests/unit/art_lint.gd` (pure functions) and `test_qa_art_lint.gd`:
+- `split_line` strips comments and blanks string literals (keeping their contents), so a
+  docstring saying "NodeProps" or a log message saying "Mesh" doesn't trip it, while
+  `preload("res://procgen/...")` does.
+- `art_refs`: any `class_name` declared in `game/procgen/` (read live, so new art classes are
+  covered automatically), any `res://procgen/` path, and engine classes matching
+  `(Mesh|Material|Texture|Shader|Particles|SurfaceTool)` (ArrayMesh, Texture2D,
+  StandardMaterial3D, GPUParticles3D, MultiMeshInstance3D...).
+- Zero allowance for `game/server/`, `game/shared/` and the bot harness (`tests/bot_test/*.gd`).
+  All clean today.
+- Bot behaviours: per-file allow-list. **16 behaviours load art today** (12 `world_*`, 4
+  `client_*`: NodeProps, Workbench, Lamps, DayNight, Flora, AvatarBuilder, ItemIcons, a
+  Texture2D and a MultiMeshInstance3D). Art bible section 7 says those checks belong in unit
+  tests and the smoke test. I allow-listed them rather than breaking two streams, and filed
+  requests with world and client to move them out. A new behaviour that touches art fails.
+- Palette: colour literals per `game/procgen/` file (not palette.gd): `Color(<numbers only>)`,
+  `Color("...")`, `Color8`, `Color.html/from_hsv/from_string...`, named `Color.WHITE`.
+  `Color(base.r * k, ...)` and `Color(Palette.EMBER, 0.4)` don't count. Today: sky_clock 24,
+  item_icons 20, flora 11, node_props 11, avatar_builder 9, workbench 5, lamps 4,
+  level_up_fx 4, node_fx 3, world_builder 3. More than the allowance fails; less prints a
+  `[art-lint] note` so qa lowers the list (world can't edit `tests/`).
+
+**Decisions:** behaviours are allow-listed per file, not per reference count, so world and
+client can still edit an allow-listed behaviour without fighting the lint; palette is per
+count, because "no new colours outside palette.gd" is exactly the rule. `sfx.gd` is in the
+palette scan (0 today). Shader colours (`vec3(...)` inside emberlight.gd's shader source) never match a `Color` pattern, so they aren't counted; left as a follow-up.
+
+**Proved it catches it:** adding `NodeProps.DETAIL_LAYER` to `chat_commands.gd`, one
+`Color(0.5, 0.5, 0.5)` to `flora.gd`, and a new behaviour with `ArrayMesh.new()` failed all
+three real-tree tests; reverted.
+
+**Tests:** 383 unit tests pass with Postgres (9 new). Bot test 8 x 180 s WebSocket + Postgres
+with `--fun-check`: see PR. Client smoke not run: nothing the client loads changed.
+
+**Next run:** check #94 and this PR landed. Then "chat is for talking" if `--dev-commands` is
+on main; otherwise the screenshot style check (next Emberlight item) or the pack-change ledger.

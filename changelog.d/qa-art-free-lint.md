@@ -1,0 +1,1 @@
+- Behind the scenes: every build now checks that the game server never builds any graphics (so it stays lean and fast for everyone online), and that the valley's colours come from one shared palette, so the Emberlight look stays warm and consistent as the world grows.
