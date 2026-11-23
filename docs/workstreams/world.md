@@ -25,7 +25,8 @@ Owns how Ashgrove looks and sounds as a place. See `docs/workstreams.md` for own
 - [ ] Follow-up (icons): a second, brighter "selected" variant or a slot frame if the client's inventory window wants one; and icons for new items as gameplay adds them (a unit test fails if an `Inventory.ITEMS` id has no icon)
 - [x] Workbench model for crafting: the Spawn Meadow bench at `Crafting.workbench_pos()` (`Workbench` in `game/procgen/workbench.gd`, PR ws/world/spawn-workbench)
 - [ ] Campfire model for gameplay's placed campfires (Week 03), with a flame that glows at night through `Lamps.apply_glow`; wait for gameplay's placed-campfire data
-- [ ] Follow-up (workbench): a faint warm glow or small lantern on the bench at night, so it is easy to find after dark; and once the client's crafting window (E at the bench) exists, a highlight on the bench like `NodeProps.set_highlight`
+- [x] Follow-up (workbench): a small lantern on the bench that lights at night from the shared clock, and `Workbench.set_highlight(bench, on)` with NodeFx's rim glow for the "[E] Use Workbench" prompt (PR ws/world/bench-lantern; request filed in the client backlog to call it)
+- [ ] Follow-up (bench lantern): a gentle flame flicker on the bench and meadow lantern lights (a per-frame shader or a light-energy wobble; `apply_glow` only runs every 0.25 s today)
 - [ ] Procedural critter models (grazer, bird) for gameplay's wildlife system (Week 04)
 
 ## Requests from other streams

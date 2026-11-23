@@ -1,0 +1,2 @@
+- The Spawn Meadow workbench now has its own little iron lantern. After dark it pools warm light over the planks, so you can walk straight back to the bench at night.
+- The workbench can now glow with the same soft ember-gold edge as a tree or stone in reach, ready to light up when you step up to use it.
