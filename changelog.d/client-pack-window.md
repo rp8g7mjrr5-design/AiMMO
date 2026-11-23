@@ -1,2 +1,0 @@
-- Press **I** (or the new **Pack** button) to open your pack: every item as an icon with its count, no more typing /bag.
-- Whatever you just picked up glows gold in your pack with a "+2", and hovering an item tells you what it's used to make.

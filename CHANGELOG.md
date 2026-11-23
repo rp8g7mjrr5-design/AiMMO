@@ -5,6 +5,18 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- The valley runs lighter: trees, stones and seeps you can gather from are now drawn in chunks, so your machine only draws the ones you can see. About a quarter fewer triangles per frame at spawn, with every node looking exactly as before.
+- Press **I** (or the new **Pack** button) to open your pack: every item as an icon with its count, no more typing /bag.
+- Whatever you just picked up glows gold in your pack with a "+2", and hovering an item tells you what it's used to make.
+- Chat stays chat: every build now plays a round where settlers type old commands into chat and checks the only thing that happens is the friendly "Chat is for talking. Press F1 for controls." nudge. Nothing gets gathered, nothing gets shouted to everyone, and plain talk still goes through.
+- The meadow lanterns, the workbench and every wanderer (you included) are now painted in the same warm Emberlight style as the forest around them, with soft shading and cool blue shadows instead of flat plastic.
+- Lantern glass now breathes gently with the valley's slow ember heartbeat, and the sparks and sap droplets that fly when you gather glow in true ember orange.
+- Walk up to an Old Ember Ash or a Rich Stone Seam before you're ready and the prompt now tells you what it takes and how close you are: "Old Ember Ash · Felling 5 (1,680 XP to go)". Hit the level and it lights up as "[E] Chop Old Ember Ash".
+- The workbench greys out the ember axe and ember pickaxe until you reach Toolcraft 5, with the XP still to go, instead of lighting Craft and then saying no.
+- Pressing E on a node above your level now says "Needs Felling 5" in the middle of the screen, not just in chat.
+- Chat is for talking now: everything you used to type a command for lives on keys and windows. Type a command into chat out of old habit and you get one friendly nudge instead: "Chat is for talking. Press F1 for controls."
+- The game now opens on the **Budda Games** intro instead of the engine logo. In a hurry? Any key, click or controller button skips it.
+- Your Toolcraft 5 ember axe and ember pickaxe finally look the part: coal-black heads with an edge that glows like a live ember, right next to the stone tools they replace.
 - Behind the scenes: fixed a stale test that was holding back new builds, and made two automated checks steadier so updates reach you without false alarms.
 - **Level up like you mean it.** Hit a new skill level and a gold banner pops in ("Felling 5") with what you just unlocked and your next goal, a rising chord rings out, and a column of ember light bursts around you. It's over in under two seconds and never stops your swing.
 - See someone near you level up? The same burst lights them up, so the whole meadow knows.
@@ -93,10 +105,9 @@ Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year
 - Wildflower patches dot the grassy lowlands in yellow, violet, white, red and blue. They don't do anything yet. They're just nice.
 - Your pack is safe across updates: every patch is now checked against saved characters to make sure every stack you carry (even ones you've used up) comes back exactly as you left it.
 - Behind the scenes: the rules for crafting a stone axe, a stone pickaxe, torches and a campfire are in, and so are tools that make gathering faster and richer. The Spawn Meadow workbench and its crafting window come next.
-- Ashgrove gives! Walk up to an ember ash, a pine or a stone outcrop and type `/gather` in chat (or `/gather pine` for one kind). Each tree or rock gives a few times, then needs a few minutes to grow back.
+- Ashgrove gives! Walk up to an ember ash, a pine or a stone outcrop and press **E** to gather. Each tree or rock gives a few times, then needs a few minutes to grow back.
 - Ember-sap seeps only give their glowing sap at night, so the dark is finally worth staying up for.
-- Nothing in reach? `/gather` points you to the nearest tree or rock: "The nearest pine is 14 m to the north-east."
-- Every settler now carries a pack. Type `/bag` in chat to look inside.
+- Every settler now carries a pack. Press **I** to look inside.
 - Your pack is saved with your character, so whatever ends up in it is still there when you come back.
 - A compass now rides across the top of the screen. It turns with your camera, so north is always the orange **N**.
 - Other wanderers show up as little dots on it, fainter the farther they are. Anyone behind you gets an arrow at the edge, pointing the quicker way to turn and find them.
@@ -106,8 +117,8 @@ Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year
 - **Arms and legs!** Wanderers finally have them. Arms swing, little boots stomp, and nobody slides across the meadow like a chess piece any more. Sleeves match your tunic and trousers are a darker shade of it, so every look you already had just got a matching outfit.
 - **A sun-and-moon dial.** A little dial now sits above the chat with the day and hour, e.g. "Day 3 · 18:20 · Dusk". Plan your evening walks accordingly.
 - **Same sunset for everyone.** Your sky now follows the server's clock exactly, so everyone in Ashgrove sees the sun go down at the same moment (no more private time zones).
-- **What time is it?** Lost track of the sun? Type `/time` in chat to see the day and hour in Ashgrove, and how long until dawn, day, dusk, or night.
-- **Who's around?** Type `/who` to see who else is wandering Ashgrove right now, and `/help` for the list of commands. Only you see the answers.
+- **What time is it?** The time dial at the top of the screen shows the day and hour in Ashgrove, so you always know when dawn, day, dusk or night is coming.
+- **Who's around?** A quiet line in chat tells you when someone arrives in Ashgrove or heads home. Only you see it.
 - **Everyone walks.** Wanderers now bob with each step, waddle side to side, and lean into their stride, then settle back and breathe gently when they stop. Name tags stay perfectly steady above their heads while they bounce along beneath.
 - **One sky schedule.** The sky now runs on the valley's own clock, the same one the server keeps, so the sun rises, peaks, and sets on the same schedule for everyone in Ashgrove.
 - **The sun's path got a nudge.** It rises in the east, swings a little south at noon, and sets in the west.
@@ -121,7 +132,7 @@ Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year
 - **Gathering spots mapped.** The settlers have surveyed Ashgrove: 397 spots where ember ash, pine, stone and the rare ember sap can be gathered are now mapped across the valley, with a ring of every kind right at the edge of Spawn Meadow. You can't swing an axe at them just yet; gathering and an inventory are next.
 - **Fixed:** a rare server hiccup when several wanderers left and joined at the same moment. The server also stops telling every client about every other client's hidden connection id.
 - **Chat with a clock.** Chat lines now carry a little in-game timestamp (the same clock as the sky and the time dial), so "meet at dusk" means something.
-- **Chat that knows when to be quiet.** Chat fades away after a quiet spell and pops back the moment someone speaks, you press Enter, or you hover over it. The time dial's readout fades with it; the little sun keeps shining. The log keeps the latest 150 lines, and the chat box now reminds you that `/help` exists.
+- **Chat that knows when to be quiet.** Chat fades away after a quiet spell and pops back the moment someone speaks, you press Enter, or you hover over it. The time dial's readout fades with it; the little sun keeps shining. The log keeps the latest 150 lines, and the chat box reminds you which key shows the controls.
 - **The gathering spots are real.** Look closer at Ashgrove's wild places: big ember ashes, tall four-tier pines, stone outcrops with a pale seam, and ember-sap seeps that glow from a ring of dark stones. A ring of them waits right around Spawn Meadow. You'll be able to gather from them soon.
 
 ### Update your client

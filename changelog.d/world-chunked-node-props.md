@@ -1,1 +1,0 @@
-- The valley runs lighter: trees, stones and seeps you can gather from are now drawn in chunks, so your machine only draws the ones you can see. About a quarter fewer triangles per frame at spawn, with every node looking exactly as before.
