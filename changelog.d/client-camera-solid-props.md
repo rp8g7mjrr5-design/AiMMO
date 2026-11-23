@@ -1,1 +1,0 @@
-- The camera no longer pokes into tree crowns, pine boughs, stone outcrops or ember-sap seeps when you back up against them: it now knows each prop's true shape and size and slides in front of it.

@@ -5,6 +5,10 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- The Spawn Meadow workbench works like a real crafting station: walk up to it, press **E**, and a window shows every recipe with what you have against what you need ("Ash wood 2/3"). When the parts are in your pack, hit **Craft** for a satisfying knock-knock-chime and a "Crafted: Stone axe!" pop-up.
+- Typing too fast no longer makes your words vanish without a trace: if a line comes in too quickly, Ashgrove tells you it wasn't sent so you can try again.
+- Talking and pressing E no longer get in each other's way: a gather press can't swallow the line you just typed, and the other way round.
+- The camera no longer pokes into tree crowns, pine boughs, stone outcrops or ember-sap seeps when you back up against them: it now knows each prop's true shape and size and slides in front of it.
 - Up close, Ashgrove's trees now grow roots into the ground and show ridged bark, gatherable stone outcrops carry a sparkling quartz seam, and ember sap looks wet and glossy.
 - Every wanderer now travels with a belt, a small pack and a rolled blanket on their back, so the view over your shoulder has something to look at.
 - Every update now takes photos from the new over-the-shoulder camera before it ships, and fails if your character drifts off your left side, the aiming ring leaves the centre of the screen, or the camera ends up inside a hill. Backing into a slope while looking up is the one we test hardest.

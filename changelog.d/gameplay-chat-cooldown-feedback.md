@@ -1,2 +1,0 @@
-- Typing too fast no longer makes your words vanish without a trace: if a line comes in too quickly, Ashgrove tells you it wasn't sent so you can try again.
-- Talking and pressing E no longer get in each other's way: a gather press can't swallow the line you just typed, and the other way round.

@@ -1,1 +1,0 @@
-- The Spawn Meadow workbench works like a real crafting station: walk up to it, press **E**, and a window shows every recipe with what you have against what you need ("Ash wood 2/3"). When the parts are in your pack, hit **Craft** for a satisfying knock-knock-chime and a "Crafted: Stone axe!" pop-up.
