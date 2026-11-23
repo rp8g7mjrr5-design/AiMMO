@@ -1,0 +1,1 @@
+- Every gather and craft now pays out XP you can see: a gold "+10 Felling" floats up beside your haul, and that skill's bar slides forward ("Felling 2 · 215 XP to 3"), then fades out of your way.

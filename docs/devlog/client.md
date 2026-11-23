@@ -727,3 +727,37 @@ wires it. No Low smoke screenshot yet (follow-up).
 
 **Notes to next run:** XP floaters (`s2c_xp`) the moment PR #89 is on main. If not, the
 time-dial tooltip (replaces `/time`) or the Players panel are small no-dependency items.
+
+## 2026-11-23: XP you can see (ws/client/xp-floaters)
+
+**Why this item:** protocol v4 (PR #89) is on `main`, so Milestone 1 part 1 is unblocked and
+is the top open item that isn't waiting on another window. The slash-command item ahead of it
+needs the pack window, which is bigger than a run.
+
+**Fun, in one sentence:** every chop now pays twice in the same instant, the wood and a gold
+"+10 Felling" with a bar that visibly moves, so a player always sees how close the next level is.
+
+**Built:** `XpMeter` (`game/client/xp_meter.gd`), centred just under the gather prompt.
+`skills_changed` seeds a running total per skill; each `xp_gained` pops "+N Skill" (rises 22 px,
+fades over 1.6 s) and shows "Felling 2 · 215 XP to 3" with a thin gold bar that slides from the
+old progress to the new over 0.55 s (ease out), holds 3 s and fades over 0.8 s. A gain that
+crosses a level runs the bar to full and wraps into the new level. Hidden and cleared on
+disconnect. Test hook `--show-xp` (with `--show-toast`) for screenshots.
+
+**What didn't work:** the first bot run failed every check that the bar landed on the server's
+progress (0.350 vs 0.347): Godot's ProgressBar defaults to `step = 0.01` and snaps the value.
+`bar.step = 0.0` fixed it, and it also makes the slide smooth instead of stepped.
+
+**Tests:** unit `tests/unit/test_client_xp_meter.gd` (texts, motion within and across a level,
+slide easing and landing, fades, node lifecycle). Bot `client_xp_meter.gd` runs the real meter on
+the server's messages: label texts, running total equals the server's, bar lands on
+`Skills.progress(total)`, then fades (7 to 12 gains per bot). Unit 382 passed, bot test passed
+(8 bots, 180 s), client smoke passed (render numbers unchanged).
+
+**Not done:** no XP sound of its own (the haul sound carries the moment); the level-up chat
+line still goes out (part 2's banner replaces it). Mid-slide second gains restart from the
+remembered progress, not the bar's current position; at ~1 gain per 1.6 s that never shows.
+
+**Notes to next run:** part 2, the level-up moment: `level_up` -> rising chord in `sfx.gd`,
+banner with the unlock, `LevelUpFx.play(avatar)`; `level_up_seen` -> the burst on that avatar.
+Then tell gameplay (its backlog) the banner shows so it can drop the chat line for v4 clients.
