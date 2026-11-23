@@ -6,7 +6,10 @@ extends TestCase
 func test_texts() -> void:
 	check_eq(LevelUpBanner.title_text("felling", 5), "Felling 5")
 	var u5: Dictionary = Skills.unlock_at("felling", 5)
-	check_eq(LevelUpBanner.unlock_text("felling", [u5]), "Old ember ash: work the old ember ashes past the meadow (coming soon)")
+	check_eq(LevelUpBanner.unlock_text("felling", [u5]), "Old ember ash: work the old ember ashes past the meadow", "live since tier-2 nodes landed (#104)")
+	var soon := u5.duplicate()
+	soon["soon"] = true
+	check_eq(LevelUpBanner.unlock_text("felling", [soon]), "Old ember ash: work the old ember ashes past the meadow (coming soon)", "an unlock not yet in the world says so")
 	var u10: Dictionary = Skills.unlock_at("felling", 10)
 	check_eq(LevelUpBanner.unlock_text("felling", [u10]), "Clean cuts: +1 wood from every gather")
 	check_eq(LevelUpBanner.unlock_text("quarrying", []), "Your %s are a little quicker" % str(Skills.SKILLS.quarrying.verb))
