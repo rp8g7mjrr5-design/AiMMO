@@ -823,3 +823,17 @@ No new bot behaviour: the bot-test server keeps dev commands on (it has to, for 
 **Local results (Postgres).** Unit 487/487. Bot test 8 x 180 s websocket PASSED, 11/11 characters persisted (the teleported final positions included), 8 of 8 bots levelled, every bot: roster of 8, unstuck_already=1, unstuck_home=1. Protocol test PASSED on websocket and enet (v1 to v4 clients told to update). Client smoke PASSED (net.gd/net_play.gd are loaded by the client).
 
 **Next run:** if #118 or this PR is red, fix that first. Then the level-up system line for v4+ clients (client's banner has landed), or the chat-gate default ("off unless --dev-commands") now that qa's bot test passes the flag.
+
+## 2026-11-23: ember tools take their place in the pack (`ws/gameplay/ember-tools-in-pack`)
+
+**Fun, in one sentence:** the ember axe you ground to Toolcraft 5 for lands next to your stone tools with its own icon, where you'd look for it, instead of trailing after the campfires as if the game didn't know it.
+
+**Picked.** The top item (first-session pace) is #118, still landing. The level-up line follow-up turned out to need nothing from the server: client's `LevelUpBanner.consume_system` already swallows the line, and bots plus qa's echo matching still use it, so I noted that and left it. Next was the Toolcraft follow-up: world drew `ember_axe` / `ember_pickaxe` in #112, so both move from `Inventory.UNDRAWN` into `ITEMS` and `ITEM_ORDER` after `stone_pickaxe`. Before this, `Inventory.held()` put them in the "unknown extras" tail, so the pack window and `s2c_inventory` listed them after the campfire. Ids unchanged, so saved packs load the same. `UNDRAWN` stays as an empty const (two tests and the next undrawn item use it).
+
+**Bot-test flake found and fixed (my v5 behaviour).** One local run failed `gameplay_gather_v3`: "gather ended moved while standing still at (124, 2.7, 31)". The roster behaviour's last-seconds "Return to Spawn Meadow" crossed a gather start on the wire (it only checks `gather_begun`, which hadn't arrived), and the teleport ended that gather "moved". Now the roster behaviour stamps `bot.set_meta("unstuck_at", ...)` when it asks and gather_v3 treats a "moved"/"far" end within 3 s of it as the unstuck working and stops testing (it's the bot's last 5 s anyway). Both behaviour files are identical in this PR and #118, so whichever lands first the other merges cleanly.
+
+**Also carried:** the same `gameplay_roster_v5.gd` fix as #118 (send_play, and its answer counts as fun-metric feedback), because `main` is red without it.
+
+**Tests (Postgres, local).** Unit 504/504 (new `test_ember_tools_sit_with_the_stone_tools`: in ITEMS and order, icons drawn, `held()` and `to_wire()` order, old ids still load). Bot test 8 x 180 s websocket `--fun-check` PASSED (wait median 0.1 s). Client smoke PASSED (the icon shelf and pack window read `ITEM_ORDER`). No new bot behaviour: nobody reaches Toolcraft 5 in 3 minutes, and nothing new is pressed.
+
+**Next run:** if #118 or this PR is red, fix it first. Then the chat-gate default ("off unless `--dev-commands`"): qa's bot test passes the flag now, but `tests/client_smoke/run.sh` and `tests/protocol/run_protocol_test.py` start servers without it, so check neither types a slash command before flipping it.
