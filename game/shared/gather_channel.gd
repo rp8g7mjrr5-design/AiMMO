@@ -4,9 +4,8 @@ class_name GatherChannel
 ## gathering feels"). Pure functions over a small channel Dictionary, so the rules are unit
 ## tested without a running server; the server keeps one channel per player in its session.
 ##
-## Protocol v3 wires this to c2s_gather_start / c2s_gather_cancel and the s2c_gather_* events.
-## Until then the server runs it for the hidden dev command "/channel" (bots and debugging),
-## and players' press-E still uses the instant "/gather".
+## Protocol v3 wires this to c2s_gather_start / c2s_gather_cancel and the s2c_gather_* events
+## (players' press-E). The instant "/gather" stays as a dev and bot command.
 ##
 ## Times (`now`) are real seconds on the server's monotonic clock, like Gathering.
 

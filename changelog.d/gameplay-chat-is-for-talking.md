@@ -1,0 +1,1 @@
+- Chat is for talking now: everything you used to type a command for lives on keys and windows. Type a command into chat out of old habit and you get one friendly nudge instead: "Chat is for talking. Press F1 for controls."

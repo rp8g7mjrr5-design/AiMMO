@@ -9,6 +9,7 @@ const ServerScript := preload("res://server/server.gd")
 func _server() -> Node:
 	var srv: Node = ServerScript.new()
 	srv.test_now = 100.0
+	srv.dev_commands = true # these tests run commands; the gate has its own test
 	for id in [2, 3]:
 		srv.sessions[id] = {"logged_in": true, "character": CharacterData.normalize({"name": "P%d" % id}),
 			"move": Vector2.ZERO, "yaw": 0.0, "seq": -1, "last_chat": -1000.0, "last_gather": -1000.0,
