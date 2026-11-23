@@ -5,6 +5,10 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- Up close, Ashgrove's trees now grow roots into the ground and show ridged bark, gatherable stone outcrops carry a sparkling quartz seam, and ember sap looks wet and glossy.
+- Every wanderer now travels with a belt, a small pack and a rolled blanket on their back, so the view over your shoulder has something to look at.
+- Every update now takes photos from the new over-the-shoulder camera before it ships, and fails if your character drifts off your left side, the aiming ring leaves the centre of the screen, or the camera ends up inside a hill. Backing into a slope while looking up is the one we test hardest.
+- Behind the scenes: the world server now knows who can see you gather, which nodes are emptied, and what your pack holds after every haul or craft. The next update turns this into seeing other players gather, emptied trees and rocks that show it, and a live pack window.
 - A brand-new over-the-shoulder camera: the mouse always looks around (no button to hold), W walks where you look and your character turns to face it, and a small reticle marks the centre of the screen. Hold Alt to glance around without turning, press V to swap shoulders, and roll the wheel to zoom from 1.5 to 6 m.
 - The camera slides in when a hill, tree or rock gets in the way and eases back out, so it never ends up inside the scenery.
 - Whatever you look at is what E gathers, and it glows so you know. Two new Settings: field of view and which shoulder the camera sits on.

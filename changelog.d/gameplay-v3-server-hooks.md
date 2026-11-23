@@ -1,1 +1,0 @@
-- Behind the scenes: the world server now knows who can see you gather, which nodes are emptied, and what your pack holds after every haul or craft. The next update turns this into seeing other players gather, emptied trees and rocks that show it, and a live pack window.
