@@ -184,17 +184,14 @@ func setup(root: Node3D, meshes: Dictionary) -> void:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
-	mm.use_custom_data = true
-	mm.mesh = bit
+	mm.mesh = Emberlight.bake(bit, 0.0)
 	mm.instance_count = BIT_POOL
 	for i in BIT_POOL:
 		mm.set_instance_transform(i, Transform3D(NodeProps.HIDDEN, Vector3.ZERO))
 	var bits := MultiMeshInstance3D.new()
 	bits.name = "HitBits"
 	bits.multimesh = mm
-	var mat := ShaderMaterial.new()
-	mat.shader = _bit_shader()
-	bits.material_override = mat
+	bits.material_override = Emberlight.material("glow") # the veins' material: a glowing bit is a flying vein
 	bits.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(bits)
 	set_process(false)
@@ -242,8 +239,7 @@ func play_hit(id: int) -> bool:
 		b.slot = slot_i
 		b.age = 0.0
 		_bits.append(b)
-		mm.set_instance_color(slot_i, (b.color as Color).srgb_to_linear())
-		mm.set_instance_custom_data(slot_i, Color(b.glow, 0, 0, 0))
+		mm.set_instance_color(slot_i, bit_color(b))
 		mm.set_instance_transform(slot_i, bit_xform(b, 0.0))
 	_wake()
 	return true
@@ -384,19 +380,11 @@ void fragment() {
 	return sh
 
 
-static func _bit_shader() -> Shader:
-	var sh := Shader.new()
-	sh.code = """
-shader_type spatial;
-render_mode cull_disabled;
-varying float glow;
-void vertex() {
-	glow = INSTANCE_CUSTOM.r;
-}
-void fragment() {
-	ALBEDO = COLOR.rgb;
-	ROUGHNESS = 0.6;
-	EMISSION = COLOR.rgb * glow;
-}
-"""
-	return sh
+## A bit's instance colour on Emberlight's shared "glow" material: its colour (linear), with
+## its glow carried in alpha as an ember vein (vein = 1 - alpha). The shader's vein light is
+## about 2 x vein^2 at rest, so vein = sqrt(glow / 2) keeps each bit as bright as it was on
+## its old private shader, now ember-coloured and beating with the valley's heartbeat.
+static func bit_color(b: Dictionary) -> Color:
+	var c := (b.color as Color).srgb_to_linear()
+	c.a = 1.0 - clampf(sqrt(maxf(float(b.get("glow", 0.0)), 0.0) / 2.0), 0.0, 1.0)
+	return c
