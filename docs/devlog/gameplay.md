@@ -539,3 +539,17 @@ direction 1) still waits for the client's press-E to send `c2s_gather_start`.
 qa compat test only reads `net.gd`, so if v4 adds RPCs to `Play`, v3 clients' Play numbering
 shifts. That's harmless for login (Net is unchanged) since v3 clients are refused anyway, but
 put new v4 RPCs on Play freely; never on Net.
+
+**Follow-up in the same run (CI on PR #75 went red).** After merging `main` (qa's fun
+metrics, PR #64), CI failed on `rewards_per_min_median got 34% worse: 2.75 vs baseline 4.15`.
+Cause: my behaviour's 1 mm/s drift stopped the client prompt from "holding E", and its
+walk-away/cancel checks pay nothing, so bots earned less. The real lesson was in the game,
+though: timed gathers still checked the instant gather's 1.5 s cooldown, so a player who kept
+pressing E would sit through a dead 1.5 s after every 2 s bar. Design call: **a timed gather
+has no cooldown; the server-timed bar is the pacing** (`gather_start` passes cooldown 0; one
+at a time still, "busy"). The instant `/gather` dev command keeps its cooldown. The bot
+behaviour now stands truly still (no drift needed any more) and, after its three checks,
+keeps pressing E for up to 4 more gathers per login like a player working a node.
+Bot test 8 x 180 s websocket with fun check: PASSED, rewards/min median 9.55 (baseline
+4.15), first reward 8.5 s, longest wait 0.12 s. 8 x 45 s ENet PASSED, 286 unit tests pass.
+Worth raising the fun baseline once this is on main (qa's file, so it's their call).

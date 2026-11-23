@@ -364,8 +364,8 @@ func gather(id: int, kind_word: String = "") -> String:
 
 
 ## Starts a timed gather (GatherChannel) on node `node_id` for player `id`: the same checks
-## as an instant gather (reach from the server's own position, depletion, night-only, the
-## player's cooldown), plus "busy" if a gather is already running and "full" if the pack has
+## as an instant gather (reach from the server's own position, depletion, night-only; not
+## the instant gather's cooldown, the bar itself paces it), plus "busy" if a gather is already running and "full" if the pack has
 ## no room for that node's item. Returns {ok, reason, seconds}. On success the channel runs
 ## in _tick_channels and ends in _gather_event "done" or "cancelled".
 ## Protocol v3's c2s_gather_start calls this directly.
@@ -381,7 +381,10 @@ func gather_start(id: int, node_id: int) -> Dictionary:
 	var node := ResourceNodes.get_by_id(node_id)
 	var inv: Dictionary = s.character.inventory
 	var kind := str(node.get("kind", ""))
-	var why := Gathering.check(gathering, node_id, pos, now, world_seconds(), s.last_gather, Gathering.cooldown_for(kind, inv))
+	# No gather cooldown here: the channel's own server-timed bar is the pacing, so a player
+	# who keeps pressing E goes straight from one gather into the next (no dead time). The
+	# cooldown stays for the instant /gather dev command.
+	var why := Gathering.check(gathering, node_id, pos, now, world_seconds(), -INF, 0.0)
 	if why == "" and Inventory.count(inv, str(ResourceNodes.kind_info(kind).item)) >= Inventory.MAX_STACK:
 		why = "full"
 	if why != "":

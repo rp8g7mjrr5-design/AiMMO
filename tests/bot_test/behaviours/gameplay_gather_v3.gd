@@ -27,16 +27,17 @@ const ANSWER_TIMEOUT := 3.0 ## a start must be answered (begin or end) within th
 const RETRY_SOON := 0.6 ## after a "cooldown"/"busy" refusal
 const END_SLACK := 2.5
 const LOGIN_STATE_TIMEOUT := 6.0
-## "Standing still" for this behaviour. Not exactly zero: client_gather_prompt.gd (today's
-## client, which still sends /gather) "holds E" whenever bot.move is zero, and its instant
-## gathers every 1.6 s keep the player's 1.5 s gather cooldown busy, so c2s_gather_start was
-## refused "cooldown" every time (first run of this behaviour: 7 of 8 bots never started).
-## A real player's press of E is one or the other, never both. This drift is about 1 cm over
-## a whole gather, far inside GatherChannel's 0.5 m move tolerance.
-const STILL := Vector2(0.001, 0.0)
+## Standing still. (A first version drifted 1 mm/s so today's client prompt, which "holds E"
+## with /gather whenever bot.move is zero, kept off the gather cooldown; timed gathers no
+## longer use that cooldown, so the prompt and this behaviour can share a node like two
+## players would.)
+const STILL := Vector2.ZERO
+## After the three checks, keep pressing E like a player working a node, this many gathers
+## per login, moving on when a node empties.
+const FARM_GATHERS := 4
 
 enum Step { WAIT_FIRST, GOTO, START, RUNNING, IDLE }
-enum Test { WALK_AWAY, CANCEL, HOLD, DONE }
+enum Test { WALK_AWAY, CANCEL, HOLD, FARM, DONE }
 
 var _step := Step.IDLE
 var _test := Test.WALK_AWAY
@@ -70,6 +71,8 @@ var gave_up := 0
 var saw_others := 0
 var others_ended := 0
 var acks := 0
+var _farmed := 0
+var farmed := 0
 var refusal_reasons := {}
 
 
@@ -85,6 +88,7 @@ func setup(net: Node) -> void:
 func on_login(_reconnect: bool, _character: Dictionary) -> void:
 	_step = Step.WAIT_FIRST if float(bot.duration) >= LONG_RUN else Step.IDLE
 	_test = Test.WALK_AWAY
+	_farmed = 0
 	_login_at = bot.elapsed
 	_state_checked = false
 	_got_pack = false
@@ -268,7 +272,7 @@ func _on_ended(peer: int, node_id: int, reason: String) -> void:
 					else:
 						contested += 1
 						_next_node()
-				Test.HOLD:
+				Test.HOLD, Test.FARM:
 					if reason == "done":
 						_check_payout()
 					elif reason in ["moved", "far", "stopped"]:
@@ -288,13 +292,25 @@ func _on_result(item_id: String, count: int) -> void:
 ## After "done": the result (sent just before the end) and the pack update (next tick).
 func _check_payout() -> void:
 	completed += 1
-	_step = Step.IDLE
-	_test = Test.DONE
+	if _test == Test.FARM:
+		farmed += 1
+		_farmed += 1
 	if _result_count <= 0:
 		fail("gather done but no s2c_gather_result")
+	var item := _item
+	var before := _pack_before
 	bot.get_tree().create_timer(1.0).timeout.connect(func():
-		if int(_pack.get(_item, 0)) <= _pack_before and int(_pack.get(_item, 0)) < Inventory.MAX_STACK:
-			fail("gather done but the pack never showed more %s (%d before, %s now)" % [_item, _pack_before, _pack]))
+		if int(_pack.get(item, 0)) <= before and int(_pack.get(item, 0)) < Inventory.MAX_STACK:
+			fail("gather done but the pack never showed more %s (%d before, %s now)" % [item, before, _pack]))
+	if _farmed < FARM_GATHERS:
+		# Press E again straight away: same node, no cooldown (the bar is the pacing).
+		_test = Test.FARM
+		_step = Step.START
+		_answer_by = INF
+		_next_at = bot.elapsed
+	else:
+		_test = Test.DONE
+		_step = Step.IDLE
 
 
 func on_finish() -> void:
@@ -309,6 +325,7 @@ func on_finish() -> void:
 	stat("saw_others", saw_others)
 	stat("others_ended", others_ended)
 	stat("acks", acks)
+	stat("farmed", farmed)
 	stat("refusal_reasons", refusal_reasons)
 	if float(bot.duration) >= LONG_RUN and nodes_tried > 0 and started == 0:
 		fail("never started a single timed gather")
