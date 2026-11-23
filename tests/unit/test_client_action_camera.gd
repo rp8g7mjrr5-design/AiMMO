@@ -90,8 +90,26 @@ func test_props_pull_the_arm_in() -> void:
 	var arm := ActionCamera.clear_arm(shoulder, 0.0, 0.0, 3.5, _flat, [tree])
 	check(arm < 1.5, "trunk behind you pulls the camera in: %f" % arm)
 	check(not ActionCamera.inside_prop(ActionCamera.camera_point(shoulder, 0.0, 0.0, arm), tree, 0.0), "camera not inside the trunk")
-	var seep := {"id": 1, "kind": "ember_sap", "pos": Vector3(0.6, 0, 2.0)}
-	check_near(ActionCamera.clear_arm(shoulder, 0.0, 0.0, 3.5, _flat, [seep]), 3.5, 0.0001, "a flat seep doesn't block")
+	var seep := {"id": 1, "kind": "ember_sap", "pos": Vector3(0.6, -1.0, 2.0), "scale": 1.0} # in a dip below you
+	check_near(ActionCamera.clear_arm(shoulder, 0.0, 0.0, 3.5, _flat, [seep]), 3.5, 0.0001, "a seep below the arm doesn't block")
+
+
+func test_prop_shapes_come_from_world() -> void:
+	# The camera's idea of each prop is world's NodeProps.solid_columns, scaled per node, so a
+	# point the old hand-measured columns missed (ash crown at 1.8 m out, the old column was
+	# 1.6 m) now counts, and a bigger node reaches further.
+	var ash := {"id": 0, "kind": "ash", "pos": Vector3.ZERO, "scale": 1.0}
+	var crown := Vector3(1.8, 3.5, 0.0)
+	check(ActionCamera.inside_prop(crown, ash, 0.0), "wide ash crown counts as solid")
+	check(not ActionCamera.inside_prop(Vector3(2.5, 3.5, 0.0), ash, 0.0), "outside the crown is clear")
+	var big := {"id": 1, "kind": "ash", "pos": Vector3.ZERO, "scale": 1.2}
+	check(ActionCamera.inside_prop(Vector3(2.2, 4.0, 0.0), big, 0.0), "node scale grows the solid")
+	var seep := {"id": 2, "kind": "ember_sap", "pos": Vector3.ZERO, "scale": 1.0}
+	check(ActionCamera.inside_prop(Vector3(0.0, 1.0, 0.0), seep, 0.0), "sap seeps are solid now too")
+	for kind in ["ash", "pine", "stone", "ember_sap"]:
+		var n := {"id": 3, "kind": kind, "pos": Vector3(4, 2, -3), "scale": 1.1}
+		for p in [Vector3(4, 2.5, -3), Vector3(5.2, 3.0, -3.4), Vector3(4, 6.0, -1.5)]:
+			check(ActionCamera.inside_prop(p, n, 0.2) == NodeProps.inside_solid(p, n, 0.2), "%s agrees with NodeProps at %s" % [kind, p])
 
 
 func test_arm_eases_out_and_snaps_in() -> void:

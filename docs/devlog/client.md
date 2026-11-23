@@ -340,3 +340,35 @@ Per "finish before starting" I merged `main` into the branch and stopped, no new
 run. The merge touched no code (CHANGELOG.md, week-00 devlog, workstreams.md, deleted two other
 streams' fragments), so I left the full unit/bot/smoke run to CI on the pushed head rather than
 spending a local 3-minute bot run on an unchanged game. No review comments to address.
+
+## 2026-11-23 (later): camera uses world's exact prop shapes (ws/client/camera-solid-props)
+
+**Why this item:** the top item (gathering on protocol v3) is still blocked: `PROTOCOL_VERSION`
+is 2 and there is no `s2c_gather_*` or `s2c_inventory` on main, so the pack window has no data
+either. Requests from other streams come first, and world's close-up read request is a real bug
+players can see (the camera ending up inside an ash crown or the lowest pine tier), so: that.
+
+**Built:** `ActionCamera.inside_prop` now just calls `NodeProps.inside_solid(p, node, margin)`;
+`PROP_COLUMNS` is gone. World's columns are bigger and scale per node (ash crown 1.92 m vs our
+1.6 m, pine tiers from 1.15 m, stone 1.56 m tall, sap seeps now solid too), so the camera pulls
+in a little more often near nodes. One unit test changed: "a flat seep doesn't block" is no
+longer true (a seep is 1.3 m tall at the shoulder line), so the seep now sits in a dip below the
+arm. New test `test_prop_shapes_come_from_world` checks the wide ash crown, node scale, seeps,
+and that `inside_prop` agrees with `NodeProps.inside_solid` for every kind.
+
+**Results:** 221 unit tests passed (with Postgres). Client smoke passed. First bot run: camera
+behaviour fine (0 avoidable inside frames), but one bot failed `gameplay_chat_commands` "no reply
+to /time after 4 tries". That is a chat-cooldown race between behaviours, unrelated to this change
+(server log: the bot's `/time` never got through the shared 0.5 s cooldown on its first login);
+logged as a request in qa's backlog. Second bot run (same commit): PASSED in 185 s, 8/8 verify, 0 camera failures, 495 to 1951 unavoidable inside frames per bot (bots standing under crowns, up from 323 to 1649 because the shapes are now the real, bigger ones).
+
+**World's `camera_inside_mesh_with_client_columns` stat** is not 0 after the switch (3 to 109 per
+bot). I checked why: it counts every look where the client arm ends inside a prop, including
+looks where even `ARM_MIN` is inside, i.e. the bot is standing inside the prop's footprint (no
+server collision with nodes, and stone's base is up to 2.3 m round inside a 3 m gather reach).
+World's own check skips those (`arm > Cam.ARM_MIN`). With identical columns the only remaining
+hits are those unavoidable ones (clear_arm only returns a length whose sample it checked with CLEARANCE, so an arm above `ARM_MIN` can never end inside a prop). Asked world to skip `ARM_MIN` looks in that stat so it reads 0.
+
+**Notes to next run:** the gathering item as soon as v3 lands. Otherwise the crafting window
+read-only (gameplay's request) or the F1 controls overlay (chat-to-UI, needs no server data).
+A camera crown fade (world's per-instance alpha) is the real fix for standing under a tree.

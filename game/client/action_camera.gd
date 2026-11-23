@@ -32,14 +32,6 @@ const PULL_IN_RATE := 30.0 ## the arm shortens fast so the camera never sits ins
 const EASE_OUT_RATE := 4.0 ## and grows back slowly so it doesn't bounce
 const SHOULDER_RATE := 8.0 ## shoulder swap slides across instead of snapping
 const RETURN_RATE := 10.0 ## after free-look the camera swings back to your heading
-## Rough solid shapes of each resource node prop (game/procgen/node_props.gd), as vertical
-## columns: [radius, bottom, top] in metres relative to the node's ground position.
-const PROP_COLUMNS := {
-	"ash": [[0.5, 0.0, 3.0], [1.6, 3.0, 5.6]],
-	"pine": [[0.5, 0.0, 3.0], [1.3, 2.6, 6.0]],
-	"stone": [[1.0, 0.0, 1.2]],
-	"ember_sap": [],
-}
 ## Look-to-interact: a node counts as "under the reticle" within this angle of the look ray.
 const AIM_CONE := deg_to_rad(28.0)
 
@@ -110,17 +102,11 @@ static func move_vector(f: float, r: float, p_yaw: float) -> Vector2:
 	return Vector2(m.x, m.z)
 
 
-## True if point `p` is inside a resource node prop (plus `margin`).
+## True if point `p` is inside a resource node prop (plus `margin`). World owns the exact
+## shapes (`NodeProps.solid_columns`, scaled per node and unit-tested against every vertex of
+## every live and depleted prop), so the camera and the meshes can never drift apart.
 static func inside_prop(p: Vector3, node: Dictionary, margin: float) -> bool:
-	var base: Vector3 = node.pos
-	var dx := p.x - base.x
-	var dz := p.z - base.z
-	var h := p.y - base.y
-	for col in PROP_COLUMNS.get(str(node.kind), []):
-		var r: float = col[0] + margin
-		if h >= col[1] - margin and h <= col[2] + margin and dx * dx + dz * dz <= r * r:
-			return true
-	return false
+	return NodeProps.inside_solid(p, node, margin)
 
 
 ## How long the arm can be, up to `want`, before the camera would sit within CLEARANCE of
