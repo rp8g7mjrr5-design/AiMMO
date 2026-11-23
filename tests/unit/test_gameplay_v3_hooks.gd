@@ -1,5 +1,5 @@
 extends TestCase
-## The messages protocol v3 will carry, produced by the real server functions on a server
+## The messages protocol v3 carries, produced by the real server functions on a server
 ## node with no network (messages land in test_outbox) and a fake clock (test_now):
 ## who sees a gather begin and end, the haul result, one s2c_inventory per tick, node
 ## depleted / respawned notices sent exactly once, the login world state, c2s_craft's
@@ -184,17 +184,11 @@ func test_send_routes_to_net_or_child_and_skips_unknown() -> void:
 	var net: Node = NetScript.new()
 	srv.net = net
 	check(srv._rpc_node(&"s2c_system") == net, "v2 RPCs live on Net")
-	check(srv._rpc_node(&"s2c_gather_begin") == null, "v3 RPCs are not there yet")
-	var gs := GDScript.new()
-	gs.source_code = "extends Node\nfunc s2c_gather_begin(_a, _b, _c):\n\tpass\n"
-	gs.reload()
-	var play := Node.new()
-	play.set_script(gs)
-	play.name = "Play"
-	net.add_child(play)
-	check(srv._rpc_node(&"s2c_gather_begin") == play, "found on a child node")
-	srv._send(2, &"s2c_node_state", [1, true]) # not in this protocol: skipped, logged once
-	check(srv._not_in_protocol.has(&"s2c_node_state"), "noted as not sent")
+	check(srv._rpc_node(&"s2c_gather_begin") == null, "Play only exists once Net is ready")
+	net._ready() # what entering the tree does: creates Net/Play
+	check(srv._rpc_node(&"s2c_gather_begin") == net.play, "v3 RPCs are found on Net/Play")
+	srv._send(2, &"s2c_not_a_message", [1, true]) # in no protocol: skipped, logged once
+	check(srv._not_in_protocol.has(&"s2c_not_a_message"), "noted as not sent")
 	check(srv.test_outbox.is_empty(), "nothing captured with a real net")
 	srv.net = null
 	net.free()
