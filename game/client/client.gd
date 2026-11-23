@@ -39,6 +39,8 @@ var gather_prompt: GatherPrompt
 var craft_window: CraftWindow
 var sfx_craft: AudioStreamPlayer
 var reticle: Reticle
+var controls_overlay: ControlsOverlay
+var controls_button: Button
 ## Item icons, drawn on a background thread from the moment the game starts.
 var icon_shelf := IconShelf.new()
 var _args := {} ## command-line test hooks
@@ -85,6 +87,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 		settings_menu.open()
 	if args.has("open-workbench"):
 		_open_workbench_after_login.call_deferred()
+	if args.has("open-controls"):
+		_open_controls_after_login.call_deferred()
 	if args.has("autoconnect"):
 		_on_connect_pressed.call_deferred()
 	_args = args
@@ -98,6 +102,14 @@ func _open_workbench_after_login() -> void:
 		await get_tree().process_frame
 	await get_tree().create_timer(1.0).timeout
 	craft_window.open(avatars[my_id].node.position)
+
+
+## Test hook (--open-controls): opens the F1 controls overlay once logged in, as F1 would.
+func _open_controls_after_login() -> void:
+	while not logged_in:
+		await get_tree().process_frame
+	await get_tree().create_timer(1.0).timeout
+	controls_overlay.open()
 
 
 func _screenshot_later(path: String, wait: float) -> void:
@@ -127,27 +139,14 @@ func _default_address() -> String:
 # --- input ---
 
 func _setup_input() -> void:
-	var binds := {
-		"move_forward": [KEY_W, KEY_UP],
-		"move_back": [KEY_S, KEY_DOWN],
-		"move_left": [KEY_A, KEY_LEFT],
-		"move_right": [KEY_D, KEY_RIGHT],
-		"interact": [KEY_E],
-		"free_look": [KEY_ALT],
-		"swap_shoulder": [KEY_V],
-	}
-	for action in binds:
-		if not InputMap.has_action(action):
-			InputMap.add_action(action)
-		for k in binds[action]:
-			var ev := InputEventKey.new()
-			ev.physical_keycode = k
-			InputMap.action_add_event(action, ev)
+	ControlsOverlay.install_input() # every default key lives in one table, shown by the F1 overlay
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if craft_window.visible:
+		if controls_overlay.visible:
+			controls_overlay.close()
+		elif craft_window.visible:
 			craft_window.close()
 		elif chat_edit.has_focus():
 			chat_edit.release_focus()
@@ -156,6 +155,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if not logged_in or settings_menu.visible:
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_controls"):
+		if not craft_window.visible:
+			controls_overlay.toggle()
+			if controls_overlay.visible:
+				chat_edit.release_focus()
+				sfx_chime.play()
+		get_viewport().set_input_as_handled()
+		return
+	if controls_overlay.visible:
 		return
 	if craft_window.visible:
 		if event is InputEventKey and event.pressed and not event.echo and event.is_action("interact"):
@@ -198,9 +207,9 @@ func _apply_settings(s: ClientSettings) -> void:
 			sun.directional_shadow_max_distance = s.shadow_distance()
 
 
-## True while a window that frees the cursor is open (Settings, the workbench).
+## True while a window that frees the cursor is open (Settings, the workbench, the F1 controls).
 func window_open() -> bool:
-	return settings_menu.visible or craft_window.visible
+	return settings_menu.visible or craft_window.visible or controls_overlay.visible
 
 
 func _move_vector() -> Vector2:
@@ -382,6 +391,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	gather_prompt.visible = true
 	hud_label.visible = true
 	help_label.visible = true
+	controls_button.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
 	cam.place(Vector3(character.x, character.y, character.z), character.yaw + PI)
 	craft_window.seed_pack(character.get("inventory"))
@@ -405,6 +415,8 @@ func _on_server_disconnected() -> void:
 	_highlight_target(-1)
 	hud_label.visible = false
 	help_label.visible = false
+	controls_button.visible = false
+	controls_overlay.visible = false
 	reticle.visible = false
 	reticle.active = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -577,7 +589,7 @@ func _build_ui() -> void:
 	chat_log.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	chat_box.add_child(chat_log)
 	chat_edit = LineEdit.new()
-	chat_edit.placeholder_text = "Press Enter to chat · /help for commands"
+	chat_edit.placeholder_text = "Press Enter to chat · %s for controls" % ControlsOverlay.key_text("toggle_controls")
 	chat_edit.max_length = GameConfig.CHAT_MAX
 	chat_edit.text_submitted.connect(_on_chat_submitted)
 	chat_box.add_child(chat_edit)
@@ -637,17 +649,42 @@ func _build_ui() -> void:
 
 	help_label = Label.new()
 	help_label.theme = theme
-	help_label.text = "WASD move · mouse look · Alt free look · V shoulder · wheel zoom · E gather / workbench · Enter chat · Esc settings"
+	help_label.text = ControlsOverlay.corner_hint()
 	help_label.anchor_left = 1.0
 	help_label.anchor_right = 1.0
-	help_label.offset_left = -860
-	help_label.offset_right = -16
+	help_label.offset_left = -460
+	help_label.offset_right = -52
 	help_label.offset_top = 12
 	help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	help_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	help_label.add_theme_constant_override("outline_size", 6)
 	help_label.visible = false
 	ui.add_child(help_label)
+
+	# "?" button beside the corner hint: the same controls list as F1, for mouse players.
+	controls_button = Button.new()
+	controls_button.theme = theme
+	controls_button.text = "?"
+	controls_button.tooltip_text = "Controls (%s)" % ControlsOverlay.key_text("toggle_controls")
+	controls_button.focus_mode = Control.FOCUS_NONE
+	controls_button.anchor_left = 1.0
+	controls_button.anchor_right = 1.0
+	controls_button.offset_left = -44
+	controls_button.offset_right = -16
+	controls_button.offset_top = 10
+	controls_button.offset_bottom = 38
+	controls_button.visible = false
+	controls_button.pressed.connect(func():
+		if not craft_window.visible and not settings_menu.visible:
+			controls_overlay.toggle()
+			sfx_chime.play())
+	ui.add_child(controls_button)
+
+	# The F1 controls overlay, centre screen.
+	controls_overlay = ControlsOverlay.new()
+	controls_overlay.setup(theme)
+	controls_overlay.closed.connect(func(): sfx_chime.play())
+	ui.add_child(controls_overlay)
 
 	# The workbench window, centre screen (E at the Spawn Meadow workbench).
 	craft_window = CraftWindow.new()

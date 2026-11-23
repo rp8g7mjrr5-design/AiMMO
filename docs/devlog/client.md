@@ -550,3 +550,40 @@ client with it and fails on any script error.
 
 **Notes to next run:** still the v3 gathering item first. If v3 is not on main, the F1 controls
 overlay (third item, replaces `/help`) is the best no-dependency item.
+
+## 2026-11-23 (evening): F1 controls overlay (ws/client/controls-overlay)
+
+**Why this item:** the top item (gathering on protocol v3) is still blocked: `main` is on
+protocol v2 (`GameConfig.PROTOCOL_VERSION == 2`). No open requests from other streams. The
+last run's note said the F1 overlay is the best no-dependency item, and it is part of owner
+direction 1 (chat is for talking), which is in Milestone 0's "done when".
+
+**Fun, in one sentence:** a new player who wonders "how do I gather?" presses F1 (or clicks
+"?") and sees every key as a keycap on one card, instead of typing a slash command into chat
+or reading a 120-character line in the corner.
+
+**Built:**
+- `ControlsOverlay` (`game/client/controls_overlay.gd`): a centre window in the workbench's
+  style. Sections Moving / Doing / Talking and menus; each row reads its key from the InputMap on
+  every open (`key_text`), so the future rebinding window needs no change here.
+- The default keys moved from `client._setup_input` into `ControlsOverlay.DEFAULT_BINDS` (one
+  table; `install_input()` adds them). New action `toggle_controls` (F1).
+- F1 toggles it (not while the workbench or Settings is open); Esc closes it first; it counts
+  as a window, so the cursor is freed and movement stops while it is open. A "?" button sits
+  top right beside the corner hint, which is now just "F1 controls · Esc settings". The chat
+  placeholder says "F1 for controls" instead of "/help for commands".
+- Test hook `--open-controls` opens it after login (for a future smoke shot).
+
+**Tests:** 6 unit tests in `tests/unit/test_client_controls_overlay.gd` (every listed action
+bound, key names, rows cover every key, a rebind shows the new key, hint has no /help, window
+toggles). Bot behaviour `client_controls_overlay.gd`: each bot builds the real window, checks
+every row has a key, and opens/closes it every 7 s while playing.
+
+**Not done:** no smoke screenshot of the overlay (the smoke script is qa's; follow-up in the
+backlog). The server's `/help` command still works for anyone who types it; that is gameplay's
+to retire when every command has UI. `CHANGELOG.md` still mentions /help in old entries
+(integrator only).
+
+**Notes to next run:** still v3 gathering first. If v3 is still not on main, the time dial
+hover tooltip (replaces `/time`) or the centre-screen system messages are the next
+no-dependency slices of the third item.
