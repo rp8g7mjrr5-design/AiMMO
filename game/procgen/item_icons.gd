@@ -64,8 +64,15 @@ static func shapes(item: String) -> Array:
 
 ## A fresh `size` x `size` RGBA image of the icon, transparent round the outside.
 static func image(item: String, size: int = DEFAULT_SIZE) -> Image:
+	return rasterise(shapes(item), size)
+
+
+## Draws any shape list (the same format as `shapes()`) into a fresh `size` x `size` RGBA
+## image with ItemIcons' outline, light, shadow and halo. `SkillIcons` draws through this
+## too, so every icon in the game shares one hand.
+static func rasterise(raw: Array, size: int = DEFAULT_SIZE) -> Image:
 	size = clampi(size, 8, 512)
-	var ss := _prepare(shapes(item))
+	var ss := _prepare(raw)
 	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
 	var px := 1.0 / size
 	for y in size:
