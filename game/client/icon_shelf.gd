@@ -16,7 +16,8 @@ extends RefCounted
 const TOAST_SIZE := 32 ## the icon beside a gather or craft toast
 const ROW_SIZE := 32 ## a recipe's product in the workbench window (same as a toast: one drawing)
 const PART_SIZE := 18 ## each part ("Ash wood 2/3") in the workbench window
-const SIZES := [TOAST_SIZE, PART_SIZE] ## every distinct size above
+const SLOT_SIZE := 44 ## a slot in the pack window (I)
+const SIZES := [TOAST_SIZE, PART_SIZE, SLOT_SIZE] ## every distinct size above
 
 var _thread: Thread
 var _mutex := Mutex.new()
