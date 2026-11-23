@@ -909,3 +909,17 @@ Also dropped `gameplay_roster_v5._tell_fun_metrics` (qa's `qa_fun_metrics` hears
 **Tests.** `test_gameplay_wildlife.gd` (11): placement and determinism, grazing at home alone, look-up then bolt with the herd, creep-and-freeze gets within ~6 m without a startle, bolting at once inside 4.5 m, outrunning a walker and coming home, every creature on good ground while fleeing, night rest and the shorter alert ring, wire form, server stepping them. Unit 595/595 with Postgres. Bot test 8 x 180 s websocket PASSED (8 of 8 levelled, first reward median 9.0 s, server CPU 1.71 ms per tick avg, 3.4 worst). Client smoke PASSED.
 
 **Next run:** if #139 or this PR is red, fix what is ours. Then the next protocol bump: `s2c_wildlife` (5 Hz, in view only) plus `s2c_vitals` if wiring is done, frozen `net_v5.gd`, and a bot behaviour that stalks and spooks a herd.
+
+## 2026-11-23 (late night): Bench sense, the ember lantern, and 999 stacks (`ws/gameplay/bench-sense-lantern`)
+
+**First, #145** (grazers) had a conflict with main in `docs/devlog/gameplay.md` and `docs/workstreams/client.md` after #139's devlog entry landed; merged main in keeping both sides, pushed, auto-merge still on.
+
+**Picked.** Both items blocked last run are unblocked now: client's `test_client_pack_window` reads `Inventory.MAX_STACK` and checks "999" fits a slot, qa's save-compat test uses `MAX_STACK`, world drew `ember_lantern`, and client's skills window only weighs skills you have XP in. The wildlife bump needs #145's code, so it waits. The lantern is the run's feature; the stack raise is the fix for the wall the pace test found (both wood stacks full around Felling 4), and it's a one-line constant. **Fun:** Toolcraft 3 finally gives you something: a glowing lantern you make at the bench that pays 108 XP, so the road to the ember tools is ~12 lanterns instead of ~27 campfires, and you never stop a good gathering streak because your wood is "full".
+
+**Built.** `Crafting.RECIPES.ember_lantern` (3 ash, 3 pine, 2 stone, 1 sap, bench, Toolcraft 3, `xp_scale` 1.5; listed between campfire and the ember tools), `Skills.craft_xp` reads `xp_scale`, Bench sense no longer "soon" ("craft ember lanterns at the workbench"), `ember_lantern` in `Inventory.ITEMS`/`ITEM_ORDER` after campfire, `MAX_STACK` 999. No migration (items are text rows, counts int), no protocol change.
+
+**Tests.** `test_gameplay_bench_sense.gd` (6), `test_stack_cap_is_999`; the pace test's "fills a wood stack" flipped to "never fills one" (the full-stack rule stays covered by `test_a_full_stack_still_teaches`); skills text test now expects Bench sense without "coming soon". Bot behaviour `gameplay_bench_sense.gd` asks for `/craft lantern` once per login and expects the Toolcraft 3 refusal (or a real answer if a bot got there). Unit 612/612, bot test 8 bots 180 s websocket + Postgres passed (first reward median 7.7 s, 8 of 8 levelled), client smoke passed.
+
+**Didn't do.** Lanterns have no use beyond XP and a wood sink yet; follow-up filed (place one, or carry it at night). World's `DRAWN_AHEAD` still lists the lantern; harmless.
+
+**Next run:** if #145 or this PR is red, fix what is ours. If #145 has landed, the wildlife bump (`s2c_wildlife`, frozen `net_v5.gd`, stalking bot behaviour). Otherwise `Vitals` wiring or a lantern use.

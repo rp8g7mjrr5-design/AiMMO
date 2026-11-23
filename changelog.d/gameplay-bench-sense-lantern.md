@@ -1,0 +1,2 @@
+- **Bench sense is here:** at Toolcraft 3 you can make an **ember lantern** at the workbench (3 ash, 3 pine, 2 stone, 1 ember sap). Each one pays a big chunk of Toolcraft XP, so the road to ember tools is about a dozen lanterns instead of twenty-odd campfires.
+- **Bigger stacks:** each item now stacks to 999 instead of 99, so a long gathering session never stops because your wood is "full".

@@ -130,9 +130,10 @@ func test_bare_handed_first_session() -> void:
 		"bare-handed: Felling 2 within %d s of the first gather (took %.1f s)" % [FIRST_LEVEL_LIMIT, r.first_level])
 	check(r.level5 >= 0.0 and r.level5 <= LEVEL5_LIMIT + LEVEL5_SLACK,
 		"bare-handed: Felling 5 within about 10 minutes (took %.1f s)" % r.level5)
-	# Felling 5 is ~170 gathers, ~340 wood: more than two stacks hold. A full stack still pays
-	# XP (server _finish_channel), which is why this run gets there at all.
-	check(r.full, "the run fills a wood stack on the way (so the full-pack rule is covered)")
+	# Felling 5 is ~170 gathers, ~340 wood. At the old 99 cap both stacks filled around
+	# Felling 4; at 999 they never do (the full-stack rule is covered by
+	# test_gameplay_gather_channel::test_a_full_stack_still_teaches).
+	check(not r.full, "the first session never fills a wood stack")
 
 
 func test_with_a_stone_axe_first_session() -> void:

@@ -21,6 +21,7 @@ const BENCH_RANGE := 6.0 ## metres from the bench's centre to use it
 ## workbench (a torch can be twisted together anywhere). `level`: [skill, level] needed to
 ## make it (Skills, Toolcraft unlocks). `upgrades`: the tool this one replaces; it is used up
 ## by the recipe, and once you carry the better tool the old one counts as owned too.
+## `xp_scale`: multiplies the Toolcraft XP a craft pays (Skills.craft_xp); 1.0 when absent.
 const RECIPES := {
 	"stone_axe": {"label": "stone axe", "needs": {"ash_wood": 3, "stone": 2}, "makes": 1, "bench": true, "tool": true},
 	"stone_pickaxe": {"label": "stone pickaxe", "needs": {"pine_wood": 3, "stone": 3}, "makes": 1, "bench": true, "tool": true},
@@ -30,8 +31,10 @@ const RECIPES := {
 		"level": ["toolcraft", 5], "upgrades": "stone_axe"},
 	"ember_pickaxe": {"label": "ember pickaxe", "needs": {"ember_sap": 1, "veinstone": 4, "stone_pickaxe": 1}, "makes": 1, "bench": true, "tool": true,
 		"level": ["toolcraft", 5], "upgrades": "stone_pickaxe"},
+	"ember_lantern": {"label": "ember lantern", "needs": {"ash_wood": 3, "pine_wood": 3, "stone": 2, "ember_sap": 1}, "makes": 1, "bench": true, "tool": false,
+		"level": ["toolcraft", 3], "xp_scale": 1.5},
 }
-const RECIPE_ORDER := ["stone_axe", "stone_pickaxe", "torch", "campfire", "ember_axe", "ember_pickaxe"]
+const RECIPE_ORDER := ["stone_axe", "stone_pickaxe", "torch", "campfire", "ember_lantern", "ember_axe", "ember_pickaxe"]
 
 ## Plain words players type, to recipe ids.
 const WORDS := {
@@ -41,6 +44,7 @@ const WORDS := {
 	"campfire": "campfire", "fire": "campfire", "camp_fire": "campfire",
 	"ember_axe": "ember_axe", "ember_hatchet": "ember_axe",
 	"ember_pickaxe": "ember_pickaxe", "ember_pick": "ember_pickaxe",
+	"lantern": "ember_lantern", "ember_lantern": "ember_lantern", "lanterns": "ember_lantern",
 }
 
 

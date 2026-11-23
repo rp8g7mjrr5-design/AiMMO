@@ -8,13 +8,21 @@ func test_add_stacks_and_caps() -> void:
 	check_eq(Inventory.add(inv, "ash_wood", 3), 3, "added 3")
 	check_eq(Inventory.add(inv, "ash_wood", 2), 2, "stacks")
 	check_eq(Inventory.count(inv, "ash_wood"), 5)
-	check_eq(Inventory.add(inv, "ash_wood", 500), Inventory.MAX_STACK - 5, "stops at the cap")
+	check_eq(Inventory.add(inv, "ash_wood", Inventory.MAX_STACK * 2), Inventory.MAX_STACK - 5, "stops at the cap")
 	check_eq(Inventory.count(inv, "ash_wood"), Inventory.MAX_STACK)
 	check_eq(Inventory.add(inv, "ash_wood", 1), 0, "full stack takes nothing")
 	check_eq(Inventory.add(inv, "dragon_egg", 1), 0, "unknown item refused")
 	check_eq(Inventory.add(inv, "stone", 0), 0, "zero refused")
 	check_eq(Inventory.add(inv, "stone", -4), 0, "negative refused")
 	check(not inv.has("dragon_egg") and not inv.has("stone"), "refusals leave no entries")
+
+
+func test_stack_cap_is_999() -> void:
+	# Raised from 99 (2026-11-23): both wood stacks filled around Felling 4. At 999 the
+	# first-session pace run (Felling 5, ~340 wood over two kinds) never fills one.
+	check_eq(Inventory.MAX_STACK, 999)
+	var inv := {"pine_wood": 99}
+	check_eq(Inventory.add(inv, "pine_wood", 5), 5, "a 99 stack keeps filling")
 
 
 func test_remove_is_all_or_nothing() -> void:
