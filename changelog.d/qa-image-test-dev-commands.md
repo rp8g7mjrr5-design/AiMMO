@@ -1,1 +1,0 @@
-- The server build check now switches developer chat commands on only for its own test bots, so the "chat is for talking" change can reach every server without tripping the release checks.

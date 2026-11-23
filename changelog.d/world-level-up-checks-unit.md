@@ -1,2 +1,0 @@
-- Level-up bursts are now checked over 64 bursts by day and night, at every frame rate, at the meadow and at the old ember ash and rich seam landmarks, so the gold column and sky beam keep looking right as the world grows.
-- Bot players no longer build a level-up burst inside every test bot, so the server tests run a little lighter and steadier.

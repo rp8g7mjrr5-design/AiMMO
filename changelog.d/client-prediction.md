@@ -1,1 +1,0 @@
-- Your wanderer now moves the instant you press a key. No more waiting a round trip to the server before your own feet start walking: the game walks you right away and quietly agrees with the server behind the scenes, so turning, stopping and dodging around trees feel crisp, even on a laggy connection.

@@ -5,6 +5,17 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- Behind the scenes for next week: herds of gentle grazers now live in the hills just outside the Spawn Meadow. They graze and wander, lift their heads when you come close, bolt over the hill together if you rush them, and lie down at home at night. Creep in and freeze when they look up, and you can get close enough to watch them. You'll see them as soon as their look is drawn.
+- Every build is now photographed with the F1 controls open, a fresh haul's "+2 Ash wood" and "+10 Felling" popping up, and on the Low graphics setting, so those screens can't quietly break or lose the Emberlight look.
+- Chat is only for talking on every server now, not just the main one: a line starting with "/" always gets the friendly "Press F1 for controls" nudge instead of a hidden developer tool.
+- Your wanderer now moves the instant you press a key. No more waiting a round trip to the server before your own feet start walking: the game walks you right away and quietly agrees with the server behind the scenes, so turning, stopping and dodging around trees feel crisp, even on a laggy connection.
+- Level-ups now show from across the valley: the golden beam stays a clear gold stroke from 100 m away instead of thinning to a hairline in the noon haze.
+- Fixed the level-up ground ring showing as a pale square on the grass when seen from a distance; it is a glowing ring again.
+- The server build check now switches developer chat commands on only for its own test bots, so the "chat is for talking" change can reach every server without tripping the release checks.
+- Level-up bursts are now checked over 64 bursts by day and night, at every frame rate, at the meadow and at the old ember ash and rich seam landmarks, so the gold column and sky beam keep looking right as the world grows.
+- Bot players no longer build a level-up burst inside every test bot, so the server tests run a little lighter and steadier.
+- Your "Next:" goal under the compass now follows what you actually do: a brand-new character is pointed at the first tree, and a skill only becomes your goal once you've started training it.
+- Gathering with a full stack no longer looks like a mistake: a quiet "Pack full: Ash wood (99) · XP still counts" toast with the item's icon replaces the red refusal and the "nope", because the swing still taught you something.
 - Aim and click: left-click a tree, rock or seep under your crosshair to start gathering it, and hold the button to keep going, just like holding E.
 - Clicking again while you chop keeps you chopping, so mashing the button never breaks your swing. E or walking off still stops.
 - The F1 controls list now shows "Left click" next to E for gathering.
