@@ -24,3 +24,9 @@ reconnect, final pack against the save) and that every client agrees which nodes
 After long runs the harness starts one extra bot with `--only-behaviour=qa_gather_ledger
 --gather-probe=<node>` to watch an emptied node respawn and gather it (see
 `../gather_report.py`). `--only-behaviour=a,b` works for any behaviour while developing it.
+
+`qa_chat_gate.gd` only acts on bots started with `--chat-gate`. After the main run the harness
+boots a second server with `--dev-commands=0` (how the public server runs) and two such bots
+type /gather, /bag and /who: chat is for talking, so each line must get the hint and change
+nothing. The main bot-test server runs with `--dev-commands`, so other behaviours may type
+commands.

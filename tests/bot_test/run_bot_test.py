@@ -21,6 +21,12 @@ fun_metrics.json into the work directory, which is kept for the CI artifact. Wit
 --fun-check the run also fails when they break the limits or got worse than
 tests/bot_test/fun_baseline.json allows.
 
+The main server runs with `--dev-commands`, so behaviours may type slash commands. Afterwards
+the chat-gate phase boots a second server with `--dev-commands=0`, the way the public server
+runs, and two bots (behaviour qa_chat_gate) type /gather, /bag and /who: each line must get
+the "Chat is for talking" hint, change nothing, never be broadcast, and plain talk must still
+reach the other bot. Skip it with --no-chat-gate.
+
 Usage:
   python3 tests/bot_test/run_bot_test.py [--bots 8] [--duration 180] [--transport enet] [--fun-check]
 
@@ -30,6 +36,7 @@ Needs `godot` on PATH (or $GODOT).
 import argparse
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -47,6 +54,8 @@ MAX_PROBE_WAIT = 150.0
 PROBE_PLAY = 36.0
 # Pair bots' run length: pick, walk ~35 m, wait for each other, gather, reconnect.
 PAIR_PLAY = 50.0
+# Chat-gate bots' run length: three commands per login, a reconnect, a couple of talk lines.
+GATE_PLAY = 30.0
 
 REPO = Path(__file__).resolve().parents[2]
 GAME = REPO / "game"
@@ -78,6 +87,90 @@ def bot_cmd(name: str, port: int, transport: str, duration: float, result: Path,
             f"--duration={duration:.1f}", f"--result={result}", *extra]
 
 
+def start_server(env: dict, log: Path, *extra: str):
+    """Starts a dedicated server; returns the process, or None (log printed) if it didn't listen in 60 s."""
+    server = subprocess.Popen([GODOT, "--headless", "--path", str(GAME), "--", "--server", *extra],
+                              stdout=open(log, "w"), stderr=subprocess.STDOUT, env=env)
+    deadline = time.time() + 60
+    while "[server] listening" not in log.read_text(errors="replace"):
+        if server.poll() is not None or time.time() > deadline:
+            server.kill()
+            print(log.read_text(errors="replace"))
+            return None
+        time.sleep(0.2)
+    return server
+
+
+def stop_server(server, log: Path, stop_file: Path, label: str) -> list:
+    stop_file.write_text("stop")
+    problems = []
+    try:
+        server.wait(timeout=30)
+    except subprocess.TimeoutExpired:
+        server.kill()
+        problems.append(f"{label} did not shut down within 30s of the stop request")
+    if server.returncode not in (0, None):
+        problems.append(f"{label} exit code {server.returncode}")
+    if "[server] stopped cleanly" not in log.read_text(errors="replace"):
+        problems.append(f"{label} did not report a clean stop")
+    return problems + scan_log(log, label)
+
+
+def gate_log_problems(text: str) -> list:
+    """What the chat-gate server's log must (not) say: commands off, and no command ran."""
+    problems = []
+    if "[server] dev commands: off" not in text:
+        problems.append("the chat-gate server did not start with dev commands off")
+    for line in text.splitlines():
+        # "[chat] <name> ran /x" is a command; talk is "[chat] <name>: text".
+        if re.match(r"\[chat\] [^:\s]+ ran /", line):
+            problems.append("a command ran with dev commands off: " + line.strip())
+    return problems
+
+
+def run_chat_gate(base_env: dict, transport: str, work: Path, run_tag: str) -> list:
+    """The chat-gate phase: a server without dev commands, two bots typing commands into chat."""
+    gate = work / "chat_gate"
+    gate.mkdir()
+    port = free_port()
+    stop_file = gate / "stop"
+    env = dict(base_env)
+    env.update({"AIMMO_PORT": str(port), "AIMMO_STOP_FILE": str(stop_file), "AIMMO_DATA_DIR": str(gate / "data")})
+    log = gate / "server.log"
+    server = start_server(env, log, "--dev-commands=0")
+    if server is None:
+        return ["chat gate: server did not start"]
+    procs = []
+    for i in (1, 2):
+        name = f"bot{run_tag}_gate{i}"
+        result, blog = gate / f"{name}.json", gate / f"{name}.log"
+        cmd = bot_cmd(name, port, transport, GATE_PLAY, result, "--expect-peers=1",
+                      "--only-behaviour=qa_chat_gate", "--chat-gate")
+        procs.append((name, subprocess.Popen(cmd, stdout=open(blog, "w"), stderr=subprocess.STDOUT, env=env), result, blog))
+        time.sleep(0.3)
+    problems = []
+    for name, p, _, _ in procs:
+        try:
+            p.wait(timeout=GATE_PLAY + 90)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            problems.append(f"{name}: hung and was killed")
+    problems += stop_server(server, log, stop_file, "chat-gate server")
+    problems += gate_log_problems(log.read_text(errors="replace"))
+    for name, _, result, blog in procs:
+        problems += scan_log(blog, name)
+        try:
+            r = json.loads(result.read_text())
+        except (OSError, ValueError):
+            problems.append(f"{name}: no result file")
+            continue
+        problems += [f"{name}: {f}" for f in r["failures"]]
+        g = r["stats"].get("behaviours", {}).get("qa_chat_gate", {})
+        print(f"[bot-test] chat gate {name}: typed={g.get('sent')} hints={g.get('hints')} "
+              f"leaked={g.get('leaked')} talk_heard={r['stats'].get('chats_from_others')}")
+    return [f"chat gate: {p}" for p in problems]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--bots", type=int, default=8)
@@ -87,6 +180,7 @@ def main() -> int:
     ap.add_argument("--fun-check", action="store_true",
                     help="fail on fun-metric limits and regressions against the baseline")
     ap.add_argument("--fun-baseline", default=str(fun_report.BASELINE), help="baseline JSON for --fun-check")
+    ap.add_argument("--no-chat-gate", action="store_true", help="skip the chat-gate phase (dev commands off)")
     a = ap.parse_args()
 
     work = Path(tempfile.mkdtemp(prefix="aimmo-bot-test-"))
@@ -100,15 +194,11 @@ def main() -> int:
 
     server_log = work / "server.log"
     t0 = time.time()
-    server = subprocess.Popen([GODOT, "--headless", "--path", str(GAME), "--", "--server"],
-                              stdout=open(server_log, "w"), stderr=subprocess.STDOUT, env=env)
-    deadline = time.time() + 60
-    while "[server] listening" not in server_log.read_text(errors="replace"):
-        if server.poll() is not None or time.time() > deadline:
-            print(server_log.read_text(errors="replace"))
-            print("[bot-test] FAIL: server did not start")
-            return 1
-        time.sleep(0.2)
+    # Behaviours type slash commands (dev tools); the public server runs without the flag.
+    server = start_server(env, server_log, "--dev-commands")
+    if server is None:
+        print("[bot-test] FAIL: server did not start")
+        return 1
 
     bots = []
     run_tag = str(int(t0))[-5:]
@@ -198,17 +288,9 @@ def main() -> int:
         problems += [f"gathering: {g}" for g in gather_report.check_pair(pair_rows)]
         print("[bot-test] pair: " + ", ".join(f"{n} {_ledger(s).get('pair')}" for n, s in sorted(pair_rows.items())))
 
-    stop_file.write_text("stop")
-    try:
-        server.wait(timeout=30)
-    except subprocess.TimeoutExpired:
-        server.kill()
-        problems.append("server did not shut down within 30s of the stop request")
-    if server.returncode not in (0, None):
-        problems.append(f"server exit code {server.returncode}")
-    if "[server] stopped cleanly" not in server_log.read_text(errors="replace"):
-        problems.append("server did not report a clean stop")
-    problems += scan_log(server_log, "server")
+    problems += stop_server(server, server_log, stop_file, "server")
+    if "[server] dev commands: on (--dev-commands)" not in server_log.read_text(errors="replace"):
+        problems.append("server did not start with --dev-commands")
 
     expected = {}
     fun_rows = {}
@@ -251,6 +333,9 @@ def main() -> int:
         if v.returncode != 0:
             problems.append("persistence check failed:\n" + vlog.read_text(errors="replace"))
         problems += scan_log(vlog, "verify")
+
+    if not a.no_chat_gate:
+        problems += run_chat_gate(env, a.transport, work, run_tag)
 
     if fun_rows:
         summary = fun_report.summarise(fun_rows)

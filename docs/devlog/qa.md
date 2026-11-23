@@ -839,10 +839,53 @@ run: nothing the client loads changed.
 **Next run:** check this PR landed and `main` went green. Then the gather_start fun-metrics
 follow-up or the screenshot style check; "chat is for talking" still waits on `--dev-commands`.
 
+## 2026-11-23 — chat is for talking, in CI (`ws/qa/chat-gate-ci`)
+
+Budget 17/40 (week from Wed 2026-11-18), claim taken, no open qa PR, playtest inbox empty.
+Took the top backlog item: gameplay's gate (`--dev-commands`, `ChatCommands.dev_commands_on`)
+is on `main`, so it is no longer blocked. One-sentence fun: a player who types an old command
+out of habit always gets a friendly nudge, never a silent nothing or their "/bag" shouted to
+everyone, and real talk still flows.
+
+**Built:**
+- `run_bot_test.py` starts the main server with `--dev-commands` and fails if the log doesn't
+  say so, so when gameplay flips the local default to "off" the behaviours that type commands
+  keep working. Server start/stop moved into `start_server` / `stop_server` helpers.
+- Chat-gate phase (every run, `--no-chat-gate` to skip): a second server with
+  `--dev-commands=0` on its own port and data dir, two 30 s bots with
+  `--only-behaviour=qa_chat_gate --chat-gate`. Adds about 40 s to each bot-test step.
+- `qa_chat_gate.gd`: after each login types /gather, /bag, /who; every line needs the
+  NOT_FOR_CHAT hint within 4 s (TOO_FAST resends); fails on any gather_begun, gather_result,
+  xp_gained, node emptied, pack change, a command answer (" online: ", "Commands:", "It is Day"),
+  or a "/" line arriving as chat. bot.gd's expect-peers check proves plain talk still arrives.
+  The harness also fails if the gate server's log has a `[chat] <name> ran /` line.
+- `tools/changelog_lint.py` (+ `tests/ops/test_changelog_lint.py`, runs on docs-only PRs too):
+  a slash command in CHANGELOG.md or a fragment fails, unless the sentence says it's gone
+  ("never have to type /help"). Six Week 00 lines still tell players to type /gather, /bag,
+  /time, /who, /help; CHANGELOG.md is integrator-only, so they're on
+  `tools/changelog_lint_allow.json` (exact text, only shrinks). **Integrator: those notes are
+  now wrong for players on the live server (it answers with the hint); please reword them.**
+
+**Checked the check:** ran the gate phase against a server with `--dev-commands=1`: 33
+problems (log shows "dev commands: on", every command ran, no hints). With the flag off: 6 of 6
+lines hinted per bot, 0 leaked.
+
+**Decision:** "no node charge used" is checked from the client side (no node_state depleted,
+no newly emptied node between logins) plus the server log (no command ran), not by reading
+node charges inside the server; nobody else gathers on the gate server, so any change is ours.
+
+**Tests:** 476 Godot unit tests pass with Postgres; Python ops 20, bot_test 26. Bot test 8 x
+180 s WebSocket + Postgres `--fun-check` PASSED in 273 s (chat gate 6/6 hints per bot, 0
+leaked); 8 x 45 s ENet PASSED in 85 s. Client smoke not run: nothing the client loads changed.
+
+**Next run:** check this PR landed. Then the gather_start fun-metrics follow-up or the
+screenshot style check. Asked gameplay to make dev commands plain "off" by default.
+
 ## 2026-11-23 — fun metrics read real gathering (`ws/qa/fun-real-gathering`)
 
 Budget 20/40, playtest inbox empty, claim taken. Open: #119 (chat gate in CI), checks
-running, auto-merge on, nothing to fix. Skipped backlog item 1 (it is #119) and took the
+running, auto-merge on, nothing to fix (it landed during this run; I merged `main` in and
+re-ran the tests). Skipped backlog item 1 (it is #119) and took the
 gather_start fun-metrics follow-up, which doesn't need #119's code.
 
 **Fun:** a press of E or Craft that the game is slow to answer now fails the build, the
