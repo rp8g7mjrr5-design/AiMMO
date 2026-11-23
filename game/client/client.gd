@@ -36,6 +36,8 @@ var settings_menu: SettingsMenu
 var time_dial: TimeDial
 var compass: CompassStrip
 var gather_prompt: GatherPrompt
+var gather_watch := GatherWatch.new() ## everyone's gathers -> node hits and empty looks
+var sfx_haul := {} ## node kind -> AudioStreamPlayer for Sfx.haul(kind)
 var craft_window: CraftWindow
 var sfx_craft: AudioStreamPlayer
 var reticle: Reticle
@@ -70,6 +72,12 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.chat_message.connect(_on_chat)
 	net.system_message.connect(_on_system)
 	net.world_time.connect(_on_world_time)
+	net.gather_begun.connect(_on_gather_begun)
+	net.gather_ended.connect(_on_gather_ended)
+	net.gather_result.connect(_on_gather_result)
+	net.inventory_changed.connect(_on_inventory)
+	net.nodes_depleted.connect(_on_nodes_depleted)
+	net.node_state.connect(_on_node_state)
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _set_status("Could not reach the server.", true))
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -262,17 +270,24 @@ func _process(delta: float) -> void:
 		hud_label.text = "Ashgrove  ·  %d online  ·  %.0f, %.0f" % [avatars.size(), me.position.x, me.position.z]
 
 
-## The "E  Gather Ember ash" prompt: press or hold E near a node to gather it (sent as
-## "/gather <kind>" chat until protocol v3 adds c2s_gather).
-## The node it targets is the one under the reticle (look-to-interact), else the nearest.
+## The "[E] Chop Ember Ash" prompt: press or hold E near a node to start a timed gather on
+## it (c2s_gather_start), E again or moving stops it (c2s_gather_cancel). The node it targets
+## is the one under the reticle (look-to-interact), else the nearest live one.
 func _update_gather(delta: float, my_pos: Vector3, eye: Vector3, look: Vector3) -> void:
-	var held := Input.is_action_pressed("interact") and not chat_edit.has_focus() and not window_open()
-	var cmd := gather_prompt.update(delta, my_pos, TimeDial.current_seconds(), Time.get_ticks_msec() / 1000.0, held, eye, look)
+	var free := not chat_edit.has_focus() and not window_open()
+	var held := Input.is_action_pressed("interact") and free
+	var pressed := Input.is_action_just_pressed("interact") and free
+	var now := Time.get_ticks_msec() / 1000.0
+	var op := gather_prompt.update(delta, my_pos, TimeDial.current_seconds(), now, held, pressed, _move_vector() != Vector2.ZERO, eye, look)
 	var t := gather_prompt.current_target()
 	reticle.active = not t.is_empty() and bool(t.can)
 	_highlight_target(-1 if t.is_empty() or chat_edit.has_focus() else int(t.id))
-	if cmd != "":
-		net.c2s_chat.rpc_id(1, cmd)
+	match str(op.get("op", "")):
+		"start":
+			net.play.c2s_gather_start.rpc_id(1, int(op.node))
+		"cancel":
+			net.play.c2s_gather_cancel.rpc_id(1)
+	_apply_node_ops(gather_watch.tick(now))
 
 
 ## The workbench: "[E] Use Workbench" when you stand at it (and no node is in reach), E opens
@@ -411,6 +426,7 @@ func _on_server_disconnected() -> void:
 	compass.visible = false
 	gather_prompt.visible = false
 	gather_prompt.hide_all()
+	gather_watch.reset()
 	craft_window.reset()
 	_highlight_target(-1)
 	hud_label.visible = false
@@ -430,6 +446,7 @@ func _on_player_joined(id: int, player_name: String, appearance_seed: int) -> vo
 
 
 func _on_player_left(id: int) -> void:
+	gather_watch.forget(id)
 	if avatars.has(id):
 		avatars[id].node.queue_free()
 		avatars.erase(id)
@@ -462,8 +479,7 @@ func _on_chat(from_name: String, text: String) -> void:
 
 
 func _on_system(text: String) -> void:
-	if gather_prompt:
-		gather_prompt.on_system(text)
+	var echo := gather_prompt != null and gather_prompt.on_system(text)
 	if craft_window:
 		var r := craft_window.on_system(text)
 		if str(r.crafted) != "":
@@ -471,7 +487,73 @@ func _on_system(text: String) -> void:
 			sfx_craft.play()
 		if r.consumed:
 			return # the window's own answers stay in the window (chat is for talking)
+	if echo:
+		return # the bar and the toast already said it
 	chat_feed.append(chat_log, ChatFeed.system_line(TimeDial.current_seconds(), text))
+
+
+# --- timed gathering (protocol v3, Net/Play) ---
+
+func _on_gather_begun(peer: int, node_id: int, seconds: float) -> void:
+	gather_watch.begun(peer, node_id)
+	if peer == my_id:
+		gather_prompt.on_begun(node_id, seconds, Time.get_ticks_msec() / 1000.0)
+
+
+func _on_gather_ended(peer: int, node_id: int, reason: String) -> void:
+	_apply_node_ops(gather_watch.ended(peer, node_id, reason))
+	if peer == my_id:
+		gather_prompt.on_ended(node_id, reason)
+
+
+func _on_gather_result(item_id: String, count: int) -> void:
+	gather_prompt.on_result(item_id, count)
+	var kind := ""
+	for k in ResourceNodes.KINDS:
+		if str(ResourceNodes.KINDS[k].item) == item_id:
+			kind = k
+	var p: AudioStreamPlayer = sfx_haul.get(kind, sfx_haul.get("ash"))
+	if p:
+		p.play()
+
+
+func _on_inventory(items: Dictionary) -> void:
+	gather_prompt.pack = items
+	craft_window.seed_pack(items)
+
+
+## At login: every node that is empty right now (the rest show live, in case they were
+## empty in an earlier session).
+func _on_nodes_depleted(ids: Array) -> void:
+	var dead := {}
+	for id in ids:
+		dead[int(id)] = true
+	gather_prompt.spent = dead
+	var nodes := world.get_node_or_null("ResourceNodes") as Node3D
+	if nodes == null:
+		return
+	for n in ResourceNodes.all():
+		NodeProps.set_depleted(nodes, int(n.id), dead.has(int(n.id)))
+
+
+func _on_node_state(node_id: int, depleted: bool) -> void:
+	# The prompt stops offering it at once; its empty look may wait for the last hit.
+	if depleted:
+		gather_prompt.spent[node_id] = true
+	else:
+		gather_prompt.spent.erase(node_id)
+	_apply_node_ops(gather_watch.node_state(node_id, depleted, Time.get_ticks_msec() / 1000.0))
+
+
+func _apply_node_ops(ops: Array) -> void:
+	var nodes := world.get_node_or_null("ResourceNodes") as Node3D
+	if nodes == null:
+		return
+	for op in ops:
+		if op[0] == "hit":
+			NodeProps.play_hit(nodes, int(op[1]))
+		elif op[0] == "deplete":
+			NodeProps.set_depleted(nodes, int(op[1]), bool(op[2]))
 
 
 func _on_chat_submitted(text: String) -> void:
@@ -715,6 +797,12 @@ func _build_audio() -> void:
 	sfx_chime.stream = Sfx.chime()
 	sfx_chime.volume_db = -8.0
 	add_child(sfx_chime)
+	for kind in ResourceNodes.KINDS:
+		var p := AudioStreamPlayer.new()
+		p.stream = Sfx.haul(kind)
+		p.volume_db = -6.0
+		add_child(p)
+		sfx_haul[kind] = p
 	sfx_craft = AudioStreamPlayer.new()
 	sfx_craft.stream = Sfx.craft()
 	sfx_craft.volume_db = -4.0

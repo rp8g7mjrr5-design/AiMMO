@@ -587,3 +587,54 @@ to retire when every command has UI. `CHANGELOG.md` still mentions /help in old 
 **Notes to next run:** still v3 gathering first. If v3 is still not on main, the time dial
 hover tooltip (replaces `/time`) or the centre-screen system messages are the next
 no-dependency slices of the third item.
+
+## 2026-11-23 (night): timed gathering on protocol v3 (ws/client/timed-gathering)
+
+**Why this item:** protocol v3 is on `main` now (`GameConfig.PROTOCOL_VERSION == 3`), so the
+top item, blocked for three runs, is unblocked. It is the owner's top request.
+
+**Fun, in one sentence:** pressing E at a tree now feels like chopping it: a bar fills over
+exactly the server's time with "Chopping Ember Ash", the haul lands with a chop/clink/slosh
+and a chime, holding E keeps you swinging with no dead time, and a spent tree visibly empties
+after its last shake instead of a refusal in chat.
+
+**Built:**
+- `GatherPrompt` rewritten around the v3 channel: `decide()` (pure) turns E held/pressed,
+  moving, the target and the channel state into start/cancel. Holding E chains gathers;
+  pressing E again or moving cancels (locally at once, then `c2s_gather_cancel`); after a
+  refusal or cancel, holding does nothing until E is let go (no hammering the server). An
+  unanswered start is re-asked after `ASK_TIMEOUT` (1.5 s). The bar fills from
+  `s2c_gather_begin`'s `seconds`. Toast from `s2c_gather_result` with the count from
+  `s2c_inventory` (which the server sends first). `notice_text(reason)` gives short centre
+  words for "full", "depleted", "day", "far", "unknown"; the server's longer line stays in chat.
+- `target()` takes the set of spent nodes and skips them, so the prompt moves on to the next
+  live node in reach; with only spent nodes in reach it shows "Pine is spent for now", greyed.
+  `pick()` no longer avoids an aimed node whose kind has a nearer twin: v3 gathers by id.
+- `GatherWatch` (`game/client/gather_watch.gd`): tracks everyone's running gathers and turns
+  events into `play_hit` / `set_depleted` ops. The server sends `s2c_node_state` *before* the
+  "done" end that emptied the node, so a depletion on a node someone is gathering waits for
+  that end (max 0.6 s), giving world's "hit first, then depleted" order.
+- `Sfx.haul(kind)`: wood thunk + bite, stone clink, sap slosh, each followed by a two-note
+  pickup chime, ~0.46 s. One player per kind in the client.
+- Chat: the server's echo lines for your own gather ("You start gathering", "You gather",
+  "You stop gathering") are kept out of chat (`GatherPrompt.is_echo`). Gameplay can keep
+  sending them; nothing else reads them except the workbench mirror, which still sees them.
+- The workbench window now seeds from every `s2c_inventory` too.
+
+**Tests:** unit: `test_decide`, `test_widget_runs_a_timed_gather` (start, no double start,
+bar at half time, toast, chained next gather, cancel, no restart while held, refusal notice),
+`test_unanswered_start_is_asked_again`, `test_spent_nodes_are_skipped`,
+`test_watch_hits_before_depletion`, `test_haul_sounds`, plus the old target tests. Bot:
+`client_gather_prompt.gd` rewritten to be passive: it feeds the real widget and watch every v3
+event of the gathers `gameplay_gather_v3` makes on the same bot, applies ops to a real
+NodeProps world, and checks bar, toasts, notices, spent nodes. It can't press E itself:
+`gameplay_gather_v3` fails on any begin it didn't ask for. `client_item_icons.gd` now toasts
+from `s2c_gather_result`.
+
+**Not done / known:** no avatar gather swing yet (follow-up). The one `rpc_id` line that sends
+the start in `client.gd` is covered only by the smoke run loading the client; the bot's
+gathers prove the server side of the same calls. Other players' "done" ends shake the node
+but make no sound.
+
+**Notes to next run:** the avatar swing is the natural next slice (it finishes the top item).
+Then XP (`s2c_xp`) once gameplay's v4 lands.
