@@ -34,6 +34,8 @@ var _respawn_timer := 0.0
 ## Messages the server already produces but the current protocol has no RPC for yet (see
 ## _send). Logged once each so the gap is visible, never an error.
 var _not_in_protocol := {}
+## The grazers outside the meadow (Wildlife): stepped every tick, not sent yet (next bump).
+var wildlife := Wildlife.new_state()
 ## Someone joined, left or levelled up since the last tick: send everyone the new roster
 ## (once per tick, so eight players logging in at once is eight rosters, not 36).
 var _roster_dirty := false
@@ -83,6 +85,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	print("[server] listening on port %d via %s, protocol v%d" % [port, transport, GameConfig.PROTOCOL_VERSION])
 	print("[server] world clock: ", WorldClock.describe(world_seconds()))
 	print("[server] resource nodes: ", ResourceNodes.describe())
+	print("[server] wildlife: ", Wildlife.describe())
 
 
 func _notification(what: int) -> void:
@@ -135,6 +138,7 @@ func _tick() -> void:
 		ch.yaw = s.yaw
 		entries.append_array([id, p.x, p.y, p.z, s.yaw])
 	_tick_channels(now_seconds())
+	_tick_wildlife(now_seconds())
 	_flush_inventories()
 	_flush_roster()
 	if entries.is_empty():
@@ -142,6 +146,20 @@ func _tick() -> void:
 	for id in sessions:
 		if sessions[id].logged_in:
 			_send(id, "s2c_snapshot", [tick, entries, int(sessions[id].seq)])
+
+
+## Every logged-in player's position, for the grazers to watch.
+func player_positions() -> Array:
+	var out: Array = []
+	for id in sessions:
+		if sessions[id].logged_in:
+			out.append(CharacterData.position(sessions[id].character))
+	return out
+
+
+## The grazers take one step (Wildlife.step). Returns the ids that bolted.
+func _tick_wildlife(now: float) -> Array:
+	return Wildlife.step(wildlife, player_positions(), now, GameConfig.TICK_DT, WorldClock.is_night(world_seconds()))
 
 
 func _on_peer_connected(id: int) -> void:

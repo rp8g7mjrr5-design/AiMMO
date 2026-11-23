@@ -1,0 +1,1 @@
+- Behind the scenes for next week: herds of gentle grazers now live in the hills just outside the Spawn Meadow. They graze and wander, lift their heads when you come close, bolt over the hill together if you rush them, and lie down at home at night. Creep in and freeze when they look up, and you can get close enough to watch them. You'll see them as soon as their look is drawn.
