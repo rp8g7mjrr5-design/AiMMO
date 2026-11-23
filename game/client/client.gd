@@ -36,6 +36,7 @@ var settings_menu: SettingsMenu
 var time_dial: TimeDial
 var compass: CompassStrip
 var gather_prompt: GatherPrompt
+var xp_meter: XpMeter
 var gather_watch := GatherWatch.new() ## everyone's gathers -> node hits and empty looks
 var sfx_haul := {} ## node kind -> AudioStreamPlayer for Sfx.haul(kind)
 var craft_window: CraftWindow
@@ -79,6 +80,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.inventory_changed.connect(_on_inventory)
 	net.nodes_depleted.connect(_on_nodes_depleted)
 	net.node_state.connect(_on_node_state)
+	net.skills_changed.connect(_on_skills)
+	net.xp_gained.connect(_on_xp)
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _set_status("Could not reach the server.", true))
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -129,6 +132,9 @@ func _screenshot_later(path: String, wait: float) -> void:
 		await get_tree().create_timer(maxf(0.0, wait - 0.4)).timeout
 		var item := str(_args["show-toast"])
 		gather_prompt.show_toast(GatherPrompt.toast_text({"qty": 2, "label": Inventory.label(item), "in_pack": 6}), item)
+		if _args.has("show-xp"):
+			# Test hook (--show-xp): the "+10 Felling" floater and bar that come with the haul.
+			xp_meter.on_gain("felling", 10, 260)
 		await get_tree().create_timer(0.4).timeout
 	else:
 		await get_tree().create_timer(wait).timeout
@@ -239,6 +245,7 @@ func _move_vector() -> Vector2:
 
 func _process(delta: float) -> void:
 	perf_overlay.step(delta)
+	xp_meter.step(delta)
 	var t := 1.0 - exp(-14.0 * delta)
 	for id in avatars:
 		var a: Dictionary = avatars[id]
@@ -419,6 +426,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	time_dial.refresh()
 	compass.visible = true
 	gather_prompt.visible = true
+	xp_meter.visible = true
 	hud_label.visible = true
 	help_label.visible = true
 	controls_button.visible = true
@@ -441,6 +449,8 @@ func _on_server_disconnected() -> void:
 	compass.visible = false
 	gather_prompt.visible = false
 	gather_prompt.hide_all()
+	xp_meter.visible = false
+	xp_meter.hide_all()
 	gather_watch.reset()
 	craft_window.reset()
 	_highlight_target(-1)
@@ -530,6 +540,18 @@ func _on_gather_result(item_id: String, count: int) -> void:
 	var p: AudioStreamPlayer = sfx_haul.get(kind, sfx_haul.get("ash"))
 	if p:
 		p.play()
+
+
+# --- skills and XP (protocol v4, Net/Play) ---
+
+func _on_skills(skills: Dictionary) -> void:
+	xp_meter.on_skills(skills)
+
+
+## s2c_xp arrives right after the gather/craft result, so the "+10 Felling" pops in the same
+## frame as the haul toast.
+func _on_xp(skill: String, gained: int, total_xp: int) -> void:
+	xp_meter.on_gain(skill, gained, total_xp)
 
 
 func _on_inventory(items: Dictionary) -> void:
@@ -729,6 +751,20 @@ func _build_ui() -> void:
 	gather_prompt.icons = icon_shelf
 	ui.add_child(gather_prompt)
 	gather_prompt.setup(theme)
+
+	# XP you can see: "+10 Felling" and that skill's bar, just under the gather prompt.
+	xp_meter = XpMeter.new()
+	xp_meter.anchor_left = 0.5
+	xp_meter.anchor_right = 0.5
+	xp_meter.anchor_top = 1.0
+	xp_meter.anchor_bottom = 1.0
+	xp_meter.offset_left = -XpMeter.WIDTH * 0.5
+	xp_meter.offset_right = XpMeter.WIDTH * 0.5
+	xp_meter.offset_top = -100
+	xp_meter.offset_bottom = -100 + XpMeter.HEIGHT
+	xp_meter.visible = false
+	ui.add_child(xp_meter)
+	xp_meter.setup(theme)
 
 	# Centre reticle for the action camera: what you look at is what E gathers.
 	reticle = Reticle.new()
