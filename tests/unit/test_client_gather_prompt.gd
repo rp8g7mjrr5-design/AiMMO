@@ -53,7 +53,8 @@ func test_prompt_agrees_with_the_server_rules() -> void:
 				continue
 			checked += 1
 			check(ResourceNodes.in_range(t.id, pos), "prompted node %d is in reach" % t.id)
-			check_eq(Gathering.check(state, t.id, pos, 0.0, nd[0], -INF, 0.0), "", "server takes node %d" % t.id)
+			var server := Gathering.check(state, t.id, pos, 0.0, nd[0], -INF, 0.0)
+			check_eq(bool(t.can), server == "", "prompt and server agree on node %d (%s)" % [t.id, server])
 	check(checked > 100, "checked %d positions" % checked)
 
 
@@ -242,3 +243,74 @@ func test_haul_sounds() -> void:
 		check(peak > 3000 and peak < 32767, "%s is audible and doesn't clip (%d)" % [kind, peak])
 		seen[wav.data.slice(0, 4000).hex_encode().md5_text()] = kind
 	check(seen.size() >= 3, "wood, stone and sap sound different")
+
+
+# --- level requirements (tier-2 nodes) ---
+
+func _tier2(kind: String) -> Dictionary:
+	for n in ResourceNodes.tier2():
+		if n.kind == kind:
+			return n
+	return {}
+
+
+func _skills_at(skill: String, level: int) -> Dictionary:
+	return {skill: Skills.xp_for_level(level)}
+
+
+func test_tier2_node_shows_what_it_needs() -> void:
+	var nd := _a_night_and_a_day()
+	var ash := _tier2("ash")
+	check(not ash.is_empty(), "there is an old ember ash")
+	var at: Vector3 = ash.pos + Vector3(0.5, 0, 0)
+	var low := GatherPrompt.target(at, nd[1], Vector3.ZERO, Vector3.ZERO, {}, _skills_at("felling", 3))
+	check_eq(int(low.id), int(ash.id), "targets the old ash")
+	check(not bool(low.can), "Felling 3 can't work it")
+	check(bool(low.needs_level), "flagged as a level wall")
+	var to_go := Skills.xp_for_level(5) - Skills.xp_for_level(3)
+	check_eq(low.text, "Old Ember Ash · Felling 5 (%s XP to go)" % SkillsWindow._grouped(to_go))
+	check_eq(GatherPrompt.decide(true, true, false, low, false, false, false), {}, "E does nothing below the level")
+	var ok := GatherPrompt.target(at, nd[1], Vector3.ZERO, Vector3.ZERO, {}, _skills_at("felling", 5))
+	check(bool(ok.can), "Felling 5 can")
+	check(not bool(ok.needs_level), "no wall at the level")
+	check_eq(ok.text, "[E] Chop Old Ember Ash", "names the old ash, not a plain ash")
+	check_eq(ok.doing, "Chopping Old Ember Ash")
+	check_eq(GatherPrompt.decide(false, true, false, ok, false, false, false), {"op": "start", "node": int(ash.id)})
+	var seam := _tier2("stone")
+	var s_low := GatherPrompt.target(seam.pos + Vector3(0.5, 0, 0), nd[1])
+	check(str(s_low.text).begins_with("Rich Stone Seam · Quarrying 5"), "seam needs Quarrying: %s" % s_low.text)
+	check_eq(GatherPrompt.need_text(seam, _skills_at("quarrying", 9)), "", "no need text once high enough")
+
+
+func test_tier2_prompt_agrees_with_the_server_by_level() -> void:
+	var nd := _a_night_and_a_day()
+	var state := Gathering.new_state()
+	for n in ResourceNodes.tier2():
+		var skill := str(ResourceNodes.info(n).skill)
+		for lv in [1, 4, 5, 9]:
+			var sk := _skills_at(skill, lv)
+			var t := GatherPrompt.target(n.pos + Vector3(0.4, 0, 0), nd[1], Vector3.ZERO, Vector3.ZERO, {}, sk)
+			if t.is_empty() or int(t.id) != int(n.id):
+				continue
+			var server := Gathering.check(state, n.id, n.pos, 0.0, nd[1], -INF, 0.0, sk)
+			check_eq(bool(t.can), server == "", "node %d at %s %d: server says '%s'" % [n.id, skill, lv, server])
+
+
+func test_level_refusal_notice_names_the_skill() -> void:
+	var ash := _tier2("ash")
+	check_eq(GatherPrompt.notice_for("level", int(ash.id)), "Needs Felling 5")
+	check_eq(GatherPrompt.notice_for("level", -1), GatherPrompt.notice_text("level"), "unknown node: plain words")
+	check(GatherPrompt.notice_text("level") != "", "level has centre words")
+	check_eq(GatherPrompt.notice_for("full", int(ash.id)), "Your pack is full")
+
+
+func test_need_text_fits_the_prompt() -> void:
+	# The prompt line is GatherPrompt.WIDTH wide; the longest need line must fit in it.
+	var longest := ""
+	for n in ResourceNodes.tier2():
+		var t := GatherPrompt.need_text(n, {})
+		if t.length() > longest.length():
+			longest = t
+	var font := ThemeDB.fallback_font
+	var w := font.get_string_size(longest, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	check(w <= GatherPrompt.WIDTH, "'%s' is %d px, prompt is %d" % [longest, w, GatherPrompt.WIDTH])

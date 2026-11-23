@@ -17,6 +17,10 @@ signal closed
 signal craft_requested(recipe_id: String)
 
 const WIDTH := 600.0 ## room for a part icon before each "Ash wood 2/3"
+const HEIGHT := 600.0 ## fits a 720p screen with the HUD around it
+## The recipe list scrolls inside this height, so the title and Close stay on screen
+## however many recipes the bench gets (six since the ember tools).
+const LIST_HEIGHT := 410.0
 const REPLY_TIMEOUT := 3.0 ## seconds to wait for craft_result before the buttons light again
 const CLOSE_SLACK := 1.0 ## m past BENCH_RANGE before walking away closes the window
 const OK_COLOR := Color(0.62, 0.92, 0.55)
@@ -29,7 +33,11 @@ const NO_ANSWER := "The bench didn't answer. Try again."
 var pack := {} ## the pack as the server last sent it
 var pack_known := false
 var pos := Vector3.ZERO ## where you stand, for the bench check
+## Your skills (skill id -> XP) once the server has sent them (skills_changed / xp_gained);
+## null until then, and the level check is left to the server.
+var skills: Variant = null
 var status_label: Label
+var list_scroll: ScrollContainer
 ## Where the icons come from (set by the client; without one, world's cache draws them).
 var icons: IconShelf
 var _rows := {} ## recipe id -> {needs: RichTextLabel, button: Button}
@@ -49,10 +57,11 @@ static func walked_away(p: Vector3) -> bool:
 	return Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ) > Crafting.BENCH_RANGE + CLOSE_SLACK
 
 
-## One recipe as the window shows it, for a pack and a position:
+## One recipe as the window shows it, for a pack, a position and (when known) your skills:
 ## {id, title ("Stone axe" / "Torch ×3"), parts: [{label, have, need, ok}], reason (Crafting.check,
 ## "" = ready), button ("Craft" / "Have it"), hint (why it's greyed out, or where it's made)}.
-static func row(inv: Dictionary, id: String, p: Vector3) -> Dictionary:
+## A recipe above your Toolcraft level says "Needs Toolcraft 5 · 1,205 XP to go".
+static func row(inv: Dictionary, id: String, p: Vector3, skills: Variant = null) -> Dictionary:
 	var r: Dictionary = Crafting.RECIPES[id]
 	var label := str(r.label)
 	var title := label.left(1).to_upper() + label.substr(1)
@@ -65,11 +74,13 @@ static func row(inv: Dictionary, id: String, p: Vector3) -> Dictionary:
 			var have := Inventory.count(inv, item)
 			var item_label := Inventory.label(item)
 			parts.append({"item": item, "label": item_label.left(1).to_upper() + item_label.substr(1), "have": have, "need": need, "ok": have >= need})
-	var reason := Crafting.check(inv, id, p)
+	var reason := Crafting.check(inv, id, p, skills)
 	var hint := ""
 	match reason:
 		"":
 			hint = "Ready"
+		"level":
+			hint = level_hint(id, skills)
 		"owned":
 			hint = "In your pack; it never wears out"
 		"bench":
@@ -82,6 +93,16 @@ static func row(inv: Dictionary, id: String, p: Vector3) -> Dictionary:
 		hint += " · craft anywhere"
 	return {"id": id, "title": title, "parts": parts, "reason": reason,
 		"button": "Have it" if reason == "owned" else "Craft", "hint": hint}
+
+
+## "Needs Toolcraft 5 · 1,205 XP to go" for a recipe above your level, "" otherwise.
+static func level_hint(id: String, skills: Variant) -> String:
+	var need := Crafting.required(id)
+	if need.is_empty() or not skills is Dictionary or Crafting.level_ok(id, skills):
+		return ""
+	var skill := str(need[0])
+	var to_go := maxi(0, Skills.xp_for_level(int(need[1])) - Skills.xp_of(skills, skill))
+	return "Needs %s %d · %s XP to go" % [Skills.label(skill), int(need[1]), SkillsWindow._grouped(to_go)]
 
 
 ## "[color=#..]Ash wood 2/3[/color] · ..." for a row's parts.
@@ -114,8 +135,8 @@ func setup(theme_res: Theme) -> void:
 	anchor_bottom = 0.5
 	offset_left = -WIDTH * 0.5
 	offset_right = WIDTH * 0.5
-	offset_top = -250
-	offset_bottom = 250
+	offset_top = -HEIGHT * 0.5
+	offset_bottom = HEIGHT * 0.5
 	grow_vertical = Control.GROW_DIRECTION_BOTH
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color(0.09, 0.08, 0.07, 0.88)
@@ -139,11 +160,20 @@ func setup(theme_res: Theme) -> void:
 	sub.text = "Spawn Meadow · gather the parts, then craft"
 	sub.modulate = DIM
 	box.add_child(sub)
+	list_scroll = ScrollContainer.new()
+	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	list_scroll.custom_minimum_size = Vector2(0, LIST_HEIGHT)
+	list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(list_scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 10)
+	list_scroll.add_child(list)
 	for id in Crafting.RECIPE_ORDER:
-		box.add_child(HSeparator.new())
+		list.add_child(HSeparator.new())
 		var line := HBoxContainer.new()
 		line.add_theme_constant_override("separation", 12)
-		box.add_child(line)
+		list.add_child(line)
 		var product := TextureRect.new()
 		product.custom_minimum_size = Vector2(IconShelf.ROW_SIZE, IconShelf.ROW_SIZE)
 		product.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -162,7 +192,7 @@ func setup(theme_res: Theme) -> void:
 		needs.bbcode_enabled = true
 		needs.fit_content = true
 		needs.scroll_active = false
-		needs.custom_minimum_size = Vector2(WIDTH - 160 - IconShelf.ROW_SIZE - 12, 0)
+		needs.custom_minimum_size = Vector2(WIDTH - 172 - IconShelf.ROW_SIZE - 12, 0) # room for the scroll bar
 		col.add_child(needs)
 		var hint := Label.new()
 		hint.add_theme_font_size_override("font_size", 13)
@@ -227,8 +257,9 @@ func craft(id: String) -> bool:
 func refresh() -> void:
 	for id in _rows:
 		var w: Dictionary = _rows[id]
-		var r := row(pack, id, pos)
+		var r := row(pack, id, pos, skills)
 		w.name.text = r.title
+		(w.name as Label).modulate = DIM if r.reason == "level" else Color.WHITE
 		(w.icon as TextureRect).texture = _icon(id, IconShelf.ROW_SIZE)
 		_fill_needs(w.needs, r.parts)
 		w.hint.text = r.hint if pack_known else ""
@@ -304,6 +335,12 @@ func seed_pack(inv: Variant) -> void:
 		refresh()
 
 
+## skills_changed / xp_gained: your skills (skill id -> XP), so level-gated rows grey out.
+func on_skills(all: Dictionary) -> void:
+	skills = all.duplicate()
+	refresh()
+
+
 func is_waiting() -> bool:
 	return _awaiting != ""
 
@@ -312,6 +349,7 @@ func reset() -> void:
 	visible = false
 	pack = {}
 	pack_known = false
+	skills = null
 	_awaiting = ""
 	_awaiting_age = 0.0
 	if status_label:

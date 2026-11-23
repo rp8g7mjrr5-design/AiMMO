@@ -69,7 +69,7 @@ func test_built_bench_lights_up_from_lamps() -> void:
 	check(not omni.visible, "light starts off")
 	Lamps.apply_glow(world, 1.0)
 	check(omni.visible and omni.light_energy > 0.5, "Lamps.apply_glow lights the bench lantern at night")
-	check_near((glass.material_override as StandardMaterial3D).emission_energy_multiplier, Workbench.GLASS_NIGHT, 0.001, "glass at night brightness")
+	check_near(float((glass.material_override as ShaderMaterial).get_shader_parameter("emission_energy")), Workbench.GLASS_NIGHT, 0.001, "glass at night brightness")
 	Lamps.apply_glow(world, 0.0)
 	check(not omni.visible, "and puts it out by day")
 	Workbench.apply_glow(null, 1.0) # safe on a partial world

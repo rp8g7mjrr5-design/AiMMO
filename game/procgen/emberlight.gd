@@ -86,6 +86,19 @@ static func ensure_globals() -> void:
 ## their height, "lit from within"). Vertex positions, normals and order are unchanged, so
 ## anything that reads the mesh's vertices (camera solids) sees exactly the same shape.
 static func bake(mesh: Mesh, ao: float, curve: float = 1.0) -> ArrayMesh:
+	return _shaded(mesh, ao, curve, Vector3.ONE, 1.0)
+
+
+## Like `bake()`, but the vertex colours also carry `color` (sRGB, like the palette; stored
+## linear, as the shader expects). For things drawn as single meshes rather than MultiMesh
+## instances (avatars), so each part keeps its own colour on the one shared material.
+## `color.a` below 1 marks the whole part as an ember vein on the "glow" variant.
+static func paint(mesh: Mesh, color: Color, ao: float = 0.0, curve: float = 1.0) -> ArrayMesh:
+	var lin := color.srgb_to_linear()
+	return _shaded(mesh, ao, curve, Vector3(lin.r, lin.g, lin.b), color.a)
+
+
+static func _shaded(mesh: Mesh, ao: float, curve: float, tint: Vector3, alpha: float) -> ArrayMesh:
 	var arrays := mesh.surface_get_arrays(0)
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var lo := INF
@@ -98,7 +111,7 @@ static func bake(mesh: Mesh, ao: float, curve: float = 1.0) -> ArrayMesh:
 	colors.resize(verts.size())
 	for i in verts.size():
 		var g := 1.0 - ao * pow(1.0 - (verts[i].y - lo) / span, curve)
-		colors[i] = Color(g, g, g, 1.0)
+		colors[i] = Color(g * tint.x, g * tint.y, g * tint.z, alpha)
 	arrays[Mesh.ARRAY_COLOR] = colors
 	var out := ArrayMesh.new()
 	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

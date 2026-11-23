@@ -22,11 +22,11 @@ const RADIUS := 0.42 ## badge disc radius, in icon units (inside ItemIcons.MARGI
 const RIM := 0.05 ## width of the darker rim inside the disc
 const FALLBACK := "_badge"
 
-const FELLING := Color(0.36, 0.56, 0.32)
-const QUARRYING := Color(0.42, 0.50, 0.62)
-const TAPPING := Color(0.62, 0.24, 0.17)
-const TOOLCRAFT := Color(0.66, 0.48, 0.30)
-const PLAIN := Color(0.58, 0.56, 0.52)
+const FELLING := Palette.SKILL_FELLING
+const QUARRYING := Palette.SKILL_QUARRYING
+const TAPPING := Palette.SKILL_TAPPING
+const TOOLCRAFT := Palette.SKILL_TOOLCRAFT
+const PLAIN := Palette.SKILL_PLAIN
 
 static var _cache := {}
 
@@ -84,7 +84,7 @@ static func _e(extra := {}) -> Dictionary:
 
 
 static func _emblem(skill: String) -> Array:
-	var ink := Color(0.16, 0.11, 0.09, 0.55) # a soft dark backing so emblems pop off the disc
+	var ink := Palette.BADGE_INK
 	match skill:
 		"felling":
 			var stump := ItemIcons.ASH_BARK
@@ -143,5 +143,5 @@ static func _emblem(skill: String) -> Array:
 				var ang := -PI * 0.5 + i * PI / 5.0
 				var r := 0.2 if i % 2 == 0 else 0.09
 				pts.append(CENTRE + Vector2(cos(ang), sin(ang)) * r)
-			return [ItemIcons._poly(pts, Color(0.92, 0.88, 0.78), _e({"shade": 0.2}))]
+			return [ItemIcons._poly(pts, Palette.BADGE_STAR, _e({"shade": 0.2}))]
 	return []

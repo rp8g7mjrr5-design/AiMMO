@@ -120,5 +120,8 @@ func test_night_glow_reaches_emberlight_nodes() -> void:
 	Lamps.apply_glow(world, 0.0)
 	check_near(float(leaf.get_shader_parameter("emission_energy")), 0.0, 0.001, "node ash leaves dark by day")
 	check_near(float(sap.get_shader_parameter("emission_energy")), Lamps.SAP_DAY, 0.001, "sap at its day glow")
-	check_eq((root.get_node(NodeProps.VEIN_LAYER) as MultiMeshInstance3D).multimesh.instance_count, _veins(nodes[0]).size() + _veins(nodes[1]).size(), "every vein drawn")
+	var drawn := 0
+	for c in root.get_node(NodeProps.VEIN_LAYER).get_children(): # one MultiMesh per chunk
+		drawn += (c as MultiMeshInstance3D).multimesh.instance_count
+	check_eq(drawn, _veins(nodes[0]).size() + _veins(nodes[1]).size(), "every vein drawn")
 	world.free()

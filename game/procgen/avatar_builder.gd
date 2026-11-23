@@ -20,6 +20,7 @@ const ARM_LENGTH := 0.5
 const LEG_LENGTH := 0.4
 const LEATHER := Color(0.45, 0.31, 0.19)
 const BEDROLL := Color(0.70, 0.63, 0.50)
+const PART_AO := 0.18 ## baked shade at the bottom of each part, so limbs and the tunic read as round
 const PACK_BACK := 0.38 ## how far behind the body's centre the pack sits (the body is 0.32 round)
 
 
@@ -152,12 +153,17 @@ static func _capsule(radius: float, height: float, segments: int, rings: int) ->
 	return m
 
 
+## One part on the world's shared Emberlight material (art bible section 2): the colour and a
+## little baked shading live in the mesh's vertex colours, so every avatar in the world, however
+## many there are, draws with the same single material as the trees and stones around it.
 static func _part(mesh: Mesh, color: Color, pos: Vector3) -> MeshInstance3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = 0.85
 	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = mat
+	mi.mesh = Emberlight.paint(mesh, color, PART_AO)
+	mi.material_override = material()
 	mi.position = pos
 	return mi
+
+
+## The material every avatar part uses: the world's shared Emberlight "solid".
+static func material() -> ShaderMaterial:
+	return Emberlight.material("solid")

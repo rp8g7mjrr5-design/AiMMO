@@ -12,7 +12,8 @@ extends Control
 ## timing. The client only knows which nodes are spent (s2c_nodes / s2c_node_state) so the
 ## prompt never offers one. All the rules are static functions so they are unit tested headless.
 
-const WIDTH := 300.0
+const WIDTH := 380.0 ## room for "Rich Stone Seam · Quarrying 5 (1,680 XP to go)"
+const BAR_WIDTH := 150.0
 const HEIGHT := 64.0
 const KEY_LABEL := "E"
 ## The action word per node kind, as in the design bible ("[E] Chop Ember Ash").
@@ -36,6 +37,7 @@ const NOTICES := {
 	"day": "Ember sap only seeps at night",
 	"far": "Out of reach",
 	"unknown": "Nothing to gather there",
+	"level": "Your level is too low", ## notice_for() names the skill and level when it can
 }
 
 var prompt_label: Label
@@ -48,6 +50,9 @@ var icons: IconShelf
 var spent := {}
 ## Your pack as the server last sent it (s2c_inventory), for the toast's "(6)".
 var pack := {}
+## Your skills (skill id -> XP) as the server last sent them (skills_changed / xp_gained), so
+## a tier-2 node you can't work yet says what it needs instead of offering E. {} = level 1.
+var skills := {}
 var _target := {}
 var _channel := {} ## your running gather: {node_id, kind, text, started, seconds}
 var _asked_node := -1 ## a start we sent and the server hasn't answered yet
@@ -60,41 +65,75 @@ var _toast_age := INF
 ## within ResourceNodes.GATHER_RANGE under the reticle (look-to-interact, when `look` is
 ## given: the camera's eye and look direction), else the nearest live one in reach. With
 ## only spent nodes in reach it names the nearest one, greyed out. {} for nothing in reach.
-## {id, kind, label, can: bool (false for a spent node or a seep in daylight), text, doing}.
-static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look := Vector3.ZERO, spent_ids := {}) -> Dictionary:
+## A tier-2 node above your level (`skills`: skill id -> XP) shows what it needs, greyed:
+## "Old Ember Ash · Felling 5 (1,205 XP to go)".
+## {id, kind, label, can: bool (false for a spent node, a seep in daylight or a node above
+## your level), needs_level: bool, text, doing}.
+static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look := Vector3.ZERO, spent_ids := {}, skills := {}) -> Dictionary:
 	var in_reach := ResourceNodes.near(pos, ResourceNodes.GATHER_RANGE)
 	if in_reach.is_empty():
 		return {}
 	var live: Array = in_reach.filter(func(n): return not spent_ids.has(int(n.id)))
 	var n: Dictionary = pick(live, eye, look) if not live.is_empty() else in_reach[0]
-	var info := ResourceNodes.kind_info(n.kind)
+	var info := ResourceNodes.info(n)
 	var label := str(info.get("label", n.kind))
-	var what := "Ember Sap" if n.kind == "ember_sap" else label.capitalize()
+	var what := _what(str(n.kind), label)
 	var verb := str(VERBS.get(n.kind, "Gather"))
 	var is_spent := live.is_empty()
 	var night_only := bool(info.get("night_only", false)) and not WorldClock.is_night(world_seconds)
+	var too_low := not Gathering.can_work(n, skills)
 	var text := "[%s] %s %s" % [KEY_LABEL, verb, what]
 	if is_spent:
 		text = "%s is spent for now" % label
+	elif too_low:
+		text = need_text(n, skills)
 	elif night_only:
 		text = "%s only seeps at night" % label
 	return {
 		"id": int(n.id),
 		"kind": str(n.kind),
 		"label": label,
-		"can": not is_spent and not night_only,
+		"can": not is_spent and not night_only and not too_low,
+		"needs_level": too_low,
 		"text": text,
-		"doing": doing_text(str(n.kind)),
+		"doing": doing_for(n),
 	}
 
 
-## "Chopping Ember Ash", "Mining Stone Outcrop", "Collecting Ember Sap": the bar's caption.
+## "Old Ember Ash · Felling 5 (1,205 XP to go)" for a node above your level, so the prompt is
+## a goal rather than a wall. "" when `skills` may work `node`.
+static func need_text(node: Dictionary, skills: Dictionary) -> String:
+	if Gathering.can_work(node, skills):
+		return ""
+	var info := ResourceNodes.info(node)
+	var skill := str(info.get("skill", ""))
+	var need := Gathering.required_level(node)
+	var to_go := maxi(0, Skills.xp_for_level(need) - Skills.xp_of(skills, skill))
+	return "%s · %s %d (%s XP to go)" % [_what(str(node.kind), str(info.get("label", node.kind))),
+		Skills.label(skill), need, SkillsWindow._grouped(to_go)]
+
+
+## The node's name as the prompt shows it: "Old Ember Ash", "Ember Sap".
+static func _what(kind: String, label: String) -> String:
+	return "Ember Sap" if kind == "ember_sap" else label.capitalize()
+
+
+## "Chopping Ember Ash", "Mining Stone Outcrop", "Collecting Ember Sap": the bar's caption
+## for a kind's tier-1 node. For one node (a tier-2 one has its own name) use doing_for().
 static func doing_text(kind: String) -> String:
 	var info := ResourceNodes.kind_info(kind)
 	if info.is_empty():
 		return "Gathering"
-	var what := "Ember Sap" if kind == "ember_sap" else str(info.label).capitalize()
-	return "%s %s" % [DOING.get(VERBS.get(kind, "Gather"), "Gathering"), what]
+	return "%s %s" % [DOING.get(VERBS.get(kind, "Gather"), "Gathering"), _what(kind, str(info.label))]
+
+
+## "Chopping Old Ember Ash": the bar's caption for one node.
+static func doing_for(node: Dictionary) -> String:
+	var info := ResourceNodes.info(node)
+	if info.is_empty():
+		return "Gathering"
+	var kind := str(node.kind)
+	return "%s %s" % [DOING.get(VERBS.get(kind, "Gather"), "Gathering"), _what(kind, str(info.label))]
 
 
 ## Look-to-interact: from `in_reach` (nearest first), the node under the reticle, falling
@@ -133,6 +172,15 @@ static func progress(channel: Dictionary, now: float) -> float:
 ## The centre-screen words for a gather that ended with `reason`, or "" for none.
 static func notice_text(reason: String) -> String:
 	return str(NOTICES.get(reason, ""))
+
+
+## notice_text, but a "level" refusal on a known node names what it needs: "Needs Felling 5".
+static func notice_for(reason: String, node_id: int) -> String:
+	if reason == "level":
+		var n := ResourceNodes.get_by_id(node_id)
+		if not n.is_empty() and Gathering.required_level(n) > 1:
+			return "Needs %s %d" % [Skills.label(str(ResourceNodes.info(n).skill)), Gathering.required_level(n)]
+	return notice_text(reason)
 
 
 ## True for the server's own system lines about your timed gather (start, haul, stop): the
@@ -200,8 +248,8 @@ func setup(theme: Theme) -> void:
 	bar.min_value = 0.0
 	bar.max_value = 1.0
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar.position = Vector2(WIDTH * 0.25, 52)
-	bar.size = Vector2(WIDTH * 0.5, 6)
+	bar.position = Vector2((WIDTH - BAR_WIDTH) * 0.5, 52)
+	bar.size = Vector2(BAR_WIDTH, 6)
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = ACCENT
 	bar.add_theme_stylebox_override("fill", fill)
@@ -231,7 +279,7 @@ func _make_label(font_size: int, color: Color) -> Label:
 ## Returns what to send now: {"op": "start", "node": id} (c2s_gather_start), {"op": "cancel"}
 ## (c2s_gather_cancel), or {}.
 func update(delta: float, pos: Vector3, world_seconds: float, now: float, held: bool, pressed: bool = false, moving: bool = false, eye := Vector3.ZERO, look := Vector3.ZERO) -> Dictionary:
-	_target = target(pos, world_seconds, eye, look, spent)
+	_target = target(pos, world_seconds, eye, look, spent, skills)
 	if not held:
 		_hold_blocked = false
 	var waiting := _asked_node >= 0 and now - _asked_at < ASK_TIMEOUT
@@ -265,8 +313,8 @@ func update(delta: float, pos: Vector3, world_seconds: float, now: float, held: 
 ## s2c_gather_begin for your own gather: the bar starts filling over the server's `seconds`.
 func on_begun(node_id: int, seconds: float, now: float) -> void:
 	_asked_node = -1
-	var kind := str(ResourceNodes.get_by_id(node_id).get("kind", ""))
-	_channel = {"node_id": node_id, "kind": kind, "text": doing_text(kind), "started": now, "seconds": seconds}
+	var node := ResourceNodes.get_by_id(node_id)
+	_channel = {"node_id": node_id, "kind": str(node.get("kind", "")), "text": doing_for(node), "started": now, "seconds": seconds}
 
 
 ## s2c_gather_end for your own gather (or a refused start). Shows the refusal notice, if
@@ -275,7 +323,7 @@ func on_ended(node_id: int, reason: String) -> String:
 	if _channel.is_empty() or int(_channel.node_id) == node_id:
 		_channel = {}
 	_asked_node = -1 # a refused start is answered by its end alone
-	var words := notice_text(reason)
+	var words := notice_for(reason, node_id)
 	if reason != "done":
 		_hold_blocked = true # holding E doesn't hammer a refusal; let go and press again
 	if words != "":
@@ -347,6 +395,7 @@ func hide_all() -> void:
 	_hold_blocked = false
 	spent = {}
 	pack = {}
+	skills = {}
 	prompt_label.visible = false
 	bar.visible = false
 	_toast_age = INF

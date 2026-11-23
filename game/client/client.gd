@@ -46,6 +46,8 @@ var sfx_craft: AudioStreamPlayer
 var reticle: Reticle
 var controls_overlay: ControlsOverlay
 var skills_window: SkillsWindow
+var pack_window: PackWindow
+var pack_button: Button
 var skills_button: Button
 var goal_label: Label
 var _goal_key := "" ## which unlock the goal line names ("felling:5")
@@ -115,6 +117,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 		_open_controls_after_login.call_deferred()
 	if args.has("open-skills"):
 		_open_skills_after_login.call_deferred()
+	if args.has("open-pack"):
+		_open_pack_after_login.call_deferred()
 	if args.has("autoconnect"):
 		_on_connect_pressed.call_deferred()
 	_args = args
@@ -146,8 +150,40 @@ func _open_skills_after_login() -> void:
 	skills_window.open()
 
 
+## Test hook (--open-pack): opens the I pack window once logged in, as I would.
+func _open_pack_after_login() -> void:
+	while not logged_in:
+		await get_tree().process_frame
+	await get_tree().create_timer(1.0).timeout
+	var spec := str(_args.get("open-pack", ""))
+	if spec.contains(":"):
+		# Test hook (--open-pack=ash_wood:12,stone:4): show that pack (display only, never sent),
+		# and just before a --screenshot one more of the first item arrives, so the shot catches
+		# that slot's gold glow and "+1" (see _screenshot_later).
+		pack_window.seed_pack(_pack_spec(spec))
+	pack_window.open()
+
+
+## "ash_wood:12,stone:4" -> {"ash_wood": 12, "stone": 4} (the --open-pack test hook).
+static func _pack_spec(spec: String) -> Dictionary:
+	var inv := {}
+	for part in spec.split(","):
+		var kv := part.split(":")
+		if kv.size() == 2:
+			inv[kv[0]] = kv[1].to_int()
+	return inv
+
+
 func _screenshot_later(path: String, wait: float) -> void:
-	if _args.has("show-toast"):
+	if str(_args.get("open-pack", "")).contains(":"):
+		await get_tree().create_timer(maxf(0.0, wait - 0.4)).timeout
+		var inv := _pack_spec(str(_args["open-pack"]))
+		if not inv.is_empty():
+			var first := str(inv.keys()[0])
+			inv[first] = int(inv[first]) + 1
+			pack_window.seed_pack(inv)
+		await get_tree().create_timer(0.4).timeout
+	elif _args.has("show-toast"):
 		# Test hook (--show-toast=ash_wood): a "+2 Ash wood" toast with its icon, just before the shot.
 		await get_tree().create_timer(maxf(0.0, wait - 0.4)).timeout
 		var item := str(_args["show-toast"])
@@ -188,6 +224,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			controls_overlay.close()
 		elif skills_window.visible:
 			skills_window.close()
+		elif pack_window.visible:
+			pack_window.close()
 		elif craft_window.visible:
 			craft_window.close()
 		elif chat_edit.has_focus():
@@ -203,7 +241,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not logged_in or settings_menu.visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_controls"):
-		if not craft_window.visible and not skills_window.visible:
+		if not craft_window.visible and not skills_window.visible and not pack_window.visible:
 			controls_overlay.toggle()
 			if controls_overlay.visible:
 				chat_edit.release_focus()
@@ -214,7 +252,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_skills()
 		get_viewport().set_input_as_handled()
 		return
-	if controls_overlay.visible or skills_window.visible:
+	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_pack"):
+		_toggle_pack()
+		get_viewport().set_input_as_handled()
+		return
+	if controls_overlay.visible or skills_window.visible or pack_window.visible:
 		return
 	if craft_window.visible:
 		if event is InputEventKey and event.pressed and not event.echo and event.is_action("interact"):
@@ -261,15 +303,25 @@ func _apply_settings(s: ClientSettings) -> void:
 
 ## True while a window that frees the cursor is open (Settings, the workbench, the F1 controls).
 func window_open() -> bool:
-	return settings_menu.visible or craft_window.visible or controls_overlay.visible or skills_window.visible
+	return settings_menu.visible or craft_window.visible or controls_overlay.visible or skills_window.visible or pack_window.visible
 
 
 ## K or the Skills button: open or shut the skills window (not over another window).
 func _toggle_skills() -> void:
-	if craft_window.visible or controls_overlay.visible or settings_menu.visible:
+	if craft_window.visible or controls_overlay.visible or settings_menu.visible or pack_window.visible:
 		return
 	skills_window.toggle()
 	if skills_window.visible:
+		chat_edit.release_focus()
+		sfx_chime.play()
+
+
+## I or the Pack button: open or shut the pack window (not over another window).
+func _toggle_pack() -> void:
+	if craft_window.visible or controls_overlay.visible or settings_menu.visible or skills_window.visible:
+		return
+	pack_window.toggle()
+	if pack_window.visible:
 		chat_edit.release_focus()
 		sfx_chime.play()
 
@@ -286,6 +338,7 @@ func _process(delta: float) -> void:
 	perf_overlay.step(delta)
 	xp_meter.step(delta)
 	level_up_banner.step(delta)
+	pack_window.step(delta)
 	_step_goal(delta)
 	var t := 1.0 - exp(-14.0 * delta)
 	for id in avatars:
@@ -470,10 +523,12 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	help_label.visible = true
 	controls_button.visible = true
 	skills_button.visible = true
+	pack_button.visible = true
 	goal_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
 	cam.place(Vector3(character.x, character.y, character.z), character.yaw + PI)
 	craft_window.seed_pack(character.get("inventory"))
+	pack_window.seed_pack(character.get("inventory"))
 	_on_system(message)
 	sfx_arrive.play()
 
@@ -502,6 +557,8 @@ func _on_server_disconnected() -> void:
 	controls_overlay.visible = false
 	skills_window.reset()
 	skills_button.visible = false
+	pack_window.reset()
+	pack_button.visible = false
 	goal_label.visible = false
 	goal_label.text = ""
 	_goal_key = ""
@@ -589,6 +646,7 @@ func _on_gather_result(item_id: String, count: int) -> void:
 func _on_skills(skills: Dictionary) -> void:
 	xp_meter.on_skills(skills)
 	skills_window.on_skills(skills)
+	_share_skills()
 	_update_goal(false)
 
 
@@ -597,7 +655,15 @@ func _on_skills(skills: Dictionary) -> void:
 func _on_xp(skill: String, gained: int, total_xp: int) -> void:
 	xp_meter.on_gain(skill, gained, total_xp)
 	skills_window.on_gain(skill, total_xp)
+	_share_skills()
 	_update_goal(true)
+
+
+## The gather prompt and the workbench read your levels too: a tier-2 node or an ember tool
+## above your level says what it needs instead of offering E or Craft.
+func _share_skills() -> void:
+	gather_prompt.skills = skills_window.skills.duplicate()
+	craft_window.on_skills(skills_window.skills)
 
 
 ## The goal line under the compass: the closest named unlock. When it moves on to a new goal
@@ -644,6 +710,7 @@ func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
 func _on_inventory(items: Dictionary) -> void:
 	gather_prompt.pack = items
 	craft_window.seed_pack(items)
+	pack_window.seed_pack(items)
 
 
 ## At login: every node that is empty right now (the rest show live, in case they were
@@ -899,8 +966,8 @@ func _build_ui() -> void:
 	help_label.text = ControlsOverlay.corner_hint()
 	help_label.anchor_left = 1.0
 	help_label.anchor_right = 1.0
-	help_label.offset_left = -460
-	help_label.offset_right = -120
+	help_label.offset_left = -520
+	help_label.offset_right = -180
 	help_label.offset_top = 12
 	help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	help_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
@@ -922,7 +989,7 @@ func _build_ui() -> void:
 	controls_button.offset_bottom = 38
 	controls_button.visible = false
 	controls_button.pressed.connect(func():
-		if not craft_window.visible and not settings_menu.visible and not skills_window.visible:
+		if not craft_window.visible and not settings_menu.visible and not skills_window.visible and not pack_window.visible:
 			controls_overlay.toggle()
 			sfx_chime.play())
 	ui.add_child(controls_button)
@@ -943,6 +1010,22 @@ func _build_ui() -> void:
 	skills_button.pressed.connect(_toggle_skills)
 	ui.add_child(skills_button)
 
+	# "Pack" button left of "Skills": the same window as I, for mouse players.
+	pack_button = Button.new()
+	pack_button.theme = theme
+	pack_button.text = "Pack"
+	pack_button.tooltip_text = "Pack (%s)" % ControlsOverlay.key_text("toggle_pack")
+	pack_button.focus_mode = Control.FOCUS_NONE
+	pack_button.anchor_left = 1.0
+	pack_button.anchor_right = 1.0
+	pack_button.offset_left = -172
+	pack_button.offset_right = -120
+	pack_button.offset_top = 10
+	pack_button.offset_bottom = 38
+	pack_button.visible = false
+	pack_button.pressed.connect(_toggle_pack)
+	ui.add_child(pack_button)
+
 	# The F1 controls overlay, centre screen.
 	perf_overlay = PerfOverlay.new()
 	perf_overlay.setup(theme)
@@ -957,6 +1040,13 @@ func _build_ui() -> void:
 	skills_window.setup(theme)
 	skills_window.closed.connect(func(): sfx_chime.play())
 	ui.add_child(skills_window)
+
+	# The I pack window, centre screen.
+	pack_window = PackWindow.new()
+	pack_window.icons = icon_shelf
+	pack_window.setup(theme)
+	pack_window.closed.connect(func(): sfx_chime.play())
+	ui.add_child(pack_window)
 
 	# The workbench window, centre screen (E at the Spawn Meadow workbench).
 	craft_window = CraftWindow.new()

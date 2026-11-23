@@ -10,6 +10,16 @@ class_name NodeProps
 ## headless tests and bots); `build()` turns the layout into a few MultiMeshes, and
 ## `set_depleted()` swaps one node between its live and depleted look by showing and hiding
 ## its MultiMesh instances, so no meshes are created or freed while playing.
+##
+## Chunked (art bible section 7, "Draw less"): each layer is a Node3D holding one
+## MultiMeshInstance3D per chunk of the world ("c<x>_<z>", like `Chunks.build`), so the camera
+## and the sun's shadow cascades skip chunks they can't see and far chunks fade out at their
+## layer's `RANGES`. Every part of a node goes in the chunk of the node's own position, so a
+## tree is never split across chunks. The grid is shifted half a chunk so Spawn Meadow sits in
+## the middle of one chunk, not on the corner of four. `layout()` still indexes parts by
+## (layer, index) in world space; `build()` records where each one went (`part_xform` /
+## `put_xform`), and a chunk whose parts are all hidden (a stump chunk while nothing is felled)
+## is hidden as a whole, so it costs no draw call and no triangles.
 
 const LAYERS := ["NodeTrunks", "NodeAshCrowns", "NodePineTiers", "NodeStones", "NodeSapPools", "NodeStumps", "NodeDetail", "NodeVeins"]
 const GLOW_LAYER := "NodeSapPools" ## drawn with a warm emissive material
@@ -68,6 +78,23 @@ const SOLID_COLUMNS := {
 
 ## A collapsed basis hides a MultiMesh instance without resizing the MultiMesh.
 const HIDDEN := Basis(Vector3.ZERO, Vector3.ZERO, Vector3.ZERO)
+
+## Chunk side per layer, metres; 0 = the whole layer is one chunk (centred on spawn).
+## Measured on the client smoke test's spawn shot (2026-11-23, night; before: one MultiMesh
+## per layer, 277 draw calls, 625k primitives): 128 m chunks everywhere gave 345k primitives
+## but 335 draw calls, 256 m 388k / 302. Chunks pay where a layer is heavy and short-ranged,
+## and cost a draw call per chunk per pass everywhere else, so: the close-up layers (detail,
+## veins: 64k triangles of 4-12 cm boxes) get 128 m chunks and a short range; stones and
+## stumps (54k, big) get 256 m chunks; the tree parts and glows (50k, seen from far off as
+## landmarks) stay whole. That gives 461k / 286.
+const CHUNK_SIZES := {
+	"NodeTrunks": 0.0, "NodeAshCrowns": 0.0, "NodePineTiers": 0.0, GLOW_LAYER: 0.0,
+	"NodeStones": 256.0, "NodeStumps": 256.0, VEIN_LAYER: 128.0, DETAIL_LAYER: 128.0,
+}
+## Draw distance per chunked layer, metres (a whole layer has none). Stones and stumps go as
+## far as the big boulders and a bit more; the close-up layers (root flares, bark ridges,
+## studs, flecks, 4-6 cm ember cracks) only as far as anyone can make them out.
+const RANGES := {"NodeStones": 220.0, "NodeStumps": 220.0, VEIN_LAYER: 110.0, DETAIL_LAYER: 60.0}
 
 
 ## Every part of one node's prop, in world space, as an Array of
@@ -457,9 +484,13 @@ static func build(nodes: Array = []) -> Node3D:
 	root.name = "ResourceNodes"
 	root.set_meta("layout", lay)
 	var meshes := _meshes()
+	# Where each part lives: layer -> Array (by layout index) of [chunk, index in its MultiMesh].
+	var where := {}
 	for l in LAYERS:
-		var mmi := _multimesh(l, meshes[l], lay.layers[l], l == GLOW_LAYER)
-		root.add_child(mmi)
+		where[l] = []
+		(where[l] as Array).resize((lay.layers[l] as Array).size())
+		root.add_child(_chunked(l, meshes[l], lay, where[l]))
+	root.set_meta("where", where)
 	for id in lay.slots:
 		_show(root, lay.slots[id].depleted, false)
 	root.set_meta("depleted", {})
@@ -467,6 +498,100 @@ static func build(nodes: Array = []) -> Node3D:
 	root.add_child(fx)
 	fx.setup(root, meshes)
 	return root
+
+
+## The chunk key of a world position for `layer`: Chunks' grid shifted by half a chunk, so
+## the world origin (Spawn Meadow) is the middle of chunk (0, 0). A whole layer is all (0, 0).
+static func chunk_key(layer: String, p: Vector3) -> Vector2i:
+	var size := chunk_size(layer)
+	if size <= 0.0:
+		return Vector2i.ZERO
+	return Chunks.key(p + Vector3(size, 0.0, size) * 0.5, size)
+
+
+## The centre of `layer`'s chunk `k` on the ground plane (the origin for a whole layer).
+static func chunk_centre(layer: String, k: Vector2i) -> Vector3:
+	var size := chunk_size(layer)
+	if size <= 0.0:
+		return Vector3.ZERO
+	return Chunks.centre(k, size) - Vector3(size, 0.0, size) * 0.5
+
+
+static func chunk_size(layer: String) -> float:
+	return CHUNK_SIZES.get(layer, 0.0)
+
+
+## A layer's chunks' visibility_range_end: its range plus half a chunk diagonal, so a part at
+## a chunk's corner is still drawn out to the layer's range (as `Chunks.cut_of`). 0 = no limit.
+static func cut_of(layer: String) -> float:
+	var r: float = RANGES.get(layer, 0.0)
+	return 0.0 if r <= 0.0 or chunk_size(layer) <= 0.0 else r + chunk_size(layer) * 0.7072
+
+
+## Layer `l` as a Node3D of chunk MultiMeshes. Parts go in the chunk of their node's position,
+## in layout order inside each chunk; `where` (one entry per layout index) is filled in.
+static func _chunked(l: String, mesh: Mesh, lay: Dictionary, where: Array) -> Node3D:
+	var node_at: Array = []
+	node_at.resize(where.size())
+	for id in lay.slots:
+		var slot: Dictionary = lay.slots[id]
+		for look in ["live", "depleted"]:
+			for e in slot[look]:
+				if e[0] == l:
+					node_at[e[1]] = slot.pos
+	var by_chunk := {}
+	var all: Array = lay.layers[l]
+	for i in all.size():
+		var k := chunk_key(l, node_at[i])
+		if not by_chunk.has(k):
+			by_chunk[k] = []
+		(by_chunk[k] as Array).append(i)
+	var keys := by_chunk.keys()
+	keys.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	var layer_node := Node3D.new()
+	layer_node.name = l
+	var vis := cut_of(l)
+	for k in keys:
+		var at := chunk_centre(l, k)
+		var idx: Array = by_chunk[k]
+		var inst: Array = []
+		for i in idx:
+			var t: Transform3D = all[i][0]
+			inst.append([Transform3D(t.basis, t.origin - at), all[i][1]])
+		var mmi := _multimesh("c%d_%d" % [k.x, k.y], mesh, inst, l)
+		mmi.position = at
+		if vis > 0.0:
+			mmi.visibility_range_end = vis
+		mmi.set_meta("shown", idx.size())
+		layer_node.add_child(mmi)
+		for j in idx.size():
+			where[idx[j]] = [mmi, j]
+	return layer_node
+
+
+## Draw part (`layer`, `index`) of the layout at world transform `xf` (NodeFx's shakes).
+static func put_xform(root: Node3D, layer: String, index: int, xf: Transform3D) -> void:
+	var w: Array = root.get_meta("where")[layer][index]
+	var mmi := w[0] as MultiMeshInstance3D
+	mmi.multimesh.set_instance_transform(w[1], Transform3D(xf.basis, xf.origin - mmi.position))
+
+
+## The world transform part (`layer`, `index`) is drawn at right now (hidden parts collapsed).
+static func part_xform(root: Node3D, layer: String, index: int) -> Transform3D:
+	var w: Array = root.get_meta("where")[layer][index]
+	var mmi := w[0] as MultiMeshInstance3D
+	return mmi.transform * mmi.multimesh.get_instance_transform(w[1])
+
+
+## Whether part (`layer`, `index`) is shown (its chunk tracks how many of its parts are).
+static func part_shown(root: Node3D, layer: String, index: int) -> bool:
+	var hidden: Dictionary = root.get_meta("hidden", {})
+	return not hidden.has(_part_key(layer, index))
+
+
+## The MultiMeshInstance3D chunk that draws part (`layer`, `index`).
+static func part_chunk(root: Node3D, layer: String, index: int) -> MultiMeshInstance3D:
+	return root.get_meta("where")[layer][index][0] as MultiMeshInstance3D
 
 
 ## Switch node `id` between its live and depleted look. Returns false for an unknown id.
@@ -514,10 +639,26 @@ static func play_hit(root: Node3D, id: int) -> bool:
 
 static func _show(root: Node3D, entries: Array, visible: bool) -> void:
 	var lay: Dictionary = root.get_meta("layout")
+	var hidden: Dictionary = root.get_meta("hidden", {})
 	for e in entries:
-		var mm := (root.get_node(e[0]) as MultiMeshInstance3D).multimesh
 		var xf: Transform3D = lay.layers[e[0]][e[1]][0]
-		mm.set_instance_transform(e[1], xf if visible else Transform3D(HIDDEN, xf.origin))
+		put_xform(root, e[0], e[1], xf if visible else Transform3D(HIDDEN, xf.origin))
+		var key := _part_key(e[0], e[1])
+		if hidden.has(key) != visible:
+			continue # already in that state
+		var mmi := part_chunk(root, e[0], e[1])
+		var shown: int = mmi.get_meta("shown") + (1 if visible else -1)
+		mmi.set_meta("shown", shown)
+		mmi.visible = shown > 0 # a chunk with nothing to show costs nothing
+		if visible:
+			hidden.erase(key)
+		else:
+			hidden[key] = true
+	root.set_meta("hidden", hidden)
+
+
+static func _part_key(layer: String, index: int) -> String:
+	return "%s:%d" % [layer, index]
 
 
 static func _meshes() -> Dictionary:
@@ -605,7 +746,7 @@ static func layer_material(layer: String) -> ShaderMaterial:
 			return Emberlight.material("solid")
 
 
-static func _multimesh(node_name: String, mesh: Mesh, instances: Array, glow: bool) -> MultiMeshInstance3D:
+static func _multimesh(node_name: String, mesh: Mesh, instances: Array, layer: String) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
@@ -617,7 +758,7 @@ static func _multimesh(node_name: String, mesh: Mesh, instances: Array, glow: bo
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = node_name
 	mmi.multimesh = mm
-	mmi.material_override = layer_material(node_name)
-	if glow or node_name == DETAIL_LAYER or node_name == VEIN_LAYER:
+	mmi.material_override = layer_material(layer)
+	if layer == GLOW_LAYER or layer == DETAIL_LAYER or layer == VEIN_LAYER:
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mmi

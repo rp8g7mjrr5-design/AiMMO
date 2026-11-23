@@ -30,6 +30,7 @@ const LIGHT_ENERGY := 1.6
 const LIGHT_RANGE := 11.0
 const GLASS_DAY := 0.15 ## unlit glass still catches a little light
 const GLASS_NIGHT := 1.3
+const GLASS_PULSE := 0.12 ## how much the heartbeat swells lantern glass (a flame breathing, not a strobe)
 const ASH_GLOW := 0.10 ## faint: you notice it, it never looks like a light bulb
 const NODE_ASH_GLOW := 0.14 ## gatherable ash a touch brighter, so it reads as special at night
 const SAP_DAY := 0.9 ## matches NodeProps' daytime sap emission
@@ -163,11 +164,6 @@ static func _set_emission(n: Node, energy: float) -> void:
 		return
 	if gi.material_override is ShaderMaterial: # Emberlight: the heartbeat swells it in the shader
 		(gi.material_override as ShaderMaterial).set_shader_parameter("emission_energy", energy)
-		return
-	var mat := gi.material_override as StandardMaterial3D
-	if mat == null or not mat.emission_enabled:
-		return
-	mat.emission_energy_multiplier = energy
 
 
 ## The shared Emberlight foliage material for ember ash leaves: their warmth is off by day
@@ -176,13 +172,6 @@ static func ember_leaf_material() -> ShaderMaterial:
 	var m := Emberlight.material("foliage", "ash_leaf")
 	m.set_shader_parameter("emission_color", EMBER)
 	return m
-
-
-## Give a leaf material its ember warmth (off until apply_glow turns it up at night).
-static func add_ember_emission(mat: StandardMaterial3D) -> void:
-	mat.emission_enabled = true
-	mat.emission = EMBER
-	mat.emission_energy_multiplier = 0.0
 
 
 static func _meshes() -> Dictionary:
@@ -204,7 +193,9 @@ static func _meshes() -> Dictionary:
 	glass.height = 1.0
 	glass.radial_segments = 6
 	glass.rings = 1
-	return {"LampWood": post, "LampIron": iron, "LampGlass": glass}
+	# Baked like the forest: posts sit dark in the grass and lighten up their height.
+	return {"LampWood": Emberlight.bake(post, 0.35, 1.4), "LampIron": Emberlight.bake(iron, 0.25),
+		"LampGlass": Emberlight.bake(glass, 0.0)}
 
 
 static func _multimesh(node_name: String, mesh: Mesh, instances: Array, glow: bool) -> MultiMeshInstance3D:
@@ -216,18 +207,23 @@ static func _multimesh(node_name: String, mesh: Mesh, instances: Array, glow: bo
 	for i in instances.size():
 		mm.set_instance_transform(i, instances[i][0])
 		mm.set_instance_color(i, (instances[i][1] as Color).srgb_to_linear())
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.9
-	if glow:
-		mat.roughness = 0.3
-		mat.emission_enabled = true
-		mat.emission = FLAME
-		mat.emission_energy_multiplier = GLASS_DAY
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = node_name
 	mmi.multimesh = mm
-	mmi.material_override = mat
+	mmi.material_override = glass_material() if glow else Emberlight.material("solid")
 	if glow:
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mmi
+
+
+## The one material for every lantern's glass in the valley (the meadow ring and the bench
+## lantern): Emberlight's solid with a flame-coloured whole-surface glow. `apply_glow` turns it
+## up at night; the valley's heartbeat swells it a little, like a flame breathing.
+static func glass_material() -> ShaderMaterial:
+	var m := Emberlight.material("solid", "lantern_glass")
+	m.set_shader_parameter("emission_color", FLAME)
+	m.set_shader_parameter("pulse_depth", GLASS_PULSE)
+	if not m.has_meta("lit"): # first use: the daytime level until apply_glow says otherwise
+		m.set_meta("lit", true)
+		m.set_shader_parameter("emission_energy", GLASS_DAY)
+	return m
