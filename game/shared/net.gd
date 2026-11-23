@@ -55,6 +55,16 @@ signal level_up(skill: String, level: int, unlocks: Array)
 ## Another player in view (peer_id) reached `level` in `skill`: show the burst.
 signal level_up_seen(peer_id: int, skill: String, level: int)
 
+# --- protocol v5, carried by Net/Play: who is online, and getting home ---
+## Who is online, for the players panel: [{id, name, level}, ...] sorted by name, where
+## level is the total of every skill's level. Sent at login, when anyone joins or leaves,
+## and when anyone levels up.
+signal roster_changed(entries: Array)
+## A player asked to go back to Spawn Meadow (the Esc menu's "Return to Spawn Meadow").
+signal unstuck_requested(peer_id: int)
+## The answer: ok (you are at spawn now) or why not, and the seconds until you can ask again.
+signal unstuck_result(ok: bool, text: String, wait_seconds: float)
+
 var last_ack_seq := -1
 var play: Node
 

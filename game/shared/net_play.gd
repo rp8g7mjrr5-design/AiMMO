@@ -1,5 +1,6 @@
 extends Node
-## Net/Play: the RPCs added in protocol v3 (gathering, the pack, crafting) and v4 (skills). A child of Net so
+## Net/Play: the RPCs added in protocol v3 (gathering, the pack, crafting), v4 (skills) and v5
+## (roster, Return to Spawn Meadow). A child of Net so
 ## Net's own RPC numbering, and with it every old client's login, never changes (see net.gd
 ## and tests/protocol/README.md). No logic: each RPC re-emits the matching signal on Net.
 ## Clients call these as `net.play.c2s_*.rpc_id(1, ...)`; the server's _send finds them here.
@@ -32,6 +33,13 @@ func c2s_gather_cancel() -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func c2s_craft(recipe_id: String) -> void:
 	_net().craft_requested.emit(_sender(), recipe_id)
+
+
+## Go back to Spawn Meadow (v5): the Esc menu's "Return to Spawn Meadow" button. The server
+## answers with s2c_unstuck_result.
+@rpc("any_peer", "call_remote", "reliable")
+func c2s_unstuck() -> void:
+	_net().unstuck_requested.emit(_sender())
 
 
 # --- server to client ---
@@ -98,3 +106,20 @@ func s2c_level_up(skill: String, level: int, unlocks: Array) -> void:
 @rpc("authority", "call_remote", "reliable")
 func s2c_level_up_seen(peer_id: int, skill: String, level: int) -> void:
 	_net().level_up_seen.emit(peer_id, skill, level)
+
+
+# --- protocol v5: who is online, and getting home ---
+
+## Everyone online, [{id, name, level}, ...] sorted by name (level = total of all skill
+## levels). At login, on every join and leave, and when anyone levels up. Replaces /who.
+@rpc("authority", "call_remote", "reliable")
+func s2c_roster(entries: Array) -> void:
+	_net().roster_changed.emit(entries)
+
+
+## The answer to c2s_unstuck: ok (you stand in Spawn Meadow now; your next snapshot has the
+## new spot, so snap the camera rather than slide), or why not. wait_seconds: until the
+## button works again (0 when it is ready).
+@rpc("authority", "call_remote", "reliable")
+func s2c_unstuck_result(ok: bool, text: String, wait_seconds: float) -> void:
+	_net().unstuck_result.emit(ok, text, wait_seconds)
