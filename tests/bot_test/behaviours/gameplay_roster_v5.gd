@@ -90,6 +90,7 @@ func _ask() -> void:
 	_asks += 1
 	_asked_at = bot.elapsed
 	_asked_from = bot.my_pos
+	bot.set_meta("unstuck_at", bot.elapsed) # gameplay_gather_v3 forgives a "moved" end now
 	bot.send_play("c2s_unstuck")
 
 
