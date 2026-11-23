@@ -9,6 +9,10 @@
 # section 7): draw calls, primitives, world materials and texture memory at the noon and night
 # spawn shots, written to render_stats.json and failed over the ceilings or the 20% ratchet in
 # tests/client_smoke/render_baseline.json.
+# Then the Emberlight style check (tests/client_smoke/style_check.gd, art bible "Colour"): ember
+# share, neon, warm/cool and a not-black, not-grey night on the noon and night shots, against
+# tests/client_smoke/style_baseline.json, written to style_stats.json, plus contact_sheet.html
+# of every screenshot for the CI artifact.
 # Needs xvfb-run and Mesa (software OpenGL).
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -59,6 +63,10 @@ if [ $fail -eq 0 ]; then
   "$GODOT" --headless --path "$REPO/game" -s tests/client_smoke/image_stats.gd -- \
     --day="$OUT/world.png" --night="$OUT/world-night.png" > "$OUT/brightness.log" 2>&1 || fail=1
   cat "$OUT/brightness.log"
+  "$GODOT" --headless --path "$REPO/game" -s tests/client_smoke/style_check.gd -- \
+    --shot=noon="$OUT/world.png" --shot=night="$OUT/world-night.png" \
+    --out="$OUT/style_stats.json" --sheet="$OUT/contact_sheet.html" > "$OUT/style.log" 2>&1 || fail=1
+  grep "\[style\]" "$OUT/style.log" || true
 fi
 python3 "$REPO/tests/client_smoke/render_budget.py" --shot noon="$OUT/render-noon.json" \
   --shot night="$OUT/render-night.json" --out "$OUT/render_stats.json" || fail=1
