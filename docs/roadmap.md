@@ -17,9 +17,11 @@ on screen follows the Emberlight art bible (`docs/art_bible.md`) and stays insid
 
 ## Milestone 0: Foundations (finishing now)
 Shared world, accounts, movement, chat, persistence, day and night, gathering, crafting at
-the workbench, the self-updating client. Still in flight and still first in every backlog:
-protocol v3 real gathering, the action camera, chat is for talking (slash commands to real
-UI), crafting through `c2s_craft`.
+the workbench, the self-updating client. Real gathering (v3), the
+action camera and the F1 controls card are done. Left as of 2026-11-23, first in every
+backlog: the workbench window on `c2s_craft` (client), then the chat gate (gameplay) and its
+CI check (qa), the pack window on I (client), and facing yaw in protocol v5 (gameplay, then
+client).
 **Done when:** a new player can gather and craft with keys and windows only, no chat command
 anywhere, through the over-the-shoulder camera.
 
@@ -106,6 +108,21 @@ More skills (cooking, fishing-like and others, each with our own name), more zon
 chapters of the mystery, housing, seasonal world events, Steam (blocked until the owner sets
 it up).
 
+## The next six weeks (director forecast, 2026-11-23)
+A forecast, not a promise: it is redrawn every morning from what actually landed. Release
+weeks start Friday; the PR budget week starts Wednesday (`docs/budget.md`), so each stream
+has about 40 PRs between Wednesdays. At 2026-11-23's pace (60 worker PRs landed in a day) a
+milestone takes two to four days of work, and the budget, not the work, sets the pace.
+
+| Week | Dates | Focus |
+|------|-------|-------|
+| 00 | to Thu 26 Nov | Close Milestone 0 (craft window on `c2s_craft`, chat gate, pack window, facing yaw v5) and Milestone 1 (level-up moment, skills window, tier-2 nodes and props, Toolcraft recipes, pace check, bot-test gates). |
+| 01 | 27 Nov to 3 Dec | Milestone 2 starts: health and stamina, light and heavy attacks, dodge, the first two crafted weapons and their mastery skills, gentle wildlife outside the meadow. |
+| 02 | 4 to 10 Dec | Milestone 2 done: hostile creatures in the ridges and at night with clear telegraphs, fair death and respawn, torches and placed campfires, the first hint of the mystery. |
+| 03 | 11 to 17 Dec | Milestone 3: refining skills, the first ore, three gear tiers, rolled quality from crafting level, a character panel, gear that changes your silhouette. |
+| 04 | 18 to 24 Dec | Milestone 4 starts: the second zone's terrain, look and landmarks, tier-3 materials, soft gating by gear. |
+| 05 | 25 to 31 Dec | Milestone 4 done (its creatures and the "Embers Below" quest chain); Milestone 5 groundwork (the Hearth, storage). |
+
 ## Week history
 | Week | Release | Notes |
 |------|---------|-------|
@@ -124,6 +141,14 @@ MMOs and beat it, and the goal of being the best MMO. The old week table (wildli
 the Hearth, quests) is folded into milestones 2, 4 and 5. Milestone 1 (skills and XP) is
 current and is seeded in every stream's backlog right after the Milestone 0 items still in
 flight.
+
+**Director note (2026-11-23, morning):** Milestone 1 is about half built in a day (skills,
+XP, protocol v4, XP floaters, skill badges, the level-up burst). Its remaining done-when items
+are the level-up banner, the skills window, tier-2 nodes with a level gate, and bots that level
+up in CI. Milestone 0 is not closed yet: the workbench window still sends `/craft`, so the chat
+gate can't go on. Both are at the top of today's backlogs. Backlogs were trimmed to 12 ordered
+items per stream; everything else sits under "Later" in each file, so workers stop picking
+low-value follow-ups ahead of milestone work.
 
 ## Backlog (unscheduled)
 - Zone or proximity chat, private messages

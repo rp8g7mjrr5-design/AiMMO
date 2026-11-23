@@ -334,3 +334,24 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Known / not done.** Node props are still world-wide MultiMeshes (165k triangles, the biggest piece left; follow-up filed with the id-to-chunk mapping it needs). No mid-distance tree mesh yet. Draw-call headroom is 27 at night.
 
 **Next run.** Chunk `NodeProps` (gets the spawn shot under 600k), unless this PR needs a fix.
+
+## 2026-11-23: skill badges (Milestone 1 part 3, first half)
+**Run start.** #92 (chunked instancing) had a merge conflict with main in my backlog's "Requests from other streams" (client's new Graphics quality request landed next to my qa line). Merged main in, kept both lines, unit tests and the 8-bot test passed locally, pushed; auto-merge was already on.
+
+**Why this.** Two open PRs are allowed, so I took a new item that doesn't need #92's code. Emberlight 2b touches `lamps.gd`, which #92 also edits, and client's `Quality.flora_density()` request edits the flora placement #92 rewrote, so both wait for #92 to land. Tier-2 node props wait on gameplay (no `tier` in `ResourceNodes` yet). Skill icons are Milestone 1, unblocked (`Skills.ORDER` is on main) and touch nothing #92 does. Fun in one sentence: when a level-up toast or the skills window says Quarrying, the player sees a slate badge with a pick and knows which road moved before reading.
+
+**Built.** `SkillIcons` (`game/procgen/skill_icons.gd`): one round badge per skill (felling green disc with a stump, a stone axe and an ash leaf; quarrying slate-blue with a pick over a seamed stone and chips; tapping deep ember-red with a glowing drop falling from a spout into a bowl, the only badge with a halo; toolcraft warm wood with a hammer across the bench plank and a spark). `texture(skill)` (cached, 64 px default), `image`, `shapes`, `tint`, plain star badge for unknown ids. Drawn through a new public `ItemIcons.rasterise(shapes, size)` (ItemIcons.image now calls it; output unchanged, its tests still pass), so items and skills share one hand. Preview: `/mnt/project-files/world/skill-badges.png`.
+
+**Decisions.**
+- Badges are always round discs, unlike the free-standing item icons, so "a road I'm on" and "a thing I carry" never look alike.
+- Colour does the work at 24 px (the unit test checks the mean colours are apart); the emblem does it up close.
+- No bot behaviour: art bible section 7 and the director's follow-up say art checks live in unit tests, and icons change nothing on the network.
+- SkillIcons calls ItemIcons' underscore shape helpers (`_circle`, `_poly`, ...) rather than copying them; GDScript allows it and one copy is better than two.
+
+**Didn't work.** First draft's felling axe head was too small to read next to the stump; enlarged it after looking at the preview.
+
+**Tested.** Unit tests all pass (6 new in `tests/unit/test_world_skill_icons.gd`), 8-bot 3-minute websocket bot test, client smoke test.
+
+**Known / not done.** Item icons for tier-2 materials and new tools wait on gameplay adding them (the item-icon test fails if an `Inventory.ITEMS` id has no icon, so it will be caught). The client has to show the badges (request filed in its backlog).
+
+**Next run.** If #92 has landed: Emberlight part 2b, then client's `Quality.flora_density()` request. Otherwise fix whichever of my PRs needs it.
