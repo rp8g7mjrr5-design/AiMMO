@@ -1,3 +1,0 @@
-- Ashgrove gets its own painted look: the ground and the forest now catch warm light on their sunny side and fall into cool blue shade on the other, hollows sit darker than the ridges, and every tree trunk and rock darkens where it meets the earth.
-- The ember ash leaves breathe at night: their glow swells and fades together, one slow heartbeat every four seconds, the same moment on every player's screen.
-- Pines and ash crowns now sway gently in the wind.

@@ -5,6 +5,18 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- The long road begins: every log you fell, rock you split and seep you tap now earns XP in **Felling**, **Quarrying** or **Tapping**, and every craft at the bench trains **Toolcraft**. Your first level comes within about a minute of gathering.
+- Each level makes that skill's gathers a little quicker, and named unlocks are on the way: at Felling 10 every chop gives an extra log, at Tapping 5 every seep an extra drop of sap. A line in chat cheers each level and tells you what's next.
+- Better together: gather or craft within a stone's throw of another settler and you learn a quarter faster.
+- Levelling up is about to look like it: a column of warm ember light bursts up around you, a glowing ring rolls out across the grass and a swirl of sparks climbs past your head. Everyone nearby sees it, and at night it lights up the meadow.
+- **Gathering feels like a craft now.** Press E at a tree, rock or seep and a bar fills while you chop, mine or scoop ("Chopping Ember Ash"), then your haul pops up with a satisfying chop, clink or slosh and a little pickup chime. Hold E to keep working the node with no pause between swings; press E again or walk off to stop.
+- **Empty nodes look empty for everyone.** When a tree or rock is spent you see it happen (the last hit still shakes the leaves loose), the prompt moves on to the next live node, and it grows back in front of you.
+- **Less chat spam.** "Your pack is full" and other gathering hiccups show as a short message in the middle of the screen, and your own gather lines no longer fill the chat.
+- Ashgrove gets its own painted look: the ground and the forest now catch warm light on their sunny side and fall into cool blue shade on the other, hollows sit darker than the ridges, and every tree trunk and rock darkens where it meets the earth.
+- The ember ash leaves breathe at night: their glow swells and fades together, one slow heartbeat every four seconds, the same moment on every player's screen.
+- Pines and ash crowns now sway gently in the wind.
+- Every item you gather now gets counted three times before an update ships: what the server gave you, what your pack shows, and what is saved. If they ever disagree, the update doesn't go out.
+- Emptied trees and rocks are now tested coming back too: a fresh player sees the stump, hears it regrow, and chops it.
 - **Update required:** this server speaks a new version. Your game updates itself the next time you open it (or when the server turns it away), so just relaunch.
 - Gathering is now a real action under the hood: the server times every chop and strike, other settlers nearby can see you working, and a tree or rock you empty shows up empty for everyone (your new client brings the bar, the motion and the "+1" pop-ups as it catches up).
 - Crafting, your pack and emptied nodes now travel as their own messages instead of chat lines, so they're instant and never collide with what you type.

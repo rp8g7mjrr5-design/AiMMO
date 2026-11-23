@@ -1,3 +1,0 @@
-- **Gathering feels like a craft now.** Press E at a tree, rock or seep and a bar fills while you chop, mine or scoop ("Chopping Ember Ash"), then your haul pops up with a satisfying chop, clink or slosh and a little pickup chime. Hold E to keep working the node with no pause between swings; press E again or walk off to stop.
-- **Empty nodes look empty for everyone.** When a tree or rock is spent you see it happen (the last hit still shakes the leaves loose), the prompt moves on to the next live node, and it grows back in front of you.
-- **Less chat spam.** "Your pack is full" and other gathering hiccups show as a short message in the middle of the screen, and your own gather lines no longer fill the chat.
