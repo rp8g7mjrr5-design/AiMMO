@@ -4,6 +4,12 @@ extends Node3D
 ## rolls out across the ground from its feet, and a swirl of sparks rising past its head.
 ## About two seconds, readable from across the Spawn Meadow by day and by night.
 ##
+## By day a thin warm column is easy to miss against the bright meadow, so the burst reads
+## the sky clock when it starts: the brighter the day, the wider, taller and more opaque the
+## column, and a slim beam of the same light shoots high above the tree line for the first
+## second, so a level-up 45 m away still catches the eye. At night the beam stays faint,
+## because the column already glows there.
+##
 ##   LevelUpFx.play(avatar)   # your own level-ups and other players' alike
 ##
 ## `play` adds (or restarts) one "LevelUpFx" child on the avatar, which frees itself when it
@@ -22,6 +28,12 @@ const RING_RADIUS := 3.2 ## m the ground ring rolls out to
 const SPARKS := 28
 const LIGHT_RANGE := 9.0
 const LIGHT_ENERGY := 2.4 ## at the peak; a meadow lantern is 1.1 at full night
+const DAY_WIDEN := 0.5 ## full day makes the column this much wider (x1.5)
+const DAY_LIFT := 0.2 ## and this much taller (x1.2)
+const BEAM_HEIGHT := 24.0 ## m; the sky beam clears the tallest ash trees (about 14 m)
+const BEAM_RADIUS := 0.3 ## m; slim, so it reads as a beam, not a second column
+const BEAM_TIME := 1.6 ## s; the beam is over well before the column
+const BEAM_NIGHT := 0.35 ## beam strength at full night, against 1.0 at full day
 
 const CORE := Color(1.0, 0.86, 0.52) ## the column's hot middle, a touch paler than a lantern
 const GLOW := Color(1.0, 0.56, 0.24) ## Lamps.FLAME, the lantern light
@@ -32,6 +44,12 @@ const HIDDEN := Basis(Vector3.ZERO, Vector3.ZERO, Vector3.ZERO)
 
 var age := 0.0
 var finished := false
+var daylight := 0.0 ## 0 night .. 1 full day, read from the sky when the burst starts
+## What the last frame drew for the column and the beam ({height, radius, strength}).
+## Kept here because the headless (dummy) renderer does not store MultiMesh instance data,
+## so tests and bots read these instead of the MultiMesh.
+var column_now := {}
+var beam_now := {}
 var _sparks: Array = []
 var _column_mat: ShaderMaterial
 var _ring_mat: ShaderMaterial
@@ -41,17 +59,39 @@ var _ring_mat: ShaderMaterial
 
 ## The column `t` seconds in: {height, radius, strength}. It shoots up in the first fifth of
 ## a second, holds bright, then thins and fades upward. Zero before 0 and from DURATION on.
-static func column_at(t: float) -> Dictionary:
+## `day` (0 night .. 1 full day) widens and lifts it so it still reads in broad daylight.
+static func column_at(t: float, day: float = 0.0) -> Dictionary:
 	if t <= 0.0 or t >= DURATION:
 		return {"height": 0.0, "radius": 0.0, "strength": 0.0}
 	var rise := _ease_out(clampf(t / 0.22, 0.0, 1.0))
 	var fade := 1.0 - _smooth(clampf((t - 0.5) / (DURATION - 0.7), 0.0, 1.0))
 	var flash := 1.0 + 0.6 * exp(-t * 9.0) # a bright pop at the very start
 	return {
-		"height": COLUMN_HEIGHT * rise * (1.0 + 0.15 * (1.0 - fade)),
-		"radius": COLUMN_RADIUS * (0.35 + 0.65 * rise) * (0.45 + 0.55 * fade),
+		"height": COLUMN_HEIGHT * (1.0 + DAY_LIFT * day) * rise * (1.0 + 0.15 * (1.0 - fade)),
+		"radius": COLUMN_RADIUS * (1.0 + DAY_WIDEN * day) * (0.35 + 0.65 * rise) * (0.45 + 0.55 * fade),
 		"strength": fade * flash,
 	}
+
+
+## The sky beam `t` seconds in: {height, radius, strength}. It shoots up out of the column
+## in about a third of a second, holds while the column is brightest, then fades from the
+## top. `day` (0..1) sets how strong it is: full by day, faint at night.
+static func beam_at(t: float, day: float = 0.0) -> Dictionary:
+	if t <= 0.0 or t >= BEAM_TIME:
+		return {"height": 0.0, "radius": 0.0, "strength": 0.0}
+	var rise := _ease_out(clampf(t / 0.35, 0.0, 1.0))
+	var fade := 1.0 - _smooth((t - 0.7) / (BEAM_TIME - 0.7))
+	return {
+		"height": BEAM_HEIGHT * rise,
+		"radius": BEAM_RADIUS * (0.6 + 0.4 * fade),
+		"strength": lerpf(BEAM_NIGHT, 1.0, clampf(day, 0.0, 1.0)) * fade,
+	}
+
+
+## How light the sky is right now, 0 deep night .. 1 full day, as this client's sky clock
+## shows it (synced world time, or the pinned time of day in screenshots).
+static func sky_daylight() -> float:
+	return smoothstep(-0.12, 0.12, sin((DayNight.now_fraction() - 0.25) * TAU))
 
 
 ## The ground ring `t` seconds in: {radius, strength}. Rolls out fast and fades as it goes.
@@ -126,18 +166,21 @@ static func _smooth(x: float) -> float:
 
 ## Burst on `avatar` (anything whose origin is at the feet, like AvatarBuilder.build()).
 ## Restarts the burst if one is already playing there. Returns the effect node.
-static func play(avatar: Node3D, seed_value: int = 0) -> LevelUpFx:
+## `day` is 0 (night) .. 1 (full day); leave it out to read the sky clock.
+static func play(avatar: Node3D, seed_value: int = 0, day: float = -1.0) -> LevelUpFx:
 	var fx := avatar.get_node_or_null("LevelUpFx") as LevelUpFx
 	if fx == null or fx.is_queued_for_deletion():
 		fx = LevelUpFx.new()
 		fx.name = "LevelUpFx"
 		fx._build()
 		avatar.add_child(fx)
-	fx.restart(seed_value)
+	fx.restart(seed_value, day)
 	return fx
 
 
-func restart(seed_value: int = 0) -> void:
+func restart(seed_value: int = 0, day: float = -1.0) -> void:
+	daylight = clampf(day if day >= 0.0 else sky_daylight(), 0.0, 1.0)
+	_column_mat.set_shader_parameter("day", daylight)
 	age = 0.0
 	finished = false
 	visible = true
@@ -165,11 +208,21 @@ func advance(delta: float) -> bool:
 
 
 func _apply() -> void:
-	var c := column_at(age)
+	# The column (instance 0) and the sky beam (instance 1) share one MultiMesh and one
+	# material, so the beam costs no extra draw call; each carries its strength in custom data.
+	var c := column_at(age, daylight)
+	var b := beam_at(age, daylight)
+	column_now = c
+	beam_now = b
 	var col := get_node("Column") as MultiMeshInstance3D
-	col.visible = c.strength > 0.0
-	col.multimesh.set_instance_transform(0, Transform3D(Basis.from_scale(Vector3(maxf(c.radius, 0.001), maxf(c.height, 0.001), maxf(c.radius, 0.001))), Vector3(0, c.height * 0.5, 0)))
-	_column_mat.set_shader_parameter("strength", c.strength)
+	col.visible = c.strength > 0.0 or b.strength > 0.0
+	for i in 2:
+		var part: Dictionary = c if i == 0 else b
+		if part.strength <= 0.0:
+			col.multimesh.set_instance_transform(i, Transform3D(HIDDEN, Vector3.ZERO))
+		else:
+			col.multimesh.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(maxf(part.radius, 0.001), maxf(part.height, 0.001), maxf(part.radius, 0.001))), Vector3(0, part.height * 0.5, 0)))
+		col.multimesh.set_instance_custom_data(i, Color(part.strength, 0, 0, 0))
 	var r := ring_at(age)
 	var ring := get_node("Ring") as MultiMeshInstance3D
 	ring.visible = r.strength > 0.0
@@ -201,8 +254,8 @@ func _build() -> void:
 	_column_mat.shader = _column_shader()
 	_column_mat.set_shader_parameter("core", CORE)
 	_column_mat.set_shader_parameter("glow", GLOW)
-	_column_mat.set_shader_parameter("strength", 0.0)
-	var col := _single("Column", cyl)
+	_column_mat.set_shader_parameter("day", 0.0)
+	var col := _single("Column", cyl, 2)
 	col.material_override = _column_mat
 	add_child(col)
 
@@ -254,12 +307,15 @@ func _build() -> void:
 
 ## One mesh drawn through a one-instance MultiMesh (sized by its instance transform), so it
 ## builds cleanly on a headless machine too, where a plain MeshInstance3D logs engine errors.
-static func _single(node_name: String, mesh: Mesh) -> MultiMeshInstance3D:
+## `count` > 1 also turns on per-instance custom data (the column and beam use it).
+static func _single(node_name: String, mesh: Mesh, count: int = 1) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = count > 1
 	mm.mesh = mesh
-	mm.instance_count = 1
-	mm.set_instance_transform(0, Transform3D(HIDDEN, Vector3.ZERO))
+	mm.instance_count = count
+	for i in count:
+		mm.set_instance_transform(i, Transform3D(HIDDEN, Vector3.ZERO))
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = node_name
 	mmi.multimesh = mm
@@ -275,10 +331,12 @@ shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled;
 uniform vec4 core : source_color = vec4(1.0, 0.86, 0.52, 1.0);
 uniform vec4 glow : source_color = vec4(1.0, 0.56, 0.24, 1.0);
-uniform float strength = 0.0;
+uniform float day = 0.0; // 0 night .. 1 full day
 varying float h;
+varying float strength;
 void vertex() {
 	h = VERTEX.y + 0.5; // 0 at the feet, 1 at the top
+	strength = INSTANCE_CUSTOM.r; // per instance: the column, then the sky beam
 }
 void fragment() {
 	// Edge-on faces are the column's outline; face-on is its thin middle. Inverted rim, so
@@ -292,8 +350,10 @@ void fragment() {
 	// flat white tube, while a warm translucent one reads as gold by day and glows by night.
 	// Mostly lantern orange, so it stands out against a blue sky; the pale core only at the
 	// very middle.
-	ALBEDO = mix(glow.rgb, core.rgb, body * body * 0.6) * 1.2;
-	ALPHA = clamp((0.45 + 1.0 * body) * top * foot * shimmer * strength, 0.0, 0.92);
+	// By day: less of the pale core (deeper orange is what stands out on a bright meadow)
+	// and a thicker floor of opacity, so the column reads solid gold rather than a ghost.
+	ALBEDO = mix(glow.rgb, core.rgb, body * body * 0.6 * (1.0 - 0.5 * day)) * 1.2;
+	ALPHA = clamp((0.45 + 0.3 * day + 1.0 * body) * top * foot * shimmer * strength, 0.0, 0.92 + 0.05 * day);
 }
 """
 	return sh
