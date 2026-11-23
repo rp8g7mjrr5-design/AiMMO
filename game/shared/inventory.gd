@@ -104,6 +104,15 @@ static func held(inv: Dictionary) -> Array:
 	return out
 
 
+## The pack as it goes over the wire in s2c_inventory: {item: count} for every item held,
+## in held() order, the same shape as the login character's `inventory`.
+static func to_wire(inv: Dictionary) -> Dictionary:
+	var out := {}
+	for item in held(inv):
+		out[item] = count(inv, item)
+	return out
+
+
 static func total(inv: Dictionary) -> int:
 	var n := 0
 	for item in inv:

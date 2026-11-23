@@ -1,4 +1,4 @@
--- A character exactly as Week 00 stores it. Used by tests/unit/test_save_compat.gd.
+-- A character exactly as Week 00 stores it. Used by tests/unit/test_qa_save_compat.gd.
 -- Password is "oldpassword" hashed with 1000 iterations.
 INSERT INTO accounts (username, username_lc, password_hash)
 VALUES ('Legacy_Wanderer', 'legacy_wanderer', 'pbkdf2_sha256$1000$Gyxw0pfiVBuoTOa/ZpG1Fg==$MV7WPZNjd3gKSpCZmKJrVdu8XL9WVVedP4eFFM76848=')

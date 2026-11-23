@@ -25,6 +25,11 @@ var gathering := Gathering.new_state()
 ## no net every message goes to test_outbox instead of the network.
 var test_now := -1.0
 var test_outbox: Array = []
+## Seconds until the next respawn sweep (see _respawn_nodes).
+var _respawn_timer := 0.0
+## Messages the server already produces but the current protocol has no RPC for yet (see
+## _send). Logged once each so the gap is visible, never an error.
+var _not_in_protocol := {}
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -86,6 +91,10 @@ func _process(delta: float) -> void:
 	if _autosave_timer >= GameConfig.AUTOSAVE_SECONDS:
 		_autosave_timer = 0.0
 		_save_all()
+	_respawn_timer -= delta
+	if _respawn_timer <= 0.0:
+		_respawn_timer = RESPAWN_SWEEP_SECONDS
+		_respawn_nodes(now_seconds())
 	_clock_sync_timer += delta
 	if _clock_sync_timer >= GameConfig.WORLD_TIME_SYNC_SECONDS:
 		_clock_sync_timer = 0.0
@@ -112,6 +121,7 @@ func _tick() -> void:
 		ch.yaw = s.yaw
 		entries.append_array([id, p.x, p.y, p.z, s.yaw])
 	_tick_channels(now_seconds())
+	_flush_inventories()
 	if entries.is_empty():
 		return
 	for id in sessions:
@@ -120,7 +130,7 @@ func _tick() -> void:
 
 
 func _on_peer_connected(id: int) -> void:
-	sessions[id] = {"logged_in": false, "character": {}, "move": Vector2.ZERO, "yaw": 0.0, "seq": -1, "last_chat": -1000.0, "last_gather": -1000.0, "channel": {}, "login_attempts": 0}
+	sessions[id] = {"logged_in": false, "character": {}, "move": Vector2.ZERO, "yaw": 0.0, "seq": -1, "last_chat": -1000.0, "last_gather": -1000.0, "channel": {}, "login_attempts": 0, "inv_dirty": false}
 	print("[server] peer %d connected" % id)
 
 
@@ -198,6 +208,7 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 	s.yaw = ch.yaw
 	_send(id, "s2c_login_result", [true, "Welcome to Ashgrove, %s!" % ch.name if is_new else "Welcome back, %s." % ch.name, id, ch])
 	_send(id, "s2c_world_time", [world_seconds()])
+	_send_world_state(id)
 	# Tell the newcomer about everyone already here, and everyone about the newcomer.
 	for other in sessions:
 		var o: Dictionary = sessions[other]
@@ -293,7 +304,7 @@ func gather(id: int, kind_word: String = "") -> String:
 	var s: Dictionary = sessions[id]
 	var now := now_seconds()
 	var ws := world_seconds()
-	Gathering.respawn_due(gathering, now)
+	_respawn_nodes(now)
 	var kind = Gathering.parse_kind(kind_word)
 	if kind == null:
 		return "Gather what? Try /gather, or /gather ash, pine, stone or sap."
@@ -316,7 +327,7 @@ func gather(id: int, kind_word: String = "") -> String:
 		return Gathering.refusal("full", gathering, node_id, pos, now, ws, kind)
 	s.last_gather = now
 	if got.depleted:
-		print("[gather] node %d depleted for %ds" % [node_id, int(got.respawn)])
+		_node_changed(node_id, true, got.respawn)
 	return Gathering.success(node_id, added, Inventory.count(s.character.inventory, got.item), got.depleted, tool)
 
 
@@ -333,7 +344,7 @@ func gather_start(id: int, node_id: int) -> Dictionary:
 	if GatherChannel.is_active(s.channel):
 		return {"ok": false, "reason": "busy", "seconds": 0.0}
 	var now := now_seconds()
-	Gathering.respawn_due(gathering, now)
+	_respawn_nodes(now)
 	var pos := CharacterData.position(s.character)
 	var node := ResourceNodes.get_by_id(node_id)
 	var inv: Dictionary = s.character.inventory
@@ -386,7 +397,7 @@ func _finish_channel(id: int, now: float) -> void:
 	var node_id := int(ch.node_id)
 	var pos := CharacterData.position(s.character)
 	var ws := world_seconds()
-	Gathering.respawn_due(gathering, now)
+	_respawn_nodes(now)
 	var why := GatherChannel.finish_check(gathering, ch, pos, now, ws)
 	if why != "":
 		_gather_event(id, "cancelled", node_id, {"reason": why})
@@ -402,14 +413,17 @@ func _finish_channel(id: int, now: float) -> void:
 		return
 	s.last_gather = now
 	if got.depleted:
-		print("[gather] node %d depleted for %ds" % [node_id, int(got.respawn)])
+		_node_changed(node_id, true, got.respawn)
 	_gather_event(id, "done", node_id, {"item": got.item, "count": added, "tool": tool, "depleted": got.depleted})
 
 
-## Where a timed gather's begin / cancelled / done is told to players. Today only the
-## gatherer hears it, as a system line (the "/channel" dev command). Protocol v3 replaces
-## this with s2c_gather_begin / s2c_gather_end to everyone in view, s2c_gather_result and
-## s2c_inventory to the gatherer, and s2c_node_state when a node empties.
+## Where a timed gather's begin / cancelled / done is told to players:
+## - everyone in view (players_in_view) gets s2c_gather_begin(peer, node, seconds) and
+##   s2c_gather_end(peer, node, "done" | reason), so they see the gatherer work;
+## - the gatherer also gets s2c_gather_result(item, count) on "done" for the haul toast
+##   (s2c_inventory follows from give_item), and a system line, which is what the
+##   "/channel" dev command and today's clients read.
+## The s2c_gather_* RPCs arrive with protocol v3; until then _send skips them.
 func _gather_event(id: int, event: String, node_id: int, info: Dictionary) -> void:
 	if not sessions.has(id):
 		return
@@ -417,19 +431,104 @@ func _gather_event(id: int, event: String, node_id: int, info: Dictionary) -> vo
 	var now := now_seconds()
 	var pos := CharacterData.position(s.character)
 	var text := ""
+	var reason := ""
 	match event:
 		"begin":
 			text = GatherChannel.begin_text(node_id, float(info.seconds))
+			for other in players_in_view(pos):
+				_send(other, "s2c_gather_begin", [id, node_id, float(info.seconds)])
 		"done":
 			text = Gathering.success(node_id, int(info.count), Inventory.count(s.character.inventory, str(info.item)), bool(info.depleted), str(info.tool))
+			reason = "done"
+			_send(id, "s2c_gather_result", [str(info.item), int(info.count)])
 		"cancelled":
-			var reason := str(info.reason)
+			reason = str(info.reason)
 			if reason in ["moved", "far", "stopped"]:
 				text = GatherChannel.cancel_text(reason)
 			elif reason != "disconnected":
 				text = Gathering.refusal(reason, gathering, node_id, pos, now, world_seconds())
+	if reason != "":
+		for other in players_in_view(pos):
+			if other != id or reason != "disconnected":
+				_send(other, "s2c_gather_end", [id, node_id, reason])
 	if text != "":
 		_send(id, "s2c_system", [text])
+
+
+## What protocol v3's c2s_gather_start(node_id) does: start a timed gather on that node.
+## A refusal goes back to the gatherer only, as s2c_gather_end(peer, node, reason) for the
+## client's bar and a system line saying why. Returns gather_start's result.
+func gather_request(id: int, node_id: int) -> Dictionary:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return {"ok": false, "reason": "offline", "seconds": 0.0}
+	var r := gather_start(id, node_id)
+	if not r.ok:
+		var s: Dictionary = sessions[id]
+		var pos := CharacterData.position(s.character)
+		var reason := "cooldown" if r.reason == "busy" else str(r.reason)
+		_send(id, "s2c_gather_end", [id, node_id, str(r.reason)])
+		if ResourceNodes.get_by_id(node_id).is_empty():
+			_send(id, "s2c_system", ["There is nothing to gather there."])
+		else:
+			_send(id, "s2c_system", [Gathering.refusal(reason, gathering, node_id, pos, now_seconds(), world_seconds())])
+	return r
+
+
+## Logged-in players close enough to `pos` to see something happen there (flat distance,
+## GameConfig.VIEW_RANGE), sorted by peer id.
+func players_in_view(pos: Vector3) -> Array:
+	var out: Array = []
+	var here := Vector2(pos.x, pos.z)
+	for other in sessions:
+		var o: Dictionary = sessions[other]
+		if not o.logged_in:
+			continue
+		var p := CharacterData.position(o.character)
+		if here.distance_to(Vector2(p.x, p.z)) <= GameConfig.VIEW_RANGE:
+			out.append(other)
+	out.sort()
+	return out
+
+
+## How often depleted nodes are checked for respawn when nobody is gathering.
+const RESPAWN_SWEEP_SECONDS := 1.0
+
+
+## The only place nodes come back: every gather path and the once-a-second sweep in
+## _process call this, so each respawn is announced exactly once. Returns the ids.
+func _respawn_nodes(now: float) -> Array:
+	var back := Gathering.respawn_due(gathering, now)
+	for node_id in back:
+		_node_changed(int(node_id), false)
+	return back
+
+
+## A node emptied (`depleted`, back in `respawn` seconds) or came back. Everyone online
+## hears s2c_node_state(node, depleted) so their world shows it (NodeProps.set_depleted):
+## a node is a landmark, and players far away plan their route by it.
+func _node_changed(node_id: int, depleted: bool, respawn: float = 0.0) -> void:
+	if depleted:
+		print("[gather] node %d depleted for %ds" % [node_id, int(respawn)])
+	for other in sessions:
+		if sessions[other].logged_in:
+			_send(other, "s2c_node_state", [node_id, depleted])
+
+
+## Right after login: the player's pack and which nodes are empty right now.
+func _send_world_state(id: int) -> void:
+	_send(id, "s2c_inventory", [Inventory.to_wire(sessions[id].character.inventory)])
+	_send(id, "s2c_nodes", [Gathering.depleted_ids(gathering, now_seconds())])
+	sessions[id].inv_dirty = false
+
+
+## Sends s2c_inventory once to every player whose pack changed since the last tick, so a
+## craft that takes three items and gives one is one message, not four.
+func _flush_inventories() -> void:
+	for id in sessions:
+		var s: Dictionary = sessions[id]
+		if s.logged_in and s.get("inv_dirty", false):
+			s.inv_dirty = false
+			_send(id, "s2c_inventory", [Inventory.to_wire(s.character.inventory)])
 
 
 ## The hidden "/channel" dev command: "/channel [kind]" starts a timed gather on the node
@@ -450,7 +549,7 @@ func _channel_command(id: int, word: String) -> void:
 	var now := now_seconds()
 	var ws := world_seconds()
 	var pos := CharacterData.position(s.character)
-	Gathering.respawn_due(gathering, now)
+	_respawn_nodes(now)
 	var node_id := Gathering.pick_target(gathering, pos, now, ws, kind)
 	if node_id < 0:
 		_send(id, "s2c_system", [Gathering.refusal("none", gathering, -1, pos, now, ws, kind)])
@@ -470,44 +569,67 @@ func _channel_command(id: int, word: String) -> void:
 func craft(id: int, recipe_word: String = "") -> String:
 	if not sessions.has(id) or not sessions[id].logged_in:
 		return ""
-	var s: Dictionary = sessions[id]
-	var inv: Dictionary = s.character.inventory
+	var inv: Dictionary = sessions[id].character.inventory
 	var recipe = Crafting.parse_recipe(recipe_word)
 	if recipe == null:
 		return "Unknown recipe \"%s\". %s" % [recipe_word.substr(0, 20), Crafting.recipes_text(inv)]
 	if recipe == "":
 		return Crafting.recipes_text(inv)
+	return _craft(id, recipe).text
+
+
+## What protocol v3/v4's c2s_craft(recipe_id) does, for the crafting window: the id must be
+## an exact recipe id (no word guessing, that is only for the dev command). Answers with
+## s2c_craft_result(recipe_id, ok, text); the pack follows as s2c_inventory on the next
+## tick. Returns {ok, reason, text}.
+func craft_request(id: int, recipe_id: String) -> Dictionary:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return {"ok": false, "reason": "offline", "text": ""}
+	var r: Dictionary
+	if not Crafting.is_recipe(recipe_id):
+		r = {"ok": false, "reason": "unknown", "text": "You don't know how to make that."}
+	else:
+		r = _craft(id, recipe_id)
+	_send(id, "s2c_craft_result", [recipe_id.substr(0, 32), bool(r.ok), str(r.text)])
+	return r
+
+
+## Crafts a known recipe id for player `id`. Returns {ok, reason, text}.
+func _craft(id: int, recipe: String) -> Dictionary:
+	var s: Dictionary = sessions[id]
+	var inv: Dictionary = s.character.inventory
 	var pos := CharacterData.position(s.character)
 	var why := Crafting.check(inv, recipe, pos)
 	if why != "":
-		return Crafting.refusal(why, inv, recipe, pos)
+		return {"ok": false, "reason": why, "text": Crafting.refusal(why, inv, recipe, pos)}
 	var r: Dictionary = Crafting.RECIPES[recipe]
 	var taken := {}
 	for item in r.needs:
 		if not take_item(id, item, int(r.needs[item])):
 			for back in taken:
 				give_item(id, back, int(taken[back]))
-			return Crafting.refusal("missing", inv, recipe, pos)
+			return {"ok": false, "reason": "missing", "text": Crafting.refusal("missing", inv, recipe, pos)}
 		taken[item] = int(r.needs[item])
 	var made := give_item(id, recipe, int(r.makes))
 	if made <= 0:
 		for back in taken:
 			give_item(id, back, int(taken[back]))
-		return Crafting.refusal("full", inv, recipe, pos)
+		return {"ok": false, "reason": "full", "text": Crafting.refusal("full", inv, recipe, pos)}
 	print("[craft] %s made %d %s" % [s.character.name, made, recipe])
-	return Crafting.success(recipe, made, inv)
+	return {"ok": true, "reason": "", "text": Crafting.success(recipe, made, inv)}
 
 
 ## Server-authoritative inventory changes. Every system that hands out or uses up items
 ## (gathering, crafting, quests) goes through these two, never edits the Dictionary itself.
-## The change is saved with the character (autosave, logout, shutdown). Until protocol v3
-## adds s2c_inventory, the client sees its pack in the login character and via /bag.
+## The change is saved with the character (autosave, logout, shutdown), and the player gets
+## their new pack as s2c_inventory at the end of the tick (_flush_inventories).
 ## Returns how many were added (stacks cap at Inventory.MAX_STACK).
 func give_item(id: int, item: String, qty: int) -> int:
 	if not sessions.has(id) or not sessions[id].logged_in:
 		return 0
 	var added := Inventory.add(sessions[id].character.inventory, item, qty)
 	if added > 0:
+		sessions[id].inv_dirty = true
 		print("[inventory] %s +%d %s" % [sessions[id].character.name, added, item])
 	return added
 
@@ -518,19 +640,39 @@ func take_item(id: int, item: String, qty: int) -> bool:
 		return false
 	var ok := Inventory.remove(sessions[id].character.inventory, item, qty)
 	if ok:
+		sessions[id].inv_dirty = true
 		print("[inventory] %s -%d %s" % [sessions[id].character.name, qty, item])
 	return ok
 
 
 ## Sends an RPC only if the peer is still fully connected. A peer that has started
 ## disconnecting but whose disconnect signal has not fired yet has no channels left.
+## The RPC lives on Net itself or on one of Net's child nodes (new RPCs go on a child, so
+## old clients' RPC numbering stays the same; see tests/protocol/README.md). A message the
+## running protocol has no RPC for yet is skipped, so the server can produce v3 messages
+## before the v3 bump without old clients ever receiving an unknown RPC.
 func _send(id: int, method: StringName, args: Array) -> void:
 	if net == null:
 		test_outbox.append([id, str(method), args])
 		return
+	var target := _rpc_node(method)
+	if target == null:
+		if not _not_in_protocol.has(method):
+			_not_in_protocol[method] = true
+			print("[server] %s is not in protocol v%d yet; not sent" % [method, GameConfig.PROTOCOL_VERSION])
+		return
 	if not _is_live(id):
 		return
-	Callable(net, "rpc_id").callv([id, method] + args)
+	Callable(target, "rpc_id").callv([id, method] + args)
+
+
+func _rpc_node(method: StringName) -> Node:
+	if net.has_method(method):
+		return net
+	for child in net.get_children():
+		if child.has_method(method):
+			return child
+	return null
 
 
 func _is_live(id: int) -> bool:

@@ -376,3 +376,58 @@ server test flag.
   `info.depleted`, `s2c_node_state(node_id, true)`; `Gathering.respawn_due` results ->
   `s2c_node_state(id, false)` (call it once a second in `_process`).
 - Switch the bot behaviour from `/channel` to the RPCs; keep `/channel` as a dev command.
+
+## 2026-11-22 (eighth run, 20:00 Chicago / 02:00 UTC on the 23rd): v3 messages, server side, still no bump
+
+**Why not protocol v3 yet (again).** The run started at 02:02 UTC on 2026-11-23, which is
+20:02 on 2026-11-22 in Chicago. v2 merged on the 22nd (Chicago), so the "one bump per day"
+rule, counted in the owner's day like the budget week, still says no. Same call as the
+seventh run. Next gameplay run after 00:00 Chicago (06:00 UTC) on the 23rd does the bump.
+
+**Built: every v3 message is produced by the server now; the bump only adds RPCs.**
+- `_send` looks up the RPC on `Net` or on any child of `Net` (`_rpc_node`). A message the
+  running protocol has no RPC for is skipped and logged once ("... is not in protocol v2 yet;
+  not sent"), so old clients never get an unknown RPC. **For v3:** add `Net/Play` (a child
+  node with the new `@rpc` methods, created in `net.gd`'s `_ready`, per qa's sorted-name note)
+  and the server starts sending them with no server change.
+- `_gather_event` now sends `s2c_gather_begin(peer, node, seconds)` and
+  `s2c_gather_end(peer, node, "done" | reason)` to `players_in_view(pos)`
+  (`GameConfig.VIEW_RANGE` = 120 m flat, a guess at a comfortable sight line; tune when
+  client fog is final), `s2c_gather_result(item, count)` to the gatherer, and still the
+  system line. A disconnecting gatherer's end goes to the others only.
+- `gather_request(id, node_id)` is the `c2s_gather_start` handler (refusal: private
+  `s2c_gather_end` with the reason + a system line). `c2s_gather_cancel` should call
+  `gather_cancel(id, "stopped")`.
+- `_respawn_nodes(now)` replaces every direct `Gathering.respawn_due` call and runs once a
+  second from `_process`, so each respawn is announced exactly once:
+  `_node_changed(node, depleted)` sends `s2c_node_state` to everyone online (not just in
+  view: emptied nodes are route-planning info). Both gather paths call it on depletion.
+- `give_item`/`take_item` set `inv_dirty`; `_flush_inventories()` at the end of every tick
+  sends one `s2c_inventory(Inventory.to_wire(inv))` per changed pack (a craft = one message).
+- `_send_world_state(id)` at login: `s2c_inventory` and `s2c_nodes(depleted_ids)`.
+- `craft_request(id, recipe_id)` is the `c2s_craft` handler: exact ids only
+  (`Crafting.is_recipe`), answers `s2c_craft_result(recipe_id, ok, text)`. `craft()` (dev
+  command) now wraps the same `_craft` core.
+- Fixed the fixture comment qa asked for (`week00_characters.sql` names
+  `test_qa_save_compat.gd`).
+
+**Tests.** `tests/unit/test_gameplay_v3_hooks.gd`, 9 tests (audience, begin/done, cancel
+and disconnect, private refusal, depleted/respawned once + login state, instant gather
+coalescing, craft_request, RPC routing and skipping, wire inventory). 212 unit tests pass
+with Postgres. No bot behaviour: nothing new reaches a client before v3, and the existing
+gather/channel/craft behaviours exercise every changed path. Bot test 8 x 180 s websocket:
+see PR.
+
+**Not done, and why.** qa's watchdog log-noise request: `tests/ops/run_watchdog_test.py`
+looks for "peer N connected" in the log, so dropping that line would break qa's test.
+Left as is; if qa still wants it, they can switch the test to a different marker first.
+
+**Notes to next run (v3, after 06:00 UTC on 2026-11-23).**
+- `net.gd`: add `Play` child with `c2s_gather_start(node_id)`, `c2s_gather_cancel()`,
+  `c2s_craft(recipe_id)`, `s2c_gather_begin`, `s2c_gather_end`, `s2c_gather_result`,
+  `s2c_inventory`, `s2c_nodes`, `s2c_node_state`, `s2c_craft_result`, plus signals; add
+  `ack_seq` to snapshots (`s.seq`, e.g. a per-recipient `s2c_snapshot` arg; changing an
+  existing RPC's args is fine since v2 clients are refused at login anyway, but check qa's
+  protocol test). Bump `PROTOCOL_VERSION` to 3. Wire the c2s signals to `gather_request`,
+  `gather_cancel(id, "stopped")`, `craft_request`.
+- Switch `gameplay_gather_channel.gd` from `/channel` to the RPCs (new `gameplay_gather_v3.gd`).

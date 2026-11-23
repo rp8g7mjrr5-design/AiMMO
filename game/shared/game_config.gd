@@ -11,6 +11,8 @@ const WORLD_SEED := 20261127
 const WORLD_HALF_SIZE := 256.0 ## The playable world is a square from -256 to +256 metres.
 const SPAWN_POINT := Vector3(0, 0, 0)
 
+const VIEW_RANGE := 120.0 ## metres: how far away players see others gather (and later fight, build)
+
 const WALK_SPEED := 6.0 ## metres per second
 const AUTOSAVE_SECONDS := 30.0
 const WORLD_TIME_SYNC_SECONDS := 60.0 ## how often the server re-sends the world clock
