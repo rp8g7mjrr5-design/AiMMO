@@ -14,12 +14,18 @@ class_name ChatCommands
 const HELP := "Commands: /bag (what you carry), /time (time of day in Ashgrove), /who (who is online), /help."
 const GATHER_NAMES := ["gather", "g", "harvest", "chop", "mine"]
 const CRAFT_NAMES := ["craft", "make", "build", "recipes"]
-## The timed gather (GatherChannel) as a hidden dev/bot command until protocol v3's
-## c2s_gather_start: never listed in HELP or patch notes.
+## The retired timed-gather dev command. It no longer runs ("Unknown command"), but the
+## classifier stays so bot checks that hold a press after a pack-changing line still compile.
 const CHANNEL_NAMES := ["channel"]
 ## Sent to a player whose line came inside GameConfig.CHAT_COOLDOWN of their last one (talk
 ## and commands count separately), so nothing they type vanishes without a word.
 const TOO_FAST := "Slow down a moment: that line wasn't sent. Try again."
+## The only answer a player gets for a "/" line on a server without dev commands: the
+## controls live on keys and windows, and F1 lists them.
+const NOT_FOR_CHAT := "Chat is for talking. Press F1 for controls."
+## Railway sets these on every deploy; the public server is the only place players play.
+const RAILWAY_VARS := ["RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID",
+	"RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID", "RAILWAY_DEPLOYMENT_ID"]
 const WHO_MAX_NAMES := 20 ## cap the /who list so one line stays readable
 
 
@@ -44,7 +50,7 @@ static func is_gather(text: String) -> bool:
 	return is_command(text) and name_of(text) in GATHER_NAMES
 
 
-## True for /channel, the timed gather, which the server runs against its world state.
+## True for the retired /channel line (see CHANNEL_NAMES). Nothing runs it any more.
 static func is_channel(text: String) -> bool:
 	return is_command(text) and name_of(text) in CHANNEL_NAMES
 
@@ -52,6 +58,30 @@ static func is_channel(text: String) -> bool:
 ## True for /craft and its aliases, which the server runs against the sender's pack.
 static func is_craft(text: String) -> bool:
 	return is_command(text) and name_of(text) in CRAFT_NAMES
+
+
+## Whether this server runs slash commands. `--dev-commands` (or `--dev-commands=0/1`) wins,
+## then AIMMO_DEV_COMMANDS (1/true/on or 0/false/off). With neither, commands are off on the
+## public server (any of RAILWAY_VARS set) and on everywhere else, so local runs and today's
+## bot test keep their dev tools until qa passes the flag (qa backlog, "chat is for talking,
+## in CI"); then this default can become plain "off". env is a name -> value lookup.
+## Returns [on, why] for the start-up log line.
+static func dev_commands_on(args: Dictionary, env: Callable = Callable(OS, "get_environment")) -> Array:
+	if args.has("dev-commands"):
+		var v = args["dev-commands"]
+		var on := true if typeof(v) == TYPE_BOOL else _truthy(str(v))
+		return [on, "--dev-commands"]
+	var e := str(env.call("AIMMO_DEV_COMMANDS")).strip_edges()
+	if e != "":
+		return [_truthy(e), "AIMMO_DEV_COMMANDS"]
+	for name in RAILWAY_VARS:
+		if str(env.call(name)) != "":
+			return [false, "public server (%s)" % name]
+	return [true, "local default"]
+
+
+static func _truthy(v: String) -> bool:
+	return not (v.strip_edges().to_lower() in ["0", "false", "off", "no", ""])
 
 
 ## Returns the reply for a command line (already cleaned by Validation.clean_chat).

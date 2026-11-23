@@ -19,6 +19,10 @@ var _clock_sync_timer := 0.0
 ## Shifts the world clock, for testing and screenshots (e.g. --clock-offset=1200 jumps half a
 ## day). Leave it at 0 in production so every server restart keeps the same time.
 var clock_offset := 0.0
+## Slash commands run only when this is on (ChatCommands.dev_commands_on, set in start()).
+## Off, a "/" line gets ChatCommands.NOT_FOR_CHAT and nothing else (chat is for talking).
+## Unit tests set it themselves.
+var dev_commands := false
 ## Which resource nodes are used up, and when they come back (see Gathering).
 var gathering := Gathering.new_state()
 ## Unit tests only: when >= 0, now_seconds() returns this instead of the real clock, and with
@@ -38,6 +42,9 @@ func start(p_net: Node, args: Dictionary) -> void:
 	port = CliArgs.setting(args, "port", "AIMMO_PORT", OS.get_environment("PORT") if OS.get_environment("PORT") != "" else str(GameConfig.DEFAULT_PORT)).to_int()
 	_stop_file = CliArgs.setting(args, "stop-file", "AIMMO_STOP_FILE", "")
 	clock_offset = CliArgs.setting(args, "clock-offset", "AIMMO_CLOCK_OFFSET", "0").to_float()
+	var dev: Array = ChatCommands.dev_commands_on(args)
+	dev_commands = dev[0]
+	print("[server] dev commands: %s (%s)" % ["on" if dev_commands else "off", dev[1]])
 	var data_dir := CliArgs.setting(args, "data-dir", "AIMMO_DATA_DIR", OS.get_user_data_dir())
 
 	Engine.max_fps = 60
@@ -277,14 +284,14 @@ func _on_chat(id: int, text: String) -> void:
 			_send(id, "s2c_system", [ChatCommands.TOO_FAST])
 		return
 	s[key] = now
+	if ChatCommands.is_command(clean) and not dev_commands:
+		# Chat is for talking (owner direction 1): nothing runs, nothing is broadcast.
+		_send(id, "s2c_system", [ChatCommands.NOT_FOR_CHAT])
+		return
 	if ChatCommands.is_gather(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [gather(id, ChatCommands.argument(clean))])
 		_send_queued_lines(id)
-		return
-	if ChatCommands.is_channel(clean):
-		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
-		_channel_command(id, ChatCommands.argument(clean))
 		return
 	if ChatCommands.is_craft(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
@@ -485,8 +492,8 @@ func _finish_channel(id: int, now: float) -> void:
 ##   the channel's "audience", even if they walked out of view meanwhile, so nobody is left
 ##   watching a gather that never ends) plus anyone in view now;
 ## - the gatherer also gets s2c_gather_result(item, count) on "done" for the haul toast
-##   (s2c_inventory follows from give_item), and a system line, which is what the
-##   "/channel" dev command and today's clients read.
+##   (s2c_inventory follows from give_item), and a system line, which the client's
+##   chat feed reads today.
 ## The s2c_gather_* RPCs are on Net/Play since protocol v3.
 func _gather_event(id: int, event: String, node_id: int, info: Dictionary) -> void:
 	if not sessions.has(id):
@@ -615,37 +622,6 @@ func _flush_inventories() -> void:
 		if s.logged_in and s.get("inv_dirty", false):
 			s.inv_dirty = false
 			_send(id, "s2c_inventory", [Inventory.to_wire(s.character.inventory)])
-
-
-## The hidden "/channel" dev command: "/channel [kind]" starts a timed gather on the node
-## "/gather [kind]" would pick, "/channel stop" cancels. For bots and debugging only (owner
-## direction: chat is for talking); players get this through protocol v3's press-E.
-func _channel_command(id: int, word: String) -> void:
-	var s: Dictionary = sessions[id]
-	if word.strip_edges().to_lower() in ["stop", "cancel"]:
-		if GatherChannel.is_active(s.channel):
-			gather_cancel(id, "stopped")
-		else:
-			_send(id, "s2c_system", ["You are not gathering."])
-		return
-	var kind = Gathering.parse_kind(word)
-	if kind == null:
-		_send(id, "s2c_system", ["Gather what? Try /channel, or /channel ash, pine, stone or sap."])
-		return
-	var now := now_seconds()
-	var ws := world_seconds()
-	var pos := CharacterData.position(s.character)
-	_respawn_nodes(now)
-	var skills := skills_of(id)
-	var node_id := Gathering.pick_target(gathering, pos, now, ws, kind, skills)
-	if node_id < 0:
-		_send(id, "s2c_system", [Gathering.refusal("none", gathering, -1, pos, now, ws, kind, skills)])
-		return
-	var r := gather_start(id, node_id)
-	if r.ok:
-		return # the "begin" event already told the player
-	var reason := "cooldown" if r.reason == "busy" else str(r.reason)
-	_send(id, "s2c_system", [Gathering.refusal(reason, gathering, node_id, pos, now, ws, kind, skills)])
 
 
 ## A player crafts ("/craft axe"), or lists the recipes ("/craft" or "/recipes"). The

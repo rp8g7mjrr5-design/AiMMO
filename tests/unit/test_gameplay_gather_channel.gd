@@ -177,21 +177,7 @@ func test_start_refusals() -> void:
 	srv.free()
 
 
-func test_channel_command_routing() -> void:
-	check(ChatCommands.is_channel("/channel"), "/channel")
-	check(ChatCommands.is_channel("/Channel stop"), "case-insensitive")
-	check(not ChatCommands.is_channel("/gather"), "not /gather")
-	check(not ChatCommands.HELP.contains("/channel"), "hidden from /help (chat is for talking)")
-	var n := _first("ash")
-	var srv := _server({2: n.pos + Vector3(1.0, 0, 0)})
-	srv._channel_command(2, "")
-	check(GatherChannel.is_active(srv.sessions[2].channel), "/channel starts on the node in reach")
-	srv._channel_command(2, "")
-	check(_texts(srv, 2).back().begins_with("Easy;"), "second /channel while busy")
-	srv._channel_command(2, "stop")
-	check(not GatherChannel.is_active(srv.sessions[2].channel), "/channel stop")
-	srv._channel_command(2, "stop")
-	check_eq(_texts(srv, 2).back(), "You are not gathering.")
-	srv._channel_command(2, "banana")
-	check(_texts(srv, 2).back().begins_with("Gather what?"), "unknown kind")
-	srv.free()
+func test_channel_command_is_retired() -> void:
+	# /channel was the timed gather's dev command before press-E (c2s_gather_start); gone now.
+	check(not ChatCommands.HELP.contains("/channel"), "never in /help")
+	check(ChatCommands.run("/channel", {}).begins_with("Unknown command /channel"), "an unknown command now")

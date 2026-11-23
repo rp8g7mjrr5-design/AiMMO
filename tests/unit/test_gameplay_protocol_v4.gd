@@ -25,6 +25,7 @@ func _first(kind: String) -> Dictionary:
 func _server(positions: Dictionary) -> Node:
 	var srv: Node = ServerScript.new()
 	srv.test_now = 100.0
+	srv.dev_commands = true # these tests run commands; the gate has its own test
 	for id in positions:
 		var ch := CharacterData.normalize({"name": "P%d" % id})
 		var p: Vector3 = positions[id]
