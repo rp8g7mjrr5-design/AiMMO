@@ -1,1 +1,0 @@
-- Behind the scenes, the fallen kingdom now grows from a seed: every number gives its own stretch of land with rim hills or a coast, a river, lakes, forest, moor, wild farmland and stone hills, the king's roads, and ruins graded from a quiet roadside shrine to the fallen castle on the far side. Today's world is untouched; generated worlds arrive in a coming update.

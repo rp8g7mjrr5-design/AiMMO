@@ -1,1 +1,0 @@
-- Nights are no longer pitch black on computers without Vulkan (the game's Compatibility renderer). The moonlit meadow, the pines and your fellow travellers now read in soft blue moonlight, as they always did on newer graphics cards, and colours by day match too.
