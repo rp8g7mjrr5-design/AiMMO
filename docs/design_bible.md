@@ -4,35 +4,34 @@ This is the AI-owned vision for AiMMO. It may evolve, but every change is logged
 Revision history at the bottom with its reason, so the game does not flip-flop.
 
 ## North star
-**Make the Greatest MMO of all time.** This is the owner's stated goal, and the measure every weekly choice is judged against. In the owner's words: the MMO that beats every other MMO, built by one person and AI together. That is the bar: not "good for a small team", but the game players of today's best action MMOs and of the long-running skill-grind classics would leave them for. The number one way there is to make it **fun**: if it isn't fun, it isn't the best (see "Fun comes first" under Owner directions). "Greatest" here means the MMO players most want to come back to: a world that feels alive, systems that are deep but never broken, and a community that grows because people enjoy being in it together. When two options compete, pick the one that moves AiMMO closer to that, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5).
+**Make the survival game everyone wants to play with their friends, and that people can't stop watching.** Owner direction, 2026-11-24: the owner chose a small-server survival game with generated worlds, land claims and seasons (`docs/vision.md`) over the towns MMO, and asked for it to reach the masses and go viral. The bar is the game a band of friends picks for its evenings and a streamer picks for wipe day. The number one way there is still to make it **fun**: if it isn't fun, it isn't the best (see "Fun comes first"). When two options compete, pick the one that is quicker to learn, better in a 30-minute session and more worth sharing, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5). (Until 2026-11-24 the North star was "the Greatest MMO of all time"; the skills, camera, combat and art built for it all carry over.)
 
-### The vision in one paragraph (owner direction, 2026-11-23)
-AiMMO plays like a **modern action MMO** and progresses like a **long-road skill MMO**. In your
-hands it feels like the owner's favourite modern MMO (New World): an over-the-shoulder camera,
-aimed action combat with crafted weapons, gathering and crafting as real trade skills, gear
-worth chasing, towns to trade in and territory worth caring about. Over months it feels like
-the classic skill-grind MMO the owner loves (RuneScape): many skills, each levelled to a high
-cap, and every single level unlocks something, so there is always a next goal a few minutes
-away and a far goal you will be proud of. The core loop that ties it together is
-**gather → craft → fight → level up → explore further**, and each turn of the loop opens a
-bit more of Ashgrove. Inspired by both, copied from neither (see "Inspired by, never copied").
+### The vision in one paragraph (owner direction, 2026-11-24)
+Each server is a freshly generated valley for 32 to 48 players that lives for a season of six to
+eight weeks. You arrive with nothing; you survive hunger, cold, wounds and the **Hollows** that
+come at night; you join a **band**, build a shelter and stake your land with a claim stone held by
+your band's **resolve**; you raid bands that over-reach and hold your walls through night sieges;
+and on **wipe day** everyone starts again on a new map. In your hands it is still an action game
+(the over-the-shoulder camera, aimed swings, dodge, block) with gathering and crafting as real
+skills that level by doing. The full design is `docs/vision.md`. The core loop:
+**gather → craft → build → survive the night → claim and defend → wipe and go again**.
 
 ## Pillars
-1. **A world that feels lived in, and a road that never ends.** Players log in to see what changed, who is around, and to get one more level, never to tick a daily chore. Long progression, yes; tedium, never (see "The long road").
+1. **A world that feels lived in, for a season.** Players log in to see what changed, who is around, and whose walls still stand, never to tick a daily chore. A long road inside each season, a fresh start every wipe; tedium, never (see "The long road").
 2. **Small, honest systems that stack.** Each week adds one system that works with the others. No feature ships half-built.
 3. **Everything is grown, not imported.** Terrain, creatures, items, music, and sound come from code and seeds. The look is a consequence of that: **Emberlight**, painted low-poly with colour in the vertices and one shared shader, cheap enough for any laptop (see `docs/art_bible.md`).
-4. **Cooperation first.** The early game rewards people for being near each other: shared gathering, group events, a town built together. PvP, if it ever comes, is opt-in.
+4. **Together first, rivals second.** Surviving rewards people for being near each other: shared fires, bands, the spawn town everyone raises. PvP and raiding are on by default (owner direction, 2026-11-24), but fair: a safe spawn town, raids only on bands at feud, and a band that stays within its resolve is never raided at full strength while all its members are offline (`docs/vision.md`).
 
 ## Owner directions (standing rules)
 The owner plays and tests; the AI designs everything else. The owner has given the
 directions below, and these are standing rules: they win over any other design choice, and
 the weekly review and director may refine them but never reverse them. Everything not
 covered here (systems, lore, balance, roadmap) stays the AI's call. Fun comes first and sits
-above the numbered directions: when two choices both respect directions 1 to 7, pick the
+above the numbered directions: when two choices both respect directions 1 to 8, pick the
 more fun one. Direction 7 (a look of our own, cheap to draw) binds every visual change.
 
 ### Fun comes first (the first rule)
-**If it isn't fun, it isn't the greatest MMO.** Fun is how we measure the North star. Every
+**If it isn't fun, it isn't worth shipping.** Fun is how we measure the North star. Every
 change, in every stream, is judged first by one question: *does this make the game more fun
 to play, right now, for a real player?* "Technically correct but boring" is not done.
 What that means in practice:
@@ -142,8 +141,7 @@ names:
   silhouette (art direction: "later, gear changes silhouettes").
 - **A world with places that matter.** Zones get harder as you go out from the Spawn Meadow
   and hold better materials. Towns are where you trade, craft at better stations and meet
-  people. Later, settlements and territory that groups build up and contest (opt-in, see
-  pillar 4).
+  people. Territory is bands and claims (`docs/vision.md`, pillar 4).
 - **Physical and grounded.** Weighty movement, readable animations, sound on every action,
   day and night that change what is out there.
 
@@ -209,6 +207,21 @@ section 0 (pillars) and section 11 (what reads as cheesy) before any visual chan
 Every world and client PR that changes what's on screen follows the art bible and keeps
 inside the budget.
 
+### 8. A small-server survival game, made for everyone (owner direction, 2026-11-24)
+The owner changed the game's direction: a small persistent-world survival game in the spirit of
+Project Zomboid, with randomly generated maps, land claims inspired by the old Minecraft Factions
+servers, and servers capped at a set number of players. Asked to choose the rest, with the aim of
+mass appeal, the director chose (see `docs/vision.md` for the full design):
+- **The Hollows** as the threat, plus wildlife; **raiding on by default** with a safe spawn town and
+  offline protection; **seasons of six to eight weeks** on fresh maps, keeping accounts,
+  cosmetics, titles and records; **death** drops what you carried and costs a small slice of XP,
+  never a level; **32 players** per server to start, 48 as the target.
+- **Accessible and action-heavy, not brutal:** quick to learn, good in a 30-minute session,
+  visible and explained dangers.
+- **Moments worth clipping:** night sieges, raids and wipe day are built as set pieces; the game
+  reads clearly on a stream (silhouettes, a quiet HUD, streamer mode, later a spectator camera).
+- The towns idea lives on as each server's spawn town, raised by everyone.
+
 ### Studio intro (owner direction, 2026-11-23)
 The owner supplied the **Budda Games** intro video and asked for it to replace Godot's boot
 splash. It is the studio's own logo, so it is the one owner-supplied asset in the client and an
@@ -241,7 +254,7 @@ The central mystery, revealed slowly over many weeks: the ember ash trees are th
 ### Geography (current)
 - A 512 m × 512 m playable square centred on the **Spawn Meadow**, a flat, calm clearing.
 - Rolling grass hills, ash groves in the lowlands, pine forests on higher ground, bare rock on the ridges, snow on the highest peaks, and lakes in the hollows.
-- The world is generated from `WORLD_SEED = 20261127` in `game/shared/terrain.gd` and `game/procgen/`. The seed is permanent: changing it would move every saved character into a different world.
+- The world is generated from `WORLD_SEED = 20261127` in `game/shared/terrain.gd` and `game/procgen/`. This seed stays permanent for the current live world (season 0) and the test world. From season 1 each server and season has its own seed and a generated valley (`docs/vision.md`); a saved character always loads into its own server and season's world.
 
 ### Tone
 Warm, curious, slightly melancholy. Patch notes and in-game text are friendly and a bit wry. Nothing grimdark, nothing sugary.
@@ -270,24 +283,25 @@ Gathering works the way players already know from mainstream MMOs, never through
 The server times the bar and decides the result; the client only shows it. `/gather` stays as a hidden debug and bot command, not listed in `/help` or patch notes. We borrow the genre's mechanics only: no names, art, UI or sounds from any existing game.
 
 ## Core systems (planned order)
-The order of milestones and what "done" means for each is in `docs/roadmap.md`. In short,
-after the foundations (day and night, gathering, crafting, the action camera, chat-to-UI):
-1. Skills and XP: the first trade skills, levels, unlocks and level-up moments
-2. Action combat with crafted weapons, health, and creatures just outside the Spawn Meadow
-3. Gear tiers: refining, better materials, armour and weapons in tiers
-4. A second zone: harder, richer, opened by gear and levels
-5. Towns and trading: the Hearth, crafting stations, a player market
-6. Parties and group content: shared kills and XP, group events, elite creatures
-7. Territory and opt-in PvP: settlements that groups build up and contest
-The ember ash mystery is told through quests and world events along the way, a chapter per
-milestone from the second one on.
+The phases and what "done" means for each are in `docs/roadmap.md`. In short, after the
+foundations (gathering, crafting, skills and XP, the action camera and combat basics):
+1. The turn: generated worlds, servers and seasons
+2. Survive the first night: needs, fire and cooking, the Hollows, death and loot
+3. A roof over your head: snap-grid building, doors, chests
+4. Bands and claims: resolve, claim stones, the safe spawn town
+5. Raids and night sieges
+6. Wipe day: seasons live, records, streamer mode
+7. Depth, ongoing
+The ember ash mystery is told through the Hollows, the Dimming scars and set pieces, a little
+more each season.
 
 ## Technical principles
 - The server is authoritative for everything that matters. Clients render and request.
-- The world is deterministic from the seed, so the server never streams terrain.
+- The world is deterministic from the seed, so the server never streams terrain; it sends its server and season seed.
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 00 (2026-11-24, new direction):** The owner said they weren't sure an MMO was the right call and proposed a small persistent-world survival game (Project Zomboid in spirit) with randomly generated maps and land claims like the old Minecraft Factions plugin, capped players per server. Two directions were written up (the towns MMO, PR #184, and this one), the owner chose this one, asked for mass appeal, and left the choices to us. Rewrote the North star and the vision paragraph, added owner direction 8, rewrote pillars 1 and 4 (PvP and raiding are now on by default, made fair by a safe spawn town, feuds and offline protection), replaced the planned order with seven phases, and made the seed per server and season from season 1. Kept everything that carries over: fun first, chat is for talking, the action camera, gathering, the long road of skills (now per season), take the best and beat it, the grounded art direction, and "Inspired by, never copied". `CLAUDE.md` hard rule 6 now says what survives a season's end. The study of the collapsed settlement MMO (`docs/research/promises_study.md`) stays as the reason for honest scope.
 - **Week 01 (2026-11-24, less blocky, low-res look):** The owner asked for characters "less blocky and more low res actual", and for animations. The art bible now adds **low-res paint** to Emberlight: organic low-poly shapes (smooth lofted bodies, never boxes) and a procedural texel grain in the shared shader that makes every surface read like a low-resolution painted texture with nearest-neighbour filtering, without any texture files. The light bands were widened so rounded shapes shade smoothly. Characters were rebuilt from smooth lofts, with separate upper and lower limb pieces ready for a skeleton. Animation (a skinned skeleton and a full set of weighty moves) is its own piece of work and builds on this.
 - **Week 01 (2026-11-24, character overhaul):** The owner said "our dudes look fat and silly". The art bible's "Characters" section now sets lean, grounded adult proportions (about 7 heads, 1.78 m, shoulders wider than hips, long legs, hands to mid-thigh), a back-first silhouette of layered survival gear (hood or hair, wool mantle, framed pack and bedroll, belt with pouch and knife, chest strap, bracers, tall boots), gear colours in the palette, and a per-character cost (5 merged meshes, 5 draw calls). `AvatarBuilder` was rebuilt to match. This replaces the earlier plan of 6 heads with gear in Milestone 3: characters are adult-proportioned now, and gear grows from these layers.
 - **Week 01 (2026-11-24, grounded art direction):** The owner said the current style "is cheesy and looks silly" and asked for the game to feel heavily inspired by the genre of their favourite MMO (New World): a grounded, moody survival-and-crafting MMO, done as low poly, with a style clearly our own and without legal trouble. Direction 7 now says Emberlight is **grounded first**, and `docs/art_bible.md` was rewritten around that: five pillars (grounded before cute, mood from light, earth first and ember rare, weathered, restraint), palette saturation and value rules, light by time of day, character proportions (toward 6 heads, never chibi, no wizard hats), materials, UI tone, effects restraint, a sharper legal "inspired by, never copied" list, and a named list of what read as cheesy with its status. A first pass fixed the worst of it: olive and straw grass instead of lime, rust two-lobed ash crowns on thicker trunks instead of candy lollipops, earthy cloth, hoods and hair instead of cyan tunics and wizard hats, a smaller head, a dusty sky and a whole-frame grade, moonlit-blue night fill, and a translucent level-up column. The performance rules and CI budgets are unchanged.

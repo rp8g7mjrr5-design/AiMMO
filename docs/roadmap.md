@@ -1,19 +1,20 @@
 # AiMMO Roadmap
 
-The road from today to the game in the design bible's "The vision in one paragraph":
-**gather → craft → fight → level up → explore further**. The roadmap is a list of
-**milestones in order**, not dates. Each milestone has a goal a player can feel and a
-"done when" list. Streams work on the **current milestone** first; they may build ahead on
-the next one only when nothing in the current one is unblocked for them. A broken system or
-a serious bug always goes first. The weekly review names each week's release after what that
-week added to the current milestone, and moves the "current" marker when a milestone's
-"done when" list is all true.
+The road from today to the game in `docs/vision.md` (owner direction, 2026-11-24): **a
+small-server survival game** with generated worlds, the Hollows, bands that claim land with
+resolve, raids, and seasons that end in wipe day. The roadmap is a list of **phases in order**,
+not dates. Each has a goal a player can feel and a "done when" list. Streams work on the
+**current phase** first; they may build ahead on the next one only when nothing in the current
+one is unblocked for them. A broken system or a serious bug always goes first. The weekly review
+names each week's release after what it added to the current phase, and moves the "current"
+marker when a phase's "done when" list is all true. Milestones 0 and 1 below are the
+foundations already built; anything still open in them stays first in its backlog.
 
-Every milestone follows the owner directions in `docs/design_bible.md`, especially fun comes
-first, 5 (the long road) and 6 (take the best, then beat it): before a milestone's first
-system PR, its stream writes a few lines in its devlog on which MMO does that feature best,
-what players love and hate about it, and how ours improves on it. Everything a milestone puts
-on screen follows the Emberlight art bible (`docs/art_bible.md`) and stays inside its render budget.
+Every phase follows the owner directions in `docs/design_bible.md` (fun comes first, the
+mass-appeal lean in `docs/vision.md`, take the best and beat it): before a phase's first system
+PR, its stream writes a few lines in its devlog on which game does that feature best, what
+players love and hate about it, and how ours improves on it. Everything on screen follows the
+art bible (`docs/art_bible.md`) and stays inside its render budget.
 
 ## Milestone 0: Foundations (finishing now)
 Shared world, accounts, movement, chat, persistence, day and night, gathering, crafting at
@@ -25,7 +26,7 @@ client).
 **Done when:** a new player can gather and craft with keys and windows only, no chat command
 anywhere, through the over-the-shoulder camera.
 
-## Milestone 1: The long road begins (skills and XP) ← current
+## Milestone 1: The long road begins (skills and XP) (finishing now)
 **Goal:** every gather and craft visibly moves you toward a level, every level gives you
 something, and there is always a next unlock in view.
 - Four skills to start, with our own names: **Felling** (ash and pine), **Quarrying**
@@ -46,82 +47,91 @@ next unlock; levels survive logout; tier-2 nodes refuse a too-low level with a c
 the bot test covers XP, a level-up and persistence, and qa's fun metrics report time to
 first level-up.
 
-## Milestone 2: First blood (action combat with crafted weapons)
-**Goal:** something worth fighting just outside the Spawn Meadow, with weapons you made.
-- Health and stamina. Aimed light and heavy attacks, block, dodge roll. Enemies telegraph.
-- First weapons crafted at the bench from Milestone 1 materials (a couple of weapon types
-  that play differently), each with its own mastery skill that levels by use.
-- Creatures: gentle wildlife first (the old Week 04), then a few hostile ones in the
-  ridges and at night (the old Week 05). Drops that feed crafting. Torches and campfires
-  keep danger back at night.
-- Fair failure: you respawn at the meadow and lose little.
-- First chapter of the ember ash mystery hinted by what the creatures guard.
-**Done when:** a player can craft a weapon, fight and kill a creature with readable,
-responsive combat (input feedback under 100 ms), level a weapon mastery, and die and come
-back without losing progress; bots fight in the bot test.
+## Phase 1: The turn (generated worlds, servers and seasons) ← current
+**Goal:** the game runs on a fresh generated valley per server and season, and players can see
+which server they are on and when its season ends. Everything already built (gathering,
+crafting, skills, combat basics) works there.
+- A seed per server and season; characters belong to a server and season (add-only columns;
+  today's characters become season 0 of the first server, untouched).
+- The generator v1: a valley about 1 km across from a seed (rivers and lakes, ash lowlands, pine
+  heights, ridges, Dimming scars) with resource nodes placed by it, and a first set piece
+  (the spawn town plot). Today's Ashgrove stays as the test seed and the live world until
+  season 1.
+- The client builds terrain and props in chunks around the player, inside the render budget.
+- A server list on the login screen (name, players / cap, season day, days to wipe).
+- The player cap as a server setting (32 to start).
+**Done when:** two servers with different seeds run side by side in the bot test, characters
+stay on their own server, a generated world is gatherable and craftable end to end, the
+client's spawn shot on a generated world fits the render budget, and qa's 32-bot run passes the
+perf budget.
 
-## Milestone 3: Better gear (tiers and refining)
-**Goal:** a reason to keep crafting: each tier of material makes clearly better gear.
-- Refining skills (wood to planks, stone and ore to bars) and the first ore.
-- Armour and weapons in tiers, with some rolled variation per craft; master crafters make
-  better rolls. Gear changes your silhouette.
-- A character panel with equipped gear.
-**Done when:** there are at least three gear tiers, refined materials, armour that changes
-how fights go and how you look, and a crafted item's quality depends on skill level.
+## Phase 2: Survive the first night
+**Goal:** staying alive is a game: you get hungry, thirsty and cold, and the Hollows come at
+night.
+- Hunger, thirst, warmth and rest on top of today's vitals, forgiving and readable.
+- Fires to cook and warm by; water from lakes and rivers; foraging and the first cooking.
+- The Hollows: slow by day, packs at night, drawn to noise and light; real telegraphs, using the
+  combat already on `main`. Wildlife hunting (grazers drop hide and meat).
+- Death drops a lootable pack where you fell; respawn at the spawn town in under a minute; a
+  small XP slice lost, never a level.
+**Done when:** a fresh player learns, in one evening, to avoid dying of cold, hunger and to a
+Hollow; the fun metrics report time to first fire and nights survived; bots die, loot and
+respawn in the bot test.
 
-## Milestone 4: Beyond the valley (a second zone)
-**Goal:** a harder place with better resources that you need Milestone 3 gear to survive.
-- A new zone next to Ashgrove (same seed rules: new zone, its own seed, the old world
-  unchanged), with its own look, creatures, tier-3 and tier-4 materials, landmarks.
-- Soft gating: you can walk in, but it is dangerous below the right gear and levels.
-- Chapter two of the mystery as a short quest chain (the old Week 07 "Embers Below").
-**Done when:** a geared player can travel there, survive, gather and fight things that
-can't be found at home, and bring them back to craft.
+## Phase 3: A roof over your head
+**Goal:** building a shelter that keeps the night out.
+- Snap-grid building: foundations, walls, doorways and doors, floors, roofs, in wood then stone,
+  procedural and on the shared materials.
+- Doors with owners, chests, a bedroll that sets your respawn.
+- Building is saved per server and season and survives every restart and deploy.
+**Done when:** a player builds a shelter that Hollows can't get into at night, it survives a
+server restart in the bot test, and a walled base fits the render budget.
 
-## Milestone 5: A town of our own (towns and trading)
-**Goal:** a place to meet, trade and build together.
-- The Hearth (the old Week 06): players donate resources to raise communal buildings at
-  the meadow, which unlock better crafting stations.
-- Player trading: direct trades, then a market that is easy to use and hard to exploit.
-- Storage, a bank or chest per player.
-**Done when:** two players can trade safely, anyone can buy and sell through the market,
-and the town visibly grows from what players gave.
+## Phase 4: Bands and claims
+**Goal:** friends become a band and stake their land.
+- Bands (2 to 8), ranks, relations; a band panel.
+- Resolve per member and per band; claim stones and 32 m plots; build, door and container
+  permissions inside claims; Hollows don't rise in claims.
+- The spawn town as a safe, unclaimable zone, and its first shared project.
+**Done when:** a band claims land, outsiders can't build or loot there, resolve moves with time
+online and deaths, and all of it runs in the bot test.
 
-## Milestone 6: Better together (parties and group content)
-**Goal:** doing things with friends is the best way to play.
-- Parties with shared kill credit and XP, party markers on the compass.
-- Group events in the world and elite creatures that need a group.
-- Proximity or zone chat (from the backlog).
-**Done when:** a party of four can form, take on an elite or event together, and all get
-rewarded, with the bot test running parties.
+## Phase 5: Raids and night sieges (the clip moments)
+**Goal:** the moments people share.
+- Breaching tools and build tiers; over-reach; claiming over outer plots; the offline damage
+  rule.
+- Night sieges: on the darkest nights Hollows gather on the loudest, brightest bases.
+- The moments get their own sound, light and camera feel; a server-wide feed line ("A siege is
+  gathering at the north ridge").
+**Done when:** an over-reached band can be raided, a band within its resolve is never raided at
+full strength while all members are offline, a night siege can be held or lost, and the bot
+test runs a raid and a siege.
 
-## Milestone 7: Ground worth holding (territory and opt-in PvP)
-**Goal:** groups build up and contest places in the world, for those who want it.
-- Groups (our own design and name) that claim and improve settlements.
-- Opt-in PvP: flag yourself for it; contests over territory between willing groups.
-- Territory perks that matter to the whole town (better stations, lower fees).
-**Done when:** a group can claim and improve a settlement, another willing group can
-contest it, and players who never flag for PvP are never forced into it.
+## Phase 6: Wipe day (seasons live)
+**Goal:** the season is an event.
+- Season settings (length 6 to 8 weeks), an in-game and server-list countdown, the last night,
+  and the new map at a set hour.
+- Season records (longest survivor, biggest hold, nights held) on a leaderboard and kept on the
+  account; titles that carry over.
+- Streamer mode; the player cap raised to 48 if the perf gates hold; a second public server.
+**Done when:** a season ends and a new one starts on a fresh seed without touching accounts or
+records, the countdown and leaderboard work, and qa's 48-bot run passes the perf budget.
 
-## Further out
-More skills (cooking, fishing-like and others, each with our own name), more zones, deeper
-chapters of the mystery, housing, seasonal world events, Steam (blocked until the owner sets
-it up).
+## Phase 7: Depth (ongoing)
+Wounds and illness, farming, fishing, more Hollow kinds and bigger sieges, more biomes and set
+pieces, carts, proximity voice, a spectator camera, the spawn town's later projects.
 
-## The next six weeks (director forecast, 2026-11-23)
-A forecast, not a promise: it is redrawn every morning from what actually landed. Release
-weeks start Friday; the PR budget week starts Wednesday (`docs/budget.md`), so each stream
-has about 40 PRs between Wednesdays. At 2026-11-23's pace (60 worker PRs landed in a day) a
-milestone takes two to four days of work, and the budget, not the work, sets the pace.
+## The next six weeks (director forecast, 2026-11-24)
+A forecast, not a promise: it is redrawn every morning from what actually landed.
 
 | Week | Dates | Focus |
 |------|-------|-------|
-| 00 | to Thu 26 Nov | Close Milestone 0 (craft window on `c2s_craft`, chat gate, pack window, facing yaw v5) and Milestone 1 (level-up moment, skills window, tier-2 nodes and props, Toolcraft recipes, pace check, bot-test gates). |
-| 01 | 27 Nov to 3 Dec | Milestone 2 starts: health and stamina, light and heavy attacks, dodge, the first two crafted weapons and their mastery skills, gentle wildlife outside the meadow. |
-| 02 | 4 to 10 Dec | Milestone 2 done: hostile creatures in the ridges and at night with clear telegraphs, fair death and respawn, torches and placed campfires, the first hint of the mystery. |
-| 03 | 11 to 17 Dec | Milestone 3: refining skills, the first ore, three gear tiers, rolled quality from crafting level, a character panel, gear that changes your silhouette. |
-| 04 | 18 to 24 Dec | Milestone 4 starts: the second zone's terrain, look and landmarks, tier-3 materials, soft gating by gear. |
-| 05 | 25 to 31 Dec | Milestone 4 done (its creatures and the "Embers Below" quest chain); Milestone 5 groundwork (the Hearth, storage). |
+| 00 | to Thu 26 Nov | Close Milestones 0 and 1; Phase 1 starts (server and season ids, generator v1 groundwork, server list). |
+| 01 | 27 Nov to 3 Dec | Phase 1 done: generated valley, chunked terrain, two servers in the bot test. |
+| 02 | 4 to 10 Dec | Phase 2: needs, fire and cooking, the first Hollows at night, death and loot. |
+| 03 | 11 to 17 Dec | Phase 3: snap-grid building, doors, chests, bedroll respawn. |
+| 04 | 18 to 24 Dec | Phase 4: bands, resolve, claim stones, the safe spawn town. |
+| 05 | 25 to 31 Dec | Phase 5: breaching, over-reach, offline rule, the first night sieges. |
 
 ## Week history
 | Week | Release | Notes |
@@ -149,6 +159,12 @@ up in CI. Milestone 0 is not closed yet: the workbench window still sends `/craf
 gate can't go on. Both are at the top of today's backlogs. Backlogs were trimmed to 12 ordered
 items per stream; everything else sits under "Later" in each file, so workers stop picking
 low-value follow-ups ahead of milestone work.
+
+**Director note (2026-11-24, new direction):** the owner chose the small-server survival game
+over the towns MMO and asked for mass appeal, leaving the details to us. See `docs/vision.md`.
+Milestones 2 to 7 are replaced by Phases 1 to 7: combat, creatures and death fold into Phase 2,
+towns shrink to the spawn town (Phase 4), territory becomes bands and claims (Phases 4 and 5),
+and the second zone becomes the generator. Phase 1 is seeded at the top of every backlog.
 
 ## Backlog (unscheduled)
 - Zone or proximity chat, private messages
