@@ -11,9 +11,11 @@ Fails on: any bot failure, any server/bot crash, any ERROR line in a log, a desy
 Long runs (>= 120 s) also check real gathering as a whole (tests/bot_test/gather_report.py)
 and then run the respawn probe: one fresh bot, only the qa_gather_ledger behaviour, logs in
 while a node the bots emptied is still empty, waits for it to come back and gathers it.
-Alongside the probe, two more fresh bots gather one node together on purpose (the pair
-check, qa_gather_ledger's pair mode), so "two players on one node" never depends on where
-the 8 bots happen to walk. Every saved character must hold exactly the pack the server last
+Alongside the probe, three more fresh bots gather one node together on purpose (the group
+check, qa_gather_ledger's pair mode with --pair-size=3), so "several players on one node"
+never depends on where the 8 bots happen to walk, and the node's charges must be shared
+fairly (nobody turned away while one is left, nobody paid after the last, and a press after
+the group's gathers matches what's left). Every saved character must hold exactly the pack the server last
 sent its bot.
 
 Long runs also run the level-gate check (behaviour qa_level_gate, tests/bot_test/level_gate.gd)
@@ -336,8 +338,11 @@ def main() -> int:
         # The pair goes first and never touches the probe's node; it plays while the probe waits.
         avoid = [f"--pair-avoid={pick[0]}"] if pick else []
         lead = f"bot{run_tag}_pairA"
-        for name, extra in ((lead, ["--gather-pair=lead", *avoid]),
-                            (f"bot{run_tag}_pairB", ["--gather-pair=follow", f"--pair-leader={lead}"])):
+        size = f"--pair-size={gather_report.GROUP_SIZE}"
+        group = [(lead, ["--gather-pair=lead", size, *avoid])]
+        group += [(f"bot{run_tag}_pair{c}", ["--gather-pair=follow", size, f"--pair-leader={lead}"])
+                  for c in "BCDEFG"[:gather_report.GROUP_SIZE - 1]]
+        for name, extra in group:
             result = work / f"{name}.json"
             log = work / f"{name}.log"
             cmd = bot_cmd(name, port, a.transport, PAIR_PLAY, result, "--expect-peers=0",

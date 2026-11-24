@@ -5,8 +5,7 @@
 		"client_camera_solids.gd": 1,
 		"client_gather_prompt.gd": 1,
 		"client_gather_swing.gd": 1,
-		"client_item_icons.gd": 1,
-		"world_level_up_fx.gd": 1
+		"client_item_icons.gd": 1
 	},
 	"palette": {
 		"_about": "Colour literals per game/procgen/ file as of 2026-11-23 (palette.gd excluded). New colours go in palette.gd with a comment saying what they are for.",

@@ -84,3 +84,47 @@ func test_saved_skills_hold_what_the_bot_knew() -> void:
 	check(why.contains("felling 90 XP (level 1)") and why.contains("at least 150 (level 2)"), "names the lost level: " + why)
 	check(not why.contains("quarrying"), "0 XP floor is always met")
 	check(Verify.skills_problem({"felling": 150}, null) != "", "no skills saved at all")
+
+
+func test_share_three_paid_on_a_full_node() -> void:
+	# A 3-charge node: the third finish empties it, so its "done" comes right after "empty".
+	var log := [["end", 11, "done"], ["end", 12, "done"], ["empty"], ["end", 13, "done"]]
+	check_eq(GatherLedger.share_problem(log), "")
+	check_eq(GatherLedger.share_ends(log), {"done": 3})
+	check(GatherLedger.share_emptied(log), "the last charge emptied it")
+
+
+func test_share_two_left_one_turned_away() -> void:
+	var log := [["end", 11, "done"], ["empty"], ["end", 12, "done"], ["end", 13, "depleted"]]
+	check_eq(GatherLedger.share_problem(log), "")
+	check_eq(GatherLedger.share_ends(log), {"done": 2, "depleted": 1})
+
+
+func test_share_no_charge_used_up() -> void:
+	var log := [["end", 11, "done"], ["end", 12, "done"]]
+	check_eq(GatherLedger.share_problem(log), "")
+	check(not GatherLedger.share_emptied(log), "nothing emptied")
+
+
+func test_share_turned_away_while_a_charge_was_left() -> void:
+	var why := GatherLedger.share_problem([["end", 11, "done"], ["end", 12, "depleted"]])
+	check(why.find("peer 12") != -1 and why.find("before the node was announced empty") != -1, why)
+
+
+func test_share_paid_after_the_last_charge() -> void:
+	var why := GatherLedger.share_problem([["empty"], ["end", 11, "done"], ["end", 12, "done"]])
+	check(why.find("peer 12") != -1 and why.find("already empty") != -1, why)
+	why = GatherLedger.share_problem([["empty"], ["end", 11, "depleted"], ["end", 12, "done"]])
+	check(why.find("peer 12") != -1, "a done that isn't the emptier's: %s" % why)
+
+
+func test_share_ignores_other_reasons() -> void:
+	check_eq(GatherLedger.share_problem([["end", 11, "stopped"], ["end", 12, "done"]]), "")
+
+
+func test_after_press_matches_the_node() -> void:
+	check_eq(GatherLedger.after_press_problem(true, "depleted"), "")
+	check_eq(GatherLedger.after_press_problem(false, "began"), "")
+	check(GatherLedger.after_press_problem(true, "began").find("expected 'depleted'") != -1, "an empty node let a gather begin")
+	check(GatherLedger.after_press_problem(false, "depleted").find("expected 'began'") != -1, "a node with a charge left said depleted")
+	check(GatherLedger.after_press_problem(true, "").find("got ''") != -1, "no answer")

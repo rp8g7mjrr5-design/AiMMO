@@ -49,22 +49,50 @@ class GatherReport(unittest.TestCase):
     def test_pair_good(self):
         rows = self.pair({"role": "lead", "node": 3, "together": True, "end": "done"},
                          {"role": "follow", "node": 3, "together": True, "end": "depleted"})
-        self.assertEqual(gr.check_pair(rows), [])
+        self.assertEqual(gr.check_pair(rows, 2), [])
 
     def test_pair_not_together(self):
         rows = self.pair({"node": 3, "together": True, "end": "done"},
                          {"node": 3, "together": False, "end": "done"})
-        self.assertIn("same time", " ".join(gr.check_pair(rows)))
+        self.assertIn("same time", " ".join(gr.check_pair(rows, 2)))
 
     def test_pair_different_nodes_and_unpaid(self):
         text = " ".join(gr.check_pair(self.pair({"node": 3, "together": True, "end": "depleted"},
-                                                {"node": 4, "together": True, "end": "depleted"})))
+                                                {"node": 4, "together": True, "end": "depleted"}), 2))
         self.assertIn("different nodes", text)
         self.assertIn("paid", text)
 
     def test_pair_missing_bot(self):
-        self.assertIn("expected 2", gr.check_pair({"pairA": {"behaviours": {"qa_gather_ledger": {"pair": {"node": 1}}}}})[0])
-        self.assertIn("expected 2", gr.check_pair({})[0])
+        self.assertIn("expected 2", gr.check_pair({"pairA": {"behaviours": {"qa_gather_ledger": {"pair": {"node": 1}}}}}, 2)[0])
+        self.assertIn("expected 3", gr.check_pair({})[0])
+
+    @staticmethod
+    def trio(lead_end="done", b_end="done", c_end="done", emptied=True, after="depleted", charges=3):
+        common = {"node": 5, "together": True, "charges": charges, "emptied": emptied}
+        return {"pairA": {"behaviours": {"qa_gather_ledger": {"pair": dict(common, role="lead", end=lead_end, after=after)}}},
+                "pairB": {"behaviours": {"qa_gather_ledger": {"pair": dict(common, role="follow", end=b_end)}}},
+                "pairC": {"behaviours": {"qa_gather_ledger": {"pair": dict(common, role="follow", end=c_end)}}}}
+
+    def test_trio_full_node_all_paid_then_depleted(self):
+        self.assertEqual(gr.check_pair(self.trio()), [])
+
+    def test_trio_partial_node(self):
+        # Two charges left: two paid, the third told "depleted", the extra press refused.
+        self.assertEqual(gr.check_pair(self.trio(c_end="depleted")), [])
+        # Node not emptied (a charge left after the group): the extra press must begin.
+        self.assertEqual(gr.check_pair(self.trio(c_end="depleted", emptied=False, after="began")),
+                         ["pair: someone was told 'depleted' but nobody was told the node is empty"])
+
+    def test_trio_paid_every_charge_but_not_emptied(self):
+        text = " ".join(gr.check_pair(self.trio(emptied=False, after="began")))
+        self.assertIn("nobody was told the node is empty", text)
+
+    def test_trio_more_paid_than_charges(self):
+        self.assertIn("3 paid on a node that holds 2", " ".join(gr.check_pair(self.trio(charges=2))))
+
+    def test_trio_after_press_must_match(self):
+        self.assertIn("got 'began' but the node was emptied", " ".join(gr.check_pair(self.trio(after="began"))))
+        self.assertIn("leader's press", " ".join(gr.check_pair(self.trio(after=""))))
 
     def test_probe_picks_soonest_due(self):
         rows = {"a": bot(depleted=[(1, 1000.0, 240.0, False), (2, 1010.0, 180.0, False)]),
