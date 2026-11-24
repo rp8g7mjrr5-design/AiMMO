@@ -27,6 +27,12 @@ extends RefCounted
 ##                    it never did. A bot's XP is split between skills by whichever nodes it
 ##                    walks to, so "N s in one skill and never levelled it" is the fair
 ##                    gate, not the bot's total (fun_report.py, skill_unlevelled_gather_s_worst)
+##   swings, swings_refused, swings_hit, kills  combat (protocol v7): our own swings the
+##                    server began (s2c_swing), refused (s2c_attack_refused), that struck
+##                    something (s2c_swing_hits naming a creature), and creatures we brought
+##                    down (the hunt's first drop arriving as s2c_gather_result). Each of the
+##                    first three is the game answering a press, so it is feedback too; a
+##                    kill's drops are rewards like a gather's haul.
 ##
 ## Where the numbers come from (protocol v3/v4): a press of E, a cancel and a Craft press
 ## (bot.play_sent) are actions like a slash command; s2c_gather_begin/end for us, s2c_xp and a
@@ -60,6 +66,10 @@ var level_ups := 0
 var rewards := 0
 var loops := 0
 var feedback_events := 0
+var swings := 0
+var swings_refused := 0
+var swings_hit := 0
+var kills := 0
 ## Text lines still expected after an RPC already counted them: [kind, at, count] (see echo()).
 var _echoes: Array = []
 ## Seconds within which a text line after its RPC counts as the same answer. The server sends
@@ -164,6 +174,36 @@ func level_up(t: float, skill: String = "") -> void:
 		_skill_level[skill] = skill_gather_time(skill, t)
 
 
+## Our swing began (s2c_swing for us): the game answered the press.
+func swing(t: float) -> void:
+	if _playing:
+		swings += 1
+	feedback(t)
+
+
+## Our swing was refused (s2c_attack_refused): a refusal is still an answer.
+func swing_refused(t: float) -> void:
+	if _playing:
+		swings_refused += 1
+	feedback(t)
+
+
+## Our blow resolved (s2c_swing_hits for us; the swinger always gets it, maybe empty).
+## `hit` is whether it struck anything.
+func swing_landed(t: float, hit: bool) -> void:
+	if _playing and hit:
+		swings_hit += 1
+	feedback(t)
+
+
+## We brought a creature down. Its drops are counted by reward() as they arrive; this only
+## counts the kill.
+func kill(t: float) -> void:
+	if _playing:
+		kills += 1
+	feedback(t)
+
+
 ## An RPC counted an answer the server will also send as text ("gather" with the item count,
 ## "level"): remember it so echo() can drop that line.
 func expect_echo(kind: String, t: float, count: int = 0) -> void:
@@ -218,6 +258,10 @@ func result() -> Dictionary:
 		"gather_s": snappedf(_gather_time, 0.01),
 		"level_ups": level_ups,
 		"levels_per_10_min": snappedf(level_ups / minutes * 10.0, 0.01) if minutes > 0.0 else 0.0,
+		"swings": swings,
+		"swings_refused": swings_refused,
+		"swings_hit": swings_hit,
+		"kills": kills,
 	}
 	# Flat keys (not a nested dict) so the per-bot key=value log line tools/fun_trend.py
 	# reads keeps working. Every skill the bot gathered in or levelled appears.
@@ -255,6 +299,17 @@ static func level_up_skill(text: String) -> String:
 		return ""
 	var id := m.get_string(1).to_lower()
 	return id if Skills.is_skill(id) else ""
+
+
+## True when s2c_gather_result(item, ...) is the first drop of a kill: the server sends one
+## per drop in Wildlife.drops order, so the first drop of any creature kind marks one kill.
+## No gather node yields a hunt drop (test_qa_fun_metrics checks), so a haul never counts.
+static func is_kill_drop(item: String) -> bool:
+	for kind in Wildlife.KINDS:
+		var d: Array = Wildlife.drops(str(kind))
+		if not d.is_empty() and str(d[0][0]) == item:
+			return true
+	return false
 
 
 ## True for server lines that are other players coming and going, not feedback to us.

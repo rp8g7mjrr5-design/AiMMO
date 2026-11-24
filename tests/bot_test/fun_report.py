@@ -3,7 +3,8 @@
 Each bot's qa_fun_metrics behaviour (tests/bot_test/fun_metrics.gd) reports:
 first_reward_s, longest_dead_s, longest_wait_s (dead time while acting), rewards_per_min,
 loops_completed, and for Milestone 1 (skills): first_level_up_s, first_level_up_gather_s
-(seconds of gathering before the first level-up), gather_s, level_ups, levels_per_10_min. This module rolls them up
+(seconds of gathering before the first level-up), gather_s, level_ups, levels_per_10_min, and for
+combat (protocol v7) swings, swings_refused, swings_hit, kills. This module rolls them up
 across bots, prints a table, and checks them against tests/bot_test/fun_baseline.json:
 
 - limits: hard ceilings/floors on the worst bot (e.g. every fresh player gets a first reward
@@ -39,6 +40,9 @@ COMPARED = {
     "first_level_up_gather_s": ("first_level_up_gather_s_median", False),
     "skill_level_gather_s": ("skill_level_gather_s_median", False),
 }
+
+# Combat counts every bot reports (fun_metrics.gd); summarise() totals them.
+COMBAT = ("swings", "swings_refused", "swings_hit", "kills")
 
 GATHER_PREFIX = "gather_s_"
 LEVEL_PREFIX = "level_gather_s_"
@@ -97,6 +101,9 @@ def summarise(rows: dict) -> dict:
         "skill_level_gather_s_worst": round(max(sk_level), 2) if sk_level else None,
         "skill_unlevelled_gather_s_max": round(sk_stuck, 2),
         "skill_unlevelled_at": sk_stuck_at,
+        # Combat (protocol v7), totals over every bot; reported, not gated (one hunter a run).
+        **{k: sum(int(r.get(k, 0)) for r in rows.values()) for k in COMBAT},
+        "bots_swung": sum(1 for r in rows.values() if int(r.get("swings", 0)) > 0),
     }
 
 
@@ -202,4 +209,7 @@ def table(rows: dict, summary: dict) -> str:
                      f"{f(summary.get('skill_level_gather_s_median'))} s, worst {f(summary.get('skill_level_gather_s_worst'))} s; "
                      f"longest never levelled {f(summary.get('skill_unlevelled_gather_s_max'))} s "
                      f"({summary.get('skill_unlevelled_at') or '-'})")
+    lines.append(f"[bot-test]   combat: {summary.get('swings', 0)} swings by {summary.get('bots_swung', 0)} bot(s), "
+                 f"{summary.get('swings_hit', 0)} struck, {summary.get('swings_refused', 0)} more presses refused, "
+                 f"{summary.get('kills', 0)} kill(s)")
     return "\n".join(lines)
