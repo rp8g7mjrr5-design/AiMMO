@@ -1,0 +1,1 @@
+Request (from gameplay, 2026-11-24): character customization landed as data (game/shared/appearance.gd). When the traveller's body style changes, keep `AvatarBuilder.parts(seed, look)` and re-implement `head_gear()` and `dress()` for the new style so every Appearance choice still shows. Never renumber a choice: the indices are saved.

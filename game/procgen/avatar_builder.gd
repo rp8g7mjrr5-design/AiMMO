@@ -40,13 +40,13 @@ const PACK_BACK := 0.21 ## the pack's centre behind the body's centre (the chest
 const LEATHER := Palette.LEATHER ## kept for callers that name it
 
 
-static func build(display_name: String, appearance_seed: int, is_self: bool) -> Node3D:
+static func build(display_name: String, appearance_seed: int, is_self: bool, look: Dictionary = {}) -> Node3D:
 	var root := Node3D.new()
 	# One skinned mesh on the traveller's skeleton (AvatarSkeleton): 1 draw call an avatar.
 	# Every part's colour is in its vertices and they share one material, and each vertex
 	# rides the bone its body segment belongs to, so the client's AvatarAnimator can bend
 	# elbows, knees, spine and neck (art bible section 3, "Animation").
-	root.add_child(skinned(appearance_seed))
+	root.add_child(skinned(appearance_seed, look))
 
 	var tag := Label3D.new()
 	tag.text = display_name
@@ -62,9 +62,25 @@ static func build(display_name: String, appearance_seed: int, is_self: bool) -> 
 
 
 ## The traveller for `appearance_seed` as a posable Skeleton3D ("Skeleton") with its one
-## skinned mesh ("Mesh"). Hand the skeleton to AvatarAnimator.apply to pose it.
-static func skinned(appearance_seed: int) -> Skeleton3D:
-	return AvatarSkeleton.rig_mesh(AvatarSkeleton.skin_parts(parts(appearance_seed), LIMB_PIVOTS, PART_AO))
+## skinned mesh ("Mesh"). Hand the skeleton to AvatarAnimator.apply to pose it. A chosen
+## `look` (Appearance) dresses it; its height scales the whole skeleton about the feet.
+static func skinned(appearance_seed: int, look: Dictionary = {}) -> Skeleton3D:
+	var sk := AvatarSkeleton.rig_mesh(AvatarSkeleton.skin_parts(parts(appearance_seed, look), LIMB_PIVOTS, PART_AO))
+	sk.scale = Vector3.ONE * height_scale(look)
+	return sk
+
+
+## How tall a look stands next to the 1.78 m average (Appearance "height"): about 1.69 to 1.87 m.
+static func height_scale(look: Dictionary) -> float:
+	if not Appearance.is_chosen(look):
+		return 1.0
+	return HEIGHTS[int(Appearance.normalize(look).height)]
+
+
+## Body build (Appearance "body"): [torso girth, limb girth]. Average is the drawn traveller,
+## untouched; the rest widen or narrow the body and limbs across (never taller or shorter).
+const BUILDS := [[0.88, 0.86], [1.0, 1.0], [1.12, 1.14], [1.22, 1.22]]
+const HEIGHTS := [0.95, 0.975, 1.0, 1.025, 1.05]
 
 
 ## The root with its four empty limb pivots, and nothing else.
@@ -87,15 +103,25 @@ static func rig() -> Node3D:
 ## tall, shoulders wider than hips, long legs, layered survival gear over dyed cloth. Read
 ## from the back first, because that is what the action camera sees all game: hood or hair,
 ## a wool mantle on the shoulders, a bedroll on a framed pack, a belt with a pouch and a knife.
-static func parts(appearance_seed: int) -> Array:
+##
+## `look` is the player's chosen Appearance. Empty (never chosen) draws everything from the
+## seed exactly as before customization; chosen, it sets the build, height, skin, face, hair,
+## beard, head gear and dyes, and the seed only adds a little wear to the tunic's dye.
+static func parts(appearance_seed: int, look: Dictionary = {}) -> Array:
+	var lk := Appearance.normalize(look)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = appearance_seed
 	var tunic := Palette.cloth_from_seed(appearance_seed) # earthy dyed cloth, never bright primaries
 	var skin := skin_tone(rng.randf(), rng.randf(), rng.randf())
 	var style := rng.randi() % 3 # hood, cap or bare-headed: the same draw as always
 	var hair := hair_colour(appearance_seed)
-	var wool := Palette.WOOL.lerp(tunic, 0.25) # the mantle and hood: undyed wool with a touch of the tunic's dye
 	var trousers := Palette.TROUSERS
+	if not lk.is_empty():
+		tunic = worn_dye(Palette.CLOTH[lk.tunic], appearance_seed)
+		skin = Palette.skin_tone(lk.skin)
+		hair = Palette.HAIR[lk.hair_colour]
+		trousers = Palette.TROUSER_DYES[lk.trousers]
+	var wool := Palette.WOOL.lerp(tunic, 0.25) # the mantle and hood: undyed wool with a touch of the tunic's dye
 	var leather := Palette.LEATHER
 	var dark_leather := Palette.LEATHER_DARK
 	var out: Array = []
@@ -123,7 +149,9 @@ static func parts(appearance_seed: int) -> Array:
 		out.append(_p("", _ball(0.014, 6), socket, Vector3(x, HEAD_Y + 0.018, 0.097), Vector3.ZERO, Vector3(1.4, 0.75, 0.6)))
 
 	# Head: a hood pulled up, or hair (and a felt cap on top of it).
-	if style == 0:
+	if not lk.is_empty():
+		out.append_array(head_gear(lk, hair, wool, tunic, skin))
+	elif style == 0:
 		out.append(_p("", _ball(HEAD_RADIUS + 0.028, 12), wool.darkened(0.12), Vector3(0, HEAD_Y + 0.02, -0.06), Vector3(-0.15, 0, 0), Vector3(1.0, 1.15, 1.0))) # set back, so the face shows in its opening
 	else:
 		out.append(_p("", _ball(HEAD_RADIUS + 0.014, 12), hair, Vector3(0, HEAD_Y + 0.05, -0.05), Vector3(-0.35, 0, 0), Vector3(1.0, 0.9, 0.98))) # back and crown of the head: the face stays clear
@@ -168,7 +196,115 @@ static func parts(appearance_seed: int) -> Array:
 		out.append(_p(l, loft([[-LEG_LENGTH + 0.24, 0.054, 0.06, 0.0], [-THIGH - 0.12, 0.062, 0.07, -0.006], [-THIGH + 0.01, 0.058, 0.064, 0.0]], 8), trousers.darkened(0.08), Vector3.ZERO))
 		out.append(_p(l, loft([[-LEG_LENGTH + 0.03, 0.058, 0.07, 0.0], [-LEG_LENGTH + 0.12, 0.06, 0.066, 0.0], [-LEG_LENGTH + 0.27, 0.07, 0.074, 0.0], [-LEG_LENGTH + 0.28, 0.062, 0.066, 0.0]], 8), dark_leather, Vector3.ZERO))
 		out.append(_p(l, _ball(0.06, 8), dark_leather.darkened(0.15), Vector3(0, -LEG_LENGTH + 0.038, 0.05), Vector3.ZERO, Vector3(0.85, 0.65, 2.0)))
+	if not lk.is_empty():
+		dress(out, lk, skin, hair)
 	return out
+
+
+## The head for a chosen look: hair in its style and colour, under a hood or a felt cap or
+## bare. Every part sits above AvatarSkeleton.HEAD_FROM or hangs down the back, so it rides
+## the head (or the spine) with the face.
+static func head_gear(lk: Dictionary, hair: Color, wool: Color, tunic: Color, skin: Color) -> Array:
+	var out: Array = []
+	var style := int(lk.hair)
+	var wear := int(lk.headwear)
+	var crown := style in [0, 2, 3, 4] # styles with hair on top of the head
+	if wear == 1:
+		# The hood, set back so the face shows in its opening; it hides the crown.
+		out.append(_p("", _ball(HEAD_RADIUS + 0.028, 12), wool.darkened(0.12), Vector3(0, HEAD_Y + 0.02, -0.06), Vector3(-0.15, 0, 0), Vector3(1.0, 1.15, 1.0)))
+	elif crown:
+		out.append(_p("", _ball(HEAD_RADIUS + 0.014, 12), hair, Vector3(0, HEAD_Y + 0.05, -0.05), Vector3(-0.35, 0, 0), Vector3(1.0, 0.9, 0.98)))
+	elif style == 1:
+		# Shaved: a close shadow of hair over the skull.
+		out.append(_p("", _ball(HEAD_RADIUS + 0.005, 12), hair.lerp(skin, 0.4), Vector3(0, HEAD_Y + 0.035, -0.035), Vector3(-0.3, 0, 0), Vector3(0.98, 0.88, 0.98)))
+	match style:
+		2: # tied back: a knot at the nape and a short tail
+			out.append(_p("", _ball(0.034, 8), hair, Vector3(0, HEAD_Y - 0.005, -0.125)))
+			out.append(_p("", loft([[-0.11, 0.012, 0.012, 0.0], [-0.08, 0.024, 0.02, 0.0], [0.0, 0.026, 0.022, 0.0], [0.01, 0.01, 0.01, 0.0]], 6), hair.darkened(0.05), Vector3(0, HEAD_Y - 0.03, -0.135), Vector3(0.12, 0, 0)))
+		3: # shoulder length: hair falling behind the ears to the shoulders
+			out.append(_p("", loft([[-0.19, 0.075, 0.03, -0.035], [-0.17, 0.112, 0.05, -0.03], [-0.06, 0.112, 0.07, -0.012], [0.04, 0.104, 0.075, 0.0], [0.08, 0.06, 0.05, 0.0]], 10), hair, Vector3(0, HEAD_Y, -0.055)))
+		4: # a braid down the back, over the pack's top
+			for i in 4:
+				out.append(_p("", _ball(0.026 - i * 0.002, 8), hair if i % 2 == 0 else hair.darkened(0.08), Vector3(0, HEAD_Y - 0.06 - i * 0.055, -0.12 - i * 0.012), Vector3.ZERO, Vector3(1.0, 1.25, 1.0)))
+	if wear == 2:
+		out.append(_p("", loft([[0.0, 0.112, 0.124, 0.0], [0.035, 0.105, 0.115, 0.0], [0.06, 0.07, 0.08, 0.0], [0.07, 0.01, 0.01, 0.0]], 12), tunic.darkened(0.3), Vector3(0, HEAD_Y + 0.045, -0.012), Vector3(-0.12, 0, 0)))
+	return out
+
+
+## Finishes a chosen look on the built parts, in place: the build widens or narrows the torso
+## and limbs across, then the face shape and the beard go on.
+static func dress(out: Array, lk: Dictionary, skin: Color, hair: Color) -> void:
+	var b: Array = BUILDS[int(lk.body)]
+	var torso: float = b[0]
+	var limbs: float = b[1]
+	if torso != 1.0 or limbs != 1.0:
+		for p in out:
+			if p.limb != "":
+				_widen(p, limbs)
+			elif (p.pos as Vector3).y < 1.5:
+				_widen(p, torso)
+			elif (p.pos as Vector3).y < 1.6:
+				_widen(p, (1.0 + torso) * 0.5) # the neck, half as much
+	# Face (Appearance "face"): the head's own shape, plus a jaw or a brow where it needs one.
+	var head: Dictionary = out[1]
+	match int(lk.face):
+		0: head.scl = Vector3(0.93, 1.03, 0.98) # narrow
+		1: # square: a wider jaw
+			head.scl = Vector3(1.04, 0.99, 1.0)
+			out.append(_p("", _ball(0.07, 8), skin, Vector3(0, HEAD_Y - 0.075, 0.02), Vector3.ZERO, Vector3(1.32, 0.7, 1.26)))
+		2: head.scl = Vector3(1.08, 0.95, 0.99) # round
+		3: # strong brow
+			out.append(_p("", _ball(0.05, 8), skin.darkened(0.06), Vector3(0, HEAD_Y + 0.042, 0.082), Vector3(-0.2, 0, 0), Vector3(1.75, 0.38, 0.62)))
+	var beard := hair.darkened(0.06)
+	match int(lk.beard):
+		1: # stubble: a shadow on the jaw
+			out.append(_p("", _ball(0.072, 8), skin.lerp(hair, 0.5), Vector3(0, HEAD_Y - 0.078, 0.05), Vector3.ZERO, Vector3(1.06, 0.68, 0.74)))
+		2: # short beard
+			out.append(_p("", _ball(0.075, 8), beard, Vector3(0, HEAD_Y - 0.085, 0.058), Vector3.ZERO, Vector3(1.08, 0.8, 0.8)))
+			out.append(_p("", _ball(0.03, 6), beard, Vector3(0, HEAD_Y - 0.036, 0.104), Vector3.ZERO, Vector3(1.6, 0.42, 0.6)))
+		3: # full beard, down past the chin
+			out.append(_p("", loft([[-0.075, 0.012, 0.01, 0.03], [-0.06, 0.04, 0.03, 0.02], [-0.02, 0.075, 0.06, 0.0], [0.03, 0.088, 0.07, -0.01], [0.06, 0.06, 0.05, -0.012]], 10), beard, Vector3(0, HEAD_Y - 0.085, 0.052), Vector3(0.2, 0, 0)))
+			out.append(_p("", _ball(0.032, 6), beard, Vector3(0, HEAD_Y - 0.036, 0.104), Vector3.ZERO, Vector3(1.7, 0.45, 0.6)))
+		4: # moustache
+			out.append(_p("", _ball(0.032, 6), beard, Vector3(0, HEAD_Y - 0.036, 0.103), Vector3.ZERO, Vector3(1.8, 0.45, 0.6)))
+
+
+## Bakes a part's placement into its mesh and stretches it across by `f` (x and z, about its
+## parent's origin: the body's centre line, or the limb's pivot). Height never changes, so the
+## part keeps its bone weights.
+static func _widen(p: Dictionary, f: float) -> void:
+	var xf := Transform3D(Basis.from_scale(Vector3(f, 1.0, f)), Vector3.ZERO) \
+		* Transform3D(Basis.from_euler(p.get("rot", Vector3.ZERO)) * Basis.from_scale(p.get("scl", Vector3.ONE)), p.pos)
+	# By hand rather than SurfaceTool.append_from, which asks the renderer about primitive
+	# meshes and logs errors on a headless server or bot.
+	var arrays: Array = (p.mesh as Mesh).surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var nb := xf.basis.inverse().transposed()
+	for i in verts.size():
+		verts[i] = xf * verts[i]
+		if i < normals.size():
+			normals[i] = (nb * normals[i]).normalized()
+	var keep := []
+	keep.resize(Mesh.ARRAY_MAX)
+	keep[Mesh.ARRAY_VERTEX] = verts
+	keep[Mesh.ARRAY_NORMAL] = normals
+	keep[Mesh.ARRAY_INDEX] = arrays[Mesh.ARRAY_INDEX]
+	var baked := ArrayMesh.new()
+	baked.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, keep)
+	p.mesh = baked
+	p.pos = Vector3.ZERO
+	p.rot = Vector3.ZERO
+	p.scl = Vector3.ONE
+
+
+## A chosen dye with the seed's own bit of wear (lighter or darker), like Palette.cloth_from_seed,
+## so two travellers in the same dye are still not identical.
+static func worn_dye(dye: Color, appearance_seed: int) -> Color:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = appearance_seed
+	rng.randi() # cloth_from_seed's dye draw, so the wear is the same as that seed's
+	return dye.lightened(rng.randf() * 0.10) if rng.randf() < 0.5 else dye.darkened(rng.randf() * 0.12)
 
 
 ## A smooth tube through `rings` (each [y, half width, half depth, z offset], bottom to top),

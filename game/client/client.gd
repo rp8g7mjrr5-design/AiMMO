@@ -36,6 +36,7 @@ var sfx_chime: AudioStreamPlayer
 var sfx_arrive: AudioStreamPlayer
 var settings: ClientSettings
 var settings_menu: SettingsMenu
+var look_window: LookWindow ## character creation (first login) and "Change appearance"
 var time_dial: TimeDial
 var compass: CompassStrip
 var gather_prompt: GatherPrompt
@@ -124,6 +125,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.vitals_changed.connect(_on_vitals)
 	net.attack_refused.connect(_on_attack_refused)
 	net.swing_begun.connect(_on_swing_begun)
+	net.look_changed.connect(_on_look)
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _set_status("Could not reach the server.", true))
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -151,6 +153,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 		_open_pack_after_login.call_deferred()
 	if args.has("open-players"):
 		_open_players_after_login.call_deferred()
+	if args.has("open-look"):
+		_open_look_after_login.call_deferred()
 	if args.has("autoconnect"):
 		_on_connect_pressed.call_deferred()
 	_args = args
@@ -207,6 +211,20 @@ func _open_players_after_login() -> void:
 	if spec.contains(":"):
 		players_panel.on_roster(_players_spec(spec, players_panel.entries, false))
 	players_panel.open()
+
+
+## Test hook (--open-look, or --open-look=roll for a random look): opens the appearance
+## window once logged in, as the Esc menu's "Change appearance" would.
+func _open_look_after_login() -> void:
+	while not logged_in or not avatars.has(my_id):
+		await get_tree().process_frame
+	await get_tree().create_timer(1.0).timeout
+	if not look_window.visible:
+		_open_look(false)
+	if str(_args.get("open-look", "")) == "roll":
+		var r := RandomNumberGenerator.new()
+		r.seed = 11
+		look_window.set_look(Appearance.random(r))
 
 
 ## The real roster plus "Ash:9,Wren:14" as made-up players (negative ids, which no real peer
@@ -303,7 +321,9 @@ func _setup_input() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if controls_overlay.visible:
+		if look_window.visible:
+			look_window.cancel()
+		elif controls_overlay.visible:
 			controls_overlay.close()
 		elif skills_window.visible:
 			skills_window.close()
@@ -324,6 +344,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if not logged_in or settings_menu.visible:
+		return
+	if look_window.visible:
+		# Drag anywhere off the window to turn the camera round your traveller.
+		if event is InputEventMouseMotion and (event.button_mask & (MOUSE_BUTTON_MASK_LEFT | MOUSE_BUTTON_MASK_RIGHT)) != 0:
+			look_window.drag(event.relative.x)
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_controls"):
 		if not craft_window.visible and not skills_window.visible and not pack_window.visible and not players_panel.visible:
@@ -395,7 +420,7 @@ func _apply_settings(s: ClientSettings) -> void:
 
 ## True while a window that frees the cursor is open (Settings, the workbench, the F1 controls).
 func window_open() -> bool:
-	return settings_menu.visible or craft_window.visible or controls_overlay.visible or skills_window.visible or pack_window.visible or players_panel.visible
+	return settings_menu.visible or craft_window.visible or controls_overlay.visible or skills_window.visible or pack_window.visible or players_panel.visible or look_window.visible
 
 
 ## K or the Skills button: open or shut the skills window (not over another window).
@@ -494,7 +519,12 @@ func _process(delta: float) -> void:
 	if avatars.has(my_id):
 		var me: Node3D = avatars[my_id].node
 		var xf := cam.step(me.position, delta, Callable(Terrain, "height"), ActionCamera.camera_solids(me.position))
-		camera.transform = xf
+		if look_window.visible:
+			# The appearance window: face your traveller from the front, a little to one side.
+			var portrait := look_camera(me.position, avatars[my_id].yaw + look_window.orbit)
+			camera.transform = camera.transform.interpolate_with(portrait, 1.0 - exp(-8.0 * delta))
+		else:
+			camera.transform = xf
 		if compass.due(delta):
 			compass.feed(cam.yaw, me.position, other_positions())
 		_update_gather(delta, me.position, xf.origin, -xf.basis.z)
@@ -652,7 +682,11 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	players_panel.set_me(id)
 	settings_menu.set_in_game(true)
 	goal_label.visible = true
-	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
+	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw, Appearance.normalize(character.get("look", {})))
+	# First time here (or never chose): make your traveller. Not for the automated test
+	# clients (--autoconnect), which must start playing at once; --open-look shows it to them.
+	if not Appearance.is_chosen(character.get("look", {})) and not _args.has("autoconnect"):
+		_open_look.call_deferred(true)
 	herd.clear()
 	grazers.clear()
 	prediction.reset()
@@ -698,6 +732,7 @@ func _on_server_disconnected() -> void:
 	pack_button.visible = false
 	players_panel.reset()
 	settings_menu.set_in_game(false)
+	look_window.reset()
 	players_button.visible = false
 	players_button.text = PlayersPanel.button_text(0)
 	goal_label.visible = false
@@ -954,8 +989,8 @@ func _on_chat_submitted(text: String) -> void:
 		net.c2s_chat.rpc_id(1, clean)
 
 
-func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, yaw: float) -> void:
-	var node := wrap_avatar(AvatarBuilder.build(player_name, appearance_seed, id == my_id))
+func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, yaw: float, look: Dictionary = {}) -> void:
+	var node := wrap_avatar(AvatarBuilder.build(player_name, appearance_seed, id == my_id, look))
 	node.position = pos
 	node.rotation.y = yaw
 	if id == my_id:
@@ -963,7 +998,62 @@ func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, ya
 		for tag in node.find_children("*", "Label3D", false, false):
 			tag.visible = false
 	world.add_child(node)
-	avatars[id] = {"node": node, "body": node.get_node("Body"), "skel": node.get_node("Body/Skeleton"), "anim": AvatarAnimator.new(), "target": pos, "yaw": yaw, "name": player_name}
+	avatars[id] = {"node": node, "body": node.get_node("Body"), "skel": node.get_node("Body/Skeleton"), "anim": AvatarAnimator.new(), "target": pos, "yaw": yaw, "name": player_name, "seed": appearance_seed, "look": look}
+
+
+## Redraws avatar `id` in `look` (Appearance; {} = their seed look) where it stands, keeping
+## its name tag and its animation state.
+func _restyle(id: int, look: Dictionary) -> void:
+	if not avatars.has(id):
+		return
+	var a: Dictionary = avatars[id]
+	var node: Node3D = a.node
+	var old: Node3D = a.body
+	var body := AvatarBuilder.build(str(a.name), int(a.seed), id == my_id, look)
+	for tag in body.find_children("*", "Label3D", false, false):
+		body.remove_child(tag)
+		tag.free()
+	body.name = "Body"
+	node.remove_child(old)
+	old.queue_free()
+	node.add_child(body)
+	a.body = body
+	a.skel = body.get_node("Skeleton")
+
+
+## s2c_look (v8): peer_id saved a look, or this is the look of someone who just came into the
+## world. Your own, while the window is open, only updates what Cancel goes back to.
+func _on_look(peer_id: int, look: Dictionary) -> void:
+	if not avatars.has(peer_id):
+		return
+	var lk := Appearance.normalize(look)
+	avatars[peer_id].look = lk
+	if peer_id == my_id and look_window.visible:
+		look_window.original = lk
+		return
+	_restyle(peer_id, lk)
+
+
+## Opens the appearance window on your current look (`creating` on first login).
+func _open_look(creating: bool) -> void:
+	if not logged_in or not avatars.has(my_id):
+		return
+	for w in [craft_window, controls_overlay, skills_window, pack_window, players_panel]:
+		if w.visible:
+			w.close()
+	chat_edit.release_focus()
+	look_window.open(avatars[my_id].look, int(avatars[my_id].seed), creating)
+
+
+## The appearance window's camera: in front of a traveller at `pos` facing `yaw`, at chest
+## height a little over two metres off, looking at their upper body (the window sits on the
+## left, so the figure is framed right of centre).
+static func look_camera(pos: Vector3, yaw: float) -> Transform3D:
+	var fwd := Vector3(sin(yaw), 0.0, cos(yaw))
+	var right := Vector3(cos(yaw), 0.0, -sin(yaw))
+	var eye := pos + fwd * 2.5 + right * 0.55 + Vector3(0, 1.45, 0)
+	var target := pos + right * 0.55 + Vector3(0, 1.15, 0)
+	return Transform3D.IDENTITY.looking_at(target - eye, Vector3.UP).translated(eye)
 
 
 ## Puts the built avatar ("Body", holding its Skeleton) under a steady root, with the name tag
@@ -1309,7 +1399,18 @@ func _build_ui() -> void:
 		if not settings_menu.quiet_close:
 			sfx_chime.play())
 	settings_menu.home_requested.connect(func(): net.play.c2s_unstuck.rpc_id(1))
+	settings_menu.look_requested.connect(func(): _open_look(false))
 	ui.add_child(settings_menu)
+
+	look_window = LookWindow.new()
+	look_window.setup(theme)
+	look_window.previewed.connect(func(lk: Dictionary): _restyle(my_id, lk))
+	look_window.saved.connect(func(lk: Dictionary):
+		if multiplayer.multiplayer_peer != null and logged_in:
+			net.play.c2s_set_look.rpc_id(1, lk)
+			avatars[my_id].look = lk)
+	look_window.closed.connect(func(): sfx_chime.play())
+	ui.add_child(look_window)
 
 
 func _field(parent: Control, label_text: String, placeholder: String) -> LineEdit:

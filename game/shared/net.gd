@@ -83,6 +83,12 @@ signal swing_landed(peer_id: int, kind: String, creature_ids: Array)
 ## Your swing was refused: "busy", "winded", "tired", "dead" or "unknown".
 signal attack_refused(kind: String, reason: String)
 
+# --- protocol v8, carried by Net/Play: character customization ---
+## A player saved a new look (Appearance) from the character-creation window.
+signal look_requested(peer_id: int, look: Dictionary)
+## peer_id's look ({} = never chosen: draw them from their appearance seed).
+signal look_changed(peer_id: int, look: Dictionary)
+
 var last_ack_seq := -1
 var play: Node
 

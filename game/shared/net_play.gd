@@ -1,6 +1,7 @@
 extends Node
 ## Net/Play: the RPCs added in protocol v3 (gathering, the pack, crafting), v4 (skills), v5
-## (roster, Return to Spawn Meadow), v6 (wildlife) and v7 (health, stamina, the first swing). A child of Net so
+## (roster, Return to Spawn Meadow), v6 (wildlife), v7 (health, stamina, the first swing) and v8
+## (character customization). A child of Net so
 ## Net's own RPC numbering, and with it every old client's login, never changes (see net.gd
 ## and tests/protocol/README.md). No logic: each RPC re-emits the matching signal on Net.
 ## Clients call these as `net.play.c2s_*.rpc_id(1, ...)`; the server's _send finds them here.
@@ -178,3 +179,23 @@ func s2c_swing_hits(peer_id: int, kind: String, creature_ids: Array) -> void:
 @rpc("authority", "call_remote", "reliable")
 func s2c_attack_refused(kind: String, reason: String) -> void:
 	_net().attack_refused.emit(kind, reason)
+
+
+# --- protocol v8: character customization ---
+
+## Save my look (the character-creation window's "Set out" or "Save"): a complete Appearance
+## look, every key a whole number in range. The server checks it (Appearance.check), stores
+## it and answers with s2c_look to everyone, you included; a bad look is refused quietly
+## with s2c_system(Appearance.REFUSED).
+@rpc("any_peer", "call_remote", "reliable")
+func c2s_set_look(look: Dictionary) -> void:
+	_net().look_requested.emit(_sender(), look)
+
+
+## peer_id's look (Appearance; {} = never chosen: draw them from their appearance seed).
+## Sent right after s2c_player_joined for everyone already online and for the newcomer, and
+## to everyone when someone saves a new look. Your own look comes in s2c_login_result's
+## character ("look") and again here whenever you change it.
+@rpc("authority", "call_remote", "reliable")
+func s2c_look(peer_id: int, look: Dictionary) -> void:
+	_net().look_changed.emit(peer_id, look)

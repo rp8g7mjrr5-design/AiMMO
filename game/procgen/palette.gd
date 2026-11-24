@@ -126,6 +126,38 @@ static func skin(a: float, b: float, c: float) -> Color:
 	return Color.from_hsv(0.055 + a * 0.03, 0.30 + b * 0.18, 0.36 + c * 0.44)
 
 
+## The character-creation window's skin tones (Appearance "skin", fair to deep): the three
+## `skin()` draws for each, so a chosen tone sits in the same grounded range as a seeded one.
+## Index order is permanent (it is saved); add new tones at the end.
+const SKIN_TONES := [
+	[0.5, 0.05, 0.98], ## fair
+	[0.6, 0.15, 0.85], ## light
+	[0.1, 0.40, 0.78], ## rosy: a little redder
+	[0.95, 0.30, 0.66], ## olive: a little more yellow
+	[0.6, 0.55, 0.56], ## tan
+	[0.4, 0.70, 0.40], ## brown
+	[0.3, 0.75, 0.24], ## dark brown
+	[0.2, 0.60, 0.07], ## deep
+]
+
+
+## A chosen skin tone (Appearance "skin" index).
+static func skin_tone(index: int) -> Color:
+	var t: Array = SKIN_TONES[posmod(index, SKIN_TONES.size())]
+	return skin(t[0], t[1], t[2])
+
+
+## Trouser dyes for the creation window (Appearance "trousers"): duller and darker than the
+## tunic dyes, so the eye goes to the upper body. Index 0 is the old default `TROUSERS`.
+const TROUSER_DYES := [
+	TROUSERS, ## charcoal-brown
+	Color(0.33, 0.25, 0.19), ## walnut
+	Color(0.26, 0.29, 0.21), ## moss
+	Color(0.42, 0.39, 0.33), ## undyed
+	Color(0.24, 0.26, 0.29), ## slate
+]
+
+
 ## A character's tunic for an appearance seed: one of `CLOTH`, with a little seeded wear so two
 ## travellers in the same dye are not identical. Same seed, same tunic, on every machine.
 static func cloth_from_seed(seed_value: int) -> Color:

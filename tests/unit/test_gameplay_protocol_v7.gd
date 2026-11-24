@@ -51,8 +51,8 @@ func _next_to(srv: Node, cid: int) -> Array:
 
 
 func test_v7_adds_vitals_and_the_swing_on_play_and_v6_is_frozen() -> void:
-	check_eq(GameConfig.PROTOCOL_VERSION, 7)
-	var play := ProtocolCompat.rpc_names("res://shared/net_play.gd")
+	check(GameConfig.PROTOCOL_VERSION >= 7, "v7 or later")
+	var play := ProtocolCompat.rpc_names("res://tests/protocol/net_play_v7.gd") # as v7 shipped
 	var expected := Array(ProtocolCompat.rpc_names("res://tests/protocol/net_play_v6.gd")) + V7_RPCS
 	expected.sort()
 	check_eq(Array(play), expected, "v7 Play = v6 Play + vitals and the swing")

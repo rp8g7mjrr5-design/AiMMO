@@ -13,6 +13,9 @@ const DEFAULTS := {
 	"appearance_seed": 0,
 	"inventory": {}, ## item id -> quantity, see Inventory. Stored in inventory_items (Postgres).
 	"skills": {}, ## skill id -> total XP, see Skills. Stored in character_skills (Postgres).
+	## The chosen look (Appearance), {} until the player picks one. Stored as JSON text in
+	## characters.appearance (migration 0004); older saves have none and keep their seed look.
+	"look": {},
 }
 
 
@@ -29,7 +32,12 @@ static func normalize(src: Dictionary) -> Dictionary:
 				var f: float = float(v) if typeof(v) != TYPE_STRING else (v as String).to_float()
 				out[k] = f if is_finite(f) else 0.0
 			TYPE_DICTIONARY:
-				out[k] = Skills.normalize(v) if k == "skills" else Inventory.normalize(v)
+				if k == "skills":
+					out[k] = Skills.normalize(v)
+				elif k == "look":
+					out[k] = Appearance.from_json(v)
+				else:
+					out[k] = Inventory.normalize(v)
 			_:
 				out[k] = str(v)
 	# A position outside the world (e.g. after a world resize) snaps back inside it.
@@ -50,6 +58,7 @@ static func from_pg_row(row: Dictionary) -> Dictionary:
 		"z": row.get("pos_z"),
 		"yaw": row.get("yaw"),
 		"appearance_seed": row.get("appearance_seed"),
+		"look": Appearance.from_json(row.get("appearance", "")),
 	})
 
 
