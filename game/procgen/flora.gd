@@ -41,13 +41,20 @@ const QUALITY_SCRIPT := "res://client/quality.gd"
 const QUALITY_POLL := 0.5 ## seconds between looks at the Graphics setting
 
 static var _spots: Array = []
+static var _built_for: Dictionary = {} ## the WorldGen config `_spots` was built for
+
+## On a generated kingdom, flora follows biomes instead of Ashgrove's height bands, and the
+## counts grow with the land (Ashgrove's density, capped).
+const KINGDOM_MAX_SCALE := 6.0
+const KINGDOM_TRIES := 20 ## tries per spot on a kingdom (Ashgrove: 60), so a big world grows in about a second
 
 
 ## Every flora spot: Array of {kind: "birch"|"boulder"|"flowers", pos: Vector3 (on the ground),
 ## rot: float, scale: float, tone: float (0..1, small colour variation), bloom: int (flowers)}.
 ## Built once and cached; treat it as read-only.
 static func spots() -> Array:
-	if _spots.is_empty():
+	if _spots.is_empty() or _built_for != WorldGen.config():
+		_built_for = WorldGen.config()
 		_spots = generate()
 	return _spots
 
@@ -57,24 +64,44 @@ static func generate() -> Array:
 	for it in Props.scatter():
 		blockers.add(it.pos)
 	var out: Array = []
-	_scatter(out, "birch", BIRCHES, SEED_OFFSET, blockers, _is_shore)
-	_scatter(out, "boulder", BOULDERS, SEED_OFFSET + 1, blockers, _is_forest_floor)
+	var k := WorldGen.is_kingdom()
+	var n := scale_for_world()
+	# Shores grow with the edge of the water, not the area, so birches scale by its square root.
+	_scatter(out, "birch", int(BIRCHES * sqrt(n)), SEED_OFFSET, blockers, _is_shore)
+	_scatter(out, "boulder", int(BOULDERS * n), SEED_OFFSET + 1, blockers, _is_kingdom_forest_floor if k else _is_forest_floor)
 	var mask := FastNoiseLite.new() # where flower meadows are; patches cluster where it is high
-	mask.seed = GameConfig.WORLD_SEED + SEED_OFFSET + 3
+	mask.seed = _world_seed() + SEED_OFFSET + 3
 	mask.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	mask.frequency = 0.018
-	_scatter(out, "flowers", FLOWER_PATCHES, SEED_OFFSET + 2, blockers,
-		func(x: float, z: float, y: float, slope: float) -> bool: return _is_grassland(x, z, y, slope) and mask.get_noise_2d(x, z) > 0.15)
+	var grass := _is_kingdom_grassland if k else _is_grassland
+	_scatter(out, "flowers", int(FLOWER_PATCHES * n), SEED_OFFSET + 2, blockers,
+		func(x: float, z: float, y: float, slope: float) -> bool: return grass.call(x, z, y, slope) and mask.get_noise_2d(x, z) > 0.15)
 	return out
+
+
+## How many times Ashgrove's flora this world gets: 1 on Ashgrove, its area (capped) on a kingdom.
+static func scale_for_world() -> float:
+	if not WorldGen.is_kingdom():
+		return 1.0
+	return minf(pow(WorldGen.size_m() / WorldGen.ASHGROVE_SIZE, 2.0), KINGDOM_MAX_SCALE)
+
+
+## The world's seed: GameConfig.WORLD_SEED on Ashgrove (so its flora is unchanged).
+static func _world_seed() -> int:
+	return int(WorldGen.config().seed)
 
 
 static func _scatter(out: Array, kind: String, count: int, seed_offset: int, blockers: _Grid, fits: Callable) -> void:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = GameConfig.WORLD_SEED + seed_offset
-	var h := GameConfig.WORLD_HALF_SIZE - 4.0
+	rng.seed = _world_seed() + seed_offset
+	var h := WorldGen.half_size() - 4.0
+	var sp := WorldGen.spawn_point()
+	var k := WorldGen.is_kingdom()
+	var ruins := WorldGen.ruin_sites()
 	var placed := 0
 	var tries := 0
-	while placed < count and tries < count * 60:
+	var max_tries := count * (KINGDOM_TRIES if k else 60)
+	while placed < count and tries < max_tries:
 		tries += 1
 		var x := rng.randf_range(-h, h)
 		var z := rng.randf_range(-h, h)
@@ -82,8 +109,10 @@ static func _scatter(out: Array, kind: String, count: int, seed_offset: int, blo
 		var s := rng.randf_range(0.75, 1.3)
 		var tone := rng.randf()
 		var bloom := rng.randi_range(0, BLOOMS.size() - 1)
-		if Vector2(x - GameConfig.SPAWN_POINT.x, z - GameConfig.SPAWN_POINT.z).length() < SPAWN_CLEAR:
+		if Vector2(x - sp.x, z - sp.z).length() < SPAWN_CLEAR:
 			continue
+		if k and (WorldGen.road_distance(x, z) < WorldGen.ROAD_HALF_WIDTH + 1.0 or Props._on_ruin(x, z, ruins)):
+			continue # the king's roads and the ruins' pads stay clear
 		var y := Terrain.height(x, z)
 		var slope := absf(Terrain.height(x + 1.0, z) - y) + absf(Terrain.height(x, z + 1.0) - y)
 		if not fits.call(x, z, y, slope):
@@ -113,6 +142,18 @@ static func _is_forest_floor(_x: float, _z: float, y: float, slope: float) -> bo
 
 static func _is_grassland(_x: float, _z: float, y: float, slope: float) -> bool:
 	return y > Terrain.water_level() + 1.5 and y < FOREST_MIN - 0.5 and slope < 0.5
+
+
+## A kingdom's mossy boulders: under its forests and on the stone hills.
+static func _is_kingdom_forest_floor(x: float, z: float, y: float, slope: float) -> bool:
+	var b := WorldGen.biome_for(x, z, y)
+	return (b == "forest" or b == "stone_hills") and slope < 1.4
+
+
+## A kingdom's wildflowers: the old fields and the moor, on gentle ground.
+static func _is_kingdom_grassland(x: float, z: float, y: float, slope: float) -> bool:
+	var b := WorldGen.biome_for(x, z, y)
+	return (b == "farmland" or b == "moor") and slope < 0.5
 
 
 ## Every part of one spot in world space: Array of {layer, xform, color}.

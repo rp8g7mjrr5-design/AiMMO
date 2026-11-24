@@ -164,6 +164,8 @@ static var _earth_noise: FastNoiseLite
 ## dry straw grass (more on the open valley floor) and small scuffs of bare earth (more on
 ## slopes). Same world, same patches, on every machine.
 static func ground_at(x: float, z: float, h: float, slope: float, jitter: float) -> Color:
+	if WorldGen.is_kingdom():
+		return _kingdom_ground_at(x, z, h, slope, jitter)
 	var c := ground(h, slope, jitter)
 	var w := cover_weights(x, z, h, slope)
 	if w.is_empty():
@@ -190,6 +192,49 @@ static func cover_weights(x: float, z: float, h: float, slope: float) -> Diction
 	var e := _earth_noise.get_noise_2d(x, z) + clampf((slope - 0.15) * 1.2, 0.0, 0.3)
 	var earth := smoothstep(0.30, 0.85, e) * EARTH_MAX
 	return {"moss": moss, "dry": dry, "earth": earth}
+
+
+## A generated kingdom's ground (WorldGen gen_version 1): coloured by its biome, not by
+## Ashgrove's height bands (which would paint the kingdom's 30 m rim hills as snow). Forest
+## floor is dark moss, the old fields straw-olive meadow, the moor brown heath, the stone
+## hills thin grass over grey stone; snow only above the snow line. Ground cover patches work
+## as on Ashgrove, with "forest" and "shore" read from the biome.
+static func _kingdom_ground_at(x: float, z: float, h: float, slope: float, jitter: float) -> Color:
+	var biome := WorldGen.biome_for(x, z, h)
+	var c: Color
+	match biome:
+		"water":
+			c = LAKEBED
+		"shore":
+			c = SAND
+		"snow":
+			c = SNOW
+		_:
+			if slope > 0.55:
+				c = ROCK
+			elif biome == "stone_hills":
+				c = GRASS.lerp(ROCK, 0.45)
+			elif biome == "forest":
+				c = FOREST
+			elif biome == "moor":
+				c = GRASS.lerp(MAP_HEATH, 0.55)
+			else:
+				c = MEADOW
+	c = _jittered(c, jitter)
+	if biome == "water" or biome == "shore" or biome == "snow" or slope > 0.55:
+		return c
+	_ensure_cover()
+	var n := _cover_noise.get_noise_2d(x, z)
+	var forest := 1.0 if biome == "forest" else 0.0
+	var moss_bias := 0.18 * forest
+	var dry_bias := 0.12 * (1.0 - forest) - 0.25 * forest + (0.12 if biome == "farmland" else 0.0)
+	var moss := smoothstep(0.05, 0.70, n + moss_bias) * COVER_MAX
+	var dry := smoothstep(0.05, 0.70, -n + dry_bias) * COVER_MAX
+	var e := _earth_noise.get_noise_2d(x, z) + clampf((slope - 0.15) * 1.2, 0.0, 0.3)
+	var earth := smoothstep(0.30, 0.85, e) * EARTH_MAX
+	c = c.lerp(_jittered(MOSS, jitter), moss)
+	c = c.lerp(_jittered(DRY_GRASS, jitter), dry)
+	return c.lerp(_jittered(BARE_EARTH, jitter), earth)
 
 
 static func _jittered(c: Color, jitter: float) -> Color:

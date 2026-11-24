@@ -96,7 +96,7 @@ static func _terrain() -> Node3D:
 	node.name = "Terrain"
 	var mat := TerrainMesh.material()
 	var span := TerrainMesh.CELL * TerrainMesh.CHUNK_CELLS
-	var half := GameConfig.WORLD_HALF_SIZE
+	var half := WorldGen.half_size()
 	var z := -half
 	while z < half:
 		var x := -half
@@ -112,7 +112,7 @@ static func _terrain() -> Node3D:
 
 static func _water() -> MeshInstance3D:
 	var pm := PlaneMesh.new()
-	pm.size = Vector2(GameConfig.WORLD_HALF_SIZE * 2.0, GameConfig.WORLD_HALF_SIZE * 2.0)
+	pm.size = Vector2(WorldGen.half_size() * 2.0, WorldGen.half_size() * 2.0)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Palette.WATER
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
