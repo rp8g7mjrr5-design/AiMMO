@@ -49,7 +49,8 @@ func test_picks_the_encode_that_fits_one_to_one() -> void:
 	check_eq(Intro.pick_video(Vector2(1280, 720)), Intro.VIDEO_PATH_720, "default window plays the 720p cut")
 	check_eq(Intro.pick_video(Vector2(1600, 900)), Intro.VIDEO_PATH_720, "a window under 1080p plays the 720p cut")
 	check_eq(Intro.pick_video(Vector2(1920, 1080)), Intro.VIDEO_PATH, "1080p fullscreen plays the 1080p cut")
-	check_eq(Intro.pick_video(Vector2(3840, 2160)), Intro.VIDEO_PATH, "4K plays the 1080p cut")
+	check_eq(Intro.pick_video(Vector2(2560, 1440)), Intro.VIDEO_PATH_720, "1440p plays the 720p cut at a clean 2x")
+	check_eq(Intro.pick_video(Vector2(3840, 2160)), Intro.VIDEO_PATH_720, "4K plays the 720p cut at 3x (exact pixels)")
 	check_eq(Intro.pick_video(Vector2(800, 600)), Intro.VIDEO_PATH_720, "a tiny window shrinks the smaller cut")
 
 

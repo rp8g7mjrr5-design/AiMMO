@@ -1428,3 +1428,13 @@ screenshot, but not perfect: the art's pixels are ~3.4 screen px at 720p, so any
 a 1080p master softens them a bit. Follow-up added (native 720p export from the owner).
 
 **Tests:** `test_client_intro.gd` gains pick/scale tests and checks both files. 680 unit tests pass.
+
+**Same day, owner sent a 4K60 export** (3840x2160, 7.1 s, kept in project files as
+`client/budda-games-intro-4k60-source.mp4`). It is clean: the logo fades out to #1e131a with no
+other game, so no trim. The logo's art pixels are exactly 21 px at 4K on a grid aligned to 3,
+so an `area` downscale by 3 gives exact 7 px pixels at 720p; 1080p (÷2) gets 10.5 px, a little
+soft on edges. Both now 60 fps: 720p q9 1.27 MB, 1080p q8 1.59 MB (2.86 MB together, under the
+3 MB cap). `pick_video` now picks the encode that comes out biggest at a whole-number scale,
+720p on ties, so 4K plays the 720p cut at 3x with exact pixels and 1440p at 2x. `Intro.BG` and
+the boot splash colour moved to the video's real background #1e131a so no seam shows around it.
+Under xvfb at 1280x720 the logo is now pixel-exact. The native-720p follow-up is done.

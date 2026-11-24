@@ -11,18 +11,18 @@ extends CanvasLayer
 
 signal finished
 
-## Two encodes of the same clip, so the pixel-art logo is drawn 1:1 instead of being squashed by
-## the GPU (a 1080p frame bilinear-shrunk into the 1280x720 default window looks blurry).
-## The 720p one is downscaled offline with Lanczos. Both were cut at 6.4 s with a fade to BG:
-## the owner's recording ran on past the logo into another project's title screen.
+## Two 60 fps encodes of the owner's 4K export, so the pixel-art logo is drawn at whole-number
+## scales instead of being squashed by the GPU (a 1080p frame bilinear-shrunk into the 1280x720
+## default window looked blurry). Both are area-downscaled offline from 3840x2160: the logo's
+## pixels are 21 px there, so the 720p cut (a third) has exact 7 px pixels and is the sharpest.
 const VIDEO_PATH := "res://client/intro/budda_games_intro.ogv"
 const VIDEO_PATH_720 := "res://client/intro/budda_games_intro_720.ogv"
 const SIZE_1080 := Vector2(1920, 1080)
 const SIZE_720 := Vector2(1280, 720)
-## The video's first-frame background (#1d161a). The boot splash uses the same colour.
-const BG := Color(0.114, 0.086, 0.102)
+## The video's background (#1e131a, also its edges and last frame). The boot splash matches it.
+const BG := Color(0.118, 0.075, 0.102)
 const SKIP_FADE := 0.25 ## seconds of fade to black when skipped
-## Safety net: the clip is 6.4 s; if playback stalls, never hold the player longer than this.
+## Safety net: the clip is 7.1 s; if playback stalls, never hold the player longer than this.
 const MAX_SECONDS := 10.0
 ## Args that mean "an automated run" (smoke tests, bots, auto-login): those start straight in
 ## so their timings and screenshots don't change. `--no-intro` turns it off by hand, and a
@@ -80,7 +80,7 @@ func _ready() -> void:
 	_native = SIZE_1080 if path == VIDEO_PATH else SIZE_720
 	var stream: Resource = load(path) if ResourceLoader.exists(path) else null
 	if not stream is VideoStream:
-		push_warning("[intro] %s missing, starting without it" % VIDEO_PATH)
+		push_warning("[intro] %s missing, starting without it" % path)
 		_finish.call_deferred()
 		return
 	_player.stream = stream
@@ -91,10 +91,14 @@ func _ready() -> void:
 	get_tree().create_timer(MAX_SECONDS).timeout.connect(_finish)
 
 
-## Which encode to play in a window this size: the 1080p one when it fits 1:1, else the 720p one
-## (made for the default 1280x720 window). Falls back to whichever file exists.
+## Which encode to play in a window this size: the one that comes out biggest at a whole-number
+## scale, and the 720p one on a tie (its pixels are exact). So 1280x720 and 1440p play the 720p
+## cut (1x, 2x), 1080p plays the 1080p cut 1:1, and 4K plays the 720p cut at 3x.
+## Falls back to whichever file exists.
 static func pick_video(win: Vector2) -> String:
-	var want := VIDEO_PATH if win.x >= SIZE_1080.x and win.y >= SIZE_1080.y else VIDEO_PATH_720
+	var big := floorf(video_scale(win, SIZE_1080)) * SIZE_1080.x # a shrink counts as 0
+	var small := floorf(video_scale(win, SIZE_720)) * SIZE_720.x
+	var want := VIDEO_PATH if big > small else VIDEO_PATH_720
 	if ResourceLoader.exists(want):
 		return want
 	return VIDEO_PATH if want == VIDEO_PATH_720 else VIDEO_PATH_720
