@@ -43,6 +43,10 @@ _Director, 2026-11-23: ordered by fun for players soonest. Milestone 0 leftovers
 - [ ] Follow-up (vitals, 2026-11-24): a hit should interrupt a running gather (new end reason "hit", needs client text and the gather prompt's nope). Do it with the first creature that attacks.
 - [ ] Follow-up (vitals, 2026-11-24): sprint and dodge spends from input once client sends them (`Vitals.spend`), refused with "winded"/"tired".
 - [ ] Follow-up (vitals, 2026-11-24): knock-downs cost nothing today (fair failure). Once creatures bite, watch whether a loss has any weight; if not, add a small cost (a few seconds dazed and slow, or part of one stack dropped at the spot to pick back up), never XP.
+
+- [x] *Done 2026-11-24 (PR on `ws/gameplay/weapons-rules`): `Weapons` in `game/shared/weapons.gd`, rules only: bare hands, ash spear (reach, narrow line, hits one, heavy lunge) and stone maul (wide sweep, hits three, heavy staggers), stamina as a scale on `Vitals.COSTS`, dodge-cancellable windups, aimed `in_swing` / `targets_hit`, mastery +1%/level; tests `test_gameplay_weapons.gd`.* Milestone 2 build-ahead: the first two crafted weapons that play differently.
+- [ ] Follow-up (weapons, 2026-11-24): server attack wiring once Vitals is live (#164): `c2s_attack(kind, yaw)` in the next bump, spend `Weapons.stamina_cost` (needs a `Vitals` spend by amount), land after `Weapons.hit_at` unless a dodge cancelled, `targets_hit` against grazers first (the gentle first hunt), then players only where PvP is allowed (never in the meadow). Bot behaviour then.
+- [ ] Follow-up (weapons): recipes for `ash_spear` and `stone_maul` at the bench (suggest Toolcraft 2 and 4) and the `spearwork` / `maulwork` mastery skills in `Skills.ORDER`, once the attack works so a crafted weapon is useful the moment it is made. Ask world for weapon icons and held models first (put them in `Inventory.UNDRAWN` until drawn).
 - [ ] Follow-up (wildlife, Milestone 2): grazers as the first hunt (drops hide and meat for campfires), creep-and-freeze as the stalking skill. Needs combat (Vitals wiring) first.
 
 ### Later (parked by the director, 2026-11-23; promoted as the list above empties)

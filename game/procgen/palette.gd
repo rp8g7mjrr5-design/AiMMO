@@ -35,6 +35,12 @@ const OLD_ASH_BARK := Color(0.50, 0.42, 0.36) ## older, greyer bark than TRUNK
 const RICH_STONE := Color(0.58, 0.50, 0.57) ## rich stone seam: a deeper colour than the grey outcrops
 const RICH_FLECK := Color(1.0, 0.86, 0.52) ## bright gold flecks: "this rock is rich"
 
+# Grazers (Grazers, Milestone 2 wildlife): warm, earthy herd animals that sit in the golden
+# meadow light without glowing (they are alive, not usable: no ember on them).
+const GRAZER_COAT := Color(0.62, 0.44, 0.28) ## warm fawn, a little redder than TRUNK so a herd reads against bark
+const GRAZER_BELLY := Color(0.88, 0.80, 0.66) ## cream belly and the pale rump you see bounding away
+const GRAZER_DARK := Color(0.20, 0.16, 0.14) ## hooves, muzzle and eyes: close to SOOT, never black
+
 
 # Skill badges (SkillIcons, Milestone 1): one colour per skill, used for the badge disc and
 # to tint that skill's toasts, XP bar and window header. Each echoes what the skill works on.
