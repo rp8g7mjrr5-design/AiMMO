@@ -35,6 +35,12 @@ const ASH_GLOW := 0.10 ## faint: you notice it, it never looks like a light bulb
 const NODE_ASH_GLOW := 0.14 ## gatherable ash a touch brighter, so it reads as special at night
 const SAP_DAY := 0.9 ## matches NodeProps' daytime sap emission
 const SAP_NIGHT := 1.6
+## How far a lantern flame's light swings around its steady level (+-7%): a flame in a light
+## draught, not a strobe. The light pool on the grass breathes; the glass keeps the heartbeat.
+const FLICKER_DEPTH := 0.14
+## The flame's three waves (radians a second). Not multiples of each other, so the pattern
+## never visibly repeats, and all slow enough that a frame-to-frame step stays tiny.
+const FLICKER_WAVES := [[7.3, 0.5], [17.3, 0.3], [2.9, 0.2]]
 
 
 ## Where each lantern stands: an Array of {pos: Vector3 (on the ground), rot: float}.
@@ -151,11 +157,45 @@ static func apply_glow(world: Node, glow: float) -> void:
 		for omni in lights.get_children():
 			(omni as OmniLight3D).light_energy = v.light_energy
 			(omni as OmniLight3D).visible = v.lights_on
+			omni.set_meta("steady_energy", v.light_energy) # flicker_lights swings around this
 	_set_emission(world.get_node_or_null("Lamps/" + GLASS_LAYER), v.glass)
 	_set_emission(world.get_node_or_null("AshCrowns"), v.ash)
 	_set_emission(world.get_node_or_null("ResourceNodes/NodeAshCrowns"), v.node_ash)
 	_set_emission(world.get_node_or_null("ResourceNodes/" + NodeProps.GLOW_LAYER), v.sap)
 	Workbench.apply_glow(world.get_node_or_null("Workbench"), glow)
+
+
+## A lantern flame's light at `seconds` as a multiple of its steady level, for lantern
+## `index` (the bench lantern is index COUNT). Three waves with a per-lantern offset (the
+## golden angle), so no two lanterns breathe together. Stays within 1 +- FLICKER_DEPTH / 2
+## and averages 1, so the night is exactly as bright as before, only alive. Pure maths.
+static func flicker(seconds: float, index: int) -> float:
+	var o := float(index) * 2.39996
+	var w := 0.0
+	for k in FLICKER_WAVES.size():
+		w += float(FLICKER_WAVES[k][1]) * sin(seconds * float(FLICKER_WAVES[k][0]) + o * float(k + 1))
+	return 1.0 + FLICKER_DEPTH * 0.5 * w
+
+
+## Let every lit lantern flame flicker (the meadow ring and the bench). DayNight calls this
+## every frame; it only sets light_energy on lights that are on, nothing is created. Lights
+## that apply_glow has not set yet (no "steady_energy") are left alone. Safe on null.
+static func flicker_lights(world: Node, seconds: float) -> void:
+	if world == null:
+		return
+	var lights := world.get_node_or_null("Lamps/Lights")
+	if lights:
+		var i := 0
+		for omni in lights.get_children():
+			_flicker_one(omni as OmniLight3D, seconds, i)
+			i += 1
+	_flicker_one(world.get_node_or_null("Workbench/Light") as OmniLight3D, seconds, COUNT)
+
+
+static func _flicker_one(omni: OmniLight3D, seconds: float, index: int) -> void:
+	if omni == null or not omni.visible or not omni.has_meta("steady_energy"):
+		return
+	omni.light_energy = float(omni.get_meta("steady_energy")) * flicker(seconds, index)
 
 
 static func _set_emission(n: Node, energy: float) -> void:
