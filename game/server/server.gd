@@ -1130,10 +1130,11 @@ func _land_swing(id: int, sw: Dictionary, now: float) -> Array:
 
 
 ## The first hunt (2026-11-24): player `id`'s blow brought creature `cid` down, so its drops
-## (Wildlife.drops) go into their pack; s2c_inventory follows at the end of the tick. No
-## toast yet: s2c_gather_result waits until world has drawn the hide and meat icons (a
-## client's toast and the bot test's icon check want one), so today the pack shows the haul.
-## Returns {item: count added}.
+## (Wildlife.drops) go into their pack; s2c_inventory follows at the end of the tick. The
+## hunter also gets one s2c_gather_result(item, count) per drop that fit (the hunt toast,
+## 2026-11-24, once world drew the hide and meat icons, #200), so a kill pops "+1 Hide" and
+## "+2 Raw meat" with the haul sound, exactly like a gather. No new RPC: it has been on
+## Net/Play since v3. Returns {item: count added}.
 func _hunted(id: int, cid: int) -> Dictionary:
 	var s: Dictionary = sessions[id]
 	var c := Wildlife.get_by_id(wildlife, cid)
@@ -1143,6 +1144,7 @@ func _hunted(id: int, cid: int) -> Dictionary:
 		var added := give_item(id, str(d[0]), int(d[1]))
 		if added > 0:
 			got[str(d[0])] = added
+			_send(id, "s2c_gather_result", [str(d[0]), added])
 			words.append("+%d %s" % [added, Inventory.label(str(d[0]))])
 	s.hunted = int(s.get("hunted", 0)) + 1
 	print("[hunt] %s brought down %s %d: %s" % [s.character.name, Wildlife.KINDS.get(str(c.get("kind", "grazer")), {}).get("label", "creature"), cid, ", ".join(words) if not words.is_empty() else "pack full"])
