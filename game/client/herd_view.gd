@@ -3,7 +3,7 @@ extends RefCounted
 ## What the client knows about the grazers in view (protocol v6, `net.wildlife_changed`), as
 ## plain data: where each one is drawn right now, which way it faces, what it is doing, and the
 ## moments worth a sound (a bolt). No meshes, so the bot test and unit tests use it as is;
-## `GrazerFigures` draws from it.
+## `GrazerFigures` draws from it with world's `Grazers` model and poses.
 ##
 ## The fun it is for: the land past the meadow is alive. A herd lifts its heads as you walk
 ## up, and if you rush it the whole herd snorts and bolts over the hill.
@@ -16,18 +16,6 @@ extends RefCounted
 
 const BLEND := 0.24 ## seconds; a little longer than the 0.2 s between sends, so motion never stalls
 const SNAP_DIST := 12.0 ## metres between updates that count as a jump, not a run (flee is 8.5 m/s)
-
-## How each state holds the head and body, read by GrazerFigures (and checked in tests).
-## head: radians the head pitches up from level (negative = nose to the grass).
-## drop: metres the body sinks (resting lies down).
-const POSES := {
-	"graze": {"head": -0.95, "drop": 0.0},
-	"amble": {"head": -0.15, "drop": 0.0},
-	"alert": {"head": 0.5, "drop": 0.0},
-	"flee": {"head": 0.2, "drop": 0.0},
-	"return": {"head": -0.05, "drop": 0.0},
-	"rest": {"head": -0.25, "drop": 0.42},
-}
 
 ## id -> {from: Vector3, to: Vector3, from_yaw, to_yaw, since: float, state: String}
 var creatures := {}
@@ -118,11 +106,6 @@ func facing(id: int, now: float) -> float:
 
 func state(id: int) -> String:
 	return str(creatures.get(id, {}).get("state", ""))
-
-
-## The pose numbers for a state (see POSES); unknown states stand calmly.
-static func pose(state_name: String) -> Dictionary:
-	return POSES.get(state_name, POSES["amble"])
 
 
 ## Ids in view, lowest first (a stable order for drawing).
