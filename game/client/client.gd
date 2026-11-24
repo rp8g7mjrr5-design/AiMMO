@@ -7,7 +7,7 @@ const CONFIG_PATH := "user://client.cfg"
 var net: Node
 var world: Node3D
 var camera: Camera3D
-var avatars := {} ## peer id -> {node, body: Node3D, anim: WalkAnim, swing: GatherSwing, target: Vector3, yaw: float, name: String}
+var avatars := {} ## peer id -> {node, body: Node3D, skel: Skeleton3D, anim: AvatarAnimator, target: Vector3, yaw: float, name: String}
 var my_id := 0
 var logged_in := false
 var seq := 0
@@ -123,6 +123,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.wildlife_changed.connect(_on_wildlife)
 	net.vitals_changed.connect(_on_vitals)
 	net.attack_refused.connect(_on_attack_refused)
+	net.swing_begun.connect(_on_swing_begun)
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _set_status("Could not reach the server.", true))
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -461,15 +462,13 @@ func _process(delta: float) -> void:
 		else:
 			n.position = n.position.lerp(a.target, t)
 		n.rotation.y = lerp_angle(n.rotation.y, a.yaw, t)
-		var anim: WalkAnim = a.anim
-		anim.step(n.position, delta)
-		anim.apply(a.body)
-		footsteps.step(id, n, anim, my_id, ear)
-		# While gathering, the rendered body turns to the node and swings at it.
-		var swing: GatherSwing = a.swing
+		# The whole body moves on its skeleton: idle, walk and run by rendered speed; while
+		# gathering it turns to the node and works it (AvatarAnimator).
+		var anim: AvatarAnimator = a.anim
 		var gathering: Dictionary = ResourceNodes.get_by_id(int(gather_watch.running[id])) if gather_watch.running.has(id) else {}
-		swing.step(delta, gathering, n.position, n.rotation.y)
-		swing.apply(a.body)
+		anim.step(delta, {"pos": n.position, "yaw": n.rotation.y, "gather": gathering})
+		anim.apply(a.skel)
+		footsteps.step(id, n, anim, my_id, ear)
 	if not logged_in:
 		# Slow orbit over the world behind the login screen.
 		cam_yaw += delta * 0.05
@@ -964,11 +963,11 @@ func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, ya
 		for tag in node.find_children("*", "Label3D", false, false):
 			tag.visible = false
 	world.add_child(node)
-	avatars[id] = {"node": node, "body": node.get_node("Body"), "anim": WalkAnim.new(), "swing": GatherSwing.new(), "target": pos, "yaw": yaw, "name": player_name}
+	avatars[id] = {"node": node, "body": node.get_node("Body"), "skel": node.get_node("Body/Skeleton"), "anim": AvatarAnimator.new(), "target": pos, "yaw": yaw, "name": player_name}
 
 
-## Puts the built avatar under a steady root so the walk cycle can bob and sway the body
-## ("Body") while the name tag stays level above it.
+## Puts the built avatar ("Body", holding its Skeleton) under a steady root, with the name tag
+## moved up to that root so it stays level whatever the body is doing.
 static func wrap_avatar(body: Node3D) -> Node3D:
 	var root := Node3D.new()
 	body.name = "Body"
@@ -1371,6 +1370,20 @@ func _on_vitals(hp: int, max_hp: int, stamina: int, max_stamina: int) -> void:
 	var c := vitals_bar.on_vitals(hp, max_hp, stamina, max_stamina)
 	if c.thump:
 		sfx_hurt.play()
+
+
+## s2c_swing (v7): someone in view, maybe you, started a swing. Their body plays it: the
+## wind-up, the blow and the recovery, timed by the weapon's numbers and stretched to the
+## server's `seconds` so the blow lands on screen when the server lands it.
+func _on_swing_begun(peer_id: int, weapon: String, kind: String, seconds: float) -> void:
+	if not avatars.has(peer_id):
+		return
+	var a := Weapons.attack(weapon, kind)
+	if a.is_empty():
+		return
+	var total := float(a.windup) + float(a.active) + float(a.recovery)
+	var k := seconds / total if seconds > 0.0 and total > 0.0 else 1.0
+	(avatars[peer_id].anim as AvatarAnimator).swing(kind, float(a.windup) * k, float(a.active) * k, float(a.recovery) * k)
 
 
 ## s2c_attack_refused: "busy" is dropped quietly (a mashed button); being winded or tired

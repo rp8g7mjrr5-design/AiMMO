@@ -157,7 +157,7 @@ static func gait(phase: float, speed: float) -> Dictionary:
 	for s in SIDES:
 		var fwd := swing_l if s == "Left" else -swing_l
 		# The arm swings against its own leg: left foot forward, left arm back.
-		p[s + "UpperArm"] = Vector3(arm * fwd - 0.05 * run, 0.0, side(s) * lerpf(0.09, 0.16, run))
+		p[s + "UpperArm"] = Vector3(arm * fwd - 0.05 * run, 0.0, side(s) * lerpf(0.0, 0.07, run))
 		p[s + "LowerArm"] = Vector3(elbow - 0.18 * maxf(-fwd, 0.0) * go, 0.0, 0.0)
 		p[s + "Hand"] = Vector3(-0.1, 0.0, 0.0)
 	plant_legs(p, {"Left": fl.pos, "Right": fr.pos}, {"Left": fl.toe, "Right": fr.toe})
@@ -176,7 +176,7 @@ static func idle(t: float) -> Dictionary:
 	p["Neck"] = Vector3(-0.01 * breath, 0.06 * sin(t * 0.23), 0.0)
 	p["Head"] = Vector3(0.02 * sin(t * 0.31), 0.04 * sin(t * 0.17), 0.0)
 	for s in SIDES:
-		p[s + "UpperArm"] = Vector3(0.02 * breath, 0.0, side(s) * (0.1 + 0.015 * breath))
+		p[s + "UpperArm"] = Vector3(0.02 * breath, 0.0, side(s) * (0.015 + 0.015 * breath))
 		p[s + "LowerArm"] = Vector3(-0.14, 0.0, 0.0)
 		p[s + "Hand"] = Vector3(-0.08, 0.0, 0.0)
 	plant_legs(p, {"Left": Vector2(0.03, ANKLE), "Right": Vector2(-0.02, ANKLE)})
