@@ -3,7 +3,7 @@
 Read this file first, every session. You start with no memory; this repo is your memory.
 
 ## Mission
-AiMMO is a real-time 3D **small-server survival game** built by its owner and AI together (owner direction, 2026-11-24): generated worlds for 32 to 48 players per server, the Hollows at night, bands that claim land and raid each other, and seasons that end in wipe day, made to reach the masses. **Read `docs/vision.md` every session**; it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
+AiMMO is a real-time 3D **small-server survival game** built by its owner and AI together (owner direction, 2026-11-24): generated worlds for 48 players per server, the Hollows at night, bands that claim land and raid each other, and seasons that end in wipe day, made to reach the masses. **Read `docs/vision.md` every session**; it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
 
 ## Autonomy rules
 - Never wait for human input and never ask questions. Make the call, write down why, move on.

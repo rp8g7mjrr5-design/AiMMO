@@ -53,16 +53,16 @@ which server they are on and when its season ends. Everything already built (gat
 crafting, skills, combat basics) works there.
 - A seed per server and season; characters belong to a server and season (add-only columns;
   today's characters become season 0 of the first server, untouched).
-- The generator v1: a valley about 1 km across from a seed (rivers and lakes, ash lowlands, pine
+- The generator v1: a valley about 1.5 km across (sized for 48 players) from a seed (rivers and lakes, ash lowlands, pine
   heights, ridges, Dimming scars) with resource nodes placed by it, and a first set piece
   (the spawn town plot). Today's Ashgrove stays as the test seed and the live world until
   season 1.
 - The client builds terrain and props in chunks around the player, inside the render budget.
 - A server list on the login screen (name, players / cap, season day, days to wipe).
-- The player cap as a server setting (32 to start).
+- The player cap as a server setting: 48.
 **Done when:** two servers with different seeds run side by side in the bot test, characters
 stay on their own server, a generated world is gatherable and craftable end to end, the
-client's spawn shot on a generated world fits the render budget, and qa's 32-bot run passes the
+client's spawn shot on a generated world fits the render budget, and qa's 48-bot run passes the
 perf budget.
 
 ## Phase 2: Survive the first night
@@ -113,9 +113,9 @@ test runs a raid and a siege.
   and the new map at a set hour.
 - Season records (longest survivor, biggest hold, nights held) on a leaderboard and kept on the
   account; titles that carry over.
-- Streamer mode; the player cap raised to 48 if the perf gates hold; a second public server.
+- Streamer mode; a second public server.
 **Done when:** a season ends and a new one starts on a fresh seed without touching accounts or
-records, the countdown and leaderboard work, and qa's 48-bot run passes the perf budget.
+records, and the countdown and leaderboard work.
 
 ## Phase 7: Depth (ongoing)
 Wounds and illness, farming, fishing, more Hollow kinds and bigger sieges, more biomes and set

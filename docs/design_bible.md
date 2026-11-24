@@ -7,7 +7,7 @@ Revision history at the bottom with its reason, so the game does not flip-flop.
 **Make the survival game everyone wants to play with their friends, and that people can't stop watching.** Owner direction, 2026-11-24: the owner chose a small-server survival game with generated worlds, land claims and seasons (`docs/vision.md`) over the towns MMO, and asked for it to reach the masses and go viral. The bar is the game a band of friends picks for its evenings and a streamer picks for wipe day. The number one way there is still to make it **fun**: if it isn't fun, it isn't the best (see "Fun comes first"). When two options compete, pick the one that is quicker to learn, better in a 30-minute session and more worth sharing, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5). (Until 2026-11-24 the North star was "the Greatest MMO of all time"; the skills, camera, combat and art built for it all carry over.)
 
 ### The vision in one paragraph (owner direction, 2026-11-24)
-Each server is a freshly generated valley for 32 to 48 players that lives for a season of six to
+Each server is a freshly generated valley for 48 players that lives for a season of six to
 eight weeks. You arrive with nothing; you survive hunger, cold, wounds and the **Hollows** that
 come at night; you join a **band**, build a shelter and stake your land with a claim stone held by
 your band's **resolve**; you raid bands that over-reach and hold your walls through night sieges;
@@ -215,7 +215,7 @@ mass appeal, the director chose (see `docs/vision.md` for the full design):
 - **The Hollows** as the threat, plus wildlife; **raiding on by default** with a safe spawn town and
   offline protection; **seasons of six to eight weeks** on fresh maps, keeping accounts,
   cosmetics, titles and records; **death** drops what you carried and costs a small slice of XP,
-  never a level; **32 players** per server to start, 48 as the target.
+  never a level; **48 players** per server from season 1 (the owner's call), on a valley about 1.5 km across.
 - **Accessible and action-heavy, not brutal:** quick to learn, good in a 30-minute session,
   visible and explained dangers.
 - **Moments worth clipping:** night sieges, raids and wipe day are built as set pieces; the game

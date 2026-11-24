@@ -11,7 +11,7 @@ Minecraft *Factions* servers, and the wipe-day energy of the big survival shoote
 quicker to learn and readable on a stream. Those names stay in design docs, never in the game.
 
 ## The game in one paragraph
-Each server is a freshly generated valley for **32 to 48 players** that lives for a **season of
+Each server is a freshly generated valley for **48 players** that lives for a **season of
 six to eight weeks**. You arrive with nothing. Staying alive is the first game: hunger, thirst,
 cold nights, wounds to tend, and the **Hollows**, the people and animals the Dimming has emptied,
 who drift through the day and come in numbers at night, drawn to noise and light. Your band is
@@ -60,7 +60,10 @@ brutal**, and we design for moments people clip and share.
    in `CLAUDE.md` says exactly this now.
 4. **Death:** you drop everything you carried in a lootable pack where you fell, and keep your
    skills minus a small slice of the current level's XP (never a level).
-5. **Server size: 32 to start, 48 as the target**, 64 only if qa's perf gates hold.
+5. **Server size: 48 players from season 1** (owner direction, 2026-11-24), on a map sized for 48 (below). 64 only if qa's perf gates ever show the room.
+   Honest note: today the server sends every player to every player; qa measures 48 bots in
+   Phase 1, and if that misses the perf budget, interest management (only send what is near)
+   jumps to the top of gameplay's list.
 6. **The towns idea lives on** as each server's spawn town, raised together by the whole server.
 
 ## Surviving
@@ -101,8 +104,10 @@ Our own take on the Factions idea, with its worst parts fixed.
   stay on its ledger for the season.
 
 ## The world: generated, with places that look designed
-- A **seed per server per season**. The generator lays out a valley about 1 km across at first
-  (2 km later): rivers and lakes, hills, ash lowlands, pine heights, stone ridges, and cold grey
+- A **seed per server per season**. The generator lays out a valley about **1.5 km across**,
+  sized for 48 players: room for ten or more bands to claim with open ground between them, a
+  two-minute run from the edge to the spawn town, and wild ground in between where people
+  meet. It has rivers and lakes, hills, ash lowlands, pine heights, stone ridges, and cold grey
   scars where the Dimming is strongest (more Hollows, better loot).
 - **Hand-made set pieces** written as data and placed by the generator: ruined steadings, a
   hollow-haunted mill, a lookout crag, the spawn town plot. Every map is new; every map still has
@@ -124,7 +129,7 @@ Our own take on the Factions idea, with its worst parts fixed.
 ## Lessons we keep (from the study of the big MMO that didn't deliver)
 `docs/research/promises_study.md` studied the settlement MMO that collapsed in 2026. What
 applies here: ship the smallest playable version first; design for the players we actually have
-(32 to 48, not thousands); bots test every multiplayer rule, including restarts, before it ships;
+(48 a server, not thousands); bots test every multiplayer rule, including restarts, before it ships;
 performance is a feature; and **promise only what is on `main`**. The roadmap is a forecast,
 never a promise to players.
 
