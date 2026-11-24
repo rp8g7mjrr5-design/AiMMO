@@ -89,6 +89,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.craft_requested.connect(_on_craft)
 	net.unstuck_requested.connect(_on_unstuck)
 	net.attack_requested.connect(_on_attack)
+	net.look_requested.connect(_on_set_look)
 	get_tree().set_auto_accept_quit(false)
 	print("[server] listening on port %d via %s, protocol v%d" % [port, transport, GameConfig.PROTOCOL_VERSION])
 	print("[server] world clock: ", WorldClock.describe(world_seconds()))
@@ -283,7 +284,9 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 		if other == id or not o.logged_in:
 			continue
 		_send(id, "s2c_player_joined", [other, o.character.name, o.character.appearance_seed])
+		_send(id, "s2c_look", [other, o.character.get("look", {})])
 		_send(other, "s2c_player_joined", [id, ch.name, ch.appearance_seed])
+		_send(other, "s2c_look", [id, ch.get("look", {})])
 		_send(other, "s2c_system", ["%s has arrived." % ch.name])
 	_roster_dirty = true
 	print("[server] %s logged in as peer %d (%s) at %s" % [ch.name, id, "new" if is_new else "returning", CharacterData.position(ch)])
@@ -416,6 +419,44 @@ func _on_attack(id: int, kind: String, yaw: float) -> void:
 	if not _play_allowed(id, "_last_attack"):
 		return
 	attack_request(id, kind, yaw)
+
+
+## c2s_set_look(look): the character-creation window saved a look (protocol v8).
+func _on_set_look(id: int, look: Dictionary) -> void:
+	if not _play_allowed(id, "_last_look"):
+		return
+	set_look(id, look)
+
+
+## Seconds between two saved looks per player: the window sends one per click of Save, so
+## this only stops a broken or hostile client from making the server save and broadcast in a
+## loop.
+const LOOK_GAP := 1.0
+
+
+## Checks and stores `look` as player `id`'s, saves the character at once (a look is chosen
+## rarely and should survive a crash a moment later), and tells everyone online, `id`
+## included. Returns "" when saved, else why not (the player gets Appearance.REFUSED).
+func set_look(id: int, look: Variant) -> String:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return "not logged in"
+	var s: Dictionary = sessions[id]
+	var now := now_seconds()
+	if now - float(s.get("_look_saved", -1000.0)) < LOOK_GAP:
+		return "too soon"
+	var why := Appearance.check(look)
+	if why != "":
+		print("[server] refused a look from %s: %s" % [s.character.name, why])
+		_send(id, "s2c_system", [Appearance.REFUSED])
+		return why
+	s._look_saved = now
+	s.character.look = Appearance.normalize(look)
+	if store != null and not store.save_character(s.character):
+		push_error("[server] failed to save %s's look: %s" % [s.character.name, store.last_error])
+	for other in sessions:
+		if sessions[other].logged_in:
+			_send(other, "s2c_look", [id, s.character.look])
+	return ""
 
 
 ## Requests that make the server answer (gather start, craft; gather start also tells

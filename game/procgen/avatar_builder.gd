@@ -275,10 +275,24 @@ static func dress(out: Array, lk: Dictionary, skin: Color, hair: Color) -> void:
 static func _widen(p: Dictionary, f: float) -> void:
 	var xf := Transform3D(Basis.from_scale(Vector3(f, 1.0, f)), Vector3.ZERO) \
 		* Transform3D(Basis.from_euler(p.get("rot", Vector3.ZERO)) * Basis.from_scale(p.get("scl", Vector3.ONE)), p.pos)
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st.append_from(p.mesh, 0, xf)
-	p.mesh = st.commit()
+	# By hand rather than SurfaceTool.append_from, which asks the renderer about primitive
+	# meshes and logs errors on a headless server or bot.
+	var arrays: Array = (p.mesh as Mesh).surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var nb := xf.basis.inverse().transposed()
+	for i in verts.size():
+		verts[i] = xf * verts[i]
+		if i < normals.size():
+			normals[i] = (nb * normals[i]).normalized()
+	var keep := []
+	keep.resize(Mesh.ARRAY_MAX)
+	keep[Mesh.ARRAY_VERTEX] = verts
+	keep[Mesh.ARRAY_NORMAL] = normals
+	keep[Mesh.ARRAY_INDEX] = arrays[Mesh.ARRAY_INDEX]
+	var baked := ArrayMesh.new()
+	baked.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, keep)
+	p.mesh = baked
 	p.pos = Vector3.ZERO
 	p.rot = Vector3.ZERO
 	p.scl = Vector3.ONE

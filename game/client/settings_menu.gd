@@ -8,6 +8,8 @@ signal changed(settings: ClientSettings)
 signal closed
 ## The in-game "Return to Spawn Meadow" button was pressed (and `home` let it through).
 signal home_requested
+## The in-game "Change appearance" button was pressed: open the character-creation window.
+signal look_requested
 
 var settings: ClientSettings
 var _sens: HSlider
@@ -25,6 +27,7 @@ var _shoulder: OptionButton
 ## "Return to Spawn Meadow": shown only while playing (`set_in_game`), drawn from `home`.
 var home := SpawnReturn.new()
 var home_button: Button
+var look_button: Button
 var in_game := false
 
 
@@ -113,6 +116,16 @@ func setup(p_settings: ClientSettings, theme_res: Theme) -> void:
 	home_button.pressed.connect(_on_home)
 	box.add_child(home_button)
 
+	look_button = Button.new()
+	look_button.text = "Change appearance"
+	look_button.tooltip_text = "Your build, face, hair, beard and clothes. Everyone sees the change."
+	look_button.visible = false
+	look_button.pressed.connect(func():
+		if in_game:
+			close(true)
+			look_requested.emit())
+	box.add_child(look_button)
+
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_END
 	buttons.add_theme_constant_override("separation", 8)
@@ -137,8 +150,9 @@ func open() -> void:
 func set_in_game(on: bool) -> void:
 	in_game = on
 	home_button.visible = on
-	offset_top = -230 if on else -210
-	offset_bottom = 230 if on else 210
+	look_button.visible = on
+	offset_top = -250 if on else -210
+	offset_bottom = 250 if on else 210
 	if not on:
 		home.reset()
 	refresh_home(Time.get_ticks_msec())
