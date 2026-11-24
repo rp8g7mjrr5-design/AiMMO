@@ -1,6 +1,6 @@
 # Continuous development: workstreams
 
-AiMMO is developed around the clock by several AI sessions working in parallel. Each
+ZombAi (repo renamed from AiMMO) is developed around the clock by several AI sessions working in parallel. Each
 **worker** owns one area of the game and ships one small, tested improvement per run as a
 pull request and turns on GitHub auto-merge, so GitHub squash-merges it once the required
 "Test" check passes. No session calls merge directly. The **integrator** reviews what landed,

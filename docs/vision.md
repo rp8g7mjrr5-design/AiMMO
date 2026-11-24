@@ -45,8 +45,8 @@ the owner loves most, and what every phase serves:
    rivers, lakes and the coast. Each opens more of the map and bigger ruin runs.
 
 ## Settled (owner, 2026-11-24)
-- **Name: ZombAi.** The repo, app and builds are renamed later (section "Rename plan"). The
-  player-facing name changes when the rename ships, not before.
+- **Name: ZombAi.** The repository was renamed on 2026-11-24 and the game shows the new name
+  from the build after that (section "Rename").
 - **Setting: post-apocalyptic medieval fantasy.** A kingdom that fell, not a modern city: swords,
   axes, bows, crossbows, lanterns, carts, stone keeps, chapels. The grounded art direction stays
   as it is (`docs/art_bible.md`: muted, weathered, real proportions, moody light). The Dimming
@@ -225,17 +225,25 @@ is easy to tune.
 | Grounded art and its budgets; wildlife | New: ruins, the Gloam, building, death and loot, hosting and invites | |
 | CI, bot test, fun metrics, the self-updating client, the worker setup | Fun metrics add survival measures (time to first fire, nights survived, ruins cleared) | |
 
-## Rename plan (after the owner confirms)
-The game is called ZombAi in design docs from now on. The rename everywhere else waits for the
-owner's go-ahead, because some steps are theirs:
-1. **Owner:** rename the GitHub repository (Settings → General). GitHub redirects the old URL, so
-   nothing breaks. Rename the Railway service if wanted. Run a proper name check before any
-   store page: a quick web search found no game called ZombAi, but that isn't a trademark search.
-2. **client:** the window title, the login screen, `project.godot`'s application name, export
-   preset names and build file names.
-3. **qa:** CI and release workflows (release titles become `ZombAi Week NN — ...`), the
-   self-updater's repository path (it follows GitHub's redirect, but update it anyway).
-4. **Director:** CLAUDE.md's title and the remaining "AiMMO" mentions in the docs.
+## Rename (done 2026-11-24)
+The owner renamed the GitHub repository from AiMMO to ZombAi; GitHub redirects the old URLs.
+The window title, the login and update screens, the Windows file details, the README, CLAUDE.md,
+the tools and the scheduled worker prompts now say ZombAi. **These keep the old name on purpose,
+and must not be renamed**, because friends already have the game installed:
+- `config/name="AiMMO"` in `game/project.godot`. Godot names the user data folder after it
+  (`app_userdata/AiMMO`), which holds every player's settings and the self-updater's downloaded
+  builds. Renaming it would strand both. The window title is set to ZombAi in code instead.
+- The build file names (`AiMMO.exe`, `AiMMO.x86_64`, `AiMMO-<platform>.pck`, the release zips).
+  An installed game loads the `.pck` named after its own executable, and `update.json` names
+  the files to fetch.
+- The macOS bundle identifier (`io.github.aimmo.client`), so macOS keeps treating it as the
+  same app.
+- Every `AIMMO_*` environment variable and repository variable, because the live Railway server
+  and CI read them by those names.
+- The Railway service name (`AiMMO-Server`); renaming it is the owner's call, and CI's
+  `RAILWAY_SERVICE` variable must be updated in the same step.
+Release titles stay `Week NN — <headline>`. Never create a new repository named AiMMO on this
+account: it would break the redirect that installed games follow to find updates.
 The Budda Games studio intro stays.
 
 ## Lessons we keep
