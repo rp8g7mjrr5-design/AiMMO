@@ -7,9 +7,10 @@ checks the run as a whole in long runs:
 
 - at least MIN_GATHERERS bots finished a timed gather through c2s_gather_start;
 - at least one gather was cancelled by walking away and one by c2s_gather_cancel;
-- two players worked one node at the same time: not left to where the 8 bots happen to
-  walk (that flaked, see docs/devlog/qa.md), but checked by check_pair() on the pair bots
-  the harness sends to one node on purpose (qa_gather_ledger's pair mode);
+- several players worked one node at the same time: not left to where the 8 bots happen to
+  walk (that flaked, see docs/devlog/qa.md), but checked by check_pair() on the GROUP_SIZE
+  bots the harness sends to one node on purpose (qa_gather_ledger's pair mode), which must
+  also share the node's charges fairly;
 - at least one node was emptied, so pick_probe() can choose one for the respawn probe
   (a fresh player who sees it empty, hears it come back, and gathers it).
 
@@ -22,6 +23,8 @@ LONG_RUN = 120.0
 PROBE_LEAD = 8.0
 # Reports of one emptying from different bots land within this many seconds of each other.
 REPORT_SPREAD = 2.0
+# Fresh players the harness sends to one node together (check_pair).
+GROUP_SIZE = 3
 
 
 def _b(stats: dict, name: str) -> dict:
@@ -48,22 +51,42 @@ def check(rows: dict, duration: float, bots: int) -> list:
     return problems
 
 
-def check_pair(rows: dict) -> list:
-    """rows: {bot: stats} of the two pair bots. Both must report the same node, both must have
-    seen two gatherers on it at once, and at least one of them must have been paid (the other
-    may find the node emptied by the first one's finish)."""
+def check_pair(rows: dict, size: int = GROUP_SIZE) -> list:
+    """rows: {bot: stats} of the group bots (`size` of them, one leader). All must report the
+    same node and must have seen `size` gatherers on it at once, and at least one of them must
+    have been paid (the others may find the node emptied by an earlier finish). With three or
+    more, the node's charges must also add up: never more paid than the node holds, a node
+    whose every charge was paid must have been announced empty, and the leader's press after
+    the group's gathers must match (each bot's own order checks run in qa_gather_ledger)."""
     pairs = [_b(s, "qa_gather_ledger").get("pair") or {} for s in rows.values()]
-    if len(pairs) != 2 or not all(pairs):
-        return [f"pair: expected 2 pair bots with results, got {sum(1 for p in pairs if p)}"]
+    if len(pairs) != size or not all(pairs):
+        return [f"pair: expected {size} group bots with results, got {sum(1 for p in pairs if p)}"]
     problems = []
     nodes = {int(p.get("node", -1)) for p in pairs}
     if len(nodes) != 1 or -1 in nodes:
-        problems.append(f"pair: the two bots went to different nodes {sorted(nodes)}")
+        problems.append(f"pair: the group went to different nodes {sorted(nodes)}")
     if not all(p.get("together") for p in pairs):
-        problems.append("pair: no two players ever gathered one node at the same time")
-    if not any(p.get("end") == "done" for p in pairs):
-        problems.append("pair: neither player was paid for the shared gather "
-                        f"(ended {[p.get('end') for p in pairs]})")
+        problems.append(f"pair: {size} players never gathered one node at the same time")
+    ends = [p.get("end") for p in pairs]
+    if not any(e == "done" for e in ends):
+        problems.append(f"pair: nobody in the group was paid for the shared gather (ended {ends})")
+    if size < 3:
+        return problems
+    paid = ends.count("done")
+    charges = max(int(p.get("charges", 0)) for p in pairs)
+    emptied = any(p.get("emptied") for p in pairs)
+    if charges and paid > charges:
+        problems.append(f"pair: {paid} paid on a node that holds {charges} charges")
+    if charges and paid == charges and not emptied:
+        problems.append(f"pair: all {charges} charges were paid but nobody was told the node is empty")
+    if "depleted" in ends and not emptied:
+        problems.append("pair: someone was told 'depleted' but nobody was told the node is empty")
+    leads = [p for p in pairs if p.get("role") == "lead"]
+    if len(leads) != 1 or leads[0].get("after", "") not in ("depleted", "began"):
+        problems.append(f"pair: the leader's press after the group's gathers got {[p.get('after') for p in leads]}")
+    elif leads[0]["after"] == ("began" if emptied else "depleted"):
+        problems.append(f"pair: the press after the group's gathers got '{leads[0]['after']}' "
+                        f"but the node {'was' if emptied else 'was not'} emptied")
     return problems
 
 

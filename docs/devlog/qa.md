@@ -1175,3 +1175,32 @@ raise the primitive gate to a real saving.
 
 **Next run:** the style notes say noon warmth and most night numbers moved toward the art
 bible since the baseline; a `--write-baseline` refresh may be worth its own small PR.
+
+## 2026-11-24 — Three on one node share it fairly (`ws/qa/three-on-a-node`)
+
+**Fun:** three friends on one tree all get paid while it has charges, and nobody is
+turned away early or paid for a charge that doesn't exist; every release now proves it.
+
+**Built:** pair mode in `qa_gather_ledger` takes `--pair-size`; `run_bot_test.py` sends a
+leader and two followers (`gather_report.GROUP_SIZE` 3). Everyone waits until both others are
+in reach, and each must see three gatherers at once. While the group gathers, each bot logs the
+node's empty announcement and every `s2c_gather_end` on that node in arrival order;
+`GatherLedger.share_problem` fails a "depleted" before the announcement (refused while a charge
+was left) and any "done" after it other than the one straight after (the emptier's). Then the
+leader presses once more: an emptied node must answer "depleted", one with a charge left must
+begin (the leader lets go at once). `check_pair` adds: paid <= the node's charges, and "every
+charge paid" means someone was told the node is empty.
+
+**Decision:** the bots can't see how many charges a node has left, so I check the order of
+events rather than "three paid". This works because the server sends `s2c_node_state` right
+before the emptier's `s2c_gather_end`, both reliable on one channel, so every client sees one
+order. The ideal case (full node: three paid, extra press "depleted") happened in my run, but
+by luck; follow-up in the backlog to pick a node that is certainly full.
+
+Also did world's request: `world_level_up_fx.gd` dropped from `art_free_behaviours`.
+
+**Tests:** unit 651/651 (Postgres), `test_gather_report.py` 18/18, bot test 8 bots / 180 s /
+WebSocket / Postgres PASSED (twice, see PR). Group in run 1: node 5, all three "done", node
+emptied, the extra press "depleted".
+
+**Next run:** the group follow-up in the backlog, or the fun trend `--since` item.

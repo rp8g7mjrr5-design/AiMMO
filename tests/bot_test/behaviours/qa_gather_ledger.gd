@@ -33,6 +33,14 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## c2s_gather_start once the other player is in reach, so both channels overlap. Each must
 ## see two gatherers on that node (`shared_node_max` 2) and its own gather end "done", or
 ## "depleted" when the other's finish took the node's last charge.
+##
+## Group of three (`--pair-size=3` on all three, the runner starts a leader and two followers):
+## everyone waits until both others are in reach, all three must see three gatherers at once,
+## and the node's charges must be shared fairly. Each client logs what it saw on that node
+## (the empty announcement and every gather's end, in order) and GatherLedger.share_problem
+## checks nobody was turned away while a charge was left and nobody was paid after the last
+## one. Then the leader presses once more: an emptied node must say "depleted", one with a
+## charge left must begin (the leader lets go at once).
 
 const GatherLedger := preload("res://tests/bot_test/gather_ledger.gd")
 
@@ -44,11 +52,12 @@ const ANSWER_TIMEOUT := 3.0
 const END_SLACK := 2.5
 
 enum Probe { OFF, WAIT_RESPAWN, GOTO, START, RUNNING, DONE }
-enum Pair { OFF, PICK, GOTO, WAIT_PARTNER, START, RUNNING, DONE }
+enum Pair { OFF, PICK, GOTO, WAIT_PARTNER, START, RUNNING, AFTER_WAIT, AFTER_PRESS, DONE }
 
 const PAIR_PICK_TIMEOUT := 30.0 ## leader: s2c_nodes at login; follower: the leader settles at a node
 const PAIR_PARTNER_TIMEOUT := 30.0 ## at the node, waiting for the other player to come into reach
 const PAIR_STILL := 0.8 ## the follower trusts the leader's node once it has stood still this long
+const AFTER_WAIT_MAX := 6.0 ## leader: how long to wait for the others' ends before the extra press
 
 var _pack: Dictionary = {}
 var _skills_floor: Dictionary = {} ## skill -> least XP we know this character has
@@ -92,6 +101,11 @@ var _pair_together := false
 var _pair_end := ""
 var _pair_leader_pos := Vector3.INF
 var _pair_leader_still_since := 0.0
+var _pair_size := 2 ## players gathering the shared node together (2: pair, 3: group)
+var _share_log: Array = [] ## ["empty"] / ["end", peer, reason] on the shared node, in order
+var _share_logging := false
+var _pair_after := "" ## leader of a group: what the press after the shared gathers got
+var _pair_after_empty := false ## leader: had this client seen the node emptied before that press
 var _nodes_seen := false
 var _others_pos := {} ## peer -> position, from snapshots
 
@@ -123,6 +137,7 @@ func setup(net: Node) -> void:
 			for part in str(args.get("pair-avoid", "")).split(",", false):
 				_pair_avoid.append(int(part))
 			_pair_leader_name = str(args.get("pair-leader", ""))
+			_pair_size = maxi(2, int(str(args.get("pair-size", "2"))))
 			if _pair_role == "follow" and _pair_leader_name == "":
 				fail("--gather-pair=follow needs --pair-leader=<name>")
 			_pair = Pair.PICK
@@ -213,6 +228,8 @@ func _on_nodes(ids: Array) -> void:
 
 
 func _on_node_state(node_id: int, is_depleted: bool) -> void:
+	if _share_logging and node_id == _pair_node and is_depleted:
+		_share_log.append(["empty"])
 	if is_depleted:
 		_empty[node_id] = true
 		var info := ResourceNodes.kind_info(str(ResourceNodes.get_by_id(node_id).get("kind", "")))
@@ -231,8 +248,11 @@ func _on_begun(peer: int, node_id: int, seconds: float) -> void:
 		fail("peer %d started gathering node %d, which this client shows empty" % [peer, node_id])
 	_channels[peer] = node_id
 	shared_node_max = maxi(shared_node_max, GatherLedger.gatherers_on(_channels, node_id))
-	if node_id == _pair_node and _pair in [Pair.START, Pair.RUNNING] and GatherLedger.gatherers_on(_channels, node_id) >= 2:
+	if node_id == _pair_node and _pair in [Pair.START, Pair.RUNNING] and GatherLedger.gatherers_on(_channels, node_id) >= _pair_size:
 		_pair_together = true
+	if peer == int(bot.my_id) and _pair == Pair.AFTER_PRESS and node_id == _pair_node:
+		_pair_after = "began"
+		bot.send_play("c2s_gather_cancel", [])
 	if peer == int(bot.my_id) and _pair == Pair.START and node_id == _pair_node:
 		_pair = Pair.RUNNING
 		_pair_ends_by = bot.elapsed + seconds + END_SLACK
@@ -245,16 +265,29 @@ func _on_begun(peer: int, node_id: int, seconds: float) -> void:
 
 func _on_ended(peer: int, node_id: int, reason: String) -> void:
 	_channels.erase(peer)
+	if _share_logging and node_id == _pair_node:
+		_share_log.append(["end", peer, reason])
 	if peer != int(bot.my_id):
 		return
 	_mine_running = -1
 	if reason == "done":
 		my_done += 1
+	if node_id == _pair_node and _pair == Pair.AFTER_PRESS:
+		if _pair_after == "":
+			_pair_after = reason
+		_pair = Pair.DONE
+		bot.disconnect_at = bot.elapsed + 1.5
+		return
 	if node_id == _pair_node and _pair in [Pair.START, Pair.RUNNING]:
 		_pair_end = reason
 		_pair = Pair.DONE
 		if reason not in ["done", "depleted"]:
 			fail("pair: my gather on the shared node %d ended '%s'" % [node_id, reason])
+		if _pair_role == "lead" and _pair_size >= 3:
+			# Wait for the others' ends, then press once more (see the header).
+			_pair = Pair.AFTER_WAIT
+			_pair_since = bot.elapsed
+			return
 		bot.disconnect_at = bot.elapsed + 1.5
 		return
 	if node_id != _probe_node or _probe not in [Probe.START, Probe.RUNNING]:
@@ -360,17 +393,18 @@ func _play_pair(delta: float) -> void:
 		Pair.WAIT_PARTNER:
 			bot.move = Vector2.ZERO
 			var node_pos: Vector3 = ResourceNodes.get_by_id(_pair_node).pos
-			var partner_in_reach := false
+			var partners_in_reach := 0
 			for peer in _others_pos:
 				var p: Vector3 = _others_pos[peer]
 				if Vector2(p.x - node_pos.x, p.z - node_pos.z).length() <= ResourceNodes.GATHER_RANGE - 0.3:
-					partner_in_reach = true
-			if partner_in_reach:
+					partners_in_reach += 1
+			if partners_in_reach >= _pair_size - 1:
 				_pair = Pair.START
+				_share_logging = true
 				_pair_next = bot.elapsed + SETTLE
 				_pair_ends_by = INF
 			elif bot.elapsed - _pair_since > PAIR_PARTNER_TIMEOUT:
-				fail("pair: nobody else came to node %d within %.0f s" % [_pair_node, PAIR_PARTNER_TIMEOUT])
+				fail("pair: only %d of %d others came to node %d within %.0f s" % [partners_in_reach, _pair_size - 1, _pair_node, PAIR_PARTNER_TIMEOUT])
 				_pair = Pair.DONE
 		Pair.START:
 			bot.move = Vector2.ZERO
@@ -386,6 +420,26 @@ func _play_pair(delta: float) -> void:
 			if bot.elapsed > _pair_ends_by:
 				fail("pair: gather on node %d never ended" % _pair_node)
 				_pair = Pair.DONE
+		Pair.AFTER_WAIT:
+			bot.move = Vector2.ZERO
+			var ends := 0
+			for n in GatherLedger.share_ends(_share_log).values():
+				ends += int(n)
+			var waited: float = bot.elapsed - _pair_since
+			if waited >= SETTLE and (ends >= _pair_size or waited >= AFTER_WAIT_MAX):
+				if ends < _pair_size:
+					fail("pair: saw %d of %d gathers on node %d end" % [ends, _pair_size, _pair_node])
+				_pair_after_empty = GatherLedger.share_emptied(_share_log)
+				_share_logging = false
+				_pair = Pair.AFTER_PRESS
+				_pair_ends_by = bot.elapsed + ANSWER_TIMEOUT
+				bot.send_play("c2s_gather_start", [_pair_node])
+		Pair.AFTER_PRESS:
+			bot.move = Vector2.ZERO
+			if bot.elapsed > _pair_ends_by:
+				fail("pair: the press after the shared gathers (node %d) was never answered" % _pair_node)
+				_pair = Pair.DONE
+				bot.disconnect_at = bot.elapsed + 1.5
 		Pair.DONE:
 			pass
 
@@ -408,8 +462,21 @@ func on_finish() -> void:
 		if not _probe_paid:
 			fail("probe: never gathered the respawned node %d" % _probe_node)
 	if _pair_role != "":
-		stat("pair", {"role": _pair_role, "node": _pair_node, "together": _pair_together, "end": _pair_end})
+		var share := {"role": _pair_role, "node": _pair_node, "together": _pair_together, "end": _pair_end, "size": _pair_size}
+		if _pair_size >= 3:
+			share["ends"] = GatherLedger.share_ends(_share_log)
+			share["emptied"] = GatherLedger.share_emptied(_share_log)
+			share["charges"] = Gathering.node_charges(ResourceNodes.get_by_id(_pair_node)) if _pair_node >= 0 else 0
+			var why := GatherLedger.share_problem(_share_log)
+			if why != "":
+				fail("pair: node %d's charges were not shared fairly: %s (saw %s)" % [_pair_node, why, _share_log])
+			if _pair_role == "lead":
+				share["after"] = _pair_after
+				var after_why := GatherLedger.after_press_problem(_pair_after_empty, _pair_after)
+				if after_why != "":
+					fail("pair: " + after_why)
+		stat("pair", share)
 		if not _pair_together:
-			fail("pair (%s): never saw two players gathering node %d at the same time" % [_pair_role, _pair_node])
+			fail("pair (%s): never saw %d players gathering node %d at the same time" % [_pair_role, _pair_size, _pair_node])
 	if reconnect_checks == 0 and int(bot.stats.logins) >= 2:
 		fail("no s2c_inventory after the reconnect")

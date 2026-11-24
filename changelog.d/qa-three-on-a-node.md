@@ -1,0 +1,1 @@
+- Three players working one tree or rock now share it fairly, and every release proves it: the checks send three fresh players to one node at once and fail if anyone is turned away while a charge is left, or paid after the last one is gone.
