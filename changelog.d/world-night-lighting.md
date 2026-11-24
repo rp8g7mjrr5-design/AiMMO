@@ -1,0 +1,3 @@
+- Fixed the pale, blocky patch of light that covered Spawn Meadow at night on real graphics cards. Each lantern now throws its own soft, warm pool on the grass, with moonlit blue between them.
+- Ember-sap seeps glow like banked fires after dark, lighting their rim stones and the ground around them.
+- Travellers, trunks and treetops catch a soft moonlit edge at night, so you can pick out shapes in the dark.
