@@ -129,6 +129,80 @@ static func _shaded(mesh: Mesh, ao: float, curve: float, tint: Vector3, alpha: f
 	return out
 
 
+## True when this process draws with Godot's Compatibility renderer (opengl3: CI's smoke test,
+## and any player whose GPU has no Vulkan). Godot 4.3's Compatibility renderer reads a spatial
+## shader's ALBEDO and EMISSION as sRGB and linearises them itself (drivers/gles3/shaders/
+## scene.glsl, "Convert colors to linear"), and hands `source_color` uniforms over still in
+## sRGB; Forward+ and Mobile take ALBEDO and EMISSION as linear, which is what all our shaders
+## write (vertex colours from `paint()`, palette constants baked with `srgb_to_linear()`). So on
+## Compatibility every colour was linearised twice: a mid tone came out at about a fifth of its
+## brightness, and at night, where everything sits low in the tonemapper's toe, pines and
+## figures went near black (luma 0.06 against 0.26 on Forward+ for the same night shot).
+## Forward+ and Mobile have a RenderingDevice; Compatibility and the headless server don't.
+static func srgb_output() -> bool:
+	if force_srgb_output >= 0:
+		return force_srgb_output == 1
+	return RenderingServer.get_rendering_device() == null and DisplayServer.get_name() != "headless"
+
+static var force_srgb_output := -1 ## tests: 1 or 0 pins `srgb_output()`, -1 detects
+
+## On Compatibility, lit surfaces still come out brighter than on Forward+ for the same paint
+## (its sky ambient and light paths differ; measured 2026-11-24 on the same night shot, both
+## renderers, same lavapipe/llvmpipe machine). Scaling the paint by this before the encode
+## brings the night spawn shot to Forward+'s brightness (centre luma 0.23 vs 0.26) and noon
+## close to it (0.71 vs 0.64; noon's remaining gap is the sky and fog, which this doesn't
+## touch). Only ALBEDO: glows and unlit effects already match exactly after the encode.
+const COMPAT_ALBEDO := 0.5
+
+
+## The line that switches `COMPAT_GLSL`'s fix on, for any of our shaders' sources (Motes and
+## LevelUpFx put it first too). Empty on Forward+ and Mobile, so their shaders are unchanged.
+static func compat_define(on: bool = srgb_output()) -> String:
+	return "#define COMPAT_SRGB\n" if on else ""
+
+
+## Mirror of the shader's `compat_encode` for one channel (tests): the sRGB value Godot 4.3's
+## Compatibility renderer turns back into exactly `lin` with its own `srgb_to_linear` cubic.
+static func compat_encode(lin: float) -> float:
+	lin = maxf(lin, 0.0)
+	# First guess: solve the cubic without its x^3 term (a quadratic), which lands at or just
+	# above the answer everywhere; Newton then walks down onto it (the cubic is convex).
+	var x := (sqrt(0.012522878 * 0.012522878 + 4.0 * 0.682171111 * lin) - 0.012522878) / (2.0 * 0.682171111)
+	for i in 3:
+		var f := compat_decode(x) - lin
+		var d := x * (x * 0.915918033 + 1.364342222) + 0.012522878
+		x -= f / d
+	return x
+
+
+## Godot 4.3 Compatibility's own sRGB to linear (gles3 tonemap_inc.glsl), one channel.
+static func compat_decode(c: float) -> float:
+	return c * (c * (c * 0.305306011 + 0.682171111) + 0.012522878)
+
+
+## GLSL for both directions, shared by every shader of ours that writes ALBEDO or EMISSION.
+## `compat_encode` inverts Godot 4.3 Compatibility's own sRGB to linear cubic (the cubic
+## solved without its x^3 term as a first guess, then three Newton steps; the usual pow
+## approximation of linear to sRGB left darks up to 60% too dark,
+## which is exactly where night lives), so the renderer's conversion hands back the linear
+## colour we meant. Only compiled in under COMPAT_SRGB.
+const COMPAT_GLSL := """
+#ifdef COMPAT_SRGB
+vec3 compat_decode(vec3 c) {
+	return c * (c * (c * 0.305306011 + 0.682171111) + 0.012522878);
+}
+vec3 compat_encode(vec3 lin) {
+	lin = max(lin, vec3(0.0));
+	vec3 x = (sqrt(vec3(0.000156822) + 2.728684444 * lin) - vec3(0.012522878)) / 1.364342222;
+	x -= (compat_decode(x) - lin) / (x * (x * 0.915918033 + 1.364342222) + 0.012522878);
+	x -= (compat_decode(x) - lin) / (x * (x * 0.915918033 + 1.364342222) + 0.012522878);
+	x -= (compat_decode(x) - lin) / (x * (x * 0.915918033 + 1.364342222) + 0.012522878);
+	return x;
+}
+#endif
+"""
+
+
 ## The shader for a variant, built once.
 static func shader(variant: String) -> Shader:
 	if not _shaders.has(variant):
@@ -140,8 +214,8 @@ static func shader(variant: String) -> Shader:
 
 
 ## The shader source for a variant (pure text, tested headless).
-static func source(variant: String) -> String:
-	var defines := ""
+static func source(variant: String, srgb_out: bool = srgb_output()) -> String:
+	var defines := compat_define(srgb_out)
 	if variant == "foliage":
 		defines += "#define FOLIAGE\n"
 	if variant == "glow":
@@ -149,10 +223,11 @@ static func source(variant: String) -> String:
 	var shade := Palette.SHADE.srgb_to_linear()
 	var ember := Palette.EMBER.srgb_to_linear()
 	var core := Palette.EMBER_CORE.srgb_to_linear()
-	return (defines + SHADER_BODY
+	return (defines + SHADER_BODY.replace("$COMPAT_GLSL", COMPAT_GLSL)
 		.replace("$SHADE", "vec3(%.4f, %.4f, %.4f)" % [shade.r, shade.g, shade.b])
 		.replace("$EMBER_CORE", "vec3(%.4f, %.4f, %.4f)" % [core.r, core.g, core.b])
-		.replace("$EMBER", "vec3(%.4f, %.4f, %.4f)" % [ember.r, ember.g, ember.b]))
+		.replace("$EMBER", "vec3(%.4f, %.4f, %.4f)" % [ember.r, ember.g, ember.b])
+		.replace("$COMPAT_ALBEDO", "%.3f" % COMPAT_ALBEDO))
 
 
 const SHADER_BODY := """
@@ -182,6 +257,7 @@ uniform float sway_base = -1.3; // local height where the sway starts
 uniform float vein_energy = 2.0;
 #endif
 
+$COMPAT_GLSL
 varying vec3 world_pos;
 varying vec3 local_pos;
 #ifdef GLOW
@@ -239,11 +315,21 @@ void fragment() {
 	ALBEDO = mix(ALBEDO, vec3(dot(ALBEDO, vec3(0.299, 0.587, 0.114))), ember_night * night_desat * green);
 	ROUGHNESS = 1.0;
 	float beat = ember_pulse;
-	vec3 glow = emission_color * emission_energy * (1.0 - pulse_depth + pulse_depth * 2.0 * beat);
+	vec3 emission_lin = emission_color;
+#ifdef COMPAT_SRGB
+	emission_lin = compat_decode(emission_lin); // Compatibility leaves source_color uniforms in sRGB
+#endif
+	vec3 glow = emission_lin * emission_energy * (1.0 - pulse_depth + pulse_depth * 2.0 * beat);
 #ifdef GLOW
 	glow += mix($EMBER, $EMBER_CORE, beat * vein) * vein * vein_energy * (0.55 + 0.45 * beat);
 #endif
 	EMISSION = glow;
+#ifdef COMPAT_SRGB
+	// Compatibility linearises ALBEDO and EMISSION itself: hand it the sRGB of our linear paint,
+	// so it comes out as painted instead of linearised twice (see Emberlight.srgb_output()).
+	ALBEDO = compat_encode(ALBEDO * $COMPAT_ALBEDO);
+	EMISSION = compat_encode(EMISSION);
+#endif
 }
 
 void light() {

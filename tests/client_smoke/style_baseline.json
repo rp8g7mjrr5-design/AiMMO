@@ -1,5 +1,5 @@
 {
-  "_doc": "Emberlight style baseline for tests/client_smoke/style_check.gd (art bible, Colour). shots: the noon and night spawn shots' colour measures (llvmpipe, 1280x720, HUD masked). big: a move this far away from the art bible fails the Test check. small: a move this far either way is printed for the integrator. A world PR that changes the look on purpose reruns the check with --write-baseline and says so. 2026-11-24, grounded art direction (owner direction, art bible sections 0 and 11): baseline rewritten on purpose. Noon is darker and far less saturated (olive, not lime: luma 0.74 -> 0.54, sat 0.43 -> 0.30), and night moved toward the art bible (blue over green, cool, neon share 0.62 -> ~0.05). 2026-11-24, night lighting fix (PR #181, owner playtest): night baseline rewritten on purpose. The old night numbers were measured with a bug: every lantern added the cool SHADE tint to everything in its range (on real GPUs, whole Forward+ light-cluster tiles: the blocky cyan pool), which on this Compatibility-renderer shot showed as a cyan-green wash. With the wash gone the CI night shot is darker and deeper blue (luma 0.14 -> 0.05, sat 0.68 -> 0.93, neon 0.09 -> 0.03, bluer). Forward+ (players' GPUs) reads moonlit blue with warm lantern pools; the Compatibility renderer under-lights night (pines and figures near black, preexisting): world backlog follow-up.",
+  "_doc": "Emberlight style baseline for tests/client_smoke/style_check.gd (art bible, Colour). shots: the noon and night spawn shots' colour measures (llvmpipe, 1280x720, HUD masked). big: a move this far away from the art bible fails the Test check. small: a move this far either way is printed for the integrator. A world PR that changes the look on purpose reruns the check with --write-baseline and says so. 2026-11-24, grounded art direction (owner direction, art bible sections 0 and 11): baseline rewritten on purpose. Noon is darker and far less saturated (olive, not lime: luma 0.74 -> 0.54, sat 0.43 -> 0.30), and night moved toward the art bible (blue over green, cool, neon share 0.62 -> ~0.05). 2026-11-24, night lighting fix (PR #181, owner playtest): night baseline rewritten on purpose. The old night numbers were measured with a bug: every lantern added the cool SHADE tint to everything in its range (on real GPUs, whole Forward+ light-cluster tiles: the blocky cyan pool), which on this Compatibility-renderer shot showed as a cyan-green wash. With the wash gone the CI night shot is darker and deeper blue (luma 0.14 -> 0.05, sat 0.68 -> 0.93, neon 0.09 -> 0.03, bluer). Forward+ (players' GPUs) reads moonlit blue with warm lantern pools; the Compatibility renderer under-lights night (pines and figures near black, preexisting): world backlog follow-up. 2026-11-24, Compatibility colour fix (world, ws/world/compat-night): baseline rewritten on purpose. Godot 4.3's Compatibility renderer (this shot's renderer) treats a shader's ALBEDO and EMISSION as sRGB and linearises them itself, so every Emberlight colour was linearised twice: a fifth of its brightness, near black at night. Emberlight, Motes and the level-up sparks now encode once on Compatibility, scaled to match Forward+ on the same machine. The CI shots now show what Forward+ players see: night luma 0.05 -> 0.19 (moonlit blue, figures and pines readable), night sat 0.93 -> 0.67, noon luma 0.54 -> 0.67 and sat 0.30 -> 0.24 (Forward+ noon on the same shot is about as bright). Night neon_share is 0.19, over the art bible's 0.10: the ember-ash crowns read saturated orange at night on Forward+ too; a world follow-up tones them, and this baseline lets that be measured.",
   "big": {
     "luma": 0.12,
     "sat_mean": 0.12,
@@ -18,20 +18,20 @@
   },
   "shots": {
     "noon": {
-      "luma": 0.536,
-      "sat_mean": 0.297,
-      "neon_share": 0.001,
-      "ember_share": 0.007,
-      "warmth": 0.113,
-      "blue_minus_green": -0.126
+      "luma": 0.671,
+      "sat_mean": 0.239,
+      "neon_share": 0,
+      "ember_share": 0.013,
+      "warmth": 0.123,
+      "blue_minus_green": -0.129
     },
     "night": {
-      "luma": 0.046,
-      "sat_mean": 0.931,
-      "neon_share": 0.025,
+      "luma": 0.19,
+      "sat_mean": 0.671,
+      "neon_share": 0.188,
       "ember_share": 0.002,
-      "warmth": -0.084,
-      "blue_minus_green": 0.061
+      "warmth": -0.127,
+      "blue_minus_green": 0.105
     }
   }
 }

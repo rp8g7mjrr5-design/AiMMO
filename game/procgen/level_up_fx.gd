@@ -469,15 +469,21 @@ void fragment() {
 
 static func _spark_shader() -> Shader:
 	var sh := Shader.new()
-	sh.code = """
+	# Spark colours are linear instance colours: on Compatibility they get the same one-time
+	# encode as the world (Emberlight.srgb_output()), or they come out a fifth as bright.
+	sh.code = Emberlight.compat_define() + """
 shader_type spatial;
 render_mode unshaded, cull_disabled, shadows_disabled;
+$COMPAT_GLSL
 varying float glow;
 void vertex() {
 	glow = INSTANCE_CUSTOM.r;
 }
 void fragment() {
 	ALBEDO = COLOR.rgb * (0.6 + 0.25 * glow);
+#ifdef COMPAT_SRGB
+	ALBEDO = compat_encode(ALBEDO);
+#endif
 }
-"""
+""".replace("$COMPAT_GLSL", Emberlight.COMPAT_GLSL)
 	return sh

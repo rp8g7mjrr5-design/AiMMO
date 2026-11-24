@@ -5,6 +5,9 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- Nights are no longer pitch black on computers without Vulkan (the game's Compatibility renderer). The moonlit meadow, the pines and your fellow travellers now read in soft blue moonlight, as they always did on newer graphics cards, and colours by day match too.
+- Behind the scenes, the fallen kingdom now grows from a seed: every number gives its own stretch of land with rim hills or a coast, a river, lakes, forest, moor, wild farmland and stone hills, the king's roads, and ruins graded from a quiet roadside shrine to the fallen castle on the far side. Each generated kingdom lays out its own trees, stone, ember seeps, herds, workbench and lantern-lit spawn plot, with forests thick where the land is forest and the ground coloured by its land. Today's world is untouched; generated worlds arrive in a coming update.
+- Something stirs in the dark: the server now knows how the kingdom's dead walk, hear and grab. Nothing changes in the world you play today; they stay below ground until we can show them to you properly.
 - The world is a friends' world now: it holds up to 8 travellers at once. If it's full, the login screen tells you so ("The world is full (8 / 8). Try again soon.") instead of failing, nobody already inside is ever bumped out, and you can walk in the moment a friend logs off. Every update proves it with nine test players before it ships.
 - Bringing down a grazer now pays out loud: "+1 Hide" and "+2 Raw meat" pop up with their own icons and the haul sound, the same moment the beast drops.
 - Hunting's spoils now look the part in your pack: a folded grazer hide with its pale side turned back, and a dark raw cut with its fat rim and bone. No more anonymous cloth bundles after a kill.

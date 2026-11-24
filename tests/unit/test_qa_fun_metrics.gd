@@ -272,3 +272,52 @@ func test_dev_gather_text_alone_still_counts() -> void:
 	m.reward(4.0, 1)
 	m.stop_play(60.0)
 	check_eq(m.result().rewards, 1)
+
+
+func test_swings_are_feedback_and_counted() -> void:
+	# Protocol v7: a press of the attack button is an action (bot.play_sent); the server's
+	# s2c_swing, s2c_attack_refused or s2c_swing_hits for us answers it.
+	var m := FunMetrics.new()
+	m.start_play(0.0)
+	m.act(10.0)
+	m.swing(10.05)
+	m.swing_landed(10.6, false) # missed: still an answer
+	m.act(20.0)
+	m.swing_refused(20.1)
+	m.act(30.0)
+	m.swing(30.05)
+	m.swing_landed(30.6, true)
+	m.stop_play(40.0)
+	var r := m.result()
+	check_eq([r.swings, r.swings_refused, r.swings_hit, r.kills], [2, 1, 1, 0])
+	check_near(r.longest_wait_s, 0.1, 0.001, "every press answered at once")
+	check_eq(r.feedback_events, 5)
+	m.swing(50.0) # offline
+	check_eq(m.result().swings, 2, "nothing counts between stretches")
+
+
+func test_kill_counts_once_and_its_drops_are_rewards() -> void:
+	var m := FunMetrics.new()
+	m.start_play(0.0)
+	# The server sends one s2c_gather_result per drop, in Wildlife.drops order.
+	for d in Wildlife.drops("grazer"):
+		if FunMetrics.is_kill_drop(str(d[0])):
+			m.kill(12.0)
+		m.reward(12.0, int(d[1]))
+	m.stop_play(60.0)
+	var r := m.result()
+	check_eq(r.kills, 1, "one grazer, one kill")
+	check_eq(r.rewards, 3, "+1 hide, +2 raw meat")
+	check_near(r.first_reward_s, 12.0, 0.001, "a kill can be the first reward")
+
+
+func test_no_gather_haul_looks_like_a_kill() -> void:
+	check(FunMetrics.is_kill_drop(str(Wildlife.drops("grazer")[0][0])), "the hide is a kill drop")
+	check(not FunMetrics.is_kill_drop(str(Wildlife.drops("grazer")[1][0])), "the meat (second drop) is not")
+	var hauls := 0
+	for table in [ResourceNodes.KINDS, ResourceNodes.TIER2]:
+		for kind in table:
+			hauls += 1
+			var item := str(table[kind].item)
+			check(not FunMetrics.is_kill_drop(item), "%s is a gather haul, not a kill" % item)
+	check(hauls >= 6, "read every node kind (%d)" % hauls)

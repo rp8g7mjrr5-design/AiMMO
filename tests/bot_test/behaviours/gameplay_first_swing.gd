@@ -103,7 +103,6 @@ func _on_vitals(hp: int, max_hp: int, stamina: int, max_stamina: int) -> void:
 func _on_swing(peer: int, weapon: String, kind: String, seconds: float) -> void:
 	if peer != bot.my_id:
 		return
-	_tell_fun_metrics()
 	if _step == Step.SWING and kind == "heavy":
 		swings += 1
 		_sent_at = -1.0
@@ -136,7 +135,6 @@ func _on_landed(peer: int, kind: String, ids: Array) -> void:
 
 
 func _on_refused(kind: String, reason: String) -> void:
-	_tell_fun_metrics()
 	refusals[reason] = int(refusals.get(reason, 0)) + 1
 	if _step == Step.SWING and kind == "heavy":
 		_sent_at = -1.0
@@ -150,14 +148,6 @@ func _on_refused(kind: String, reason: String) -> void:
 			busy += 1
 		elif reason != "gathering":
 			fail("light swing mid-heavy refused %s, not busy" % reason)
-
-
-## A swing or its refusal is the game answering the press (the fun metrics' "wait after
-## acting"). qa_fun_metrics doesn't listen for v7 yet, so tell it.
-func _tell_fun_metrics() -> void:
-	for b in bot.behaviours:
-		if b.name == "qa_fun_metrics" and "m" in b and b.m != null:
-			b.m.feedback(bot.elapsed)
 
 
 func on_finish() -> void:
