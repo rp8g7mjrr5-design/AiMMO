@@ -209,6 +209,7 @@ static func apply_glow(bench: Node, glow: float) -> void:
 	if omni:
 		omni.light_energy = v.light_energy
 		omni.visible = v.light_on
+		omni.set_meta("steady_energy", v.light_energy) # Lamps.flicker_lights swings around this
 	var gi := bench.get_node_or_null(GLASS_LAYER) as GeometryInstance3D
 	if gi and gi.material_override is ShaderMaterial: # shared with the meadow lanterns
 		(gi.material_override as ShaderMaterial).set_shader_parameter("emission_energy", v.glass)
