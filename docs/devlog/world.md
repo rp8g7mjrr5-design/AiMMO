@@ -650,3 +650,22 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Didn't do.** No screenshot pair: a +-7% light swing doesn't show in two stills, and the smoke shots are stills. Worth a look in a real night playtest; if it reads too subtle, raise `FLICKER_DEPTH` to 0.2 (the strobe test allows it).
 
 **Next run.** Milestone burst and impact puff still wait on the client. Otherwise the noon grass saturation follow-up (qa's noon style baseline exists now) or the mid-distance tree mesh with a draw-call measurement.
+
+## 2026-11-24 (run 4): Low draws less far (ws/world/low-draw-distance)
+
+**Picked.** qa's open request "Low barely draws less" (requests come before the backlog). The top backlog items (milestone burst, gather impact puff, ember-tool sparks) still need a client call. **What a player will feel:** on an old laptop with Graphics on Low, the game runs noticeably smoother (fewer hitches while turning the camera across the valley), and the meadow they actually play in looks the same.
+
+**Built.**
+- `Chunks.RANGE_SCALES` (Low 0.5, Medium and High 1.0) and `Chunks.range_scale(level)`. `cut_for(range, chunk, scale)` scales the layer's range but not the half-diagonal padding, so nothing inside the shorter range is ever cut.
+- `Chunks.quality_range_scale()` reads `Quality.level` by path (`q.get("level")` on the loaded script works in 4.3), 1.0 where `client/` isn't exported, like `Flora.quality_density`.
+- `Chunks.build` and `NodeProps._chunked` tag each chunk with its range and chunk size (`set_range`) and cut it for the current level. `Chunks.apply_range_scale(root, scale)` redoes every tagged chunk under a node.
+- `Chunks.RangeWatch` (added by `WorldBuilder.build` under the world root) polls every 0.5 s and rescales the whole world when the Graphics setting changes.
+- No new nodes drawn, no materials, no colour literals.
+
+**Measured** (client smoke, noon spawn, Low vs Medium): at 0.7, primitives -3%, draw calls -7%, frame -15%. At 0.5, primitives -11% (440k -> 394k), draw calls -14% (275 -> 237), frame -25% (152 -> 114 ms software). I put the Medium, Low 0.7 and Low 0.5 shots side by side: the three look the same, because the far tree line is mostly the whole-world resource-node trees plus haze. So 0.5. The scene triangle count doesn't move (visibility ranges hide, they don't build less), which is why qa's `min_saving` on scene triangles still only sees flora's -11%.
+
+**Didn't do.** The node tree layers are whole MultiMeshes and still draw everything on Low; chunking them costs draw calls, follow-up added. No bot behaviour: nothing on the network, and the art lint forbids procgen in bot behaviours.
+
+**Tests.** `test_world_low_ranges.gd` (5 tests): scales per level and clamping; Low cuts nearer for every ranged chunk and node layer but keeps the padding; whole landmark layers never cut; `Chunks.build` and `NodeProps.build` on Low use the Low cut and `apply_range_scale` puts it back; `RangeWatch` follows Low and High within one poll. Unit suite with Postgres: 731 pass. 8-bot 180 s websocket bot test passed (277 s). Client smoke test passed (render budget ok, style check ok).
+
+**Next run.** qa can raise its Low gate. Then the noon grass saturation follow-up or the mid-distance tree mesh.

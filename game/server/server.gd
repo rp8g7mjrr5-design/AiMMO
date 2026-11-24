@@ -88,6 +88,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.gather_cancel_requested.connect(_on_gather_cancel)
 	net.craft_requested.connect(_on_craft)
 	net.unstuck_requested.connect(_on_unstuck)
+	net.attack_requested.connect(_on_attack)
 	get_tree().set_auto_accept_quit(false)
 	print("[server] listening on port %d via %s, protocol v%d" % [port, transport, GameConfig.PROTOCOL_VERSION])
 	print("[server] world clock: ", WorldClock.describe(world_seconds()))
@@ -146,6 +147,7 @@ func _tick() -> void:
 		entries.append_array([id, p.x, p.y, p.z, s.yaw])
 	_tick_channels(now_seconds())
 	_tick_vitals(now_seconds())
+	_tick_swings(now_seconds())
 	_tick_wildlife(now_seconds())
 	if tick % WILDLIFE_SEND_TICKS == 0:
 		_send_wildlife()
@@ -273,6 +275,7 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 	s.vitals_shown = Vitals.shown(s.vitals)
 	_send(id, "s2c_login_result", [true, "Welcome to Ashgrove, %s!" % ch.name if is_new else "Welcome back, %s." % ch.name, id, ch])
 	_send(id, "s2c_world_time", [world_seconds()])
+	_send_vitals(id) # the bar starts right, before anything changes it
 	_send_world_state(id)
 	# Tell the newcomer about everyone already here, and everyone about the newcomer.
 	for other in sessions:
@@ -402,6 +405,13 @@ func _on_craft(id: int, recipe_id: String) -> void:
 	if not _play_allowed(id, "_last_craft"):
 		return
 	craft_request(id, recipe_id)
+
+
+## c2s_attack(kind, yaw): a swing (protocol v7).
+func _on_attack(id: int, kind: String, yaw: float) -> void:
+	if not _play_allowed(id, "_last_attack"):
+		return
+	attack_request(id, kind, yaw)
 
 
 ## Requests that make the server answer (gather start, craft; gather start also tells
@@ -894,6 +904,7 @@ func unstuck_request(id: int) -> Dictionary:
 		s.character.y = spot.y
 		s.character.z = spot.z
 		s.move = Vector2.ZERO
+		s.swing = {}
 		s.unstuck_at = now
 		r = {"ok": true, "text": "Back in Spawn Meadow.", "wait": GameConfig.UNSTUCK_COOLDOWN}
 		print("[server] %s returned to Spawn Meadow from %s" % [s.character.name, pos])
@@ -916,8 +927,7 @@ func vitals_of(id: int) -> Dictionary:
 
 
 ## Every tick: stamina and health come back (Vitals.tick), and a player whose whole points
-## changed gets s2c_vitals(hp, max_hp, stamina, max_stamina). That RPC is not in protocol v6;
-## _send holds it back until the bump that brings the client's health bar.
+## changed gets s2c_vitals(hp, max_hp, stamina, max_stamina) (protocol v7, also sent once at login).
 func _tick_vitals(now: float) -> void:
 	for id in sessions:
 		if not sessions[id].logged_in:
@@ -932,7 +942,16 @@ func _send_vitals_if_changed(id: int) -> void:
 	var shown := Vitals.shown(v)
 	if shown == s.get("vitals_shown", []):
 		return
-	s.vitals_shown = shown
+	_send_vitals(id)
+
+
+## s2c_vitals(hp, max_hp, stamina, max_stamina) in whole points, and remember what was shown.
+func _send_vitals(id: int) -> void:
+	var v := vitals_of(id)
+	if v.is_empty():
+		return
+	var shown := Vitals.shown(v)
+	sessions[id].vitals_shown = shown
 	_send(id, "s2c_vitals", [shown[0], roundi(float(v.max_hp)), shown[1], roundi(float(v.max_stamina))])
 
 
@@ -970,11 +989,99 @@ func knock_down(id: int) -> void:
 	s.character.z = spot.z
 	s.move = Vector2.ZERO
 	s.vitals = Vitals.full()
+	s.swing = {}
 	s.knocked_down_at = now_seconds()
 	s.knockdowns = int(s.get("knockdowns", 0)) + 1
 	_send_vitals_if_changed(id)
 	_send(id, "s2c_system", [Vitals.KNOCKED_DOWN_TEXT])
 	print("[combat] %s was knocked down at %s and came to in Spawn Meadow" % [s.character.name, pos])
+
+
+## --- The first swing (protocol v7, roadmap Milestone 2 "First blood") ---
+
+## What player `id` swings: the best weapon in their pack (Weapons.ORDER, last is best), or
+## bare hands. Nobody can make a weapon yet, so today this is always Weapons.FISTS.
+func weapon_of(id: int) -> String:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return Weapons.FISTS
+	var inv: Dictionary = sessions[id].character.get("inventory", {})
+	for i in range(Weapons.ORDER.size() - 1, -1, -1):
+		if int(inv.get(Weapons.ORDER[i], 0)) > 0:
+			return Weapons.ORDER[i]
+	return Weapons.FISTS
+
+
+## A swing (c2s_attack): `kind` "light" or "heavy", facing `yaw`. Refused ("unknown", "busy"
+## while the last swing is still going, "gathering" while your hands are on a node, or
+## Vitals' "dead", "winded", "tired") with s2c_attack_refused to the swinger alone. A client
+## that wants the swing to win sends c2s_gather_cancel first (both are reliable and ordered,
+## so the cancel lands first); the server never cuts a gather short on its own, so no
+## gather is lost to a stray click. Otherwise the stamina is spent (Weapons.stamina_cost),
+## you turn to face `yaw`, and everyone in view gets s2c_swing; the blow lands Weapons.hit_at later
+## in _tick_swings. Returns {ok, reason}.
+func attack_request(id: int, kind: String, yaw: float) -> Dictionary:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return {}
+	var s: Dictionary = sessions[id]
+	var now := now_seconds()
+	var weapon := weapon_of(id)
+	var why := ""
+	if not Weapons.is_attack(kind) or not is_finite(yaw):
+		why = "unknown"
+	elif not s.get("swing", {}).is_empty() and now < float(s.swing.done_at):
+		why = "busy"
+	elif GatherChannel.is_active(s.channel):
+		why = "gathering"
+	else:
+		var r := Vitals.spend_cost(vitals_of(id), kind, Weapons.stamina_cost(weapon, kind), now)
+		why = str(r.reason)
+	if why != "":
+		_send(id, "s2c_attack_refused", [kind if Weapons.is_attack(kind) else "", why])
+		return {"ok": false, "reason": why}
+	yaw = wrapf(yaw, -PI, PI)
+	s.yaw = yaw
+	s.swing = {"weapon": weapon, "kind": kind, "yaw": yaw, "started": now,
+		"lands_at": now + Weapons.hit_at(weapon, kind), "done_at": now + Weapons.swing_seconds(weapon, kind), "landed": false}
+	s.swings = int(s.get("swings", 0)) + 1
+	_send_vitals_if_changed(id)
+	var secs := Weapons.swing_seconds(weapon, kind)
+	for other in players_in_view(CharacterData.position(s.character)):
+		_send(other, "s2c_swing", [id, weapon, kind, secs])
+	return {"ok": true, "reason": ""}
+
+
+## Every tick: swings whose windup is over land. The blow is checked from where the swinger
+## stands now, facing the way they swung (Weapons.targets_hit against every grazer); each
+## grazer struck bolts with its herd (Wildlife.strike) and a hit puts the swinger in combat.
+## The swinger always hears back (s2c_swing_hits, maybe empty); everyone else in view only
+## on a hit.
+func _tick_swings(now: float) -> void:
+	for id in sessions.keys():
+		var s: Dictionary = sessions[id]
+		if not s.logged_in or s.get("swing", {}).is_empty():
+			continue
+		var sw: Dictionary = s.swing
+		if not bool(sw.landed) and now >= float(sw.lands_at):
+			sw.landed = true
+			_land_swing(id, sw, now)
+		if bool(sw.landed) and now >= float(sw.done_at):
+			s.swing = {}
+
+
+func _land_swing(id: int, sw: Dictionary, now: float) -> Array:
+	var s: Dictionary = sessions[id]
+	var pos := CharacterData.position(s.character)
+	var hits := Weapons.targets_hit(pos, float(sw.yaw), str(sw.weapon), str(sw.kind), Wildlife.targets(wildlife))
+	for cid in hits:
+		Wildlife.strike(wildlife, int(cid), pos, now)
+	if not hits.is_empty():
+		Vitals.dealt(vitals_of(id), now)
+		s.swing_hits = int(s.get("swing_hits", 0)) + hits.size()
+		print("[combat] %s's %s %s struck grazer %s" % [s.character.name, Weapons.label(str(sw.weapon)).to_lower(), sw.kind, hits])
+	for other in players_in_view(pos):
+		if other == id or not hits.is_empty():
+			_send(other, "s2c_swing_hits", [id, str(sw.kind), hits])
+	return hits
 
 
 ## The hidden dev commands /hurt N (1 to 1000 damage, default 10) and /vitals. Returns the

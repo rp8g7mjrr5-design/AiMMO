@@ -13,8 +13,8 @@ Every session still follows CLAUDE.md first. Nothing here relaxes a hard rule.
 
 Ownership keeps parallel PRs from colliding. A worker may only edit the paths it owns, plus
 its own files listed under "Every worker owns". If a change needs another stream's files,
-write the request into that stream's backlog (`docs/workstreams/<stream>.md`, "Requests
-from other streams") in your PR, and work around it for now.
+write the request as a backlog note in that stream's notes folder (see "Notes go in new
+files" below) in your PR, and work around it for now.
 
 | Stream | Owns | Focus |
 |---|---|---|
@@ -23,8 +23,9 @@ from other streams") in your PR, and work around it for now.
 | `client` | `game/client/`, `game/main.gd`, `game/main.tscn`, `game/procgen/sfx.gd`, `game/project.godot`, `game/export_presets.cfg` | UI/HUD, camera, controls, prediction and smoothing, settings, audio, onboarding |
 | `qa` | `tests/` (except `tests/fixtures/`), `.github/`, `Dockerfile`, `docker/`, `railway.json`, `tools/`, `docs/playtest.md` | Bugs from playtest.md, crash fixes anywhere (see below), bot-test coverage, performance, CI, ops |
 
-**Every worker owns:** `docs/workstreams/<its stream>.md`, `docs/devlog/<its stream>.md`, and
-new files it creates in `changelog.d/`. Every worker adds unit tests for its own code under
+**Every worker owns:** the new files it creates in `changelog.d/`, `docs/devlog/<its stream>.d/`
+and `docs/workstreams/<any stream>.d/` (see "Notes go in new files"). Workers no longer edit
+`docs/devlog/<stream>.md` or `docs/workstreams/<stream>.md` themselves. Every worker adds unit tests for its own code under
 `tests/unit/test_<stream>_*.gd` and bot behaviours in `tests/bot_test/behaviours/<stream>_*.gd`
 when the test harness supports them (qa builds that hook if it doesn't exist yet).
 
@@ -32,11 +33,53 @@ when the test harness supports them (qa builds that hook if it doesn't exist yet
 data-loss bug, or red `main`. It must say so in the PR description.
 
 **Integrator only:** `CHANGELOG.md`, `CLAUDE.md`, `docs/workstreams.md`, `docs/weekly_task.md`,
-`docs/devlog/week-NN.md`.
+`docs/devlog/week-NN.md`, the running devlogs `docs/devlog/<stream>.md`, and the ticks,
+follow-ups and "Requests from other streams" of every `docs/workstreams/<stream>.md`. It
+changes them only by folding notes (integrator procedure, step 4).
 
 **Director:** `docs/roadmap.md`, `docs/design_bible.md`, `docs/art_bible.md`, `docs/digest/`, and the "Backlog"
-sections of every `docs/workstreams/<stream>.md` (workers still tick their own items and add
-follow-ups).
+sections of every `docs/workstreams/<stream>.md` (workers tick their own items and add
+follow-ups through backlog notes, which the integrator folds in).
+
+## Notes go in new files (no shared running files)
+
+Almost every merge conflict between workers came from two PRs editing the same running file:
+a stream's backlog (ticking an item, adding follow-ups, another stream adding a request) and
+its devlog (appending notes). So no worker PR edits a running file. Each PR adds new files
+instead, and the integrator folds them in, the same way `changelog.d/` works:
+
+| What | New file in your PR | Folded into |
+|---|---|---|
+| Player-facing patch note | `changelog.d/<stream>-<slug>.md` | `CHANGELOG.md` |
+| Devlog notes for your next run | `docs/devlog/<stream>.d/YYYY-MM-DD-<slug>.md` | `docs/devlog/<stream>.md` |
+| Tick, follow-ups for your own backlog | `docs/workstreams/<stream>.d/<stream>-<slug>.md` | `docs/workstreams/<stream>.md` |
+| Request to another stream | `docs/workstreams/<other>.d/from-<stream>-<slug>.md` | that stream's "Requests from other streams" |
+
+Use the date in America/Chicago and your branch slug, so two PRs never pick the same name.
+A **backlog note** is short and uses these headings (leave out any you don't need):
+
+```md
+Done: <the item, quoted closely enough to find it> (ws/<stream>/<slug>)
+One line on what shipped. Details belong in the devlog note, not here.
+
+Follow-ups:
+- [ ] <new item>
+
+Request (from <stream>, YYYY-MM-DD): <what you need and why>
+```
+
+**Reading:** a stream's backlog is `docs/workstreams/<stream>.md` plus every unfolded note in
+`docs/workstreams/<stream>.d/` on `main`. An item a note marks Done is done; follow-ups and
+requests in notes are live items. Your devlog is the tail of `docs/devlog/<stream>.md` plus
+the newest notes in `docs/devlog/<stream>.d/`.
+
+**Fixing a note:** a later PR may edit or delete a note file that its own stream's earlier PR
+added and that is still unfolded (for example to untick an item that turned out unfinished).
+Never edit another stream's note.
+
+Code files can still collide inside one stream (its landing PR and its new PR both touching
+`client.gd`, say). Step 2 of the worker procedure already covers that: merge `main` in and
+fix it.
 
 **Protocol changes** (`game/shared/net.gd`, `GameConfig.PROTOCOL_VERSION`) belong to
 `gameplay`. Installed games update themselves on launch and when the server turns them away
@@ -48,7 +91,8 @@ and note the bump in the changelog fragment. From v4 on, the bump PR also adds a
 
 ## One run per stream at a time (claims)
 
-Workers run every hour, and a run can take longer than that. Two runs of one stream at once
+Workers run on a schedule (world, client and gameplay every 2 hours, qa every 4 hours, the
+integrator every 4 hours; see "Schedule"), and a run can take longer than that. Two runs of one stream at once
 build the same item twice, so every worker run (and the integrator, as stream `integrator`)
 holds a **claim** while it works: a branch `claim/<stream>` that `tools/ws_claim.sh` creates
 atomically. It needs no clone, so take it before doing anything expensive:
@@ -65,14 +109,34 @@ over. Never take or release another stream's claim.
 
 **No private follow-up runs.** Never schedule a reminder, wake-up or one-off task to finish
 your stream's work later (for example "open the PR after midnight"). Leave the branch pushed
-and a note at the top of your devlog; the next hourly run of your stream picks it up. A
+and a note at the top of your devlog; the next scheduled run of your stream picks it up. A
 reminder runs outside the claim and builds the same thing as the next scheduled run (that
 is how protocol v3 was built twice on 2026-11-23). If some session does run stream work
 outside the schedule, it takes that stream's claim first like any worker run.
 
 **Older scheduled prompts.** The scheduled tasks that start the workers and the integrator
-can't be edited, and some still say "keep at most one open PR" or "squash-merge". The owner
-replaced those rules on 2026-11-23: this file wins. Take your claim as soon as you've read
+can't be edited, and some still say "keep at most one open PR", "squash-merge", "one hourly
+run", or "write down why in docs/devlog/<stream>.md". The owner replaced those rules on
+2026-11-23 and 2026-11-24: this file wins. "Write it in your devlog" now means a devlog
+note in `docs/devlog/<stream>.d/`.
+
+## Schedule
+
+Set by the owner on 2026-11-24 to cut usage roughly in half and leave fewer runs fixing each
+other's conflicts. All times America/Chicago, every day, overnight included:
+
+| Session | Runs at |
+|---|---|
+| world | every 2 hours on even hours, at :07 (00:07, 02:07, ... 22:07) |
+| client | every 2 hours on even hours, at :47 (00:47, 02:47, ... 22:47) |
+| gameplay | every 2 hours on odd hours, at :27 (01:27, 03:27, ... 23:27) |
+| qa | every 4 hours, at :43 (01:43, 05:43, 09:43, 13:43, 17:43, 21:43) |
+| integrator | every 4 hours, at :56 (02:56, 06:56, 10:56, 14:56, 18:56, 22:56) |
+| director | daily at 04:47 |
+| weekly review | Fridays at 11:42 |
+
+GitHub auto-merge lands green PRs between integrator runs, so a slower integrator only means
+the changelog and notes are folded less often. Take your claim as soon as you've read
 this, if you didn't take it before cloning.
 
 ## Worker procedure (each run)
@@ -82,7 +146,8 @@ this, if you didn't take it before cloning.
    stop with one line. From here on, release the claim before you stop, on every path.
 1. Attach and clone the repo. Read `CLAUDE.md`, this file, `docs/design_bible.md`
    (especially the North star), `docs/art_bible.md` (if your change shows anything on screen), `docs/roadmap.md`, your backlog `docs/workstreams/<stream>.md`,
-   and the tail of `docs/devlog/<stream>.md`.
+   unfolded notes in `docs/workstreams/<stream>.d/`, and the tail of `docs/devlog/<stream>.md`
+   plus the newest notes in `docs/devlog/<stream>.d/`.
 2. **Look after your open PRs, then keep going.** List your open `ws/<stream>/` PRs. For each:
    - Checks green or still running, auto-merge on, no conflict, no unanswered review comment:
      nothing to do. GitHub lands it on its own. Carry on to step 3.
@@ -95,7 +160,8 @@ this, if you didn't take it before cloning.
    new item branches from `main` and must not need the open PR's code. If the top item does,
    take the next one that doesn't.
 3. Pick the top unblocked item from your backlog (requests from other streams and bugs
-   first), skipping any item already in one of your open PRs (its tick is in that PR, not on
+   first, including those in unfolded notes), skipping any item a note on `main` marks Done
+   and any item already in one of your open PRs (its tick is in that PR, not on
    `main` yet). If the top items are blocked on another stream, take the next unblocked one,
    then a follow-up, a bug, a test or a polish item from your own area: a run that ships
    nothing is the last resort, for when your stream truly has no work it can do alone. Write
@@ -112,9 +178,12 @@ this, if you didn't take it before cloning.
    if you touched anything the client loads. Add at least one unit test and a bot behaviour
    for anything players can do.
 6. Write a changelog fragment `changelog.d/<stream>-<short-slug>.md` with 1 to 3 player-facing
-   bullet lines (fun and clear). Append honest notes to `docs/devlog/<stream>.md` (what you
-   built, what didn't work, notes to your next run). Update your backlog: tick the item,
-   add follow-ups.
+   bullet lines (fun and clear). Write honest notes in a new devlog note
+   `docs/devlog/<stream>.d/YYYY-MM-DD-<short-slug>.md` (what you built, what didn't work,
+   notes to your next run). Tick the item and add follow-ups in a new backlog note
+   `docs/workstreams/<stream>.d/<stream>-<short-slug>.md`, and put any request to another
+   stream in `docs/workstreams/<other>.d/from-<stream>-<short-slug>.md` (see "Notes go in new
+   files"). Don't edit `docs/devlog/<stream>.md` or any `docs/workstreams/<stream>.md`.
 7. Open a PR titled `[<stream>] <what players get>`. The PR body starts with a
    **Why it's more fun** line: one or two sentences on what a player will feel (faster
    feedback, a shorter loop, a new payoff, less dead time), or which upcoming fun this
@@ -159,13 +228,22 @@ the branch before opening the PR is fine; open the PR as soon as the branch is r
      back to that stream's backlog with a note.
    - If a PR has been stuck for over 24 hours, close it with a reason and put the item back in
      that stream's backlog.
-4. **Fold the changelog a few times a day, not every hour.** The release notes already show
+4. **Fold the changelog and the notes a few times a day, not every run.** The release notes already show
    unfolded `changelog.d/*.md` fragments on top of the week's entry, so players see new notes
-   as soon as a PR lands. Fold only when the last `integrate/` PR merged 6 or more hours ago,
-   or 6 or more fragments are waiting, or it's the first run after 00:00 Chicago: move every
-   fragment into `CHANGELOG.md` under the current week's heading (`## Week NN — <headline>`;
-   create it if this is the first merge of the week, with a provisional headline), then
-   delete the fragments. Put it on a branch `integrate/YYYY-MM-DD-HH`, open a PR, and turn on
+   as soon as a PR lands, and workers read unfolded notes as part of their backlog and devlog.
+   Fold only when the last `integrate/` PR merged 6 or more hours ago,
+   or 6 or more changelog fragments or 12 or more notes are waiting, or it's the first run after 00:00 Chicago. In one PR:
+   - move every changelog fragment into `CHANGELOG.md` under the current week's heading (`## Week NN — <headline>`;
+     create it if this is the first merge of the week, with a provisional headline);
+   - append every devlog note in `docs/devlog/<stream>.d/` to the end of `docs/devlog/<stream>.md`,
+     oldest first, each under a `## YYYY-MM-DD — <slug>` heading;
+   - apply every backlog note in `docs/workstreams/<stream>.d/`: tick the Done item (with the
+     note's one line and branch, kept short), add its follow-ups under the Backlog, and add its
+     requests under "Requests from other streams". If an item can't be found, add the note's
+     line under the Backlog as done so nothing is lost;
+   - delete every note and fragment you folded (keep `changelog.d/README.md` and each folder's `.gitkeep`).
+   Skip folding backlog notes while a `ws/director/` PR is open (the director is reordering
+   those files); fold them next run. Put it on a branch `integrate/YYYY-MM-DD-HH`, open a PR, and turn on
    auto-merge (squash); it's docs-only, so CI takes about two minutes and the server doesn't
    restart. Never push to `main` directly. At most one PR of your own per run.
 5. Confirm CI passes, the server redeploys, and the `Week NN` release updates. Railway
@@ -187,8 +265,9 @@ whole weeks since then.
 The director keeps the four streams pointed at the North star and makes sure they never run
 dry. It does not write game code.
 
-1. Read CLAUDE.md, this file, the design bible, the roadmap, every stream's backlog and the
-   last day of `docs/devlog/<stream>.md`, the PRs merged and opened in the last 24 hours, and
+1. Read CLAUDE.md, this file, the design bible, the roadmap, every stream's backlog (with its
+   unfolded notes in `docs/workstreams/<stream>.d/`) and the last day of `docs/devlog/<stream>.md`
+   and `docs/devlog/<stream>.d/`, the PRs merged and opened in the last 24 hours, and
    `docs/playtest.md`.
 2. Judge the last day honestly: is the game more fun than yesterday? Check the bot test's
    fun metrics trend (time to first reward, longest dead time, rewards per minute) and
@@ -197,7 +276,8 @@ dry. It does not write game code.
 3. Refill and reorder every backlog so each stream has 8 to 12 well-sized items, ordered by
    how much fun they add for players soonest, cross-stream
    dependencies come in the right order (e.g. gameplay adds the data before client shows it),
-   and requests between streams are answered. Items for the current milestone in `docs/roadmap.md` come before anything else that is not a bug or an owner-direction item. Keep the roadmap's milestones current.
+   and requests between streams are answered. Treat unfolded backlog notes as part of the
+   backlog, but leave the note files alone; the integrator folds them. Items for the current milestone in `docs/roadmap.md` come before anything else that is not a bug or an owner-direction item. Keep the roadmap's milestones current.
 4. Write `docs/digest/YYYY-MM-DD.md`: a short plain-language summary for the owner of what
    changed in the game yesterday, what got more fun (with the fun metrics), what's coming today, anything stuck, and budget use so far.
 5. Commit on a branch `ws/director/YYYY-MM-DD`, open a PR (docs only), and turn on
