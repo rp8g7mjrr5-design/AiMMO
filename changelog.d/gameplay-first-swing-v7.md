@@ -1,0 +1,2 @@
+- Your game now knows your health and stamina from the moment you log in, ready for the health bar.
+- First blood, part one: the server now understands a swing. Light jabs and heavy haymakers cost stamina, everyone nearby sees you throw them, and a grazer you manage to sneak up on and strike bolts off with its whole herd. (Needs the client's attack button, coming soon; this update asks you to download the new version.)

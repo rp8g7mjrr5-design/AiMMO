@@ -1102,3 +1102,59 @@ weapons, the first hunt, `s2c_vitals` in a bump) all need #164's `Server.vitals_
 `hurt` on `main`, and the rest of the open list is "watch the numbers" or waits on world or
 client. Branching new work on top of #164 is against the procedure, so this run spent its
 room getting #164 green instead.
+
+## 2026-11-24 (night run): protocol v7, the health bar's data and the first swing
+
+**Picked.** #164 (Vitals on the server) and #167 (weapon rules) both landed, so the two
+follow-ups that waited on them were unblocked and both are protocol changes, which belong in
+one bump: `s2c_vitals` on the wire, and the server side of the attack. Fun in one sentence:
+a player can throw a punch (or a slow haymaker), feel it spend stamina, everyone nearby sees
+it, and a grazer you manage to creep up on and strike bolts off with its whole herd. It is
+plumbing until client ships the attack key and the bar, and this PR names exactly what they
+read (client backlog request).
+
+**Built (protocol v7, all on Net/Play, Net's own list untouched).**
+- `s2c_vitals(hp, max_hp, stamina, max_stamina)`: once right after login
+  (`Server._send_vitals`, before world state) and on every whole-point change, as before.
+- `c2s_attack(kind, yaw)` -> `Server.attack_request`. Refusals go to the swinger alone as
+  `s2c_attack_refused(kind, reason)`: `unknown` (bad kind or non-finite yaw), `busy` (still
+  inside the last swing's `Weapons.swing_seconds`), `gathering`, and Vitals' `dead`/`winded`/
+  `tired`. Accepted: stamina spent by the weapon's cost (new `Vitals.spend_cost`; the flat
+  `Vitals.spend` would charge a fist jab 8 instead of 4.8), the player faces `yaw`,
+  `s2c_swing(peer, weapon, kind, seconds)` to everyone in view.
+- `_tick_swings` lands the blow at `Weapons.hit_at` from where the swinger stands then,
+  facing the swing's yaw, against `Wildlife.targets` (`BODY_RADIUS` 0.6 m).
+  `Wildlife.strike` bolts the struck grazer away from the blow plus every herd-mate within
+  `HERD_RADIUS`, and counts `struck`. A hit puts the swinger in combat (`Vitals.dealt`), so
+  "Return to Spawn Meadow" waits like after being hit. `s2c_swing_hits(peer, kind, ids)`:
+  the swinger always (a whiff is `[]`, so the client can play the miss), others only on a hit.
+- `Server.weapon_of`: the best of `Weapons.ORDER` in the pack, else fists. Nobody can make
+  one yet, so it is fists for everyone today. Knock-down and Return to Spawn Meadow clear a
+  swing in progress.
+
+**Why these calls.**
+- *A swing never cancels a gather; it is refused "gathering".* My first version cancelled the
+  gather ("stopped"), which is what an action MMO does, but that makes a stray click cost a
+  gather on the server's say-so, and it would race every gather behaviour in the bot test
+  (gather_v3 fails on a "stopped" it didn't ask for). The client can get the same feel by
+  sending `c2s_gather_cancel` then `c2s_attack` (same reliable channel, so in order).
+- *No grazer health.* A hit that only startles is the smallest true slice; health, drops
+  (hide, meat) and respawn want new items and icons, so they're the next follow-up.
+- *No dodge.* There is no dodge input yet; `c2s_dodge` with `Weapons.can_cancel` is a
+  follow-up for the next bump.
+- Fists reach 1.4 m and grazers bolt at 4.5 m, so a hit needs creep-and-freeze. That is the
+  stalking skill doing its job; revisit once real players try it.
+
+**Tests.** Unit 743/743 with Postgres (`test_gameplay_protocol_v7.gd`, 14: RPC list v6 + 5
+and Net untouched, re-emits, login bar, a swing spends and shows in view, busy then free,
+bad kinds/yaws, tired then winded, a fist jab's cheaper cost, the blow lands only after the
+windup and the grazer bolts with an onlooker told, a whiff tells only you, never cuts a
+gather, herd-mates bolt, `weapon_of`, a knock-down ends the swing; `test_gameplay_protocol_v6`
+now reads the frozen v6 copies). Bot test 8 x 180 s WebSocket PASSED: every bot swung, was
+refused "busy" mid-swing and saw its blow land in both logins, full bar at both logins; fun
+summary first reward 7.1 s, dead median 34.4 s (gate 55), 7 of 8 levelled. 2-bot 40 s run
+(the image test's shape) passed with the full check. Protocol test passed (v1-v6 told to
+update). Client smoke test passed. No `--perf-check` bandwidth here (no `ss`).
+
+**Next run:** if this PR is red, fix it first. Then the first hunt (grazer health, hide and
+meat drops; ask world for icons first), or `c2s_dodge` for the next bump.

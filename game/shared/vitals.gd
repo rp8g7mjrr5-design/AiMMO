@@ -4,8 +4,8 @@ class_name Vitals
 ## one per player in its session (and creatures one each). Since 2026-11-24 the server keeps
 ## one per logged-in player (Server.vitals_of): full on login, ticked every server tick, hurt
 ## by Server.hurt (only the hidden /hurt dev command until creatures fight), knocked down at
-## 0 (KNOCKED_DOWN_TEXT). Not saved (a relog is full health); s2c_vitals is produced on
-## change but waits for the next protocol bump to reach clients.
+## 0 (KNOCKED_DOWN_TEXT). Not saved (a relog is full health); s2c_vitals goes out once at
+## login and on every change (protocol v7), and attacks spend from it (Server.attack_request).
 ##
 ## Our take (design bible, "Take the best, then beat it"): stamina is the one bar every
 ## action move spends (dodge roll, heavy swing, block), the way the best action MMOs and
@@ -104,6 +104,23 @@ static func spend(v: Dictionary, action: String, now: float, seconds: float = 1.
 			return {"ok": true, "reason": "", "spent": 0.0}
 		cost *= maxf(seconds, 0.0)
 	var spent := minf(cost, float(v.stamina))
+	_drain(v, spent, now)
+	return {"ok": true, "reason": "", "spent": spent}
+
+
+## Like spend, but the move costs `cost` instead of the flat COSTS[action] (a weapon's
+## Weapons.stamina_cost: a maul swing costs more than a jab). "tired" when a light or heavy
+## swing can't pay `cost` in full; a dodge still only needs some stamina left. Returns
+## {ok, reason, spent}; a refused spend changes nothing.
+static func spend_cost(v: Dictionary, action: String, cost: float, now: float) -> Dictionary:
+	var why := check(v, action, now)
+	if why == "tired" and action in ["light", "heavy"] and float(v.stamina) >= cost:
+		why = "" # a light weapon's swing can be cheaper than the flat cost
+	if why == "" and action in ["light", "heavy"] and float(v.stamina) < cost:
+		why = "tired"
+	if why != "":
+		return {"ok": false, "reason": why, "spent": 0.0}
+	var spent := minf(maxf(cost, 0.0), float(v.stamina))
 	_drain(v, spent, now)
 	return {"ok": true, "reason": "", "spent": spent}
 
