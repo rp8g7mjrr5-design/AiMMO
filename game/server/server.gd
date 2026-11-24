@@ -58,9 +58,9 @@ var max_players := 0
 var gloam := Gloam.new_state()
 var gloam_on := false
 ## Placed campfires (Phase 2 build-ahead, Campfires): set down from the pack (place_request,
-## today only through the /place and /kindle dev commands, so the live world has none until
-## client's place action and world's model exist), burn out on their own, and keep the Gloam
-## walkers away (gloam_fires). s2c_campfires goes out on every change once a bump adds it.
+## through c2s_place from protocol v9, or the /place and /kindle dev commands), burn out on
+## their own, and keep the Gloam walkers away (gloam_fires). s2c_campfires goes out to
+## everyone on every change and at login.
 ## Not saved yet: a restart puts every fire out.
 var campfires := Campfires.new_state()
 ## A swing landing is a noise this loud (m), a finished gather this loud.
@@ -114,6 +114,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.unstuck_requested.connect(_on_unstuck)
 	net.attack_requested.connect(_on_attack)
 	net.look_requested.connect(_on_set_look)
+	net.place_requested.connect(_on_place)
 	get_tree().set_auto_accept_quit(false)
 	print("[server] listening on port %d via %s, protocol v%d" % [port, transport, GameConfig.PROTOCOL_VERSION])
 	print("[server] world clock: ", WorldClock.describe(world_seconds()))
@@ -277,7 +278,7 @@ func gloam_fires() -> Array:
 ## Player `id` sets down a campfire from their pack, in front of them (Campfires.place). Only
 ## "campfire" can be placed today. On success one campfire leaves the pack, everyone gets the
 ## new list (s2c_campfires) and the placer a line; a refusal costs nothing. This is what the
-## /place dev command runs now and what c2s_place will run after its bump.
+## /place dev command and c2s_place (protocol v9) run.
 ## Returns {ok, reason, text, fire_id}.
 func place_request(id: int, item: String) -> Dictionary:
 	if not sessions.has(id) or not sessions[id].logged_in:
@@ -348,8 +349,8 @@ func _tick_campfires(now: float) -> Array:
 const BURNED_DOWN_TEXT := "Your campfire has burned down to ash."
 
 
-## s2c_campfires(entries) to every logged-in player: the whole list (Campfires.to_wire).
-## Skipped by _send until a protocol bump adds the RPC.
+## s2c_campfires(entries) to every logged-in player: the whole list (Campfires.to_wire),
+## empty when the last one burns down.
 func _broadcast_campfires() -> void:
 	var entries := Campfires.to_wire(campfires, now_seconds())
 	for pid in sessions:
@@ -483,6 +484,7 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 	s.vitals = Vitals.full() # not saved: every login starts at full health
 	s.vitals_shown = Vitals.shown(s.vitals)
 	_send(id, "s2c_login_result", [true, "Welcome to Ashgrove, %s!" % ch.name if is_new else "Welcome back, %s." % ch.name, id, ch])
+	_send(id, "s2c_world", [WorldGen.config()]) # v9: build this world before anything in it
 	_send(id, "s2c_world_time", [world_seconds()])
 	_send_vitals(id) # the bar starts right, before anything changes it
 	_send_world_state(id)
@@ -673,6 +675,15 @@ func _on_set_look(id: int, look: Dictionary) -> void:
 	if not _play_allowed(id, "_last_look"):
 		return
 	set_look(id, look)
+
+
+## c2s_place(item): set a campfire down from the pack (protocol v9). The answer goes to the
+## placer as s2c_place_result; a fire that catches reaches everyone as s2c_campfires.
+func _on_place(id: int, item: String) -> void:
+	if not _play_allowed(id, "_last_place"):
+		return
+	var r := place_request(id, item)
+	_send(id, "s2c_place_result", [Campfires.ITEM if r.ok else item.strip_edges().to_lower().left(32), r.ok, str(r.reason), str(r.text)])
 
 
 ## Seconds between two saved looks per player: the window sends one per click of Save, so

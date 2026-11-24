@@ -1,0 +1,2 @@
+- Game update required (protocol v9): your game updates itself when you launch it.
+- Coming soon, now ready on the server: setting your campfire down in the world. The server takes the request, checks the ground and tells everyone nearby when a fire catches, so the moment the game gets a key to place one, your friends will see your fire too.

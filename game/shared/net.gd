@@ -89,6 +89,16 @@ signal look_requested(peer_id: int, look: Dictionary)
 ## peer_id's look ({} = never chosen: draw them from their appearance seed).
 signal look_changed(peer_id: int, look: Dictionary)
 
+# --- protocol v9, carried by Net/Play: the world config, placed campfires ---
+## The world the server runs: {seed, size_m, gen_version} (WorldGen.config). Once, after login.
+signal world_config(config: Dictionary)
+## A player wants to set `item` (today "campfire") down in front of them.
+signal place_requested(peer_id: int, item: String)
+## The answer to that: ok, or why not (a Campfires.REFUSALS key) and the line to show.
+signal place_result(item: String, ok: bool, reason: String, text: String)
+## Every campfire burning: [id, x, y, z, seconds_left] per fire (Campfires.to_wire).
+signal campfires_changed(entries: PackedFloat32Array)
+
 var last_ack_seq := -1
 var play: Node
 

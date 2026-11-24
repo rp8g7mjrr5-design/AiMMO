@@ -2,7 +2,7 @@ class_name GameConfig
 ## Constants shared by server, client, and bots. Changing world constants changes the world
 ## for everyone, so treat WORLD_SEED as permanent.
 
-const PROTOCOL_VERSION := 8 ## v8: c2s_set_look / s2c_look (character customization) on Net/Play. v7: s2c_vitals, c2s_attack / s2c_swing / s2c_swing_hits / s2c_attack_refused on Net/Play. v6: s2c_wildlife (grazers in view, 5 Hz) on Net/Play. v5: s2c_roster, c2s_unstuck / s2c_unstuck_result on Net/Play. v4: skills on Net/Play (s2c_skills, s2c_xp, s2c_level_up, s2c_level_up_seen). v3: Net/Play (timed gather, pack, nodes, crafting), ack_seq in snapshots
+const PROTOCOL_VERSION := 9 ## v9: s2c_world (the world config), c2s_place / s2c_place_result / s2c_campfires on Net/Play. v8: c2s_set_look / s2c_look (character customization) on Net/Play. v7: s2c_vitals, c2s_attack / s2c_swing / s2c_swing_hits / s2c_attack_refused on Net/Play. v6: s2c_wildlife (grazers in view, 5 Hz) on Net/Play. v5: s2c_roster, c2s_unstuck / s2c_unstuck_result on Net/Play. v4: skills on Net/Play (s2c_skills, s2c_xp, s2c_level_up, s2c_level_up_seen). v3: Net/Play (timed gather, pack, nodes, crafting), ack_seq in snapshots
 const DEFAULT_PORT := 7777
 const TICK_RATE := 20
 const TICK_DT := 1.0 / TICK_RATE
