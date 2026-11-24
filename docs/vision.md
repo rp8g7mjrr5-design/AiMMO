@@ -1,14 +1,15 @@
 # ZombAi: vision
 
-**Draft owner direction, 2026-11-24. Not adopted yet.** While this is in an open draft PR, workers
-keep following `main`. The owner has settled the name, setting, camera, price, map style and
-**2 to 8 player co-op**. A few things are still being decided (section "Still open"). Every
-stream reads this file once it lands; `docs/roadmap.md` holds the phases.
+**Owner direction, 2026-11-24.** The owner set the name, setting, camera, price, map style,
+**2 to 8 player co-op** on today's always-on server, and the reference ("Project Zomboid + 7 Days
+to Die in a medieval fantasy setting, with a round survive element at night and base
+defence"), then asked the director to pick the rest. Every stream reads this file;
+`docs/roadmap.md` holds the phases and their "done when" lists.
 
 Everything here is our own design under "Inspired by, never copied" (design bible). The feel
-we're reaching for: the deep survival sim of *Project Zomboid*, the procedural map full of
-risk-graded monuments of *Rust*, and the friends-together co-op of the best small-group survival
-games. All of it is made quicker to learn and readable on a stream. Those names stay in design
+we're reaching for (owner, 2026-11-24): **Project Zomboid's survival depth** (needs, injuries,
+careful looting) **crossed with 7 Days to Die's base building and night defence**, in a medieval
+fantasy setting, on a procedural map full of risk-graded ruins like *Rust*'s monuments. All of it is made quicker to learn and readable on a stream. Those names stay in design
 docs, never in the game.
 
 ## The game in one paragraph
@@ -133,11 +134,18 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
 - **Days survived:** each character counts days survived since their last death, shown quietly on
   the HUD and loudly when you die ("You survived 23 days"), and each world counts its age. Best
   runs are kept per character and per world.
-- **Horde nights (our own, not a fixed-calendar moon):** a horde night isn't on a timer you can
-  read off a calendar. It is triggered by your base's **threat** crossing a line (see below) and
-  given a warning the evening before (signs in the world: name and look being chosen with the
-  owner). The size and mix of the horde scale with threat and with days survived. The name is pending the
-  owner's pick ("the Tolling" is on offer: a far bell rings the evening before).
+- **Nights come in rounds (owner, 2026-11-24: "round survive element at night").** A night
+  (about 17 of the day's 40 minutes) is fought in **rounds**: the Gloam come in waves until
+  dawn, each round a little bigger and tougher than the last, with a **short lull** between
+  rounds (about a minute) to repair walls, rearm and drag a friend back inside. The round number
+  and the days-survived counter sit on screen at night. Rounds come for **you**: at your base they
+  hit your walls; caught out in the wild, a smaller wandering pack finds you. Surviving to dawn
+  pays (XP and a little loot from what fell at your walls).
+- **The Tolling (our horde night, not a fixed-calendar moon).** The big one. It isn't on a
+  calendar: it is triggered when your base's **threat** crosses a line, and announced the evening
+  before by a far bell that tolls from the direction it will come. A Tolling night has more
+  rounds, Gloam soldiers and wights among them, and a last round that tests every wall and gate.
+  Its size scales with threat and with days survived.
 - **Invasions:** each base has a **threat** that rises with its size, noise, light and stored
   wealth. Threat decides how big the next invasion is and how often they come, shown on a quiet
   gauge so you always know what's coming. The Gloam break doors and weak walls (never stone
@@ -160,6 +168,18 @@ capped at **8 players**, updated the way it is today. Nothing about the live ser
   announced step: characters keep their skills, items and pack, and arrive at the new world's
   spawn. Their old position is the only thing that doesn't carry over.
 - Everything built later (holds, chests) is saved by that server and survives every deploy.
+- **The world never stops, so nothing attacks what nobody is there to defend.** The day clock
+  runs in real time on the always-on server whether anyone is on. Night rounds and invasions only
+  come for players who are online, and a base is only attacked while at least one of its owners
+  is online. A Tolling that comes due while its base's owners are all offline waits until one of
+  them logs in, and its evening-before bell rings then. Friends who drop in at different times
+  never come back to a base wrecked while they slept.
+- **Days survived on an always-on world** count in-game days a character was alive *and online
+  for at least part of that day*, so a friend who plays twice a week isn't punished, and nobody
+  climbs the board by staying logged off.
+- **Up to 8 at once:** night rounds and Tollings scale with how many players are at the base, so
+  two friends and eight friends both get a fair fight. Packs in the wild scale with the group
+  nearby.
 
 **Later: friends host their own worlds.** Once the game is ready for people beyond the owner's
 friends (Phase 5):
@@ -179,12 +199,21 @@ could follow: players or communities run our server build, with optional PvP rul
 earlier draft (bands, land claims held by resolve, raids with offline protection, seasons that
 end in a fresh map). Nothing is designed or built for it until the owner asks.
 
-## Still open (being asked)
-- **Magic:** whether the fallen kingdom has magic, and how much (none; ember craft only; or a
-  small, costly school of ember magic).
+## Magic: a light touch, from loot (decided 2026-11-24)
+Magic is ember-based, rare and found, not levelled (a spell skill could come later):
+- **Runes** looted from grade 2+ ruins, set into walls and gates as **wards** (a ward makes a
+  wall section burn the Gloam that claw it, or slows them).
+- **Relics** that enchant a weapon or tool (an axe that burns, a lantern that keeps the Gloam
+  wary further out).
+- A few **spell scrolls** from grade 3 and 4 vaults, single use (a burst of ember-fire, a flare
+  that lights the field for one round).
+All of it follows the art bible's restraint: effects are warm light and sparks, short and rare.
+
+## Still open
 - **How the undead behave** beyond the basics above (how hordes form, whether they break walls,
   how fast they are at night, whether the dead you leave behind rise).
-Until answered, workers build only what this file already settles.
+Until settled, workers build the basics described above and leave these details as data that
+is easy to tune.
 
 ## What carries over from today's build
 | Keeps | Changes | Goes |

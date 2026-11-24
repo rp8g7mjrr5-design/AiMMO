@@ -1,6 +1,6 @@
 # AiMMO Roadmap
 
-The road from today to **ZombAi** in `docs/vision.md` (owner direction, 2026-11-24, draft):
+The road from today to **ZombAi** in `docs/vision.md` (owner direction, 2026-11-24):
 a third-person survival game in a fallen medieval kingdom, on generated maps full of
 risk-graded ruins, against the Gloam. The roadmap is a list of **phases in order**, not dates.
 Each has a goal a player can feel and a "done when" list. Streams work on the **current phase**
@@ -46,7 +46,7 @@ next unlock; levels survive logout; tier-2 nodes refuse a too-low level with a c
 the bot test covers XP, a level-up and persistence, and qa's fun metrics report time to
 first level-up.
 
-## Phase 1: A kingdom from a seed ← current (once adopted)
+## Phase 1: A kingdom from a seed ← current
 **Goal:** every world is a new, generated stretch of the fallen kingdom, and what we already
 built (gathering, crafting, skills, combat basics) works in it.
 - The live Railway world stays up the whole time (owner, 2026-11-24: friends drop in any time),
@@ -63,17 +63,22 @@ built (gathering, crafting, skills, combat basics) works in it.
 ruins; a fresh character can gather and craft end to end in one; the spawn shot fits the render
 budget; the world builds in under 3 s.
 
-## Phase 2: Survive the first night
-**Goal:** staying alive is the game, and the Gloam are the reason the night is scary.
-- Hunger, thirst, warmth and rest on top of today's vitals, forgiving and readable.
+## Phase 2: Survive the first night (in rounds)
+**Goal:** staying alive is the game, and nights are fought in rounds against the Gloam.
+- Hunger, thirst, warmth and rest on top of today's vitals, forgiving and readable; bandages and
+  the first wounds.
 - Fire, water, foraging, cooking, hunting.
-- The Gloam: the common walker and the Gloam hound, drawn by noise, faster at night, with
-  clear telegraphs; torches and ember-fire hurt them; the chill and the ember salve.
+- The Gloam: the walker and the Gloam hound, drawn by noise, with clear telegraphs; torches and
+  ember-fire hurt them.
+- **Night rounds:** waves until dawn, each a bit tougher, with a short lull between; the round
+  number and days survived on screen; rounds only come for players who are online.
 - Death drops a lootable pack where you fell; respawn in under a minute.
-- The **days survived** counter per character and per world, with best runs kept.
+- The **days survived** counter per character and per world (on the always-on world, days alive
+  and online for part of the day), with best runs kept.
 **Done when:** a fresh player learns, in one evening, to avoid dying of cold, hunger and to the
-the Gloam; fun metrics report time to first fire and nights survived; bots fight, die, loot and
-respawn in the bot test.
+Gloam and survives a night of rounds; fun metrics report time to first fire, rounds survived and
+nights survived; bots fight rounds, die, loot and respawn in the bot test, and no round ever
+spawns for a player who is offline.
 
 ## Phase 3: A roof, a wall, and the first invasion
 **Goal:** the heart of the game (owner, 2026-11-24): build a base with friends and hold it when
@@ -81,9 +86,10 @@ the Gloam come for it.
 - A **claim marker** that stakes your land and grows as you build it up.
 - Snap-grid timber and stone building, doors, palisades and gates, chests, an ember hearth that
   stops the Gloam rising inside, a bedroll respawn. Saved and restored through every restart.
-- Base **threat** (size, noise, light, stored wealth), **invasions** and **horde nights** (our own trigger, final name pending) that grow with it,
+- Base **threat** (size, noise, light, stored wealth); night rounds hit your walls; **the Tolling** (our horde night: triggered by threat, a bell the evening before, more rounds, soldiers and wights) grows with it,
   announced a minute ahead; the Gloam that break doors and weak walls.
-- The first defences: spiked barricades, braziers, a warning bell.
+- The first defences: spiked barricades, braziers, a warning bell; the first **runes** as wall wards.
+- On the always-on world a base is only attacked while one of its owners is online.
 **Done when:** a group builds a base, an invasion comes for it and can be held or lost, a bigger
 base draws bigger invasions, the base survives a server restart in the bot test, and a walled
 base fits the render budget.
@@ -93,7 +99,8 @@ base fits the render budget.
 - All four ruin grades (the mine, the drowned village, the abbey, the fallen castle and its
   crypt), each with its own Gloam (soldiers, the Bell-wight) and loot tables.
 - Signet keys and vaults; smithing, iron and the first armour; bows and crossbows; ember
-  weapons; base upgrades from ruin loot (iron-bound walls, a gatehouse, traps, arrow slits).
+  weapons; relics that enchant gear and single-use spell scrolls from vaults; base upgrades from
+  ruin loot (iron-bound walls, a gatehouse, traps, arrow slits).
 - **Horses and carts:** wild horses and ruined stables, taming, feeding, stabling, riding; a cart
   to haul a ruin's loot home.
 **Done when:** a geared group can clear each grade, grade 4 needs keys from grade 3, loot from
@@ -123,15 +130,15 @@ Boats (rowboat, then a small sail boat for the coast), great hordes, wounds and 
 farming, fishing, more kinds of Gloam and ruins, weather,
 proximity voice, a spectator camera.
 
-## The next six weeks (director forecast, draft)
-A forecast, not a promise. It is redrawn once the owner confirms the direction.
+## The next six weeks (director forecast, 2026-11-24)
+A forecast, not a promise: it is redrawn every morning from what actually landed.
 
 | Week | Dates | Focus |
 |------|-------|-------|
 | 00 | to Thu 26 Nov | Close Milestones 0 and 1; Phase 1 groundwork (world config, generator v1 land and roads). |
 | 01 | 27 Nov to 3 Dec | Phase 1: ruin sites, chunked building, the first two ruins. |
 | 02 | 4 to 10 Dec | Phase 2: needs, fire and cooking, the first the Gloam, death and loot. |
-| 03 | 11 to 17 Dec | Phase 3: claimed land, building, the ember hearth, the first horde nights. |
+| 03 | 11 to 17 Dec | Phase 3: claimed land, building, the ember hearth, the first Tolling. |
 | 04 | 18 to 24 Dec | Phase 4: grade 3 and 4 ruins, keys, smithing, bows. |
 | 05 | 25 to 31 Dec | Phase 5: host button, invites, saved worlds. |
 
@@ -162,10 +169,10 @@ gate can't go on. Both are at the top of today's backlogs. Backlogs were trimmed
 items per stream; everything else sits under "Later" in each file, so workers stop picking
 low-value follow-ups ahead of milestone work.
 
-**Director note (2026-11-24, ZombAi, draft):** the owner is reshaping the game: renamed
+**Director note (2026-11-24, ZombAi):** the owner is reshaping the game: renamed
 ZombAi, a post-apocalyptic medieval fantasy (a fallen kingdom), third person, a one-time buy,
 and a map that works like Rust's (generated land, roads and risk-graded ruins), with the Gloam
-as our own undead. The owner then chose 2 to 8 player co-op hosted by a friend; public servers are a "later, maybe". For now co-op is today's always-on Railway world, capped at 8, so friends can drop in any time; hosting from the client comes in Phase 5. The goal is pure survival (no story endgame); the heart of it is base building, getting invaded and looting toward upgrades and vehicles (horses, carts, boats). Magic and undead details are still being asked. See `docs/vision.md`.
+as our own undead. The owner then chose 2 to 8 player co-op hosted by a friend; public servers are a "later, maybe". For now co-op is today's always-on Railway world, capped at 8, so friends can drop in any time; hosting from the client comes in Phase 5. The goal is pure survival (no story endgame); the heart of it is base building, getting invaded and looting toward upgrades and vehicles (horses, carts, boats). The owner then asked the director to pick the rest, with the reference "Project Zomboid + 7 Days to Die in a medieval fantasy setting, with a round survive element at night and base defence": nights come in rounds, the big horde night is **the Tolling** (threat-triggered, a bell the evening before), and magic is a light touch from loot (runes as wards, relics, scrolls). The undead are **the Gloam**. Phase 1 is seeded in every backlog. See `docs/vision.md`.
 Backlogs are not reseeded until the owner confirms.
 
 ## Backlog (unscheduled)
