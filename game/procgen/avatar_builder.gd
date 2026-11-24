@@ -2,9 +2,10 @@ class_name AvatarBuilder
 ## Builds a low-poly traveller from an appearance seed: a lean adult in dyed cloth and survival
 ## gear, with a hood or hair, arms and legs the walk cycle swings, and a name tag. Faces local +Z, feet at y = 0.
 ##
-## Limbs are bare `Node3D` pivots named ArmL, ArmR, LegL, LegR, direct children of the root,
-## with the pivot at the shoulder or hip and the meshes hanging below it, so the client's
-## WalkAnim can swing them with rotation.x. The Label3D name tag is a direct child of the root.
+## `build()` returns a root with the posable "Skeleton" (AvatarSkeleton: one skinned mesh) and
+## the Label3D name tag, both direct children. `parts()` still names each part's limb (ArmL,
+## ArmR, LegL, LegR, or "" for the body) and places it relative to that limb's pivot
+## (`LIMB_PIVOTS`, the shoulder or hip); `rig()` builds those pivots alone, for tests.
 ## Left is +X (the avatar's own left when it faces +Z).
 ##
 ## `parts()` and `rig()` are the pure halves of `build()`: they never touch the renderer, so
@@ -40,22 +41,12 @@ const LEATHER := Palette.LEATHER ## kept for callers that name it
 
 
 static func build(display_name: String, appearance_seed: int, is_self: bool) -> Node3D:
-	var root := rig()
-	# One mesh for the body and one per limb (5 draw calls an avatar, not one per part): every
-	# part's colour is in its vertices and they share one material, so merging costs nothing and
-	# a crowd of travellers stays inside the render budget (art bible section 7).
-	var groups := {}
-	for p in parts(appearance_seed):
-		if not groups.has(p.limb):
-			groups[p.limb] = []
-		groups[p.limb].append(p)
-	for limb in groups:
-		var parent: Node3D = root if limb == "" else root.get_node(limb)
-		var mi := MeshInstance3D.new()
-		mi.name = "Mesh"
-		mi.mesh = merged(groups[limb])
-		mi.material_override = material()
-		parent.add_child(mi)
+	var root := Node3D.new()
+	# One skinned mesh on the traveller's skeleton (AvatarSkeleton): 1 draw call an avatar.
+	# Every part's colour is in its vertices and they share one material, and each vertex
+	# rides the bone its body segment belongs to, so the client's AvatarAnimator can bend
+	# elbows, knees, spine and neck (art bible section 3, "Animation").
+	root.add_child(skinned(appearance_seed))
 
 	var tag := Label3D.new()
 	tag.text = display_name
@@ -68,6 +59,12 @@ static func build(display_name: String, appearance_seed: int, is_self: bool) -> 
 	tag.no_depth_test = false
 	root.add_child(tag)
 	return root
+
+
+## The traveller for `appearance_seed` as a posable Skeleton3D ("Skeleton") with its one
+## skinned mesh ("Mesh"). Hand the skeleton to AvatarAnimator.apply to pose it.
+static func skinned(appearance_seed: int) -> Skeleton3D:
+	return AvatarSkeleton.rig_mesh(AvatarSkeleton.skin_parts(parts(appearance_seed), LIMB_PIVOTS, PART_AO))
 
 
 ## The root with its four empty limb pivots, and nothing else.

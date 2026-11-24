@@ -7,7 +7,7 @@ const CONFIG_PATH := "user://client.cfg"
 var net: Node
 var world: Node3D
 var camera: Camera3D
-var avatars := {} ## peer id -> {node, body: Node3D, anim: WalkAnim, swing: GatherSwing, target: Vector3, yaw: float, name: String}
+var avatars := {} ## peer id -> {node, body: Node3D, skel: Skeleton3D, anim: AvatarAnimator, target: Vector3, yaw: float, name: String}
 var my_id := 0
 var logged_in := false
 var seq := 0
@@ -445,15 +445,13 @@ func _process(delta: float) -> void:
 		else:
 			n.position = n.position.lerp(a.target, t)
 		n.rotation.y = lerp_angle(n.rotation.y, a.yaw, t)
-		var anim: WalkAnim = a.anim
-		anim.step(n.position, delta)
-		anim.apply(a.body)
-		footsteps.step(id, n, anim, my_id, ear)
-		# While gathering, the rendered body turns to the node and swings at it.
-		var swing: GatherSwing = a.swing
+		# The whole body moves on its skeleton: idle, walk and run by rendered speed; while
+		# gathering it turns to the node and works it (AvatarAnimator).
+		var anim: AvatarAnimator = a.anim
 		var gathering: Dictionary = ResourceNodes.get_by_id(int(gather_watch.running[id])) if gather_watch.running.has(id) else {}
-		swing.step(delta, gathering, n.position, n.rotation.y)
-		swing.apply(a.body)
+		anim.step(delta, {"pos": n.position, "yaw": n.rotation.y, "gather": gathering})
+		anim.apply(a.skel)
+		footsteps.step(id, n, anim, my_id, ear)
 	if not logged_in:
 		# Slow orbit over the world behind the login screen.
 		cam_yaw += delta * 0.05
@@ -945,11 +943,11 @@ func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, ya
 		for tag in node.find_children("*", "Label3D", false, false):
 			tag.visible = false
 	world.add_child(node)
-	avatars[id] = {"node": node, "body": node.get_node("Body"), "anim": WalkAnim.new(), "swing": GatherSwing.new(), "target": pos, "yaw": yaw, "name": player_name}
+	avatars[id] = {"node": node, "body": node.get_node("Body"), "skel": node.get_node("Body/Skeleton"), "anim": AvatarAnimator.new(), "target": pos, "yaw": yaw, "name": player_name}
 
 
-## Puts the built avatar under a steady root so the walk cycle can bob and sway the body
-## ("Body") while the name tag stays level above it.
+## Puts the built avatar ("Body", holding its Skeleton) under a steady root, with the name tag
+## moved up to that root so it stays level whatever the body is doing.
 static func wrap_avatar(body: Node3D) -> Node3D:
 	var root := Node3D.new()
 	body.name = "Body"

@@ -82,3 +82,56 @@ func test_skin_binds_every_bone() -> void:
 	for i in s.get_bind_count():
 		var w := AvatarSkeleton.world_rest(s.get_bind_name(i))
 		check((s.get_bind_pose(i) * w).length() < 0.0001, "bind %s is its inverse rest" % s.get_bind_name(i))
+
+
+func test_traveller_is_skinned_smoothly() -> void:
+	for appearance_seed in [1, 7, 42, 12345]:
+		var parts := AvatarBuilder.parts(appearance_seed)
+		var mesh := AvatarSkeleton.skin_parts(parts, AvatarBuilder.LIMB_PIVOTS)
+		check_eq(mesh.get_surface_count(), 1, "one draw call")
+		var a := mesh.surface_get_arrays(0)
+		var verts: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var bones: PackedInt32Array = a[Mesh.ARRAY_BONES]
+		var weights: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
+		var bad := 0
+		var blended := 0
+		for i in verts.size():
+			var sum := weights[i * 4] + weights[i * 4 + 1] + weights[i * 4 + 2] + weights[i * 4 + 3]
+			if absf(sum - 1.0) > 0.001:
+				bad += 1
+			if weights[i * 4 + 1] > 0.0:
+				blended += 1
+		check_eq(bad, 0, "weights sum to 1 (seed %d)" % appearance_seed)
+		check(blended > 50, "joints blend across bones (seed %d: %d vertices)" % [appearance_seed, blended])
+		# Feet ride the feet, the crown rides the head, a hand rides its hand.
+		for i in verts.size():
+			var v := verts[i]
+			var b := AvatarSkeleton.BONES[bones[i * 4]][0] as String
+			if v.y < 0.02:
+				check(b.ends_with("Foot"), "sole vertex on a foot, got %s" % b)
+				if not b.ends_with("Foot"):
+					break
+			if v.y > 1.72:
+				check_eq(b, "Head", "crown on the head")
+				if b != "Head":
+					break
+
+
+func test_traveller_fits_the_triangle_budget() -> void:
+	# Art bible section 3: at most 3,000 triangles a character (and now 1 draw call, not 5).
+	# (A MeshInstance3D logs engine errors headless, so the node itself is checked by the client
+	# smoke run; this checks the mesh it carries.)
+	for appearance_seed in [1, 42]:
+		var mesh := AvatarSkeleton.skin_parts(AvatarBuilder.parts(appearance_seed), AvatarBuilder.LIMB_PIVOTS)
+		var tris := mesh.surface_get_array_index_len(0) / 3
+		check(tris <= 3000, "inside the 3,000-triangle budget (%d)" % tris)
+
+
+func test_vertex_bones_blend_at_the_elbow_and_knee() -> void:
+	var elbow := AvatarSkeleton.vertex_bones("ArmL", Vector3(0, -AvatarSkeleton.UPPER_ARM, 0), Vector3.ZERO)
+	check_eq(elbow.size(), 2, "two bones at the elbow")
+	check_near(float(elbow[0][1]), 0.5, 0.01, "half and half")
+	var shin := AvatarSkeleton.vertex_bones("LegR", Vector3(0, -0.65, 0), Vector3.ZERO)
+	check_eq(shin, [["RightLowerLeg", 1.0]], "mid-shin is all shin")
+	var belly := AvatarSkeleton.vertex_bones("", Vector3.ZERO, Vector3(0, 1.0, 0))
+	check_eq(belly, [["Hips", 1.0]], "the belt line rides the hips")

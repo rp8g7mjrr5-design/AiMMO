@@ -2,10 +2,11 @@ extends SceneTree
 ## Frame strips and clips of every traveller animation, for judging the motion by eye:
 ##
 ##   xvfb-run godot --rendering-driver opengl3 --path game -s tests/client_smoke/anim_strips.gd -- \
-##     --out=/abs/dir [--clips=walk,run] [--view=side|three_q|back] [--fps=30]
+##     --out=/abs/dir [--clips=walk,run] [--view=side|three_q|back] [--fps=30] [--seed=N|--mannequin]
 ##
 ## For each clip it drives a real AvatarAnimator (the same state machine the client runs) on
-## the skinned preview mannequin (AvatarSkeleton.mannequin_groups) and writes
+## the real skinned traveller (AvatarBuilder.skinned, appearance seed --seed, default 7), or
+## the plain preview mannequin with --mannequin, and writes
 ## <out>/<clip>/<frame>.png at --fps plus <out>/<clip>-strip.png, eight frames side by side.
 ## The mannequin walks over a striped floor that moves with it, so a planted foot that slides
 ## shows against the stripes. Not a test: it never fails, it only draws.
@@ -36,6 +37,8 @@ var out_dir := ""
 var view := "side"
 var fps := 30
 var only: Array = []
+var appearance_seed := 7
+var mannequin := false
 
 var rig: Node3D
 var skel: Skeleton3D
@@ -52,6 +55,10 @@ func _initialize() -> void:
 			view = a.substr(7)
 		elif a.begins_with("--fps="):
 			fps = int(a.substr(6))
+		elif a.begins_with("--seed="):
+			appearance_seed = int(a.substr(7))
+		elif a == "--mannequin":
+			mannequin = true
 		elif a.begins_with("--clips="):
 			only = Array(a.substr(8).split(","))
 	if out_dir == "":
@@ -94,7 +101,7 @@ func _scene() -> void:
 		floor_node.add_child(stripe)
 	rig = Node3D.new()
 	root.add_child(rig)
-	skel = AvatarSkeleton.rigged(AvatarSkeleton.mannequin_groups())
+	skel = AvatarSkeleton.rigged(AvatarSkeleton.mannequin_groups()) if mannequin else AvatarBuilder.skinned(appearance_seed)
 	rig.add_child(skel)
 	cam = Camera3D.new()
 	cam.fov = 40.0
