@@ -1,7 +1,7 @@
 class_name Footsteps
 extends RefCounted
-## Footstep sounds in time with every avatar's walk cycle. `WalkAnim.stepped` says on which
-## frame a foot comes down; this plays a soft turf step right then. Your own steps are heard
+## Footstep sounds in time with every avatar's walk cycle. The animator's `stepped`
+## (AvatarAnimator, the same interface WalkAnim had) says on which frame a foot comes down; this plays a soft turf step right then. Your own steps are heard
 ## flat (they are always under you); other players' steps come from where they walk and fade
 ## out with distance, so a player passing close by is heard before they reach the screen edge.
 ##
@@ -56,7 +56,7 @@ static func hears(id: int, my_id: int, distance: float) -> bool:
 
 ## What a footfall would play right now: {} when nothing (no foot down, or too far), else
 ## {own: bool, variant: int, pitch: float, db: float}. Pure apart from the pitch dice.
-func pick(id: int, node: Node3D, anim: WalkAnim, my_id: int, my_pos: Vector3) -> Dictionary:
+func pick(id: int, node: Node3D, anim, my_id: int, my_pos: Vector3) -> Dictionary:
 	if not anim.stepped or node == null:
 		return {}
 	if not hears(id, my_id, node.position.distance_to(my_pos)):
@@ -71,7 +71,7 @@ func pick(id: int, node: Node3D, anim: WalkAnim, my_id: int, my_pos: Vector3) ->
 
 
 ## Call after `anim.step()`. Plays a step if a foot just came down. Returns true if it did.
-func step(id: int, node: Node3D, anim: WalkAnim, my_id: int, my_pos: Vector3) -> bool:
+func step(id: int, node: Node3D, anim, my_id: int, my_pos: Vector3) -> bool:
 	var k := pick(id, node, anim, my_id, my_pos)
 	if k.is_empty() or not node.is_inside_tree():
 		return false

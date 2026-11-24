@@ -33,11 +33,11 @@ const BONES := [
 	["Neck", "Chest", Vector3(0, 0.2, 0)],
 	["Head", "Neck", Vector3(0, 0.08, 0)],
 	["LeftUpperArm", "Chest", Vector3(0.235, 0.15, 0)],
-	["LeftLowerArm", "LeftUpperArm", Vector3(0, -0.31, 0)],
-	["LeftHand", "LeftLowerArm", Vector3(0, -0.27, 0)],
+	["LeftLowerArm", "LeftUpperArm", Vector3(0.0279, -0.3087, 0)], # the arm hangs ARM_SPLAY out from the body
+	["LeftHand", "LeftLowerArm", Vector3(0.0243, -0.2689, 0)],
 	["RightUpperArm", "Chest", Vector3(-0.235, 0.15, 0)],
-	["RightLowerArm", "RightUpperArm", Vector3(0, -0.31, 0)],
-	["RightHand", "RightLowerArm", Vector3(0, -0.27, 0)],
+	["RightLowerArm", "RightUpperArm", Vector3(-0.0279, -0.3087, 0)],
+	["RightHand", "RightLowerArm", Vector3(-0.0243, -0.2689, 0)],
 	["LeftUpperLeg", "Hips", Vector3(0.095, -0.05, 0)],
 	["LeftLowerLeg", "LeftUpperLeg", Vector3(0, -0.46, 0)],
 	["LeftFoot", "LeftLowerLeg", Vector3(0, -0.4, 0)],
@@ -53,6 +53,16 @@ const ANKLE_HEIGHT := 0.06 ## the ankle joint above the sole
 const UPPER_ARM := 0.31
 const FOREARM := 0.27
 const HIP_HALF_WIDTH := 0.095
+const ARM_SPLAY := 0.09 ## radians the arms hang out from the body at rest (AvatarBuilder.ARM_SPLAY)
+
+## Skinning the traveller's parts (AvatarBuilder.parts): every vertex is weighted along its
+## chain by where it sits at rest, blending across a joint over 2 * BLEND m so an elbow or a
+## knee bends as one smooth sleeve, not two boxes. Torso heights are in the avatar's space,
+## limb distances run down the limb from its pivot.
+const BLEND := 0.035
+const TORSO_CHAIN := [["Hips", 1.07], ["Spine", 1.27], ["Chest", 1.48], ["Neck", 1.56], ["Head", INF]]
+const HEAD_FROM := 1.57 ## a part centred above this (head, face, hood, hair, cap) rides the head whole
+const BACK_FROM := -0.15 ## a part centred further back than this (pack, bedroll) rides the chest whole
 
 ## Bones whose motion an upper-body action (a swing, a chop) owns; the legs keep walking.
 const UPPER := ["Spine", "Chest", "Neck", "Head", "LeftUpperArm", "LeftLowerArm", "LeftHand",
@@ -150,6 +160,92 @@ static func skinned_mesh(groups: Dictionary, ao: float = 0.14) -> ArrayMesh:
 			else:
 				for i in (pi as PackedInt32Array):
 					indices.append(base + i)
+	return _commit(verts, normals, colors, bone_ids, weights, indices)
+
+
+## The bones and weights for one vertex of a traveller part: [[bone, weight], ...] (one or
+## two entries summing to 1). `limb` is the part's AvatarBuilder limb ("" for the body,
+## "ArmL", "LegR", ...), `local` the vertex in that limb's pivot space, `world` in the
+## avatar's. Pure.
+static func vertex_bones(limb: String, local: Vector3, world: Vector3) -> Array:
+	if limb == "":
+		return _chain_weights(TORSO_CHAIN, world.y)
+	var s := "Left" if limb.ends_with("L") else "Right"
+	var down := -local.y # metres down the limb from its pivot
+	if limb.begins_with("Arm"):
+		return _chain_weights([[s + "UpperArm", UPPER_ARM], [s + "LowerArm", UPPER_ARM + FOREARM], [s + "Hand", INF]], -down, true)
+	return _chain_weights([[s + "UpperLeg", THIGH], [s + "LowerLeg", THIGH + SHIN], [s + "Foot", INF]], -down, true)
+
+
+## Weights along a chain of [bone, ends_at] by `v`: going UP the chain (torso, by height) or,
+## with `descending`, down it (limbs, where v is minus the distance from the pivot).
+static func _chain_weights(chain: Array, v: float, descending: bool = false) -> Array:
+	var x := -v if descending else v
+	for i in chain.size():
+		var end: float = chain[i][1]
+		if x < end - BLEND or i == chain.size() - 1:
+			return [[chain[i][0], 1.0]]
+		if x < end + BLEND:
+			var k := smoothstep(end - BLEND, end + BLEND, x)
+			return [[chain[i][0], 1.0 - k], [chain[i + 1][0], k]]
+	return [[chain[chain.size() - 1][0], 1.0]]
+
+
+## One skinned mesh for the traveller from AvatarBuilder.parts(): each part placed where
+## AvatarBuilder puts it (its limb's pivot + pos, rotated and scaled), every vertex painted
+## and weighted by `vertex_bones`, except that head gear and the pack ride one bone whole.
+static func skin_parts(parts: Array, pivots: Dictionary, ao: float = 0.14) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colors := PackedColorArray()
+	var bone_ids := PackedInt32Array()
+	var weights := PackedFloat32Array()
+	var indices := PackedInt32Array()
+	for p in parts:
+		var limb: String = p.limb
+		var pivot: Vector3 = Vector3.ZERO if limb == "" else pivots[limb]
+		var basis := Basis.from_euler(p.get("rot", Vector3.ZERO)) * Basis.from_scale(p.get("scl", Vector3.ONE))
+		var local_xf := Transform3D(basis, p.pos)
+		var painted := Emberlight.paint(p.mesh, p.color, ao)
+		var a := painted.surface_get_arrays(0)
+		var pv: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var pn: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+		var pc: PackedColorArray = a[Mesh.ARRAY_COLOR]
+		var nb := basis.inverse().transposed()
+		var whole := ""
+		if limb == "":
+			var centre: Vector3 = local_xf * painted.get_aabb().get_center()
+			if centre.y > HEAD_FROM:
+				whole = "Head"
+			elif centre.z < BACK_FROM:
+				whole = "Chest"
+		var base := verts.size()
+		for i in pv.size():
+			var local := local_xf * pv[i]
+			var world := pivot + local
+			verts.append(world)
+			normals.append((nb * pn[i]).normalized())
+			colors.append(pc[i])
+			var bw: Array = [[whole, 1.0]] if whole != "" else vertex_bones(limb, local, world)
+			for j in 4:
+				if j < bw.size():
+					bone_ids.append(index_of(bw[j][0]))
+					weights.append(float(bw[j][1]))
+				else:
+					bone_ids.append(0)
+					weights.append(0.0)
+		var pi = a[Mesh.ARRAY_INDEX]
+		if pi == null or (pi as PackedInt32Array).is_empty():
+			for i in pv.size():
+				indices.append(base + i)
+		else:
+			for i in (pi as PackedInt32Array):
+				indices.append(base + i)
+	return _commit(verts, normals, colors, bone_ids, weights, indices)
+
+
+static func _commit(verts: PackedVector3Array, normals: PackedVector3Array, colors: PackedColorArray,
+		bone_ids: PackedInt32Array, weights: PackedFloat32Array, indices: PackedInt32Array) -> ArrayMesh:
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
@@ -163,18 +259,24 @@ static func skinned_mesh(groups: Dictionary, ao: float = 0.14) -> ArrayMesh:
 	return out
 
 
-## A Skeleton3D with one skinned MeshInstance3D ("Mesh") under it, on the shared Emberlight
-## "solid" material. The client hands the skeleton to AvatarAnimator.apply every frame.
-static func rigged(groups: Dictionary) -> Skeleton3D:
+## A Skeleton3D with `mesh` (skinned to it) as its one MeshInstance3D child "Mesh", on the
+## shared Emberlight "solid" material.
+static func rig_mesh(mesh: ArrayMesh) -> Skeleton3D:
 	var sk := build()
 	var mi := MeshInstance3D.new()
 	mi.name = "Mesh"
-	mi.mesh = skinned_mesh(groups)
+	mi.mesh = mesh
 	mi.skin = skin()
 	mi.material_override = Emberlight.material("solid")
 	sk.add_child(mi)
 	mi.skeleton = NodePath("..")
 	return sk
+
+
+## A Skeleton3D with one skinned MeshInstance3D ("Mesh") under it, on the shared Emberlight
+## "solid" material. The client hands the skeleton to AvatarAnimator.apply every frame.
+static func rigged(groups: Dictionary) -> Skeleton3D:
+	return rig_mesh(skinned_mesh(groups))
 
 
 ## A plain mannequin for previews and tests until the traveller's real segments (PR 171) are

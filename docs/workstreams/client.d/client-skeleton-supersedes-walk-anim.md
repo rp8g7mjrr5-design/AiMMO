@@ -1,0 +1,3 @@
+Follow-ups:
+- [ ] Drop the #190 follow-up "bend the knee and elbow in `WalkAnim` once world adds knee and elbow pivots". `WalkAnim` is retired by #187: every avatar is posed by `AvatarAnimator` on `AvatarSkeleton`, which already bends knees and elbows (two-bone leg IK with planted feet). Walk and run tuning now lives in `AvatarClips.gait()` (stride, cadence, arm swing and lean constants at the top of `avatar_clips.gd`).
+- [ ] Carry #190's adult-stride intent into `AvatarClips`: a narrow stride (feet under the hips, no waddle) and modest arm swing. `gait()` already keeps the feet on the hip lines, with hip roll 0.035 at a walk and none at a run.

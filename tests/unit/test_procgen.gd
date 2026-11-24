@@ -22,7 +22,8 @@ func test_avatar_builds() -> void:
 	if DisplayServer.get_name() == "headless":
 		return # primitive meshes need a real renderer; covered by the client smoke run
 	var n := AvatarBuilder.build("Fern", 42, false)
-	check(n.get_child_count() >= 4, "has parts")
+	check(n.get_node_or_null("Skeleton") is Skeleton3D, "has its skeleton")
+	check(n.get_node_or_null("Skeleton/Mesh") is MeshInstance3D, "and its one skinned mesh")
 	n.free()
 
 
