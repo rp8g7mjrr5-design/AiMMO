@@ -65,6 +65,8 @@ const STARTER_KINDS := ["ash", "pine", "stone", "ash", "pine", "stone", "ember_s
 
 static var _nodes: Array = []
 static var _grid: Dictionary = {}
+## The WorldGen config the cached list was built for: a new config rebuilds it.
+static var _built_for: Dictionary = {}
 
 
 ## Every node, as an Array of {id: int, kind: String, pos: Vector3, rot: float, scale: float,
@@ -72,10 +74,19 @@ static var _grid: Dictionary = {}
 ## min_level: int (the level in that skill needed to gather it, 1 for anyone)}.
 ## Built once and cached; treat it as read-only.
 static func all() -> Array:
-	if _nodes.is_empty():
+	if _nodes.is_empty() or _built_for != WorldGen.config():
+		_built_for = WorldGen.config()
 		_nodes = generate()
 		_grid = _index(_nodes)
 	return _nodes
+
+
+## Drops the cached list (the next all() builds it for the current WorldGen config). all()
+## also notices a changed config on its own; this is for tests that want a clean start.
+static func reset() -> void:
+	_nodes = []
+	_grid = {}
+	_built_for = {}
 
 
 static func count() -> int:
@@ -157,8 +168,13 @@ static func in_range(id: int, player_pos: Vector3) -> bool:
 	return _flat_dist2(n.pos, player_pos) <= GATHER_RANGE * GATHER_RANGE
 
 
-## Builds the list from scratch. Use all() instead; this is public for tests.
+## Builds the list from scratch for the world WorldGen is configured for. Use all() instead;
+## this is public for tests. Ashgrove (gen_version 0) keeps its own three passes and ids
+## exactly as before; a generated kingdom takes WorldGen's node spots in their order (index =
+## id) and then its own tier-2 ring around the kingdom's spawn.
 static func generate() -> Array:
+	if WorldGen.is_kingdom():
+		return _generate_kingdom()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = GameConfig.WORLD_SEED + PLACEMENT_SEED_OFFSET
 	var out: Array = []
@@ -194,7 +210,7 @@ static func _place_wild(rng: RandomNumberGenerator, out: Array, grid: Dictionary
 	for k in KIND_ORDER:
 		placed[k] = 0
 		want += TARGETS[k]
-	var h := GameConfig.WORLD_HALF_SIZE - EDGE_MARGIN
+	var h := WorldGen.half_size() - EDGE_MARGIN
 	var tries := 0
 	var done := 0
 	while done < want and tries < want * 40:
@@ -238,6 +254,59 @@ static func _place_tier2(rng: RandomNumberGenerator, out: Array, grid: Dictionar
 			break
 
 
+## A generated kingdom (gen_version 1, Phase 1 part 3): every spot WorldGen hands out, in its
+## order (starter ring on the spawn plot first, then the wild), then the tier-2 ring around
+## the kingdom's spawn, so "Felling 5 opens the old ashes" is a short walk on every world.
+## Ids are permanent per config once a world runs on it: never reorder; append new passes.
+static func _generate_kingdom() -> Array:
+	var out: Array = []
+	var grid := {}
+	for spot in WorldGen.node_spots():
+		var p: Vector3 = spot.pos
+		_append(out, grid, str(spot.kind), p, float(spot.rot), float(spot.scale), 1)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(WorldGen.config().seed) + TIER2_SEED_OFFSET
+	var sp := WorldGen.spawn_point()
+	var n := TIER2_RING.size()
+	for i in n:
+		var kind: String = TIER2_RING[i]
+		for attempt in 80:
+			var ang := TAU * (float(i) + 0.5) / n + rng.randf_range(-0.3, 0.3)
+			var dist := lerpf(TIER2_MIN_RADIUS, TIER2_MAX_RADIUS * 1.5, minf(1.0, attempt / 60.0)) + rng.randf_range(0.0, 6.0)
+			var x := sp.x + cos(ang) * dist
+			var z := sp.z + sin(ang) * dist
+			if not _kingdom_ground_ok(x, z, kind):
+				continue
+			if _too_close(grid, out, x, z, TIER2_SPACING):
+				continue
+			var rot := rng.randf() * TAU
+			var scale := rng.randf_range(0.95, 1.05)
+			_append(out, grid, kind, Vector3(x, Terrain.height(x, z), z), rot, scale, 2)
+			break
+	return out
+
+
+## Dry land below the snow, off the king's roads and the river, not inside a ruin, inside
+## the border: where a tier-2 node may stand on a kingdom.
+static func _kingdom_ground_ok(x: float, z: float, kind: String) -> bool:
+	var lim := WorldGen.half_size() - EDGE_MARGIN
+	if absf(x) > lim or absf(z) > lim:
+		return false
+	var y := Terrain.height(x, z)
+	if y < Terrain.water_level() + 1.0 or y > WorldGen.SNOW_LINE:
+		return false
+	if kind == "ash" and _slope(x, z, y) > 0.8:
+		return false
+	if WorldGen.road_distance(x, z) < WorldGen.ROAD_HALF_WIDTH + 2.5:
+		return false
+	if WorldGen.river_distance(x, z) < WorldGen.RIVER_HALF_WIDTH + 4.0:
+		return false
+	for s in WorldGen.ruin_sites():
+		if Vector2(x - s.pos.x, z - s.pos.z).length() < float(s.radius) + 6.0:
+			return false
+	return true
+
+
 static func _kind_for(y: float, slope: float, roll: float) -> String:
 	if slope > 1.0 or y > 12.0:
 		return "stone"
@@ -268,6 +337,20 @@ static func _add(out: Array, grid: Dictionary, kind: String, x: float, z: float,
 		"min_level": int(TIER2.get(kind, {}).get("min_level", 1)) if tier >= 2 else 1,
 	})
 	var c := _cell(x, z)
+	if not grid.has(c):
+		grid[c] = []
+	grid[c].append(id)
+
+
+## Adds a node with a known place, turn and size (the kingdom path; _add rolls its own).
+static func _append(out: Array, grid: Dictionary, kind: String, pos: Vector3, rot: float, scale: float, tier: int) -> void:
+	var id := out.size()
+	out.append({
+		"id": id, "kind": kind, "pos": pos, "rot": rot, "scale": scale, "tier": tier,
+		"skill": Skills.skill_for_kind(kind),
+		"min_level": int(TIER2.get(kind, {}).get("min_level", 1)) if tier >= 2 else 1,
+	})
+	var c := _cell(pos.x, pos.z)
 	if not grid.has(c):
 		grid[c] = []
 	grid[c].append(id)
@@ -333,4 +416,4 @@ static func describe() -> String:
 	var bits := PackedStringArray()
 	for k in KIND_ORDER:
 		bits.append("%s %d" % [k, by_kind.get(k, 0)])
-	return "%d nodes (%s)" % [count(), ", ".join(bits)]
+	return "%d nodes (%s, %d tier 2)" % [count(), ", ".join(bits), tier2().size()]

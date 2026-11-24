@@ -54,7 +54,7 @@ func on_play(_delta: float) -> void:
 ## Runs when the bot harness actually sends /craft axe, so the position judged is the one the
 ## server sees (the line may wait a moment behind other behaviours' commands).
 func _judge_position() -> void:
-	var d := Vector2(bot.my_pos.x, bot.my_pos.z).distance_to(Crafting.WORKBENCH_XZ)
+	var d := Vector2(bot.my_pos.x, bot.my_pos.z).distance_to(Crafting.workbench_xz())
 	_expect = "pack" if d < Crafting.BENCH_RANGE - EDGE else ("bench" if d > Crafting.BENCH_RANGE + EDGE else "")
 
 

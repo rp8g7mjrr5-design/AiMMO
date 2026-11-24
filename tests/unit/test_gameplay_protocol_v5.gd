@@ -120,7 +120,7 @@ func test_unstuck_takes_you_home_then_cools_down() -> void:
 	var p := CharacterData.position(srv.sessions[1].character)
 	var flat := Vector2(p.x, p.z)
 	check(flat.length() <= 3.01, "within 3 m of spawn, got %s" % p)
-	check(flat.distance_to(Crafting.WORKBENCH_XZ) > 3.0, "not on the workbench, got %s" % p)
+	check(flat.distance_to(Crafting.workbench_xz()) > 3.0, "not on the workbench, got %s" % p)
 	check_near(p.y, Terrain.height(p.x, p.z), 0.001, "standing on the ground")
 	check_eq(_sent(srv, 1, "s2c_unstuck_result"), [[true, "Back in Spawn Meadow.", GameConfig.UNSTUCK_COOLDOWN]])
 	# Walk away and ask again too soon.
@@ -171,7 +171,7 @@ func test_unstuck_spots_spread_and_stay_off_the_bench() -> void:
 	var seen := {}
 	for id in range(1, 40):
 		var p: Vector3 = ServerScript.unstuck_spot(id)
-		check(Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ) > 3.0, "spot %s clear of the bench" % p)
+		check(Vector2(p.x, p.z).distance_to(Crafting.workbench_xz()) > 3.0, "spot %s clear of the bench" % p)
 		seen[Vector2i(roundi(p.x * 10), roundi(p.z * 10))] = true
 	check(seen.size() >= 5, "a crowd lands on several spots, got %d" % seen.size())
 

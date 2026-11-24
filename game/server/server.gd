@@ -55,6 +55,7 @@ var max_players := 0
 
 func start(p_net: Node, args: Dictionary) -> void:
 	net = p_net
+	use_world(WorldGen.parse(CliArgs.setting(args, "world", "AIMMO_WORLD", "")))
 	transport = CliArgs.setting(args, "transport", "AIMMO_TRANSPORT", "enet")
 	port = CliArgs.setting(args, "port", "AIMMO_PORT", OS.get_environment("PORT") if OS.get_environment("PORT") != "" else str(GameConfig.DEFAULT_PORT)).to_int()
 	_stop_file = CliArgs.setting(args, "stop-file", "AIMMO_STOP_FILE", "")
@@ -99,8 +100,51 @@ func start(p_net: Node, args: Dictionary) -> void:
 	get_tree().set_auto_accept_quit(false)
 	print("[server] listening on port %d via %s, protocol v%d" % [port, transport, GameConfig.PROTOCOL_VERSION])
 	print("[server] world clock: ", WorldClock.describe(world_seconds()))
+	print("[server] world: ", describe_world())
 	print("[server] resource nodes: ", ResourceNodes.describe())
 	print("[server] wildlife: ", Wildlife.describe())
+
+
+## Runs this server on the world `cfg` names ({seed, size_m, gen_version}, as WorldGen.parse
+## and WorldGen.config give it; from --world=seed:gen:size or AIMMO_WORLD). Unset or junk is
+## Ashgrove (gen_version 0), today's world, exactly as before. A generated kingdom (gen 1) puts
+## nodes, the tier-2 ring, herds, the bench and spawn where its seed says (Phase 1 part 3).
+## Call before any player logs in: node ids and positions follow the world.
+func use_world(cfg: Dictionary) -> void:
+	WorldGen.apply(cfg)
+	ResourceNodes.reset()
+	gathering = Gathering.new_state()
+	wildlife = Wildlife.new_state()
+
+
+## A character saved somewhere this world has no dry land for (out past its border, in a
+## river, a lake or the sea) comes to at this world's spawn instead. Only position changes:
+## pack, skills and everything else are untouched. On Ashgrove nobody is ever moved, so the
+## live world behaves exactly as before; on a kingdom it keeps a character from another world
+## (or an old save) from logging in under water. Returns true if it moved them.
+static func place_on_this_world(ch: Dictionary) -> bool:
+	if not WorldGen.is_kingdom():
+		return false
+	var x := float(ch.get("x", 0.0))
+	var z := float(ch.get("z", 0.0))
+	var lim := WorldGen.half_size() - 2.0
+	if absf(x) <= lim and absf(z) <= lim and Terrain.height(x, z) >= Terrain.water_level() + 0.3:
+		return false
+	var sp := WorldGen.spawn_point()
+	ch.x = sp.x
+	ch.y = sp.y
+	ch.z = sp.z
+	return true
+
+
+## One line for the log: which world this is, where its spawn is and what ruins it has.
+static func describe_world() -> String:
+	var c := WorldGen.config()
+	if not WorldGen.is_kingdom():
+		return "Ashgrove (gen 0, 512 m)"
+	var sp := WorldGen.spawn_point()
+	return "kingdom seed %d, %d m (gen %d), spawn (%.0f, %.0f), %s" % [int(c.seed), int(c.size_m),
+		int(c.gen_version), sp.x, sp.z, Ruins.describe()]
 
 
 func _notification(what: int) -> void:
@@ -280,6 +324,7 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 	if not sessions.has(id):
 		return # disconnected while we were talking to the database
 	s.logged_in = true
+	place_on_this_world(ch)
 	s.character = ch
 	s.yaw = ch.yaw
 	s.vitals = Vitals.full() # not saved: every login starts at full health
@@ -936,7 +981,7 @@ func unstuck_request(id: int) -> Dictionary:
 		r = {"ok": false, "text": "You can't return to Spawn Meadow mid-fight. Try again in %d s." % ceili(fight), "wait": fight}
 	elif wait > 0.0:
 		r = {"ok": false, "text": "You can return to Spawn Meadow again in %d s." % ceili(wait), "wait": wait}
-	elif Vector2(pos.x - GameConfig.SPAWN_POINT.x, pos.z - GameConfig.SPAWN_POINT.z).length() < GameConfig.UNSTUCK_NEAR:
+	elif Vector2(pos.x - WorldGen.spawn_point().x, pos.z - WorldGen.spawn_point().z).length() < GameConfig.UNSTUCK_NEAR:
 		r = {"ok": false, "text": "You're already in Spawn Meadow.", "wait": 0.0}
 	else:
 		if GatherChannel.is_active(s.channel):
@@ -1182,7 +1227,7 @@ func vitals_command(id: int, line: String) -> String:
 ## the workbench (3, -2), spread by peer id so a crowd doesn't land in one spot.
 static func unstuck_spot(id: int) -> Vector3:
 	var a := PI / 6.0 + float(absi(id) % 5) * (PI * 2.0 / 3.0) / 4.0 # PI/6 .. 5PI/6
-	return Terrain.clamp_to_world(GameConfig.SPAWN_POINT + Vector3(cos(a), 0.0, sin(a)) * 3.0)
+	return Terrain.clamp_to_world(WorldGen.spawn_point() + Vector3(cos(a), 0.0, sin(a)) * 3.0)
 
 
 ## Server-authoritative inventory changes. Every system that hands out or uses up items

@@ -48,12 +48,20 @@ const WORDS := {
 }
 
 
+## The bench stands WORKBENCH_XZ from the world's spawn point (Ashgrove's is the origin, so
+## there it is exactly where it always was; on a generated kingdom it follows the spawn plot).
+static func workbench_xz() -> Vector2:
+	var sp := WorldGen.spawn_point()
+	return Vector2(sp.x, sp.z) + WORKBENCH_XZ
+
+
 static func workbench_pos() -> Vector3:
-	return Vector3(WORKBENCH_XZ.x, Terrain.height(WORKBENCH_XZ.x, WORKBENCH_XZ.y), WORKBENCH_XZ.y)
+	var xz := workbench_xz()
+	return Vector3(xz.x, Terrain.height(xz.x, xz.y), xz.y)
 
 
 static func near_bench(pos: Vector3) -> bool:
-	return Vector2(pos.x, pos.z).distance_to(WORKBENCH_XZ) <= BENCH_RANGE
+	return Vector2(pos.x, pos.z).distance_to(workbench_xz()) <= BENCH_RANGE
 
 
 static func is_recipe(id: String) -> bool:
