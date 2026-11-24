@@ -1,0 +1,1 @@
+- The live world now really holds 8 travellers at most: a ninth is told "The world is full (8 / 8). Try again soon." and can walk in the moment a friend logs off. Every update proves it with nine test players before it ships.

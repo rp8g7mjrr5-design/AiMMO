@@ -31,6 +31,13 @@ type /gather, /bag and /who: chat is for talking, so each line must get the hint
 nothing. The main bot-test server runs with `--dev-commands`, so other behaviours may type
 commands.
 
+`qa_player_cap.gd` only acts on bots started with `--player-cap=N` (owner direction 8, a world
+for 2 to 8 friends). After a long run the harness boots a third server with `--max-players=8`
+(the Railway image's `MAX_PLAYERS`), fills it with eight `--single-login` bots and sends a ninth
+with `--retry-when-full`: it must read exactly "The world is full (8 / 8). Try again soon.",
+keep knocking, and get in only after one of the eight leaves; no bot may ever see more than 8
+players, and nobody inside is dropped. See `run_bot_test.run_player_cap`.
+
 `qa_level_gate.gd` only acts on bots started with `--level-gate=fresh|veteran` (Milestone 1,
 "tier-2 nodes refuse a too-low level"). Before a long run's server starts, `../seed_veteran.gd`
 saves a character at exactly the level the tier-2 node nearest spawn needs; next to the pair

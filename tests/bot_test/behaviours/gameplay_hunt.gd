@@ -41,6 +41,12 @@ var _target := -1
 var _pack: Dictionary = {}
 var _pack_before: Dictionary = {}
 var _down_at := -1.0
+## The haymaker landed on _target this hunt. A missed haymaker re-lures and swings it again,
+## so the jab that follows only ever goes at a wounded grazer (qa, 2026-11-24: a miss used to
+## go straight to the jab, which can't down a grazer at full health, and failed the run).
+var _wounded := false
+var _misses := 0 ## haymakers that missed this hunt; MAX_MISSES of them fail it
+const MAX_MISSES := 3
 var _toasts: Dictionary = {} ## hunt drop -> count from s2c_gather_result during this hunt
 var hunts := 0
 var downs := 0
@@ -108,6 +114,8 @@ func on_play(_delta: float) -> void:
 				bot.set_meta("wildlife_stalking", true)
 				bot.move = Vector2.ZERO
 				_pack_before = _pack.duplicate()
+				_wounded = false
+				_misses = 0
 				_toasts.clear()
 				hunts += 1
 				_send_lure()
@@ -175,10 +183,14 @@ func _on_system(text: String) -> void:
 		_target = id
 		_step = Step.HEAVY
 	else:
-		if id != _target:
-			fail("the second /lure brought grazer %d, not the wounded %d" % [id, _target])
-			_target = id
-		_step = Step.LIGHT
+		if not _wounded:
+			_target = id # after a missed haymaker: any grazer will do, it is unhurt anyway
+			_step = Step.HEAVY
+		else:
+			if id != _target:
+				fail("the second /lure brought grazer %d, not the wounded %d" % [id, _target])
+				_target = id
+			_step = Step.LIGHT
 	_tries = 0
 	_sent_at = -1.0
 	_next_at = bot.elapsed + 0.3 # let our facing settle on the server
@@ -189,11 +201,17 @@ func _on_landed(peer: int, kind: String, ids: Array) -> void:
 		return
 	if _step == Step.HEAVY and kind == "heavy":
 		if not ids.has(_target):
+			_misses += 1
+			if _misses >= MAX_MISSES:
+				fail("the haymaker missed %d times in one hunt (last hit %s)" % [_misses, ids])
+				_release(Step.DONE)
+				return
 			_retry_or_fail("the haymaker missed the lured grazer %d (hit %s)" % [_target, ids])
 			if _step == Step.HEAVY:
-				_step = Step.LURE2 # lure it back in front of us and go on with the jab
+				_step = Step.LURE2 # lure one back in front of us and swing the haymaker again
 				_tries = 0
 			return
+		_wounded = true
 		if Inventory.count(_pack, "hide") != Inventory.count(_pack_before, "hide"):
 			fail("one haymaker already gave hide: a grazer has %.0f hp" % Wildlife.max_hp("grazer"))
 		if not _toasts.is_empty():
