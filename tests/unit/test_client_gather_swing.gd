@@ -112,3 +112,25 @@ func test_apply_moves_arms_and_body() -> void:
 	check(absf(body.rotation.y) < 0.01, "body unturned")
 	check(absf(arm_l.rotation.x) < 0.01, "arms back at the sides")
 	rig.free()
+
+
+## Where a hand ends up for an arm angle and body lean (rotation.x, pivots from AvatarBuilder).
+## Returns Vector2(forward, height) in metres from the feet.
+func _hand(arm: float, lean: float) -> Vector2:
+	var shoulder: Vector3 = AvatarBuilder.LIMB_PIVOTS.ArmL
+	var y := shoulder.y - AvatarBuilder.ARM_LENGTH * cos(arm)
+	var z := -AvatarBuilder.ARM_LENGTH * sin(arm)
+	return Vector2(y * sin(lean) + z * cos(lean), y * cos(lean) - z * sin(lean))
+
+
+func test_strokes_land_with_adult_arms() -> void:
+	# Character overhaul (art bible section 3): longer arms from higher shoulders. Every stroke
+	# must still bite at working height in front of the body, and chop/mine wind up overhead.
+	for style_name in GatherSwing.STYLES:
+		var s: Dictionary = GatherSwing.STYLES[style_name]
+		var bottom := _hand(float(s.bottom), float(s.lean))
+		check(bottom.y >= 0.6 and bottom.y <= 1.1, "%s bites at working height, got %f m" % [style_name, bottom.y])
+		check(bottom.x >= 0.4 and bottom.x <= 0.8, "%s bites in front of the body, got %f m" % [style_name, bottom.x])
+		if style_name != "collect":
+			var top := _hand(float(s.top), 0.0)
+			check(top.y > AvatarBuilder.HEIGHT, "%s winds up over the head, got %f m" % [style_name, top.y])

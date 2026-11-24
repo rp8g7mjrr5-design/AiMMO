@@ -105,3 +105,33 @@ func test_apply_and_wrap() -> void:
 	check_near(body.rotation.z, p.roll, 0.0001, "roll applied")
 	check_near(arm.rotation.x, p.arm, 0.0001, "arm swings when present")
 	root.free()
+
+
+func test_adult_stride_on_lean_limbs() -> void:
+	# Art bible section 3: lean 1.78 m adults with 0.92 m legs and 0.63 m arms. The old angles
+	# were a goose-step (feet 0.44 m out each way) and a waddle (head 0.11 m side to side).
+	var foot_reach := AvatarBuilder.LEG_LENGTH * sin(WalkAnim.LEG_SWING)
+	check(foot_reach <= 0.33, "each foot reaches at most 0.33 m fore and aft, got %f" % foot_reach)
+	check(foot_reach >= 0.22, "but the legs still stride, got %f" % foot_reach)
+	var head_sway := AvatarBuilder.HEIGHT * sin(WalkAnim.SWAY_ROLL)
+	check(head_sway <= 0.04, "the head sways at most 4 cm, got %f" % head_sway)
+	var hand_reach := AvatarBuilder.ARM_LENGTH * sin(WalkAnim.ARM_SWING)
+	check(hand_reach <= 0.26, "hands swing close to the body, got %f" % hand_reach)
+	check(WalkAnim.ARM_SWING > WalkAnim.LEG_SWING, "arms swing a little wider than legs, as people do")
+	check(WalkAnim.BOB_HEIGHT >= 0.075 and WalkAnim.BOB_HEIGHT <= 0.1, "a little more bob carries the weight")
+
+
+func test_walk_pose_never_exceeds_adult_limits() -> void:
+	var anim := WalkAnim.new()
+	var dt := 1.0 / 60.0
+	var pos := Vector3.ZERO
+	var max_leg := 0.0
+	var max_roll := 0.0
+	for i in 240:
+		pos.z += GameConfig.WALK_SPEED * 1.4 * dt # faster than walk speed: amount clamps at 1
+		anim.step(pos, dt)
+		var p := anim.pose()
+		max_leg = maxf(max_leg, absf(p.leg))
+		max_roll = maxf(max_roll, absf(p.roll))
+	check(max_leg <= WalkAnim.LEG_SWING + 0.0001, "leg swing capped, got %f" % max_leg)
+	check(max_roll <= WalkAnim.SWAY_ROLL + 0.0001, "roll capped, got %f" % max_roll)

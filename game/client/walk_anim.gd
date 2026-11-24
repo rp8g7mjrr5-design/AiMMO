@@ -12,12 +12,16 @@ extends RefCounted
 ## that holds the avatar's meshes (pivot at the feet, facing +Z). Arms or legs named ArmL,
 ## ArmR, LegL, LegR under that child also swing, if the avatar has them.
 
+## Tuned for the lean 1.78 m adult (art bible section 3, "Characters"): long straight legs
+## from hips at 0.92 m and 0.63 m arms. Angles that read right on the old stubby figure were a
+## goose-step and a waddle on these limbs, so the stride is narrower, the arms swing close to
+## the body, the side-to-side roll is nearly gone, and the weight goes into a little more bob.
 const STRIDE_CYCLES_PER_SEC := 1.55 ## full left+right cycles per second at WALK_SPEED
-const BOB_HEIGHT := 0.07            ## metres the body rises on each step
-const SWAY_ROLL := 0.06             ## radians of side-to-side waddle
+const BOB_HEIGHT := 0.08            ## metres the body rises on each step
+const SWAY_ROLL := 0.018            ## radians of side-to-side roll (was 0.06: a waddle)
 const LEAN := 0.09                  ## radians of forward lean at full speed
-const ARM_SWING := 0.65             ## radians each arm swings
-const LEG_SWING := 0.5              ## radians each leg swings
+const ARM_SWING := 0.4              ## radians each arm swings (was 0.65)
+const LEG_SWING := 0.34             ## radians each leg swings (was 0.5: a goose-step)
 const BREATH_HEIGHT := 0.012        ## metres of idle breathing
 const TELEPORT_DIST := 3.0          ## metres in one frame that count as a jump, not a walk
 const FOOTSTEP_MIN_GAIT := 0.3      ## below this much walking, a phase crossing is not a step
