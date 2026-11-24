@@ -46,6 +46,11 @@ const WILDLIFE_GOODBYES := 3
 ## Someone joined, left or levelled up since the last tick: send everyone the new roster
 ## (once per tick, so eight players logging in at once is eight rosters, not 36).
 var _roster_dirty := false
+## How many players may be logged in at once (owner direction 8: a world for 2 to 8 friends).
+## From --max-players or MAX_PLAYERS; 0 (unset) means no cap, so local runs and the bot test
+## (8 main bots plus the extra ones) are never turned away. A login past the cap is refused
+## with world_full_text() and never kicks anyone already in.
+var max_players := 0
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -56,6 +61,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 	clock_offset = CliArgs.setting(args, "clock-offset", "AIMMO_CLOCK_OFFSET", "0").to_float()
 	var dev: Array = ChatCommands.dev_commands_on(args)
 	dev_commands = dev[0]
+	max_players = parse_max_players(CliArgs.setting(args, "max-players", "MAX_PLAYERS", ""))
+	print("[server] player cap: %s" % (str(max_players) if max_players > 0 else "none"))
 	print("[server] dev commands: %s (%s)" % ["on" if dev_commands else "off", dev[1]])
 	var data_dir := CliArgs.setting(args, "data-dir", "AIMMO_DATA_DIR", OS.get_user_data_dir())
 
@@ -232,6 +239,10 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 	if protocol != GameConfig.PROTOCOL_VERSION:
 		_reject(id, "Your game is out of date. Download the latest client from the Releases page.")
 		return
+	if is_world_full():
+		_reject(id, world_full_text())
+		print("[server] turned a login away: the world is full (%d / %d)" % [players_online(), max_players])
+		return
 	var name_err := Validation.check_name(username)
 	if name_err != "":
 		_reject(id, name_err)
@@ -304,6 +315,33 @@ func _broadcast_world_time() -> void:
 	for id in sessions:
 		if sessions[id].logged_in:
 			_send(id, "s2c_world_time", [t])
+
+
+## The player cap from its setting: a whole number above 0, or 0 for no cap (unset, junk, 0
+## or negative all mean no cap, so a typo never locks everyone out).
+static func parse_max_players(raw: String) -> int:
+	var t := raw.strip_edges()
+	if not t.is_valid_int():
+		return 0
+	return maxi(t.to_int(), 0)
+
+
+## Players logged in right now (a peer still at the login screen doesn't count).
+func players_online() -> int:
+	var n := 0
+	for other in sessions:
+		if sessions[other].logged_in:
+			n += 1
+	return n
+
+
+func is_world_full() -> bool:
+	return max_players > 0 and players_online() >= max_players
+
+
+## What a player turned away by the cap reads on the login screen.
+func world_full_text() -> String:
+	return "The world is full (%d / %d). Try again soon." % [players_online(), max_players]
 
 
 func _reject(id: int, msg: String) -> void:

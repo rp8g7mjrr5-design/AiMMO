@@ -1,0 +1,1 @@
+- The world is a friends' world now: it holds up to 8 travellers at once. If it's full, the login screen tells you so ("The world is full (8 / 8). Try again soon.") instead of failing, and nobody already inside is ever bumped out.
