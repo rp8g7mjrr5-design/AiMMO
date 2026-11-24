@@ -377,7 +377,7 @@ reintroduces them.
 | Teal, green-lit nights | Neither moonlit nor dark | **Improved 2026-11-24**: navy and blue-grey, moon-blue fill. Next: check dark cloth reads on a real GPU (CI renders in software) |
 | Bold outlined yellow floaters and banners | Mobile-game shouting | **To do** (client): section 9 |
 | Thin black lamp posts with red boxes | Reads as a street lamp, not a wilderness lantern | **To do** (world): timber posts, iron and horn lanterns |
-| Uniform flat terrain facets at noon | No sense of ground cover | **Improved 2026-11-24**: the low-res grain breaks the ground into 40 cm texels. Still to do (world): colour patches (moss, dry grass, bare earth) in the ground palette |
+| Uniform flat terrain facets at noon | No sense of ground cover | **Fixed 2026-11-24**: the low-res grain breaks the ground into 40 cm texels, and seeded moss, dry grass and bare earth patches break up the meadow and forest floor (#189) |
 
 ## 12. Checklist for any PR that changes what is on screen
 1. Before and after screenshots at noon, golden hour and night (the client smoke shots plus
