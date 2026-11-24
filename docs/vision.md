@@ -180,10 +180,10 @@ earlier draft (bands, land claims held by resolve, raids with offline protection
 end in a fresh map). Nothing is designed or built for it until the owner asks.
 
 ## Still open (being asked)
-- **Magic: yes** (owner, 2026-11-24: "magicy"). How much is being asked: a light touch
-  (ember-craft: enchanted gear, wards on walls, a few rare spells from ruin tomes) or a real
-  school of magic you level like any skill. Either way it is ember-based, fits the grounded look
-  (restrained effects, art bible section 10), and helps you survive and hold your land.
+- **Magic:** whether the fallen kingdom has magic, and how much (none; ember craft only; or a
+  small, costly school of ember magic).
+- **The undead's name:** the owner wants it to sound magical ("magicy"); "the Dead" is a
+  placeholder until they pick.
 - **How the undead behave** beyond the basics above (how hordes form, whether they break walls,
   how fast they are at night, whether the dead you leave behind rise).
 Until answered, workers build only what this file already settles.
