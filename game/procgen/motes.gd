@@ -225,7 +225,7 @@ static func material() -> ShaderMaterial:
 		var sh := Shader.new()
 		var c := Palette.MOTE.srgb_to_linear()
 		var core := Palette.EMBER_CORE.srgb_to_linear()
-		sh.code = SHADER.replace("$MOTE", "vec3(%.4f, %.4f, %.4f)" % [c.r, c.g, c.b]) \
+		sh.code = Emberlight.compat_define() + SHADER.replace("$COMPAT_GLSL", Emberlight.COMPAT_GLSL).replace("$MOTE", "vec3(%.4f, %.4f, %.4f)" % [c.r, c.g, c.b]) \
 			.replace("$CORE", "vec3(%.4f, %.4f, %.4f)" % [core.r, core.g, core.b]) \
 			.replace("$FADE_NEAR", "%.1f" % FADE_NEAR).replace("$FADE_FAR", "%.1f" % FADE_FAR) \
 			.replace("$ENERGY", "%.2f" % ENERGY)
@@ -242,6 +242,7 @@ render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabl
 global uniform float ember_pulse;
 uniform float amount = 1.0; // 0 by day, 1 at night (DayNight)
 
+$COMPAT_GLSL
 varying float fade;
 
 void vertex() {
@@ -263,5 +264,8 @@ void fragment() {
 	float spot = smoothstep(1.0, 0.0, d);
 	ALBEDO = mix($MOTE, $CORE, spot * spot) * $ENERGY * (0.8 + 0.4 * ember_pulse);
 	ALPHA = spot * fade;
+#ifdef COMPAT_SRGB
+	ALBEDO = compat_encode(ALBEDO); // linear sparks, as on Forward+ (Emberlight.srgb_output())
+#endif
 }
 """
