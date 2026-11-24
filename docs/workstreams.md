@@ -18,8 +18,8 @@ files" below) in your PR, and work around it for now.
 
 | Stream | Owns | Focus |
 |---|---|---|
-| `world` | `game/procgen/` (except `sfx.gd`), `game/shared/terrain.gd` | Terrain, biomes, flora, creatures' looks, buildings, weather visuals, art direction |
-| `gameplay` | `game/server/`, `game/shared/` (except `terrain.gd`), `db/migrations/`, `tests/fixtures/` | Systems: gathering, inventory, crafting, combat, NPC/creature AI, quests, economy, protocol |
+| `world` | `game/procgen/` (except `sfx.gd`), `game/shared/terrain.gd`, `game/shared/world_map.gd` | Terrain, biomes, flora, creatures' looks, buildings, weather visuals, art direction |
+| `gameplay` | `game/server/`, `game/shared/` (except `terrain.gd` and `world_map.gd`), `db/migrations/`, `tests/fixtures/` | Systems: gathering, inventory, crafting, combat, NPC/creature AI, quests, economy, protocol |
 | `client` | `game/client/`, `game/main.gd`, `game/main.tscn`, `game/procgen/sfx.gd`, `game/project.godot`, `game/export_presets.cfg` | UI/HUD, camera, controls, prediction and smoothing, settings, audio, onboarding |
 | `qa` | `tests/` (except `tests/fixtures/`), `.github/`, `Dockerfile`, `docker/`, `railway.json`, `tools/`, `docs/playtest.md` | Bugs from playtest.md, crash fixes anywhere (see below), bot-test coverage, performance, CI, ops |
 
@@ -37,7 +37,7 @@ data-loss bug, or red `main`. It must say so in the PR description.
 follow-ups and "Requests from other streams" of every `docs/workstreams/<stream>.md`. It
 changes them only by folding notes (integrator procedure, step 4).
 
-**Director:** `docs/roadmap.md`, `docs/design_bible.md`, `docs/art_bible.md`, `docs/digest/`, and the "Backlog"
+**Director:** `docs/vision.md`, `docs/research/`, `docs/roadmap.md`, `docs/design_bible.md`, `docs/art_bible.md`, `docs/digest/`, and the "Backlog"
 sections of every `docs/workstreams/<stream>.md` (workers tick their own items and add
 follow-ups through backlog notes, which the integrator folds in).
 
@@ -145,7 +145,7 @@ this, if you didn't take it before cloning.
    has no open PR to fix, stop immediately. Then **take your claim** (above); if it's busy,
    stop with one line. From here on, release the claim before you stop, on every path.
 1. Attach and clone the repo. Read `CLAUDE.md`, this file, `docs/design_bible.md`
-   (especially the North star), `docs/art_bible.md` (if your change shows anything on screen), `docs/roadmap.md`, your backlog `docs/workstreams/<stream>.md`,
+   (especially the North star), `docs/vision.md` (the headline), `docs/art_bible.md` (if your change shows anything on screen), `docs/roadmap.md`, your backlog `docs/workstreams/<stream>.md`,
    unfolded notes in `docs/workstreams/<stream>.d/`, and the tail of `docs/devlog/<stream>.md`
    plus the newest notes in `docs/devlog/<stream>.d/`.
 2. **Look after your open PRs, then keep going.** List your open `ws/<stream>/` PRs. For each:

@@ -28,7 +28,7 @@ The owner plays and tests; the AI designs everything else. The owner has given t
 directions below, and these are standing rules: they win over any other design choice, and
 the weekly review and director may refine them but never reverse them. Everything not
 covered here (systems, lore, balance, roadmap) stays the AI's call. Fun comes first and sits
-above the numbered directions: when two choices both respect directions 1 to 7, pick the
+above the numbered directions: when two choices both respect directions 1 to 8, pick the
 more fun one. Direction 7 (a look of our own, cheap to draw) binds every visual change.
 
 ### Fun comes first (the first rule)
@@ -201,6 +201,25 @@ built in the most efficient way possible for the server, the system and the bots
 Every world and client PR that changes what's on screen follows the art bible and keeps
 inside the budget.
 
+### 8. Towns the community raises, on a map worth crossing (owner direction, 2026-11-24)
+The owner wants **a beautiful map with towns that build up from community**, and asked us to
+deliver the spirit of the big settlement-MMO promises that never arrived. The full design is
+`docs/vision.md` (the headline every stream reads), the study behind it
+`docs/research/promises_study.md`. The standing rules:
+- **Players build towns by hand.** Buildings are projects paid with materials players gathered
+  and crafted and labour they put in. No NPC builds a town for you, and no money buys progress.
+- **Visible the same minute.** Every delivery changes the building in front of you and is juiced
+  like a gather; a raised building is a server-wide moment.
+- **Towns are progression.** Each building turns on a real service (storage, better stations,
+  refining, the market), so later systems are opened by what the community raised.
+- **A hand-shaped map.** The layout (regions, town sites, roads, landmarks, height stamps) is
+  authored data on top of the permanent seed, beautiful in Emberlight and inside the render
+  budget, with a painted map window.
+- **Nothing built is lost** to time, chores or people who didn't opt in. Threats to towns are
+  PvE first (the Dimming) and defended together; opt-in contests come late and fight over perks.
+- **Sized for the players we have, promised only when shipped** (`docs/research/promises_study.md`,
+  section 4, "Lessons, turned into our rules").
+
 ### Studio intro (owner direction, 2026-11-23)
 The owner supplied the **Budda Games** intro video and asked for it to replace Godot's boot
 splash. It is the studio's own logo, so it is the one owner-supplied asset in the client and an
@@ -266,11 +285,13 @@ The order of milestones and what "done" means for each is in `docs/roadmap.md`. 
 after the foundations (day and night, gathering, crafting, the action camera, chat-to-UI):
 1. Skills and XP: the first trade skills, levels, unlocks and level-up moments
 2. Action combat with crafted weapons, health, and creatures just outside the Spawn Meadow
-3. Gear tiers: refining, better materials, armour and weapons in tiers
-4. A second zone: harder, richer, opened by gear and levels
-5. Towns and trading: the Hearth, crafting stations, a player market
-6. Parties and group content: shared kills and XP, group events, elite creatures
-7. Territory and opt-in PvP: settlements that groups build up and contest
+3. The Hearth rises: players raise the Spawn Meadow's buildings by hand (direction 8)
+4. Gear tiers: refining and forging at the stations the town raised
+5. Many hearths: the other Ashgrove sites, roads, hauling, Dimming tides defended together
+6. A second zone: harder, richer, planned by hand, opened by gear and levels
+7. Market towns: player trading and the market board
+8. Parties and group content: shared kills and XP, group events, elite creatures
+9. Ground worth holding: stewards, homesteads, opt-in contests over a town's perks
 The ember ash mystery is told through quests and world events along the way, a chapter per
 milestone from the second one on.
 
@@ -280,6 +301,7 @@ milestone from the second one on.
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 00 (2026-11-24, towns the community raises):** The owner asked for a plan and direction: a beautiful map with towns that build up from community, delivering the spirit of the big settlement-MMO promises that weren't delivered. Studied what that genre's best-known attempt promised, shipped and why it fell short (`docs/research/promises_study.md`), and wrote our own design (`docs/vision.md`): towns raised by hand through projects with visible scaffolds, a Raising skill, crews, stages counted in finished buildings, no decay or chores, bills sized to the population, an authored map layer on top of the permanent seed, a painted map window, PvE Dimming tides before any opt-in contest, and nothing built ever lost. Added owner direction 8. The planned order now puts the Hearth right after combat and gear after it, because the town's stations open gear tiers; the second zone, trading, parties and territory move down. Pillar 4 (cooperation first, PvP opt-in) is unchanged and is why contests never destroy buildings.
 - **Week 00 (2026-11-23, studio intro):** The owner uploaded the Budda Games intro video and asked for it to play instead of the Godot boot splash. Added "Studio intro" under the owner directions, recording it as the single owner-approved exception to the procedural-art rule (client builds only, one file), so the integrator does not revert it and nobody reads it as permission to import other assets.
 - **Week 00 (2026-11-23, art style):** The owner asked how to make the art style unique, in the stylized or painterly realism family of their favourite modern MMO, and then for it to be done in the most efficient way for the server, the system and the bots. Added owner direction 7 and `docs/art_bible.md`: the **Emberlight** style (painted low-poly, colour in vertices and one shared shader, warm light and cool shadows, ember as signature and gameplay signal, the Dimming as our own dark layer, a concrete "what to avoid" list so we never copy), and performance as part of the style (server and bots never touch art, instancing chunked for culling, distance LODs, few lights, pooled effects, no expensive screen effects, quality tiers, and CI-enforced render budgets with a 20% ratchet plus a screenshot style check). Pillar 3 now names the style instead of "flat-shaded, colourful". Nothing already built changes meaning; existing props move onto the shared shader over the next world runs.
 - **Week 00 (2026-11-23, vision and roadmap):** The owner gave the game its direction: the New World feel for the whole game (not only the camera and gathering), the RuneScape-style long skill grind, and the goal of beating every other MMO, built by the owner and AI together. Added "The vision in one paragraph" and the core loop (gather → craft → fight → level up → explore further), owner directions 4 (the whole game feels like a modern action MMO), 5 (the long road: many skills to level 100, every level unlocks something) and 6 (take the best, then beat it: study the best version of each feature in other MMOs and build an improved, original one). Reconciled grind with fun: pillar 1 and the old "Cut boring work" bullet become "Long road, never tedium", judged per minute (every minute pays a little, the next unlock is always in sight), so a long grind is wanted and tedium still never ships. The planned order of systems is now the milestone list in `docs/roadmap.md`. "Inspired by, never copied" applies to both reference games: no skill names, XP tables or exact systems from either.
