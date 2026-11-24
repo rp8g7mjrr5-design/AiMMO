@@ -22,6 +22,8 @@ const L1 := AvatarSkeleton.THIGH
 const L2 := AvatarSkeleton.SHIN
 const ANKLE := AvatarSkeleton.ANKLE_HEIGHT
 const REACH := (L1 + L2) * 0.995 ## a leg never locks fully straight
+const IDLE_SHIFT_PERIOD := 16.0 ## s for an idle traveller to stand on one leg, the other, and back
+const IDLE_HIP_ROLL := 0.06 ## rad the hips tilt over the standing leg
 
 ## --- locomotion ---
 const RUN_FROM := 2.6 ## m/s; at or below this the gait is a pure walk
@@ -164,23 +166,46 @@ static func gait(phase: float, speed: float) -> Dictionary:
 	return p
 
 
-## Standing still: slow breathing and a weight shift from foot to foot every few seconds.
+## Standing still, at ease: slow breathing, the weight on one leg with the hips and shoulders
+## tilted against each other, soft elbows, the head turned a little, and every eight seconds or so
+## the weight shifts to the other leg (`idle_weight`). Never a soldier at attention.
 static func idle(t: float) -> Dictionary:
 	var p := rest()
 	var breath := sin(t * 1.9)
-	var shift := sin(t * 0.37)
-	p.root_pos = Vector3(0.012 * shift, 0.004 * breath, 0.0)
-	p["Hips"] = Vector3(0.0, 0.03 * shift, -0.025 * shift)
-	p["Spine"] = Vector3(0.01 * breath, 0.0, 0.02 * shift)
-	p["Chest"] = Vector3(0.015 * breath, 0.0, 0.01 * shift)
-	p["Neck"] = Vector3(-0.01 * breath, 0.06 * sin(t * 0.23), 0.0)
-	p["Head"] = Vector3(0.02 * sin(t * 0.31), 0.04 * sin(t * 0.17), 0.0)
+	var w := idle_weight(t) # +1: the weight on the right leg, -1: on the left
+	var roll := -IDLE_HIP_ROLL * w # the loaded hip rides up, the free one drops
+	p.root_pos = Vector3(-0.03 * w, 0.004 * breath - 0.01, 0.0)
+	p["Hips"] = Vector3(0.0, 0.06 * w + 0.02 * sin(t * 0.37), roll)
+	# the shoulders tilt against the hips, and the head turns a little towards the free side
+	p["Spine"] = Vector3(0.02 + 0.01 * breath, -0.025 * w, -roll * 0.55)
+	p["Chest"] = Vector3(0.015 * breath, -0.03 * w, -roll * 0.45)
+	p["Neck"] = Vector3(-0.01 * breath, 0.06 * sin(t * 0.23) + 0.05 * w, 0.0)
+	p["Head"] = Vector3(0.03 + 0.02 * sin(t * 0.31), 0.04 * sin(t * 0.17) + 0.06 * w, 0.04 * w)
+	var feet := {}
+	var toe := {}
 	for s in SIDES:
-		p[s + "UpperArm"] = Vector3(0.02 * breath, 0.0, side(s) * (0.015 + 0.015 * breath))
-		p[s + "LowerArm"] = Vector3(-0.14, 0.0, 0.0)
-		p[s + "Hand"] = Vector3(-0.08, 0.0, 0.0)
-	plant_legs(p, {"Left": Vector2(0.03, ANKLE), "Right": Vector2(-0.02, ANKLE)})
+		var sg := side(s)
+		var free := (1.0 + w * sg) * 0.5 # 1 on the unloaded side
+		p[s + "UpperArm"] = Vector3(-0.08 - 0.05 * free + 0.02 * breath, 0.0, sg * (0.05 + 0.015 * breath))
+		p[s + "LowerArm"] = Vector3(-(0.26 + 0.12 * free), 0.1 * sg, 0.0)
+		p[s + "Hand"] = Vector3(-0.18, -0.25 * sg, 0.1 * sg)
+		feet[s] = Vector2(-0.02 + 0.07 * free, ANKLE) # the free foot rests a little forward, knee soft
+		toe[s] = 0.1 * free
+	plant_legs(p, feet, toe)
+	for s in SIDES:
+		var sg := side(s)
+		var ul: Vector3 = p[s + "UpperLeg"]
+		p[s + "UpperLeg"] = Vector3(ul.x, 0.05 * sg, sg * 0.05 - roll) # feet a little apart, legs plumb
+		var ft: Vector3 = p[s + "Foot"]
+		p[s + "Foot"] = Vector3(ft.x, 0.1 * sg, -sg * 0.05 + roll)
 	return p
+
+
+## Which leg an idle traveller stands on at `t`: holds one side for several seconds, then shifts
+## its weight across in about a second and a half. 0 at t = 0, so the idle starts square.
+static func idle_weight(t: float) -> float:
+	var u := sin(t * TAU / IDLE_SHIFT_PERIOD)
+	return clampf(u * 2.2, -1.0, 1.0) * (1.0 - 0.15 * (1.0 - absf(u)))
 
 
 ## --- keyframe timelines ---

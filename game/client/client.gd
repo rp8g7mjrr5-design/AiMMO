@@ -998,7 +998,9 @@ func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, ya
 		for tag in node.find_children("*", "Label3D", false, false):
 			tag.visible = false
 	world.add_child(node)
-	avatars[id] = {"node": node, "body": node.get_node("Body"), "skel": node.get_node("Body/Skeleton"), "anim": AvatarAnimator.new(), "target": pos, "yaw": yaw, "name": player_name, "seed": appearance_seed, "look": look}
+	var anim := AvatarAnimator.new()
+	anim.clock = float(posmod(appearance_seed, 997)) * 0.731 # friends standing together never sway in step
+	avatars[id] = {"node": node, "body": node.get_node("Body"), "skel": node.get_node("Body/Skeleton"), "anim": anim, "target": pos, "yaw": yaw, "name": player_name, "seed": appearance_seed, "look": look}
 
 
 ## Redraws avatar `id` in `look` (Appearance; {} = their seed look) where it stands, keeping

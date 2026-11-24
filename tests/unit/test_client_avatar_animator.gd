@@ -239,3 +239,25 @@ func test_a_server_swing_plays_on_the_avatar() -> void:
 	_run(anim, float(a.windup) + float(a.active) * 0.5, func(_t): return {"pos": Vector3.ZERO})
 	var chest: Vector3 = anim.pose().Chest
 	check(chest.y < -0.2, "mid-blow the chest has turned through the haymaker (%.2f)" % chest.y)
+
+
+func test_idle_stands_at_ease_on_one_leg() -> void:
+	# Owner, 2026-11-24: "the problem is how stiff they look". Standing still must not be a
+	# soldier at attention: the weight sits on one leg, the hips tilt, the elbows stay soft, and
+	# over the shift period the weight moves to the other leg and back.
+	var right := AvatarClips.idle(AvatarClips.IDLE_SHIFT_PERIOD * 0.25)
+	var left := AvatarClips.idle(AvatarClips.IDLE_SHIFT_PERIOD * 0.75)
+	check(AvatarClips.idle_weight(AvatarClips.IDLE_SHIFT_PERIOD * 0.25) > 0.9, "on the right leg a quarter of the way in")
+	check(AvatarClips.idle_weight(AvatarClips.IDLE_SHIFT_PERIOD * 0.75) < -0.9, "on the left leg three quarters in")
+	check(absf((right.Hips as Vector3).z) > 0.04, "the hips tilt over the standing leg")
+	check(signf((right.Hips as Vector3).z) != signf((left.Hips as Vector3).z), "and tilt the other way after the shift")
+	check(signf((right.Chest as Vector3).z) != signf((right.Hips as Vector3).z), "the shoulders tilt against the hips")
+	for s in AvatarClips.SIDES:
+		check((right[s + "LowerArm"] as Vector3).x < -0.2, "%s elbow is soft, not locked straight" % s)
+	# the free (left) foot rests ahead of the loaded one
+	var ankles := _ankles(right)
+	check(ankles.Left.z > ankles.Right.z + 0.03, "the free foot rests a little forward")
+	# and the shift itself is gradual: no frame-to-frame jump
+	for i in 320:
+		var t := i * 0.05
+		check(absf(AvatarClips.idle_weight(t + 0.05) - AvatarClips.idle_weight(t)) < 0.12, "the weight shift eases at %.2f s" % t)
