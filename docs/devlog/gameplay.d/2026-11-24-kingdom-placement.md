@@ -53,3 +53,11 @@ whole gather and craft loop already works there (proved end to end in a unit tes
 ## Next run
 - Part 2 (config on the wire) as soon as #197 is merged or closed: put it in the next bump.
 - The live move to a generated map stays a separate, announced step (follow-up in the backlog).
+
+## Test runs
+- Unit tests: 847 pass (with Postgres). Client smoke test passed (world build about 2 s).
+- Bot test (8 bots, 180 s, WebSocket): the first run failed once on
+  `[gameplay_wildlife] grazer 12 bolted but no herd-mate went with it`. That is the same flake
+  week-00's devlog saw on #172 (a client-only PR); herds on Ashgrove are bit-identical here
+  (unit test checks every herd position before and after a kingdom trip). The rerun passed.
+  The flake is ours: see the follow-up in the backlog note.
