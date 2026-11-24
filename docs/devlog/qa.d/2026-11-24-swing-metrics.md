@@ -32,3 +32,16 @@ depending on whether the hunt fit. A gate now would flake; follow-up after three
 kingdoms (#206/#207) landed today, plausibly the cause; worth watching with the perf re-baseline item.
 
 **Next run:** the restart-in-the-middle check (director part 2), or the smoke-shot hooks.
+
+**CI fix on this PR (gameplay_wildlife, tests/ only).** The PR's first CI run failed one check
+that this diff doesn't touch: `bot_1: [gameplay_wildlife] grazer 2 bolted but no herd-mate went
+with it`. `main` was green on its last 5 runs. The server only sends herd-mates within
+`Wildlife.HERD_RADIUS` (16 m) of the bolter running with it, and skips downed ones; since the
+hunt landed, bot `_2`'s `/lure` pulls the nearest grazer away from its herd and downs it, so the
+stalker can rush a grazer whose mates are all gone or out of reach. I couldn't confirm the herd
+from CI (the test-output artifact host is blocked here), so this is the likely cause, not a proven one.
+Fix: when the target bolts, the stalk checks the latest `s2c_wildlife` for a herd-mate clearly
+inside 16 m (2 m slack) or already fleeing. With one there, the old check holds unchanged; with
+none, it counts `herd_alone` and ends the stalk instead of failing. Re-run locally: PASSED in 339 s
+(`herd_bolts=1 herd_alone=0`). If `herd_alone` shows up often in CI, ask gameplay to have
+`/lure` prefer a grazer from a herd the stalker isn't near.

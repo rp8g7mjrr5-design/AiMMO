@@ -15,6 +15,11 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## ("flee" in s2c_wildlife) by the time we are within BOLT_SLACK of Wildlife.BOLT_RADIUS, and
 ## at least one herd-mate must bolt with it. Then the bot is handed back. A stalk that never
 ## gets close (a lake in the way, a herd too far off) is skipped and counted, not failed.
+## The server only sends herd-mates within Wildlife.HERD_RADIUS of the bolter (and not down)
+## running with it, so the herd check applies only when one stood clearly that close when it
+## bolted; a lone grazer is counted (herd_alone), not failed. qa, 2026-11-24: CI failed once
+## with "no herd-mate went with it" after gameplay_hunt's /lure and kill can take a herd-mate
+## away from its herd in the same run.
 
 const FIRST_WITHIN := 5.0
 const MAX_RATE := 6.5 ## sends per second, averaged over a login (server: 5)
@@ -25,6 +30,7 @@ const STALK_MAX_START := 45.0 ## don't start a stalk whose grazer is further tha
 const STALK_TIMEOUT := 12.0
 const BOLT_SLACK := 1.5 ## the grazer reacts on the server's tick; our position is a snapshot behind
 const HERD_WAIT := 1.5 ## after the target bolts, its herd-mates must within this
+const HERD_SLACK := 2.0 ## a herd-mate counts as "with it" only this far inside HERD_RADIUS (snapshots lag)
 const QUIET_BEFORE := 20.0 ## no stalk this close to the end of the run
 const LOGIN_SETTLE := 8.0
 ## gameplay_roster_v5's "Return to Spawn Meadow" moves us up to ~100 m in one tick; skip the
@@ -52,6 +58,7 @@ var _closest := INF
 var stalks := 0
 var bolts := 0
 var herd_bolts := 0
+var herd_alone := 0 ## the target bolted with no herd-mate within reach of it
 var skipped := 0
 
 
@@ -212,6 +219,10 @@ func _watch_stalk() -> void:
 	if _stalk == Stalk.GO and _latest[_target][3] == "flee":
 		bolts += 1
 		_bolted_at = bot.elapsed
+		if not _mate_near(_target):
+			herd_alone += 1
+			_end_stalk(true)
+			return
 		_stalk = Stalk.HERD
 	if _stalk == Stalk.HERD:
 		var herd := int(Wildlife.spawns()[_target].herd)
@@ -220,6 +231,19 @@ func _watch_stalk() -> void:
 				herd_bolts += 1
 				_end_stalk(true)
 				return
+
+
+## True when a herd-mate of `id` stood clearly within Wildlife.HERD_RADIUS of it in the
+## latest s2c_wildlife (or is already running), so the server must send it running too.
+func _mate_near(id: int) -> bool:
+	var herd := int(Wildlife.spawns()[id].herd)
+	var at := Vector2(_latest[id][0], _latest[id][1])
+	for o in _latest:
+		if o == id or int(Wildlife.spawns()[o].herd) != herd:
+			continue
+		if _latest[o][3] == "flee" or at.distance_to(Vector2(_latest[o][0], _latest[o][1])) <= Wildlife.HERD_RADIUS - HERD_SLACK:
+			return true
+	return false
 
 
 func _end_stalk(done: bool) -> void:
@@ -239,6 +263,7 @@ func on_finish() -> void:
 		stat("stalks", stalks)
 		stat("bolts", bolts)
 		stat("herd_bolts", herd_bolts)
+		stat("herd_alone", herd_alone)
 		stat("stalks_skipped", skipped)
 	if _login_elapsed_total > 10.0 and sends / _login_elapsed_total > MAX_RATE:
 		fail("%.1f s2c_wildlife a second, the server sends 5" % (sends / _login_elapsed_total))
