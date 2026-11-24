@@ -1,2 +1,0 @@
-- The grazers got their real look in your game: fawn coats with a cream belly, tall ears and a white rump you see bounding away. No two in a herd are quite the same colour, and they lean with the hillside instead of floating on it.
-- They move like animals now: legs walk without sliding, a bolt is a run of long bounds, a head snaps up the instant they spot you, and at dusk they fold down into the grass gently instead of dropping.

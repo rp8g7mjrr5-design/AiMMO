@@ -5,6 +5,25 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- The Budda Games intro's sound is clean again: no more doubled, jittery bits.
+- Travellers walk like grown-ups now: a narrower, easier stride, arms swinging close to the body and the side-to-side waddle gone, with a touch more spring in each step to carry the weight.
+- The valley floor is no longer one flat olive: patches of damp moss, sun-bleached straw grass and worn bare earth now break up the meadows and forest floor, mossier under the pines and by the lakes, drier out in the open.
+- The grazers can be hunted now (server side, ready for the attack key): a few bare-handed blows bring one down, and it leaves you a hide and two raw meat in your pack.
+- A wounded grazer limps away slower than you walk, so a good first hit turns into a chase you can win. Leave it alone for a minute and it recovers.
+- By night the herds sleep deep: creep in, freeze whenever a head comes up, and you can get close enough to strike. A downed grazer is back with its herd a few minutes later.
+- Fixed the pale, blocky patch of light that covered Spawn Meadow at night on real graphics cards. Each lantern now throws its own soft, warm pool on the grass, with moonlit blue between them.
+- Ember-sap seeps glow like banked fires after dark, lighting their rim stones and the ground around them.
+- Travellers, trunks and treetops catch a soft moonlit edge at night, so you can pick out shapes in the dark.
+- **Health and stamina bars**, bottom centre under your XP: take a hit and the bar flashes, drops, and leaves a pale chip of what you just lost before it drains, with a soft thump. Below 30% health the bar pulses, so you know to back off.
+- When you're full and out of trouble, the bars fade away so gathering keeps a clean screen. Too tired to swing? The stamina bar flushes red and tells you why.
+- Travellers have been rebuilt from the ground up: lean, grown-up proportions instead of round little barrels, with long legs, real shoulders and a face that reads as a face.
+- Everyone now looks like they live out in the wild: a wool mantle, a hood or their own hair, a framed pack with a bedroll, a belt with a pouch and a knife, leather bracers and tall boots.
+- Characters are now shaped from smooth, rounded forms instead of boxes, with a hand-painted, low-res grain on bodies and ground.
+- The grazers got their real look in your game: fawn coats with a cream belly, tall ears and a white rump you see bounding away. No two in a herd are quite the same colour, and they lean with the hillside instead of floating on it.
+- They move like animals now: legs walk without sliding, a bolt is a run of long bounds, a head snaps up the instant they spot you, and at dusk they fold down into the grass gently instead of dropping.
+- Ashgrove has a new, grounded look: olive meadows instead of neon grass, rust-red ember ash trees with heavy, lopsided crowns, a dusty sky, and long golden light that makes the valley feel old and a little wild.
+- Travellers dress the part: earthy dyed cloth, travelling hoods and felt caps, real hair and more grown-up proportions. The pointed hats are gone.
+- Nights are moonlit blue with the ember trees and lanterns carrying the colour, and your level-up is now a shaft of warm light you can still see yourself through.
 - Your game now knows your health and stamina from the moment you log in, ready for the health bar.
 - First blood, part one: the server now understands a swing. Light jabs and heavy haymakers cost stamina, everyone nearby sees you throw them, and a grazer you manage to sneak up on and strike bolts off with its whole herd. (Needs the client's attack button, coming soon; this update asks you to download the new version.)
 - The Budda Games intro's sound now plays smooth, with no crackles or stutters.
