@@ -15,7 +15,7 @@ at the owner's request) changes these numbers.
 
 ```sh
 SINCE=<YYYY-MM-DD of the most recent Wednesday>   # TZ=America/Chicago; today if today is Wednesday, else date -d "last wednesday" +%F
-gh api "repos/rp8g7mjrr5-design/AiMMO/pulls?state=all&per_page=100" --paginate \
+gh api "repos/rp8g7mjrr5-design/ZombAi/pulls?state=all&per_page=100" --paginate \
   --jq "[.[] | select(.head.ref | startswith(\"ws/<stream>/\")) | select(.created_at >= \"${SINCE}\")] | length"
 ```
 

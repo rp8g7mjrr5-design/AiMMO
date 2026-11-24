@@ -98,7 +98,7 @@ holds a **claim** while it works: a branch `claim/<stream>` that `tools/ws_claim
 atomically. It needs no clone, so take it before doing anything expensive:
 
 ```sh
-CLAIM() { bash <(gh api repos/rp8g7mjrr5-design/AiMMO/contents/tools/ws_claim.sh -H "Accept: application/vnd.github.raw") "$@"; }
+CLAIM() { bash <(gh api repos/rp8g7mjrr5-design/ZombAi/contents/tools/ws_claim.sh -H "Accept: application/vnd.github.raw") "$@"; }
 CLAIM take <stream> "starting"        # exit 3 = another run of this stream is working: stop now, one line
 CLAIM note <stream> "<item you picked>"   # once you've picked, and every ~45 min of a long run
 CLAIM release <stream> "<PR link or why>" # last thing you do, whether you shipped or not
