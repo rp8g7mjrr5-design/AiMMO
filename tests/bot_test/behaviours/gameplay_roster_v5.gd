@@ -112,6 +112,10 @@ func _on_unstuck(ok: bool, text: String, wait_seconds: float) -> void:
 	elif text.begins_with("You can return to Spawn Meadow again in"):
 		if wait_seconds <= 0.0:
 			fail("cooldown refusal with no wait: %s" % text)
+	elif text.begins_with("You can't return to Spawn Meadow mid-fight."):
+		# gameplay_vitals' /hurt can land just before our ask; the refusal must say how long.
+		if wait_seconds <= 0.0 or wait_seconds > Vitals.COMBAT_SECONDS + 0.01:
+			fail("mid-fight refusal with a wait of %.1f s: %s" % [wait_seconds, text])
 	else:
 		fail("unexpected unstuck answer: %s" % text)
 

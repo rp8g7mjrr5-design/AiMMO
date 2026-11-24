@@ -1069,3 +1069,30 @@ No recipes or items: they wait for world's weapon icons and models and for the a
 `attack(id, kind)` that spends stamina, waits the windup, and applies `Weapons.targets_hit`
 to grazers (a gentle first hunt) or players knocked down by `/hurt` only in tests; then the
 spear and maul recipes (Toolcraft 2 and 4?) with world's icons; then `s2c_vitals` in a bump.
+
+## 2026-11-24 (later run): #164 fixed for the image test
+
+**Why #164 was red.** CI's image test (`tests/ops/run_image_test.py`, "plays") runs only two
+bots for 40 s with a reconnect part-way, so each login lasts about 15 to 25 s.
+`gameplay_vitals` started 10 to 14 s into a login and needs another ~12 s (6 s fight + 5 s
+regen + answers), so it never finished ("step HEAL") and, worse, its `/hurt 30` landed in
+the last seconds of the run, right when `gameplay_roster_v5` asks "Return to Spawn Meadow",
+which #164 now refuses mid-fight. Both are test-timing problems, not game bugs.
+
+**Fix (tests only, no game code changed):** `gameplay_vitals` starts at 6 % of the run
+(clamped 3 to 10 s, so the 180 s bot test still starts at 10 s like before) and only demands
+the full check if some login was long enough for it (it records `vitals_cut_short` instead).
+`gameplay_roster_v5` accepts the mid-fight refusal as a valid answer as long as its wait is
+between 0 and `Vitals.COMBAT_SECONDS`. Also merged `main` (docs-only conflicts in both
+backlogs and this devlog; kept both sides).
+
+**Tested here:** unit tests 721/721 with Postgres; a 2-bot 40 s WebSocket bot run (the image
+test's shape) three times, all passing with the full vitals check finishing; the full bot
+test 8 x 180 s WebSocket with `--fun-check`: fun passed (first reward median 8.4 s, dead
+time median 25.9 s, 10.95 rewards/min, all 8 levelled); `--perf-check` CPU 1.72 ms/tick,
+but bandwidth was "not measured" because this sandbox has no `ss` (iproute2), so CI is the
+bandwidth check this time. Client smoke test passed. Could not run the image test itself:
+`docker build` can't download Godot through this sandbox's proxy.
+
+**Next run:** if #164 is still red, read the image test log first (`IMAGE TEST FAILED`
+lines are at the end of the Test job). Then the weapons follow-up: server attack wiring.

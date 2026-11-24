@@ -13,7 +13,9 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## Sets the bot meta "knocked_down_at" when the knock-down goes out, so gameplay_gather_v3 and
 ## gameplay_wildlife forgive the teleport.
 
-const START_AFTER := 10.0 ## seconds after the login
+const START_AFTER := 10.0 ## seconds after the login (in a full-length run)
+const START_AFTER_MIN := 3.0 ## short runs (the image test's 40 s) start sooner
+const SLACK := 6.0 ## answers, the queue and the trip home
 const ANSWER_TIMEOUT := 4.0
 const MAX_TRIES := 3
 const REGEN_WAIT := 5.0 ## past the end of the fight; 10 %/s brings 70 back to 100 in 3 s
@@ -32,6 +34,8 @@ var _gathering := false
 var hurts := 0
 var heals := 0
 var knockdowns := 0
+var _login_at := -1.0 ## bot.elapsed at the current login, -1 before the first
+var _longest := 0.0 ## longest stretch of play in one login, seconds
 
 
 func setup(net: Node) -> void:
@@ -45,12 +49,30 @@ func setup(net: Node) -> void:
 
 
 func on_login(_reconnect: bool, _character: Dictionary) -> void:
+	_note_stretch()
+	_login_at = bot.elapsed
 	_gathering = false
 	_sent_at = -1.0
 	_tries = 0
 	if _step != Step.DONE:
 		_step = Step.HURT
-		_next_at = bot.elapsed + START_AFTER + bot.rng.randf_range(0.0, 4.0)
+		_next_at = bot.elapsed + _start_after() + bot.rng.randf_range(0.0, 2.0)
+
+
+## 10 s into a login in the full 3-minute run (as before), sooner in a short one so the whole
+## check still fits in a login of the image test's 40 s run.
+func _start_after() -> float:
+	return clampf(float(bot.duration) * 0.06, START_AFTER_MIN, START_AFTER)
+
+
+## Seconds one login needs to finish the whole check.
+func _needed() -> float:
+	return _start_after() + 2.0 + Vitals.COMBAT_SECONDS + REGEN_WAIT + 1.0 + HOME_TIMEOUT + SLACK
+
+
+func _note_stretch() -> void:
+	if _login_at >= 0.0:
+		_longest = maxf(_longest, bot.elapsed - _login_at)
 
 
 func on_play(_delta: float) -> void:
@@ -146,8 +168,15 @@ func _from_spawn() -> float:
 
 
 func on_finish() -> void:
+	_note_stretch()
 	stat("hurts", hurts)
 	stat("heals", heals)
 	stat("knockdowns", knockdowns)
-	if _step != Step.DONE or knockdowns < 1:
-		fail("health check didn't finish (step %s; hurts %d, heals %d, knockdowns %d)" % [Step.keys()[_step], hurts, heals, knockdowns])
+	if _step == Step.DONE and knockdowns >= 1:
+		return
+	if _longest < _needed():
+		# No login was long enough for the whole check (the image test's short run, cut by
+		# its reconnect): what did run was checked step by step above.
+		stat("vitals_cut_short", true)
+		return
+	fail("health check didn't finish (step %s; hurts %d, heals %d, knockdowns %d)" % [Step.keys()[_step], hurts, heals, knockdowns])
