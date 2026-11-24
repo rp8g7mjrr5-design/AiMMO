@@ -1,0 +1,1 @@
+- A left-click that hits nothing (the sky, a spent node, a tree just out of reach) now gives a soft dry tick, so you feel the miss and know to re-aim instead of wondering if the game heard you.
