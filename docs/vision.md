@@ -13,24 +13,28 @@ docs, never in the game.
 
 ## The game in one paragraph
 **ZombAi** is a third-person survival game set in a **fallen kingdom**. The kingdom died when the
-Dimming rose, and its dead got back up as the **Hollows**. Each world is a freshly generated
+Dimming rose, and its dead got back up (**the Dead** is a working name; the owner is choosing the
+final one). Each world is a freshly generated
 stretch of that kingdom: forests, moors, rivers, the old king's roads, and the **ruins**
 (burned farmsteads, a drowned village, mines, abbeys, and a castle at the heart of it). Each ruin
 is graded by how much it can kill you and how much it pays. You arrive with nothing. You eat,
-drink, keep warm, bandage what bleeds, and learn that noise brings the Hollows and **ember-fire
-burns them**. With your friends you build a shelter, then walls, then a hold, and you push into
-richer and deadlier ruins for the gear to push further. On the darkest nights the Hollows come in
-numbers for the loudest, brightest holds. There is no ending: the goal is to survive, build and
+drink, keep warm, bandage what bleeds, and learn that noise brings the Dead and **ember-fire
+burns them**. With your friends you **claim a piece of land** and build it up from a lean-to to
+a walled hold, with what you **gather** and what you **loot** from richer and deadlier ruins. On
+**horde nights** the Dead come in numbers for the holds that have grown loud, bright and rich. A
+counter keeps score: **days survived**. There is no ending: the goal is to survive, build and
 grow stronger for as long as you like. It's played with **2 to 8 friends** in a shared world:
 for now the always-on server, later one a friend hosts.
 
 ## The heart of it (owner, 2026-11-24)
 **The goal is survival.** No story ending, no final boss to beat: a world is a sandbox you keep
-alive in for as long as you like. What the owner loves most, and what every phase serves:
+alive in for as long as you like, and **days survived** is the score. The core loop (owner,
+2026-11-24): **loot the ruins and gather resources to build up the land you've claimed.** What
+the owner loves most, and what every phase serves:
 1. **Base building.** A hold that grows from a lean-to to a walled keep, with real choices about
    where to build, what to wall and what to upgrade.
-2. **Getting invaded.** The Hollows come for your base, and the bigger, louder and richer it gets,
-   the bigger the invasions: a few stragglers at first, then night sieges, then rare great hordes
+2. **Getting invaded.** The Dead come for your base, and the bigger, louder and richer it gets,
+   the bigger the invasions: a few stragglers at first, then **horde nights**, then rare great hordes
    with soldiers and wights that test every wall and gate. Holding the walls with friends is the
    game's signature moment.
 3. **Looting toward upgrades.** Every ruin trip brings back parts for something better: stronger
@@ -52,53 +56,53 @@ alive in for as long as you like. What the owner loves most, and what every phas
   later.
 - **Map: works like Rust's** (in our own design). A procedurally generated landmass with biomes,
   rivers, roads and ruins placed by a generator, every world different.
-- **Players: 2 to 8 friends in co-op**, PvE against the Hollows and the land. For now that is
+- **Players: 2 to 8 friends in co-op**, PvE against the Dead and the land. For now that is
   today's always-on Railway world, capped at 8, so friends can drop in any time; hosting your
   own world comes later. Solo play works too.
 
 ## The lean: accessible, action-heavy, worth sharing
 - **Quick to learn.** In the first five minutes a new player drinks, eats, lights a fire, fights
-  a Hollow and knows what will kill them. Every danger is visible and explained the first time.
+  one of the Dead and knows what will kill them. Every danger is visible and explained the first time.
   Needs are forgiving and come back fast.
 - **Good in a short session.** Thirty minutes always pays: a ruin looted, a wall raised, a skill
   level, a night survived. A day and night lasts about 40 minutes.
-- **Moments worth clipping:** a night siege held by torchlight; a run into the castle's crypt
-  and out again with the hounds behind you; a friend dragged back from a Hollow pack at the
+- **Moments worth clipping:** a horde night held by torchlight; a run into the castle's crypt
+  and out again with the hounds behind you; a friend dragged back from a pack of the Dead at the
   last second.
-- **Readable for viewers.** Clear silhouettes (Hollows grey and ash-cold, the living warm and
+- **Readable for viewers.** Clear silhouettes (the Dead grey and ash-cold, the living warm and
   cloth-coloured), a quiet HUD, effects that are big only for the big moments, and a streamer
   mode.
 - **Fair failure.** Death drops what you carried, never what you know. You're back in under a
   minute.
 
-## The Hollows (our undead)
+## The Dead (our undead; working name)
 The kingdom's dead, emptied by the Dimming. They fit the name without copying anyone's zombie.
 - **Behaviour:** they shamble by day and get faster and gather at night. They're drawn to noise
   (fighting, chopping, breaking walls, bells) and to the smell of blood. Alone they're
   beatable; packs are deadly.
-- **Kinds** (each with a clear silhouette and telegraph): the common **Hollow**; the **Hollow
+- **Kinds** (each with a clear silhouette and telegraph): the common **walker**; the **dead
   soldier** in rusted mail, found in castles and forts, slow and hard to put down; the
-  **Hollow hound**, fast and in packs, found on the moors; the **Bell-wight**, rare, whose
-  shriek calls every Hollow nearby (silence it first). More come in the "Depth" phase.
+  **dead hound**, fast and in packs, found on the moors; the **Bell-wight**, rare, whose
+  shriek calls every one of the Dead nearby (silence it first). More come in the "Depth" phase.
 - **Ember burns them.** Torches keep them wary, ember-tipped weapons hit hard, and an ember
   hearth inside your walls stops them rising in your hold. This makes the existing ember motif
   the core of the game.
-- **The chill.** A Hollow's grip can leave the chill, which slowly drains your warmth. An ember
+- **The chill.** A grip of the Dead can leave the chill, which slowly drains your warmth. An ember
   salve cures it if you treat it the same day. It's dangerous but never a hidden death sentence.
 
 ## The map: a generated kingdom with graded ruins
 - **Generator:** a seed per world. It lays out the land (coast or highland rim, rivers to the
   sea or a lake, forests, moors, farmland gone wild, stone hills, snow on the high ground), then
   the **king's roads** between the ruins, then the ruins themselves, then resource nodes,
-  wildlife and Hollow spawns. The terrain stays deterministic from the seed, so a server sends a
+  wildlife and spawns of the Dead. The terrain stays deterministic from the seed, so a server sends a
   seed and never terrain, and the client builds terrain in chunks around the player.
 - **Ruins** are hand-designed set pieces written as data and placed by the generator, each with a
-  risk grade, a loot table and its own Hollows. Every world has the high-grade ones and a random
+  risk grade, a loot table and its own Dead. Every world has the high-grade ones and a random
   mix of the rest.
 
 | Grade | Examples | Danger | Pays |
 |---|---|---|---|
-| 1 Quiet | Roadside shrine, burned farmstead, woodcutter's hut | A few Hollows | Food, cloth, basic tools |
+| 1 Quiet | Roadside shrine, burned farmstead, woodcutter's hut | A few of the Dead | Food, cloth, basic tools |
 | 2 Uneasy | Abandoned village, toll bridge, watchtower | Small groups, a hound pack nearby | Better tools, the first weapons, the first iron |
 | 3 Grim | The old mine, the drowned village, a walled abbey | Soldiers, tight spaces, darkness | Ore, ember salve, armour pieces, **signet keys** |
 | 4 Deadly | The fallen castle, the royal crypt beneath it | Many soldiers, wights, hounds; a key to get in deep | The best gear and ember relics |
@@ -116,16 +120,28 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
 - **Food and fire:** forage, hunt, cook; food spoils slowly, and salting and smoking keep it.
   Farming comes later.
 - **Combat:** the action combat already on `main` (aimed light and heavy swings, block, dodge on
-  stamina), extended with bows and crossbows, against Hollows and wildlife. No PvP in the core
+  stamina), extended with bows and crossbows, against the Dead and wildlife. No PvP in the core
   game (friendly fire is a host setting, off by default).
 - **Building:** snap-grid timber and stone (foundations, walls, doors, roofs, palisades, gates),
   chests, an ember hearth, a bedroll. Tiers: wood, stone, iron-bound. Defences you loot and
   craft toward: spiked barricades, pit traps, arrow slits, a gatehouse, braziers that burn
-  Hollows, a bell to warn the others.
+  the Dead, a bell to warn the others.
+- **Claimed land:** a group stakes its land with a **claim marker** (a banner or boundary stone,
+  final look to world). The claim sets where you can build, and grows as you build it up (more
+  plots as your hold gets bigger). It's co-op, so a claim is about your base's footprint and its
+  threat, not keeping other players out.
+- **Days survived:** each character counts days survived since their last death, shown quietly on
+  the HUD and loudly when you die ("You survived 23 days"), and each world counts its age. Best
+  runs are kept per character and per world.
+- **Horde nights (our own, not a fixed-calendar moon):** a horde night isn't on a timer you can
+  read off a calendar. It is triggered by your base's **threat** crossing a line (see below) and
+  given a warning the evening before (signs in the world: name and look being chosen with the
+  owner). The size and mix of the horde scale with threat and with days survived. Final name and
+  trigger are pending the owner's pick.
 - **Invasions:** each base has a **threat** that rises with its size, noise, light and stored
   wealth. Threat decides how big the next invasion is and how often they come, shown on a quiet
-  gauge so you always know what's coming. Hollows break doors and weak walls (never stone
-  without siege-type Hollows), so upgrades matter. Never instant: an invasion is announced by a
+  gauge so you always know what's coming. The Dead break doors and weak walls (never stone
+  without siege-type Dead), so upgrades matter. Never instant: an invasion is announced by a
   sound and a sight a minute before it hits.
 - **Vehicles:** horses (tame, feed, stable, ride; a horse can be hurt and must be looked after),
   carts (hitched to a horse, hauling a ruin's worth of loot), and boats (rowboat first, then a
@@ -153,7 +169,7 @@ friends (Phase 5):
 - A host keeps several worlds (each with its seed, everything built and its characters), picks
   or rolls a seed for a new one, and keeps them as long as they like.
 - Up to 8 players per world. Sending every player to every player is fine at 8; the effort goes
-  into Hollows, ruins and building instead.
+  into the Dead, ruins and building instead.
 - The one-time buy pays for the game, not for hosting. The Railway world stays as the owner's
   friends' world and the playtest world.
 
@@ -176,7 +192,7 @@ Until answered, workers build only what this file already settles.
 | Godot client and headless authoritative server (now also started by the host), ENet and WebSocket | One fixed valley becomes a generated kingdom per world, built in chunks | The MMO framing, "thousands on one world", public servers, raiding and seasons (see "Later, maybe") |
 | Gathering with E, timed bars, nodes; the bench and crafting; skills and XP | Vitals grow into needs and wounds; inventory gets weight | Milestones 2 to 7 as written |
 | The third-person action camera, swings, dodge, block | Ashgrove's ember lore becomes the fallen kingdom's (the Dimming, the ember) | The towns-MMO plan (PR #184, closed) |
-| Grounded art and its budgets; wildlife | New: ruins, the Hollows, building, death and loot, hosting and invites | |
+| Grounded art and its budgets; wildlife | New: ruins, the Dead, building, death and loot, hosting and invites | |
 | CI, bot test, fun metrics, the self-updating client, the worker setup | Fun metrics add survival measures (time to first fire, nights survived, ruins cleared) | |
 
 ## Rename plan (after the owner confirms)

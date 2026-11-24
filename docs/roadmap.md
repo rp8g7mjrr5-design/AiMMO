@@ -2,7 +2,7 @@
 
 The road from today to **ZombAi** in `docs/vision.md` (owner direction, 2026-11-24, draft):
 a third-person survival game in a fallen medieval kingdom, on generated maps full of
-risk-graded ruins, against the Hollows. The roadmap is a list of **phases in order**, not dates.
+risk-graded ruins, against the Dead. The roadmap is a list of **phases in order**, not dates.
 Each has a goal a player can feel and a "done when" list. Streams work on the **current phase**
 first; they may build ahead on the next one only when nothing in the current one is unblocked
 for them. A broken system or a serious bug always goes first. Milestones 0 and 1 below are the
@@ -64,23 +64,25 @@ ruins; a fresh character can gather and craft end to end in one; the spawn shot 
 budget; the world builds in under 3 s.
 
 ## Phase 2: Survive the first night
-**Goal:** staying alive is the game, and the Hollows are the reason the night is scary.
+**Goal:** staying alive is the game, and the Dead are the reason the night is scary.
 - Hunger, thirst, warmth and rest on top of today's vitals, forgiving and readable.
 - Fire, water, foraging, cooking, hunting.
-- The Hollows: the common Hollow and the Hollow hound, drawn by noise, faster at night, with
+- The Dead: the common walker and the dead hound, drawn by noise, faster at night, with
   clear telegraphs; torches and ember-fire hurt them; the chill and the ember salve.
 - Death drops a lootable pack where you fell; respawn in under a minute.
+- The **days survived** counter per character and per world, with best runs kept.
 **Done when:** a fresh player learns, in one evening, to avoid dying of cold, hunger and to the
-Hollows; fun metrics report time to first fire and nights survived; bots fight, die, loot and
+the Dead; fun metrics report time to first fire and nights survived; bots fight, die, loot and
 respawn in the bot test.
 
 ## Phase 3: A roof, a wall, and the first invasion
 **Goal:** the heart of the game (owner, 2026-11-24): build a base with friends and hold it when
-the Hollows come for it.
+the Dead come for it.
+- A **claim marker** that stakes your land and grows as you build it up.
 - Snap-grid timber and stone building, doors, palisades and gates, chests, an ember hearth that
-  stops Hollows rising inside, a bedroll respawn. Saved and restored through every restart.
-- Base **threat** (size, noise, light, stored wealth) and **invasions** that grow with it,
-  announced a minute ahead; Hollows that break doors and weak walls.
+  stops the Dead rising inside, a bedroll respawn. Saved and restored through every restart.
+- Base **threat** (size, noise, light, stored wealth), **invasions** and **horde nights** (our own trigger, final name pending) that grow with it,
+  announced a minute ahead; the Dead that break doors and weak walls.
 - The first defences: spiked barricades, braziers, a warning bell.
 **Done when:** a group builds a base, an invasion comes for it and can be held or lost, a bigger
 base draws bigger invasions, the base survives a server restart in the bot test, and a walled
@@ -89,7 +91,7 @@ base fits the render budget.
 ## Phase 4: Into the ruins
 **Goal:** the map's risk ladder: go further, risk more, come back stronger.
 - All four ruin grades (the mine, the drowned village, the abbey, the fallen castle and its
-  crypt), each with its own Hollows (soldiers, the Bell-wight) and loot tables.
+  crypt), each with its own Dead (soldiers, the Bell-wight) and loot tables.
 - Signet keys and vaults; smithing, iron and the first armour; bows and crossbows; ember
   weapons; base upgrades from ruin loot (iron-bound walls, a gatehouse, traps, arrow slits).
 - **Horses and carts:** wild horses and ruined stables, taming, feeding, stabling, riding; a cart
@@ -110,7 +112,7 @@ under a minute from the main menu.
 
 ## Phase 6: Launch-ready
 **Goal:** a stranger buys it, starts it and has a good first hour.
-- A first-hour path that teaches needs, fire, the Hollows and building without a wall of text.
+- A first-hour path that teaches needs, fire, the Dead and building without a wall of text.
 - Settings and accessibility, streamer mode, performance on the target laptop, the rename to
   ZombAi everywhere, a store-ready build.
 **Done when:** a new player reaches their first night and survives it without outside help, and
@@ -118,7 +120,7 @@ the build passes the perf budget on Low and Medium.
 
 ## Phase 7: Depth (ongoing)
 Boats (rowboat, then a small sail boat for the coast), great hordes, wounds and illness,
-farming, fishing, more Hollow kinds and ruins, weather,
+farming, fishing, more kinds of the Dead and ruins, weather,
 proximity voice, a spectator camera.
 
 ## The next six weeks (director forecast, draft)
@@ -128,8 +130,8 @@ A forecast, not a promise. It is redrawn once the owner confirms the direction.
 |------|-------|-------|
 | 00 | to Thu 26 Nov | Close Milestones 0 and 1; Phase 1 groundwork (world config, generator v1 land and roads). |
 | 01 | 27 Nov to 3 Dec | Phase 1: ruin sites, chunked building, the first two ruins. |
-| 02 | 4 to 10 Dec | Phase 2: needs, fire and cooking, the first Hollows, death and loot. |
-| 03 | 11 to 17 Dec | Phase 3: building, the ember hearth, the first night sieges. |
+| 02 | 4 to 10 Dec | Phase 2: needs, fire and cooking, the first the Dead, death and loot. |
+| 03 | 11 to 17 Dec | Phase 3: claimed land, building, the ember hearth, the first horde nights. |
 | 04 | 18 to 24 Dec | Phase 4: grade 3 and 4 ruins, keys, smithing, bows. |
 | 05 | 25 to 31 Dec | Phase 5: host button, invites, saved worlds. |
 
@@ -162,7 +164,7 @@ low-value follow-ups ahead of milestone work.
 
 **Director note (2026-11-24, ZombAi, draft):** the owner is reshaping the game: renamed
 ZombAi, a post-apocalyptic medieval fantasy (a fallen kingdom), third person, a one-time buy,
-and a map that works like Rust's (generated land, roads and risk-graded ruins), with the Hollows
+and a map that works like Rust's (generated land, roads and risk-graded ruins), with the Dead
 as our own undead. The owner then chose 2 to 8 player co-op hosted by a friend; public servers are a "later, maybe". For now co-op is today's always-on Railway world, capped at 8, so friends can drop in any time; hosting from the client comes in Phase 5. The goal is pure survival (no story endgame); the heart of it is base building, getting invaded and looting toward upgrades and vehicles (horses, carts, boats). Magic and undead details are still being asked. See `docs/vision.md`.
 Backlogs are not reseeded until the owner confirms.
 
