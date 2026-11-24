@@ -1438,3 +1438,36 @@ soft on edges. Both now 60 fps: 720p q9 1.27 MB, 1080p q8 1.59 MB (2.86 MB toget
 720p on ties, so 4K plays the 720p cut at 3x with exact pixels and 1440p at 2x. `Intro.BG` and
 the boot splash colour moved to the video's real background #1e131a so no seam shows around it.
 Under xvfb at 1280x720 the logo is now pixel-exact. The native-720p follow-up is done.
+
+## 2026-11-24: footsteps (ws/client/footsteps)
+
+**Picked:** the top item ("send the camera heading with input") turned out to be done
+already: `c2s_input` carries the camera yaw, the client sends it while moving, and gameplay's
+v5 note says the server validates and faces by it. Ticked it with that note. The next items
+need qa's smoke script or other streams, so I took the footsteps follow-up: walking was silent,
+which made the meadow feel empty and the walk feel weightless. Now every stride lands.
+
+**Built:** `WalkAnim` reports a footfall when the stride phase crosses PI (left) or wraps past
+0 (right) while the gait is at least 0.3 (`FOOTSTEP_MIN_GAIT`), so the sound is locked to the
+legs you see, and the settle-to-rest easing, creeping and teleports never step.
+`Sfx.footstep(v)`: a low heel thud (82-109 Hz by variant) and a 90 ms brush of filtered noise,
+0.15 s, four seeded variants. `Footsteps` (`game/client/footsteps.gd`) plays your own flat at
+-15 dB and others' from an `AudioStreamPlayer3D` riding their avatar (unit size 3, silent past
+18 m, not even triggered further out); pitch wobbles ±6%, variant rotates by id + step count so
+two players side by side don't sound alike; easing into a walk is up to 6 dB softer.
+`pick()` is the pure decision so tests don't need a scene tree (the unit runner has none;
+my first test tried `Engine.get_main_loop().root` and got null).
+
+**Tests:** `test_client_footsteps.gd` (9 tests: cadence two per cycle, alternating feet, no
+steps standing/settling/creeping/teleporting, sound length/peak/no end click/variants differ,
+range and voice choice). Bot behaviour `client_footsteps` runs the walk cycle on real
+snapshots: ~2,000 footfalls per bot over 3 minutes, a few hundred within hearing range, no
+burst over the max cadence, feet alternate. It never makes a sound (art lint). 700 unit tests,
+8-bot 180 s WebSocket bot test and the client smoke test all pass.
+
+**Not heard by hand:** the container has no audio device, so the mix level is set by numbers
+(peak ~0.3 full scale before -15 dB) not by ear. If it reads too loud or too quiet in play,
+change `Footsteps.OWN_DB` / `OTHER_DB`.
+
+**Notes to next run:** follow-ups added for ground-dependent steps, grazer hooves, and a volume
+slider.

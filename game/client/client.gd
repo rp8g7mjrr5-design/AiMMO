@@ -48,6 +48,7 @@ var craft_window: CraftWindow
 var sfx_craft: AudioStreamPlayer
 var notice_line: NoticeLine ## centre-screen system notices (chat is for talking)
 var sfx_nope: AudioStreamPlayer
+var footsteps: Footsteps ## turf steps in time with every avatar's walk cycle
 var reticle: Reticle
 ## Left-click gathering: a press the game itself took (cursor captured, no window or button
 ## under it) since the last frame, and whether that press is still held.
@@ -434,6 +435,7 @@ func _process(delta: float) -> void:
 		# seq + 1 is the input that will carry this frame's walk to the server.
 		prediction.advance(seq + 1, move, delta)
 	var t := 1.0 - exp(-14.0 * delta)
+	var ear: Vector3 = prediction.position if logged_in and prediction.has_position else camera.position
 	for id in avatars:
 		var a: Dictionary = avatars[id]
 		var n: Node3D = a.node
@@ -445,6 +447,7 @@ func _process(delta: float) -> void:
 		var anim: WalkAnim = a.anim
 		anim.step(n.position, delta)
 		anim.apply(a.body)
+		footsteps.step(id, n, anim, my_id, ear)
 		# While gathering, the rendered body turns to the node and swings at it.
 		var swing: GatherSwing = a.swing
 		var gathering: Dictionary = ResourceNodes.get_by_id(int(gather_watch.running[id])) if gather_watch.running.has(id) else {}
@@ -693,6 +696,7 @@ func _on_player_joined(id: int, player_name: String, appearance_seed: int) -> vo
 
 func _on_player_left(id: int) -> void:
 	gather_watch.forget(id)
+	footsteps.forget(id)
 	if avatars.has(id):
 		avatars[id].node.queue_free()
 		avatars.erase(id)
@@ -1313,6 +1317,8 @@ func _build_audio() -> void:
 	sfx_arrive.stream = Sfx.arrive()
 	sfx_arrive.volume_db = -6.0
 	add_child(sfx_arrive)
+	footsteps = Footsteps.new()
+	footsteps.build(self)
 
 
 func _exit_tree() -> void:
