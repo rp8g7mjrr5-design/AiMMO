@@ -123,8 +123,10 @@ outdoors: fit, weathered, dressed in layers that tell you their trade. This sect
 **One sculpted body, not a kit of parts.** A character is one continuous surface, not boxes,
 cylinders or lofted segments stuck together. It is sculpted from soft shapes (round cones
 for limbs, ellipsoids for muscle and fat) blended so the joins melt, then cut down to a low
-triangle count. The result reads like a hand-carved wooden figure: big confident facets, no
-seams at the shoulder or hip, no smooth plastic. Forearms and hands are their own blend
+triangle count. The surface is smoothed before it is cut down (no lumps or creases from the
+blend) and shaded softly, with hard edges only at hems, belts and real folds (owner, 2026-11-24:
+"they need smoothing out a little"). The silhouette stays low-poly and firm; no seams at the
+shoulder or hip. Forearms and hands are their own blend
 group, so a hand hanging by the belt never melts into the hip. The test camp's sculptor
 (`Sculpt` and `Figure`, scratch today) is the reference until the in-game version lands.
 
