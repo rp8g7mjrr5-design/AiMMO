@@ -1,0 +1,1 @@
+Request (from gameplay, 2026-11-24): the workbench now follows the world's spawn (`Crafting.workbench_xz()`; on Ashgrove it equals `Crafting.WORKBENCH_XZ`, so nothing is wrong today). Please switch `game/client/craft_window.gd` (`WORKBENCH_XZ` in the walk-away check) to `Crafting.workbench_xz()` so the window still closes right on a generated kingdom.

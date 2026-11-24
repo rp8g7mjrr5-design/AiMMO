@@ -54,7 +54,7 @@ static func from_pg_row(row: Dictionary) -> Dictionary:
 
 
 static func new_for(account: Dictionary) -> Dictionary:
-	var p := Terrain.clamp_to_world(GameConfig.SPAWN_POINT)
+	var p := Terrain.clamp_to_world(WorldGen.spawn_point())
 	return normalize({
 		"account_id": account.id,
 		"name": account.username,

@@ -92,25 +92,29 @@ static func new_state(seed_extra: int = 0) -> Dictionary:
 		}
 		creatures.append(c)
 	var rng := RandomNumberGenerator.new()
-	rng.seed = GameConfig.WORLD_SEED + SEED_OFFSET + 1 + seed_extra
+	rng.seed = int(WorldGen.config().seed) + SEED_OFFSET + 1 + seed_extra
 	return {"creatures": creatures, "rng": rng}
 
 
 static var _spawns: Array = []
+static var _built_for: Dictionary = {} ## the WorldGen config _spawns was built for
 
 
 ## Where every creature starts, from the world seed alone (cached). Each entry is
 ## {id, kind, herd, home: Vector3, pos: Vector3, yaw}. Ids follow the list order.
 static func spawns() -> Array:
-	if _spawns.is_empty():
+	if _spawns.is_empty() or _built_for != WorldGen.config():
+		_built_for = WorldGen.config()
 		_spawns = generate()
 	return _spawns
 
 
-## Builds the spawn list from scratch. Use spawns(); public for tests.
+## Builds the spawn list from scratch. Use spawns(); public for tests. Herds ring the world's
+## spawn point (Ashgrove's is the origin, so its herds are exactly where they always were).
 static func generate() -> Array:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = GameConfig.WORLD_SEED + SEED_OFFSET
+	rng.seed = int(WorldGen.config().seed) + SEED_OFFSET
+	var sp := WorldGen.spawn_point()
 	var out: Array = []
 	var homes: Array = []
 	for h in HERD_COUNT:
@@ -118,7 +122,7 @@ static func generate() -> Array:
 		for attempt in 80:
 			var ang := TAU * (float(h) + 0.5) / HERD_COUNT + rng.randf_range(-0.4, 0.4)
 			var dist := lerpf(HERD_MIN_RADIUS, HERD_MAX_RADIUS, rng.randf())
-			var p := Vector3(cos(ang) * dist, 0.0, sin(ang) * dist)
+			var p := Vector3(sp.x + cos(ang) * dist, 0.0, sp.z + sin(ang) * dist)
 			if not good_ground(p.x, p.z):
 				continue
 			var crowded := false
@@ -150,7 +154,7 @@ static func generate() -> Array:
 
 ## Dry, not too high, not too steep, inside the world: where a grazer can stand.
 static func good_ground(x: float, z: float) -> bool:
-	var lim := GameConfig.WORLD_HALF_SIZE - EDGE_MARGIN
+	var lim := WorldGen.half_size() - EDGE_MARGIN
 	if absf(x) > lim or absf(z) > lim:
 		return false
 	var y := Terrain.height(x, z)
