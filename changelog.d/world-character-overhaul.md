@@ -1,2 +1,3 @@
 - Travellers have been rebuilt from the ground up: lean, grown-up proportions instead of round little barrels, with long legs, real shoulders and a face that reads as a face.
 - Everyone now looks like they live out in the wild: a wool mantle, a hood or their own hair, a framed pack with a bedroll, a belt with a pouch and a knife, leather bracers and tall boots.
+- Characters are now shaped from smooth, rounded forms instead of boxes, with a hand-painted, low-res grain on bodies and ground.

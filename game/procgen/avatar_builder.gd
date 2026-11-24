@@ -21,6 +21,7 @@ const LIMB_PIVOTS := {
 const UPPER_ARM := 0.31
 const FOREARM := 0.27
 const ARM_LENGTH := 0.63 ## shoulder to fingertips
+const ARM_SPLAY := 0.09 ## radians the arms hang out from the body at rest
 const ARM_RADIUS := 0.058 ## the sleeve at the shoulder, the widest part of the arm
 const THIGH := 0.46
 const SHIN := 0.4
@@ -102,94 +103,118 @@ static func parts(appearance_seed: int) -> Array:
 	var dark_leather := Palette.LEATHER_DARK
 	var out: Array = []
 
-	# Torso: a tapered chest, wider than deep, from the waist (1.02) to the shoulders (1.46).
-	# Index 0 is the tunic and index 1 the head, as they have always been.
-	out.append(_p("", _cyl(0.205, 0.155, CHEST_TOP - WAIST_Y, 8), tunic, Vector3(0, (CHEST_TOP + WAIST_Y) * 0.5, 0), Vector3.ZERO, Vector3(1.0, 1.0, CHEST_DEPTH)))
-	var head := SphereMesh.new()
-	head.radius = HEAD_RADIUS
-	head.height = HEAD_HEIGHT
-	head.radial_segments = 8
-	head.rings = 5
-	out.append(_p("", head, skin, Vector3(0, HEAD_Y, 0.005), Vector3.ZERO, Vector3(0.92, 1.0, 1.0)))
+	# Torso: one smooth lofted body from the hips to the neck, shoulders wider than the waist,
+	# a chest that is deeper than the belly, flatter front to back. Index 0 is the tunic and
+	# index 1 the head, as they have always been. Each ring: [y, half width, half depth, z].
+	out.append(_p("", loft([
+		[0.84, 0.10, 0.07, 0.0], [0.88, 0.145, 0.10, 0.0], [0.96, 0.158, 0.105, 0.0],
+		[WAIST_Y, 0.148, 0.098, 0.0], [1.12, 0.158, 0.108, 0.008], [1.24, 0.182, 0.122, 0.012],
+		[1.33, 0.192, 0.118, 0.006], [1.40, 0.18, 0.105, 0.0], [1.445, 0.145, 0.088, 0.0],
+		[CHEST_TOP, 0.085, 0.065, 0.0], [CHEST_TOP + 0.01, 0.055, 0.05, 0.0],
+	]), tunic, Vector3.ZERO))
+	# Head: an egg a little narrower than it is deep, with a jaw that tapers to the chin.
+	out.append(_p("", loft([
+		[-0.125, 0.012, 0.012, 0.02], [-0.118, 0.045, 0.05, 0.03], [-0.09, 0.075, 0.085, 0.015],
+		[-0.04, 0.092, 0.105, 0.005], [0.02, 0.1, 0.112, 0.0], [0.07, 0.094, 0.104, -0.006],
+		[0.105, 0.07, 0.08, -0.008], [0.125, 0.02, 0.025, -0.008],
+	], 12), skin, Vector3(0, HEAD_Y, 0.0)))
 
-	# Neck, jaw-line and a nose: enough for a face to read as a face at 3 m, no more.
-	out.append(_p("", _cyl(0.048, 0.055, 0.12, 6), skin.darkened(0.06), Vector3(0, CHEST_TOP + 0.04, 0)))
-	var nose := BoxMesh.new()
-	nose.size = Vector3(0.022, 0.045, 0.03)
-	out.append(_p("", nose, skin.darkened(0.04), Vector3(0, HEAD_Y - 0.01, HEAD_RADIUS * 0.95), Vector3(-0.25, 0, 0)))
-	var eye := BoxMesh.new()
-	eye.size = Vector3(0.028, 0.014, 0.02)
-	var socket := skin.darkened(0.55)
-	out.append(_p("", eye, socket, Vector3(-0.038, HEAD_Y + 0.018, HEAD_RADIUS * 0.86)))
-	out.append(_p("", eye, socket, Vector3(0.038, HEAD_Y + 0.018, HEAD_RADIUS * 0.86)))
+	out.append(_p("", loft([[-0.07, 0.05, 0.048, 0.0], [0.0, 0.046, 0.044, 0.0], [0.07, 0.05, 0.05, 0.005]], 8), skin.darkened(0.06), Vector3(0, CHEST_TOP + 0.04, 0)))
+	out.append(_p("", _ball(0.016, 6), skin.darkened(0.04), Vector3(0, HEAD_Y - 0.008, 0.108), Vector3(-0.3, 0, 0), Vector3(0.75, 1.4, 1.0))) # nose
+	var socket := skin.darkened(0.5)
+	for x in [-0.036, 0.036]:
+		out.append(_p("", _ball(0.014, 6), socket, Vector3(x, HEAD_Y + 0.018, 0.097), Vector3.ZERO, Vector3(1.4, 0.75, 0.6)))
 
 	# Head: a hood pulled up, or hair (and a felt cap on top of it).
 	if style == 0:
-		var hood := SphereMesh.new()
-		hood.radius = HEAD_RADIUS + 0.028
-		hood.height = HEAD_HEIGHT + 0.06
-		hood.radial_segments = 8
-		hood.rings = 5
-		out.append(_p("", hood, wool.darkened(0.12), Vector3(0, HEAD_Y + 0.025, -0.06), Vector3(-0.15, 0, 0), Vector3(1.0, 1.0, 1.0))) # set back, so the face shows in its opening
+		out.append(_p("", _ball(HEAD_RADIUS + 0.028, 12), wool.darkened(0.12), Vector3(0, HEAD_Y + 0.02, -0.06), Vector3(-0.15, 0, 0), Vector3(1.0, 1.15, 1.0))) # set back, so the face shows in its opening
 	else:
-		var cut := SphereMesh.new()
-		cut.radius = HEAD_RADIUS + 0.012
-		cut.height = HEAD_HEIGHT * 0.86
-		cut.radial_segments = 8
-		cut.rings = 4
-		out.append(_p("", cut, hair, Vector3(0, HEAD_Y + 0.03, -0.02), Vector3.ZERO, Vector3(0.95, 1.0, 1.0)))
+		out.append(_p("", _ball(HEAD_RADIUS + 0.014, 12), hair, Vector3(0, HEAD_Y + 0.05, -0.05), Vector3(-0.35, 0, 0), Vector3(1.0, 0.9, 0.98))) # back and crown of the head: the face stays clear
 		if style == 1:
-			out.append(_p("", _cyl(HEAD_RADIUS * 0.8, HEAD_RADIUS + 0.018, 0.07, 8), tunic.darkened(0.3), Vector3(0, HEAD_Y + HEAD_HEIGHT * 0.36, -0.01), Vector3(-0.12, 0, 0)))
+			out.append(_p("", loft([[0.0, 0.112, 0.124, 0.0], [0.035, 0.105, 0.115, 0.0], [0.06, 0.07, 0.08, 0.0], [0.07, 0.01, 0.01, 0.0]], 12), tunic.darkened(0.3), Vector3(0, HEAD_Y + 0.045, -0.012), Vector3(-0.12, 0, 0)))
 
-	# Hips and the tunic's skirt to mid-thigh, belted at the waist.
-	out.append(_p("", _cyl(0.16, 0.175, 0.26, 8), tunic.darkened(0.08), Vector3(0, WAIST_Y - 0.12, 0), Vector3.ZERO, Vector3(1.0, 1.0, 0.8)))
-	out.append(_p("", _cyl(0.163, 0.163, 0.055, 8), dark_leather, Vector3(0, WAIST_Y, 0), Vector3.ZERO, Vector3(1.0, 1.0, CHEST_DEPTH + 0.04)))
+	# The tunic's skirt to mid-thigh, flaring a little, belted at the waist.
+	out.append(_p("", loft([[0.0, 0.162, 0.112, 0.0], [-0.12, 0.175, 0.122, 0.0], [-0.24, 0.19, 0.13, 0.0], [-0.25, 0.17, 0.11, 0.0]]), tunic.darkened(0.08), Vector3(0, WAIST_Y + 0.0, 0)))
+	out.append(_p("", loft([[-0.028, 0.158, 0.108, 0.0], [0.028, 0.158, 0.108, 0.0]]), dark_leather, Vector3(0, WAIST_Y, 0)))
 	# Gear on the belt: a pouch on the left hip, a knife on the right.
-	var pouch := BoxMesh.new()
-	pouch.size = Vector3(0.09, 0.1, 0.06)
-	out.append(_p("", pouch, leather, Vector3(0.13, WAIST_Y - 0.07, 0.08), Vector3(0, 0.5, 0)))
-	var sheath := BoxMesh.new()
-	sheath.size = Vector3(0.035, 0.2, 0.05)
-	out.append(_p("", sheath, dark_leather, Vector3(-0.155, WAIST_Y - 0.11, 0.02), Vector3(0, 0, 0.18)))
+	out.append(_p("", _ball(0.05, 8), leather, Vector3(0.13, WAIST_Y - 0.07, 0.085), Vector3(0, 0.5, 0), Vector3(0.95, 1.05, 0.65)))
+	out.append(_p("", loft([[-0.1, 0.008, 0.012, 0.0], [-0.08, 0.02, 0.026, 0.0], [0.1, 0.02, 0.026, 0.0]], 6), dark_leather, Vector3(-0.165, WAIST_Y - 0.11, 0.02), Vector3(0, 0, 0.18)))
 
 	# A strap across the chest to the pack, and a wool mantle over the shoulders: the layers
 	# that make a traveller read as someone who sleeps outdoors.
-	var strap := BoxMesh.new()
-	strap.size = Vector3(0.05, 0.5, 0.02)
-	out.append(_p("", strap, dark_leather, Vector3(0.0, 1.25, 0.135), Vector3(0, 0, 0.62)))
-	out.append(_p("", _cyl(0.1, 0.25, 0.17, 8), wool, Vector3(0, CHEST_TOP - 0.035, -0.005), Vector3.ZERO, Vector3(1.0, 1.0, 0.72)))
+	out.append(_p("", loft([[-0.26, 0.022, 0.008, 0.0], [0.26, 0.022, 0.008, 0.0]], 6), dark_leather, Vector3(0.0, 1.24, 0.128), Vector3(0, 0, 0.62)))
+	out.append(_p("", loft([[-0.13, 0.215, 0.135, -0.005], [-0.09, 0.21, 0.132, 0.0], [-0.03, 0.185, 0.12, 0.0], [0.0, 0.14, 0.1, 0.0], [0.025, 0.075, 0.07, 0.0], [0.03, 0.055, 0.055, 0.0]]), wool, Vector3(0, CHEST_TOP - 0.015, 0)))
 
-	# Back: a framed pack and the bedroll strapped on top of it, inside the arms' swing.
-	var pack := BoxMesh.new()
-	pack.size = Vector3(PACK_WIDTH, 0.38, 0.14)
-	out.append(_p("", pack, leather, Vector3(0, 1.17, -PACK_BACK)))
-	var roll := CylinderMesh.new()
-	roll.top_radius = 0.06
-	roll.bottom_radius = 0.06
-	roll.height = PACK_WIDTH + 0.02
-	roll.radial_segments = 7
-	roll.rings = 1
-	out.append(_p("", roll, Palette.BEDROLL, Vector3(0, 1.4, -PACK_BACK - 0.01), Vector3(0, 0, PI * 0.5)))
+	# Back: a soft canvas pack and the bedroll strapped on top of it, inside the arms' swing.
+	out.append(_p("", loft([[-0.19, 0.08, 0.04, 0.0], [-0.17, 0.125, 0.065, 0.0], [0.12, 0.13, 0.07, 0.0], [0.19, 0.1, 0.05, 0.0], [0.2, 0.03, 0.02, 0.0]], 10), leather, Vector3(0, 1.17, -PACK_BACK)))
+	out.append(_p("", loft([[-PACK_WIDTH * 0.5 - 0.01, 0.045, 0.045, 0.0], [-PACK_WIDTH * 0.5, 0.06, 0.06, 0.0], [PACK_WIDTH * 0.5, 0.06, 0.06, 0.0], [PACK_WIDTH * 0.5 + 0.01, 0.045, 0.045, 0.0]], 8), Palette.BEDROLL, Vector3(0, 1.4, -PACK_BACK - 0.01), Vector3(0, 0, PI * 0.5)))
 
-	# Arms: a sleeve, a leather bracer over the forearm, a hand. Hanging to mid-thigh.
+	# Arms: a rounded shoulder, a sleeve that narrows to the elbow, a leather bracer on the
+	# forearm, and a hand. Hanging to mid-thigh. Upper arm and forearm are separate pieces, so
+	# a skeleton can bend them at the elbow later.
 	for a in ["ArmL", "ArmR"]:
-		out.append(_p(a, _cyl(0.058, 0.048, UPPER_ARM, 6), tunic.darkened(0.1), Vector3(0, -UPPER_ARM * 0.5 + 0.02, 0)))
-		out.append(_p(a, _cyl(0.05, 0.042, FOREARM, 6), leather.darkened(0.1), Vector3(0, -UPPER_ARM - FOREARM * 0.5 + 0.02, 0.01)))
-		var hand := SphereMesh.new()
-		hand.radius = 0.045
-		hand.height = 0.11
-		hand.radial_segments = 6
-		hand.rings = 3
-		out.append(_p(a, hand, skin, Vector3(0, -ARM_LENGTH + 0.04, 0.01)))
-	# Legs: trousers, a tall boot with a turned-down cuff, and a foot that points forward.
+		var side := 1.0 if a == "ArmL" else -1.0
+		out.append(_p(a, loft([[-UPPER_ARM, 0.046, 0.05, 0.0], [-0.2, 0.054, 0.057, 0.0], [-0.06, 0.062, 0.064, 0.0], [0.0, 0.06, 0.062, 0.0], [0.04, 0.03, 0.03, 0.0]], 8), tunic.darkened(0.1), Vector3(side * 0.004, 0, 0)))
+		out.append(_p(a, loft([[-ARM_LENGTH + 0.08, 0.034, 0.036, 0.01], [-UPPER_ARM - 0.1, 0.046, 0.048, 0.008], [-UPPER_ARM + 0.01, 0.048, 0.05, 0.0]], 8), leather.darkened(0.1), Vector3.ZERO))
+		out.append(_p(a, _ball(0.046, 8), skin, Vector3(0, -ARM_LENGTH + 0.05, 0.012), Vector3.ZERO, Vector3(0.75, 1.25, 1.0)))
+	# Arms hang a little away from the body, not glued to its sides like a mannequin's: each
+	# arm part turns about its shoulder pivot (the walk cycle still swings the pivot).
+	for p in out:
+		if p.limb == "ArmL" or p.limb == "ArmR":
+			var tilt := Basis(Vector3.BACK, ARM_SPLAY * (1.0 if p.limb == "ArmL" else -1.0))
+			p.pos = tilt * (p.pos as Vector3)
+			p.rot = (tilt * Basis.from_euler(p.rot)).get_euler()
+	# Legs: a thigh that tapers to the knee, a calf that swells and narrows to the ankle, a
+	# tall boot with a rounded toe. Thigh and shin are separate pieces (a knee, later).
 	for l in ["LegL", "LegR"]:
-		out.append(_p(l, _cyl(0.085, 0.064, THIGH, 6), trousers, Vector3(0, -THIGH * 0.5 + 0.02, 0)))
-		out.append(_p(l, _cyl(0.062, 0.054, SHIN, 6), trousers.darkened(0.08), Vector3(0, -THIGH - SHIN * 0.5 + 0.02, 0)))
-		out.append(_p(l, _cyl(0.07, 0.064, 0.24, 6), dark_leather, Vector3(0, -LEG_LENGTH + 0.16, 0)))
-		var foot := BoxMesh.new()
-		foot.size = Vector3(0.1, 0.075, 0.25)
-		out.append(_p(l, foot, dark_leather.darkened(0.15), Vector3(0, -LEG_LENGTH + 0.0375, 0.045)))
+		out.append(_p(l, loft([[-THIGH - 0.02, 0.058, 0.064, 0.0], [-THIGH * 0.6, 0.072, 0.08, 0.0], [-0.06, 0.085, 0.092, 0.0], [0.02, 0.08, 0.085, 0.0]], 8), trousers, Vector3.ZERO))
+		out.append(_p(l, loft([[-LEG_LENGTH + 0.24, 0.054, 0.06, 0.0], [-THIGH - 0.12, 0.062, 0.07, -0.006], [-THIGH + 0.01, 0.058, 0.064, 0.0]], 8), trousers.darkened(0.08), Vector3.ZERO))
+		out.append(_p(l, loft([[-LEG_LENGTH + 0.03, 0.058, 0.07, 0.0], [-LEG_LENGTH + 0.12, 0.06, 0.066, 0.0], [-LEG_LENGTH + 0.27, 0.07, 0.074, 0.0], [-LEG_LENGTH + 0.28, 0.062, 0.066, 0.0]], 8), dark_leather, Vector3.ZERO))
+		out.append(_p(l, _ball(0.06, 8), dark_leather.darkened(0.15), Vector3(0, -LEG_LENGTH + 0.038, 0.05), Vector3.ZERO, Vector3(0.85, 0.65, 2.0)))
 	return out
+
+
+## A smooth tube through `rings` (each [y, half width, half depth, z offset], bottom to top),
+## closed at both ends, with smooth normals: the organic low-poly body parts (art bible
+## section 3, "Characters"). `segments` around. Rings far narrower than their neighbours make
+## rounded ends. Pure maths, safe headless.
+static func loft(rings: Array, segments: int = 10) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := rings.size()
+	for r in rings:
+		for k in segments:
+			var a := TAU * k / segments
+			st.add_vertex(Vector3(sin(a) * float(r[1]), float(r[0]), float(r[3]) + cos(a) * float(r[2])))
+	var bottom := n * segments
+	var b0: Array = rings[0]
+	st.add_vertex(Vector3(0, float(b0[0]), float(b0[3])))
+	var t0: Array = rings[n - 1]
+	st.add_vertex(Vector3(0, float(t0[0]), float(t0[3])))
+	for i in n - 1:
+		for k in segments:
+			var a := i * segments + k
+			var b := i * segments + (k + 1) % segments
+			var c := a + segments
+			var d := b + segments
+			st.add_index(a); st.add_index(c); st.add_index(b)
+			st.add_index(b); st.add_index(c); st.add_index(d)
+	for k in segments:
+		st.add_index(bottom); st.add_index(k); st.add_index((k + 1) % segments)
+		var top := (n - 1) * segments
+		st.add_index(bottom + 1); st.add_index(top + (k + 1) % segments); st.add_index(top + k)
+	st.generate_normals()
+	return st.commit()
+
+
+## A smooth ball (hands, feet, pouches, hair), squashed by the part's `scl`.
+static func _ball(radius: float, segments: int) -> SphereMesh:
+	var m := SphereMesh.new()
+	m.radius = radius
+	m.height = radius * 2.0
+	m.radial_segments = segments
+	m.rings = maxi(segments / 2, 3)
+	return m
 
 
 static func _cyl(top: float, bottom: float, height: float, segments: int) -> CylinderMesh:

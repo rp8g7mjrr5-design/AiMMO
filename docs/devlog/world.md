@@ -655,3 +655,10 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tests.** Unit suite with Postgres: 688 pass. 8-bot 180 s websocket bot test passed (276 s). Client smoke test passed (render budget ok; `Grazers` isn't drawn by the client yet, so nothing on screen changed).
 
 **Next run.** If #160 has landed, the client's swap is theirs. Otherwise: noon grass saturation or the mid-distance tree mesh.
+
+## 2026-11-24, less blocky, low-res characters (PR #171 follow-up)
+- Owner asked for characters that look less blocky and more "low res". Every body part is now a smooth `loft()` (rings of width/depth along y) or a low-segment ball, no boxes or cylinders. About 2,340 triangles a character, 5 draw calls, unchanged.
+- Low-res feel comes from maths in the Emberlight shader: object-space texel grain (`texel_size` 0.055 m on bodies, 0.4 m on terrain, ±9%/±7% brightness). No textures imported.
+- First loft pass had inverted winding (back faces drawn, faces looked like masks). The avatar test now checks winding and outward normals.
+- The light ramp is now two soft steps instead of one hard band, so rounded shapes read as rounded.
+- Next: animation thread builds on `AvatarBuilder.parts()/merged()/rig()`; upper arm/forearm and thigh/shin are separate parts ready for elbow and knee pivots.

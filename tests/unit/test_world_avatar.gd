@@ -98,3 +98,26 @@ func test_each_limb_and_the_body_merge_into_one_mesh() -> void:
 		var arrays := m.surface_get_arrays(0)
 		check_eq((arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size(), want, "%s keeps every part's vertices" % limb)
 		check((arrays[Mesh.ARRAY_COLOR] as PackedColorArray).size() == want, "%s keeps its painted colours" % limb)
+
+
+func test_bodies_are_smooth_lofts_not_boxes() -> void:
+	# Art bible section 3, "Characters": rounded organic shapes, not boxes or bare cylinders.
+	for p in AvatarBuilder.parts(42):
+		check(not (p.mesh is BoxMesh) and not (p.mesh is CylinderMesh), "no boxes or cylinders on a traveller")
+	# A loft is closed and its normals point outwards (the right winding, so back-face culling
+	# shows the outside): every vertex normal on the side rings faces away from the axis.
+	var m := AvatarBuilder.loft([[0.0, 0.1, 0.1, 0.0], [0.5, 0.12, 0.08, 0.0], [1.0, 0.1, 0.1, 0.0]], 8)
+	var arrays := m.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var outward := 0
+	for i in 24:
+		if Vector2(verts[i].x, verts[i].z).dot(Vector2(normals[i].x, normals[i].z)) > 0.0:
+			outward += 1
+	check_eq(outward, 24, "every side vertex's normal points outwards")
+	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var a := verts[idx[0]]
+	var b := verts[idx[1]]
+	var c := verts[idx[2]]
+	var face := (b - a).cross(c - a)
+	check(face.dot(Vector3(a.x, 0, a.z)) < 0.0, "triangles wind clockwise seen from outside (Godot's front face)")
