@@ -1562,3 +1562,26 @@ smoke test pass.
 **Notes to next run:** the alert moment still has no sound, and there is still no smoke hook
 for a herd close up (follow-ups added). Screenshot taken by hand with a scratch script that
 builds the world and feeds six grazers in different states.
+
+## 2026-11-24: intro sound "almost doubly" (owner request)
+
+Run outside the schedule; took the `client` claim.
+
+**Checked first:** release build 596 has #178. The pack holds video-only ogv files (byte-identical
+to `main`) and one imported `budda_games_intro.ogg`. Recorded Godot's own mix with an
+`AudioEffectRecord` on Master while the intro played (Dummy driver, real time): one copy of the
+sound at the source's loudness, no echo. So the engine plays a single copy.
+
+**Cause:** the sound in the owner's 4K60 export is itself glitched. The spectrogram shows
+broadband clicks all the way through, and an onset count finds about 40 attack points where
+the first mp4 export has 14 at the same times: chunks get repeated, which reads as "doubled"
+and "jittery". Correlation between the two exports' audio is only 0.09 even though their
+pictures match frame for frame (offset 0 at 60 fps). The 4K export's audio probably broke when
+it was rendered, maybe by a recorder that could not keep up at 4K60. #178's split was still
+right (it fixed the decoder starving), but the file it split out carried the export's glitches.
+
+**Fix:** `budda_games_intro.ogg` now comes from the first export's clean audio (Vorbis 44.1 kHz
+q5, 114 KB, 6.91 s). Its video lines up frame for frame with the 4K one, so the sound stays in sync.
+Comparison image: `/mnt/project-files/client/budda-intro-audio-first-vs-4k-export.png`.
+816 unit tests pass. **Next time** the owner sends an intro export, check its audio for
+clicks (spectrogram) before using it.
