@@ -262,6 +262,39 @@ static func miss() -> AudioStreamWAV:
 	return wav
 
 
+## Taking a hit (VitalsBar, on an s2c_vitals that lost health): a soft, low, muffled thump
+## (about 0.2 s), a body blow rather than a crash, so it reads under footsteps and hauls
+## without startling. A pitch that falls from about 110 Hz to 60 Hz plus a short burst of
+## low-passed noise for the impact. Peak about 0.3 full scale, -8 dB on top in client.gd.
+const HURT_LENGTH := 0.2
+
+
+static func hurt() -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7100
+	var data := PackedByteArray()
+	var lp := 0.0
+	var phase := 0.0
+	var n := int(RATE * HURT_LENGTH)
+	for i in n:
+		var t := float(i) / RATE
+		var f := 60.0 + 50.0 * exp(-t * 25.0)
+		phase += TAU * f / RATE
+		var body := sin(phase) * minf(1.0, t * 500.0) * exp(-t * 18.0)
+		lp += 0.12 * (rng.randf_range(-1.0, 1.0) - lp) # one-pole low-pass: a dull thud
+		var hit := lp * 2.2 * exp(-t * 60.0)
+		var fade := clampf((HURT_LENGTH - t) / 0.02, 0.0, 1.0) # no click at the end
+		var s16 := int(clampf((body * 0.8 + hit) * fade * 0.32, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = RATE
+	wav.stereo = false
+	wav.data = data
+	return wav
+
+
 static func _tones(notes: Array, volume: float) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	for n in notes:
