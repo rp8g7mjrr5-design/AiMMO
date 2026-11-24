@@ -100,7 +100,8 @@ func _on_wildlife(entries: PackedFloat32Array) -> void:
 			continue
 		var x := float(entries[i + 1])
 		var z := float(entries[i + 2])
-		if bot.have_pos and bot.elapsed - float(bot.get_meta("unstuck_at", -INF)) > TELEPORT_GRACE:
+		var teleported := maxf(float(bot.get_meta("unstuck_at", -INF)), float(bot.get_meta("knocked_down_at", -INF)))
+		if bot.have_pos and bot.elapsed - teleported > TELEPORT_GRACE:
 			var d := Vector2(x - bot.my_pos.x, z - bot.my_pos.z).length()
 			if d > GameConfig.VIEW_RANGE + VIEW_SLACK:
 				fail("sent creature %d %.1f m away, beyond the view (%.1f s in, %s)" % [id, d, bot.elapsed, bot.phase])

@@ -939,3 +939,68 @@ Also dropped `gameplay_roster_v5._tell_fun_metrics` (qa's `qa_fun_metrics` hears
 **Tests.** `test_gameplay_protocol_v6.gd` (8): RPC list vs frozen v5, re-emit, packed type, view filter and precision, 5 a second only to players in view, goodbyes, the bolt and herd in the send, a far login hears nothing. `test_gameplay_wildlife`'s server test now expects the sends; the v5 test checks the frozen v5 files. Unit 637/637 with Postgres. Bot test 8 x 180 s websocket with `--fun-check --perf-check` PASSED (8 of 8 levelled, dead median 21.4 s, worst 37.7; stalker 1 stalk, 1 bolt, herd bolted; CPU 1.9 ms/tick; down 70.8 kbit/s). 45 s ENet bot test PASSED. Protocol test websocket and ENet PASSED. Client smoke PASSED.
 
 **Next run:** if this PR is red, fix what is ours. Then: `Vitals` wiring once client sends sprint/dodge, a lantern use, or the HELP trim if the director reworded the bible. When herds grow, send only changed creatures (follow-up filed).
+
+## 2026-11-24: health and stamina live on the server (Vitals wiring, no bump)
+
+**Picked.** The top open backlog items were watch-only (Toolcraft grind, tier-2 crowding),
+waiting on client or qa (ember rows greyed out, level-up line, `/who` retirement), waiting on
+the director (HELP trim: the bible still says debug commands are "never listed in /help"),
+or needed world and client (a lantern use). The v3 follow-up "stop sending gather lines to
+v3 clients" turned out not to be worth doing: the client already swallows those lines
+(`gather_prompt.on_system`) and still parses the success line for its pack mirror, so
+dropping them changes nothing players see and could break that parser. Left open with a
+note. So I took the Milestone 2 build-ahead the director queued: wire `Vitals` into the
+server. Fun it unblocks: the first fight. A creature's bite now has somewhere to land, and
+losing is designed to be fair before the first enemy exists.
+
+**Built.**
+- `Server.vitals_of(id)`: one `Vitals` state per session, full on login (not saved; a relog
+  is a full bar), made lazily for sessions built without one (unit tests).
+- `_tick_vitals` every tick: `Vitals.tick` (stamina and out-of-combat health regen), and
+  `s2c_vitals(hp, max_hp, stamina, max_stamina)` in whole points, only when they change. That
+  RPC is not in protocol v6, so `_send` holds it back (one "not in protocol v6 yet" log line)
+  until the bump that brings the client's health bar. A full, idle player sends nothing.
+- `Server.hurt(id, amount, blocking)`: `Vitals.hit`, and at 0 health `knock_down(id)`: any
+  gather ends "moved", the player comes to at once on the Spawn Meadow arc (`unstuck_spot`),
+  full, standing still, pack and XP untouched, and gets `Vitals.KNOCKED_DOWN_TEXT`. Nobody
+  else is told. It doesn't touch the Return to Spawn cooldown.
+- "Return to Spawn Meadow" is refused while in combat ("You can't return to Spawn Meadow
+  mid-fight. Try again in N s.", `wait` = `Vitals.combat_left`), spends no cooldown. That
+  closes the v5 follow-up about it being an escape button.
+- Hidden dev commands `/hurt N` (1 to 1000, default 10) and `/vitals` (`/hp`, `/health`),
+  behind the dev-commands gate, never in HELP. A knock-down's own line is the whole answer.
+- `Vitals.combat_left`, `Vitals.shown`, `Vitals.describe`.
+
+**Why these calls.**
+- Fair failure = lose nothing for now. The design bible wants players back to the fun in
+  seconds; the roadmap says "lose little". With no enemies yet there is nothing to tune, so
+  the cost is only the walk back. If deaths turn out to have no weight once creatures bite,
+  add a small cost (a few seconds' "dazed" slow, or dropping part of one stack at the spot to
+  pick back up) rather than XP loss.
+- No downed state or respawn timer: dead time is the enemy (fun metrics). The knock-down is
+  instant; a short fade is the client's call when it gets `s2c_vitals`.
+- A hit does not interrupt a gather yet. Gather ends only know "moved/far/stopped"; a new
+  "hit" reason would need client text. Follow-up filed for when creatures attack.
+- `s2c_vitals` is produced now rather than at the bump so the bump PR is only the RPC.
+
+**Bot behaviour.** `gameplay_vitals.gd`: every bot, 10 to 14 s after a login: `/hurt 30`
+(must say 70/100, in combat), `/vitals` (still 70, in combat), waits out the fight and 5 s,
+`/vitals` (100/100, out of combat), then, only while not gathering or stalking, `/hurt 1000`
+(must get the knock-down line and be within 4 m of spawn within 3 s). It sets the bot meta
+`knocked_down_at`; `gameplay_gather_v3` forgives a "moved"/"far" end within 3 s of it and
+walks back to its node, and `gameplay_wildlife` gives it the same view grace as an unstuck.
+
+**Tests.** `test_gameplay_vitals_live.gd` (10): full and quiet when idle, hurt then regen
+after the fight with the sends, knock-down (spawn, still, full, pack and XP kept, only the
+victim told), a knock-down ends a gather "moved", no unstuck mid-fight (no cooldown spent),
+the dev commands, dev-only and not in HELP, `/hurt` parsing, health not in the save,
+`combat_left`/`describe`. Unit 669/669 with Postgres. Bot test 8 x 180 s websocket with `--fun-check --perf-check`
+PASSED (8 of 8 levelled, every bot hurt, healed and knocked down once; dead median 25.2 s,
+worst 55.9; first reward 8.0 s; rewards 10.0/min; CPU 1.8 ms/tick; down 73.3 kbit/s median).
+A plain run before it also passed (dead median 33.3). Client smoke PASSED. Local note: the
+container had no `ss`, so the first `--perf-check` run failed "not measured"; `apt-get install
+iproute2` fixed it (not a code problem).
+
+**Next run:** if this PR is red, fix what is ours. Then: put `s2c_vitals` on Net/Play in the
+next protocol bump (with a frozen v6) once client is ready for a health bar (request filed
+with client); a gather interrupted by a hit; sprint/dodge spends once client sends them.
