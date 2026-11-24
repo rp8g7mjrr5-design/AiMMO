@@ -42,8 +42,12 @@ const NEW_ITEMS := {}
 ## shows them with the fallback bundle until then. When ItemIcons draws one, gameplay moves
 ## it into ITEMS and ITEM_ORDER. Ids are PERMANENT like ITEMS'. Empty today: the ember
 ## tools moved into ITEMS (after the stone tools) once world drew them (#118's run, world's
-## ember tool icons).
-const UNDRAWN := {}
+## ember tool icons). The first hunt's drops wait here (2026-11-24): a downed grazer gives
+## hide and raw meat (Wildlife.KINDS.grazer.drops); world draws their icons next.
+const UNDRAWN := {
+	"hide": {"label": "hide"},
+	"raw_meat": {"label": "raw meat"},
+}
 
 
 static func is_item(item: String) -> bool:

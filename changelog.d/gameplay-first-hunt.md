@@ -1,0 +1,3 @@
+- The grazers can be hunted now (server side, ready for the attack key): a few bare-handed blows bring one down, and it leaves you a hide and two raw meat in your pack.
+- A wounded grazer limps away slower than you walk, so a good first hit turns into a chase you can win. Leave it alone for a minute and it recovers.
+- By night the herds sleep deep: creep in, freeze whenever a head comes up, and you can get close enough to strike. A downed grazer is back with its herd a few minutes later.
