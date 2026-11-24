@@ -26,6 +26,10 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## a single timed gather" fails only when a node it tried refused for a reason other than
 ## being empty (8 bots can drain every node near spawn; that's not a bug).
 ##
+## Lending the bot (protocol v6): gameplay_wildlife borrows one bot for a single short stalk
+## of a nearby herd after the reconnect, and only between gathers (ready_to_lend). While the bot meta "wildlife_stalking" is set this behaviour only keeps
+## watching; afterwards it heads for the nearest node from wherever the stalk left it.
+##
 ## Tier-2 gate (Milestone 1 part 3): once per login, before its first node, the bot asks to
 ## gather the nearest tier-2 node (an old ember ash or rich seam, level 5) from wherever it
 ## stands. Below the level the server must refuse it with reason "level" and a system line
@@ -112,6 +116,7 @@ var _gate_node := -1
 var _gate_text := false
 var gate_refused := 0
 var gate_lines := 0
+var _lent := false
 
 
 func setup(net: Node) -> void:
@@ -164,6 +169,11 @@ func _on_ack(ack: int) -> void:
 	if ack < _last_ack:
 		fail("ack_seq went back from %d to %d" % [_last_ack, ack])
 	_last_ack = ack
+
+
+## gameplay_wildlife may borrow the bot now: no gather is being started or running.
+func ready_to_lend() -> bool:
+	return _step in [Step.GOTO, Step.IDLE, Step.WAIT_RESPAWN]
 
 
 func _gathering() -> Object:
@@ -269,6 +279,15 @@ func on_play(_delta: float) -> void:
 		if bot.elapsed > float(_others[peer][1]):
 			fail("saw peer %d start gathering node %d but never saw it end" % [peer, _others[peer][0]])
 			_others.erase(peer)
+	if bot.get_meta("wildlife_stalking", false):
+		_lent = true
+		return
+	if _lent:
+		_lent = false
+		if _step == Step.GOTO: # walk to the nearest node from where the stalk ended
+			_radius_i = 0
+			_fill_targets()
+			_next_node()
 	match _step:
 		Step.WAIT_FIRST:
 			var g = _gathering()

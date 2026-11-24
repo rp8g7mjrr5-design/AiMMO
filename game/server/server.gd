@@ -34,8 +34,15 @@ var _respawn_timer := 0.0
 ## Messages the server already produces but the current protocol has no RPC for yet (see
 ## _send). Logged once each so the gap is visible, never an error.
 var _not_in_protocol := {}
-## The grazers outside the meadow (Wildlife): stepped every tick, not sent yet (next bump).
+## The grazers outside the meadow (Wildlife): stepped every tick, sent to whoever can see
+## them every WILDLIFE_SEND_TICKS ticks (s2c_wildlife, protocol v6).
 var wildlife := Wildlife.new_state()
+## Ticks between s2c_wildlife sends: 4 at 20 Hz is 5 a second, plenty for animals that the
+## client interpolates, at a quarter of the snapshot's bandwidth.
+const WILDLIFE_SEND_TICKS := 4
+## After the last grazer leaves a player's view, the empty s2c_wildlife goes out this many
+## sends in a row (it is unreliable, so one lost packet must not leave a herd frozen on screen).
+const WILDLIFE_GOODBYES := 3
 ## Someone joined, left or levelled up since the last tick: send everyone the new roster
 ## (once per tick, so eight players logging in at once is eight rosters, not 36).
 var _roster_dirty := false
@@ -139,6 +146,8 @@ func _tick() -> void:
 		entries.append_array([id, p.x, p.y, p.z, s.yaw])
 	_tick_channels(now_seconds())
 	_tick_wildlife(now_seconds())
+	if tick % WILDLIFE_SEND_TICKS == 0:
+		_send_wildlife()
 	_flush_inventories()
 	_flush_roster()
 	if entries.is_empty():
@@ -160,6 +169,25 @@ func player_positions() -> Array:
 ## The grazers take one step (Wildlife.step). Returns the ids that bolted.
 func _tick_wildlife(now: float) -> Array:
 	return Wildlife.step(wildlife, player_positions(), now, GameConfig.TICK_DT, WorldClock.is_night(world_seconds()))
+
+
+## s2c_wildlife to every logged-in player: the grazers within GameConfig.VIEW_RANGE of them.
+## Nothing to players with none in view, except WILDLIFE_GOODBYES empty sends once the last
+## one leaves. A new login starts with none seen, so its first send is the herd in view.
+func _send_wildlife() -> void:
+	for id in sessions:
+		var s: Dictionary = sessions[id]
+		if not s.logged_in:
+			continue
+		var entries := Wildlife.to_wire_near(wildlife, CharacterData.position(s.character), GameConfig.VIEW_RANGE)
+		if entries.is_empty():
+			var bye := int(s.get("wildlife_bye", 0))
+			if bye <= 0:
+				continue
+			s.wildlife_bye = bye - 1
+		else:
+			s.wildlife_bye = WILDLIFE_GOODBYES
+		_send(id, "s2c_wildlife", [entries])
 
 
 func _on_peer_connected(id: int) -> void:

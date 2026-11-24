@@ -10,8 +10,9 @@ class_name Wildlife
 ## you hunt, and the creep-and-freeze rule is what makes stalking one feel like a skill.
 ##
 ## Pure rules over plain data, like Gathering and Vitals: the server owns one state from
-## new_state() and calls step() every tick with the players' positions. Nothing is sent yet;
-## to_wire() is the snapshot the next protocol bump carries (see the gameplay devlog).
+## new_state() and calls step() every tick with the players' positions. Since protocol v6 the
+## server sends each player to_wire_near(state, their position) about 5 times a second
+## (s2c_wildlife on Net/Play).
 ##
 ## Facing: `yaw` is the angle whose forward is Vector3(sin(yaw), 0, cos(yaw)), so yaw 0 looks
 ## along +z. Ids are permanent and append only, like resource node ids.
@@ -319,13 +320,35 @@ static func _flat(p: Vector3) -> Vector2:
 	return Vector2(p.x, p.z)
 
 
-## The wire form for the next protocol bump's snapshot: a flat Array of
-## [id, x, z, yaw, state_index] per creature (clients take y from Terrain.height).
-static func to_wire(state: Dictionary) -> Array:
-	var out: Array = []
+## The wire form (s2c_wildlife, protocol v6): a PackedFloat32Array of
+## [id, x, z, yaw, state_index] per creature (clients take y from Terrain.height). Packed
+## 32-bit floats are 4 bytes a value on the wire, a third of a plain Array's, which keeps 21
+## grazers 5 times a second under 20 kbit/s per player; ids and state indexes are small
+## whole numbers, exact as floats, and positions keep millimetres out to kilometres.
+static func to_wire(state: Dictionary) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
 	for c in state.creatures:
-		out.append_array([int(c.id), snappedf(c.pos.x, 0.01), snappedf(c.pos.z, 0.01), snappedf(float(c.yaw), 0.01), STATES.find(str(c.state))])
+		_wire_one(out, c)
 	return out
+
+
+## Values per creature in the wire form.
+const WIRE_STRIDE := 5
+
+
+## to_wire for only the creatures within `radius` of `pos` (flat distance), in id order: what
+## one player at `pos` is sent.
+static func to_wire_near(state: Dictionary, pos: Vector3, radius: float) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	var here := _flat(pos)
+	for c in state.creatures:
+		if _flat(c.pos).distance_to(here) <= radius:
+			_wire_one(out, c)
+	return out
+
+
+static func _wire_one(out: PackedFloat32Array, c: Dictionary) -> void:
+	out.append_array(PackedFloat32Array([float(c.id), c.pos.x, c.pos.z, float(c.yaw), float(STATES.find(str(c.state)))]))
 
 
 ## One line for the server log at start-up.
