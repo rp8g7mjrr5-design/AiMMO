@@ -1,20 +1,19 @@
 # AiMMO Roadmap
 
-The road from today to the game in `docs/vision.md` (owner direction, 2026-11-24): **a
-small-server survival game** with generated worlds, the Hollows, bands that claim land with
-resolve, raids, and seasons that end in wipe day. The roadmap is a list of **phases in order**,
-not dates. Each has a goal a player can feel and a "done when" list. Streams work on the
-**current phase** first; they may build ahead on the next one only when nothing in the current
-one is unblocked for them. A broken system or a serious bug always goes first. The weekly review
-names each week's release after what it added to the current phase, and moves the "current"
-marker when a phase's "done when" list is all true. Milestones 0 and 1 below are the
-foundations already built; anything still open in them stays first in its backlog.
+The road from today to **ZombAi** in `docs/vision.md` (owner direction, 2026-11-24, draft):
+a third-person survival game in a fallen medieval kingdom, on generated maps full of
+risk-graded ruins, against the Hollows. The roadmap is a list of **phases in order**, not dates.
+Each has a goal a player can feel and a "done when" list. Streams work on the **current phase**
+first; they may build ahead on the next one only when nothing in the current one is unblocked
+for them. A broken system or a serious bug always goes first. Milestones 0 and 1 below are the
+foundations already built; anything still open in them stays first in its backlog. The game is
+**2 to 8 player co-op**, hosted by a friend (owner, 2026-11-24).
 
-Every phase follows the owner directions in `docs/design_bible.md` (fun comes first, the
-mass-appeal lean in `docs/vision.md`, take the best and beat it): before a phase's first system
-PR, its stream writes a few lines in its devlog on which game does that feature best, what
-players love and hate about it, and how ours improves on it. Everything on screen follows the
-art bible (`docs/art_bible.md`) and stays inside its render budget.
+Every phase follows the owner directions in `docs/design_bible.md` (fun comes first, the lean in
+`docs/vision.md`, take the best and beat it): before a phase's first system PR, its stream
+writes a few lines in its devlog on which game does that feature best, what players love and
+hate about it, and how ours improves on it. Everything on screen follows the art bible
+(`docs/art_bible.md`) and stays inside its render budget.
 
 ## Milestone 0: Foundations (finishing now)
 Shared world, accounts, movement, chat, persistence, day and night, gathering, crafting at
@@ -47,91 +46,82 @@ next unlock; levels survive logout; tier-2 nodes refuse a too-low level with a c
 the bot test covers XP, a level-up and persistence, and qa's fun metrics report time to
 first level-up.
 
-## Phase 1: The turn (generated worlds, servers and seasons) ← current
-**Goal:** the game runs on a fresh generated valley per server and season, and players can see
-which server they are on and when its season ends. Everything already built (gathering,
-crafting, skills, combat basics) works there.
-- A seed per server and season; characters belong to a server and season (add-only columns;
-  today's characters become season 0 of the first server, untouched).
-- The generator v1: a valley about 1.5 km across (sized for 48 players) from a seed (rivers and lakes, ash lowlands, pine
-  heights, ridges, Dimming scars) with resource nodes placed by it, and a first set piece
-  (the spawn town plot). Today's Ashgrove stays as the test seed and the live world until
-  season 1.
-- The client builds terrain and props in chunks around the player, inside the render budget.
-- A server list on the login screen (name, players / cap, season day, days to wipe).
-- The player cap as a server setting: 48.
-**Done when:** two servers with different seeds run side by side in the bot test, characters
-stay on their own server, a generated world is gatherable and craftable end to end, the
-client's spawn shot on a generated world fits the render budget, and qa's 48-bot run passes the
-perf budget.
+## Phase 1: A kingdom from a seed ← current (once adopted)
+**Goal:** every world is a new, generated stretch of the fallen kingdom, and what we already
+built (gathering, crafting, skills, combat basics) works in it.
+- A world config (seed, size, generator version) the server sends at login; today's 512 m
+  Ashgrove stays as version 0 until the first generated world goes live.
+- The generator v1: land, rivers, biomes, the king's roads, and **ruin sites** with grades,
+  resource nodes and the spawn point placed from the seed.
+- Terrain, props and ruins built in chunks around the player, inside the render budget.
+- The first two ruins as data-driven set pieces (a grade 1 burned farmstead, a grade 2 abandoned
+  village), built from a procedural medieval kit (timber, stone, thatch, all weathered).
+**Done when:** five seeds each give a playable world with water, every node kind, roads and
+ruins; a fresh character can gather and craft end to end in one; the spawn shot fits the render
+budget; the world builds in under 3 s.
 
 ## Phase 2: Survive the first night
-**Goal:** staying alive is a game: you get hungry, thirsty and cold, and the Hollows come at
-night.
+**Goal:** staying alive is the game, and the Hollows are the reason the night is scary.
 - Hunger, thirst, warmth and rest on top of today's vitals, forgiving and readable.
-- Fires to cook and warm by; water from lakes and rivers; foraging and the first cooking.
-- The Hollows: slow by day, packs at night, drawn to noise and light; real telegraphs, using the
-  combat already on `main`. Wildlife hunting (grazers drop hide and meat).
-- Death drops a lootable pack where you fell; respawn at the spawn town in under a minute; a
-  small XP slice lost, never a level.
-**Done when:** a fresh player learns, in one evening, to avoid dying of cold, hunger and to a
-Hollow; the fun metrics report time to first fire and nights survived; bots die, loot and
+- Fire, water, foraging, cooking, hunting.
+- The Hollows: the common Hollow and the Hollow hound, drawn by noise, faster at night, with
+  clear telegraphs; torches and ember-fire hurt them; the chill and the ember salve.
+- Death drops a lootable pack where you fell; respawn in under a minute.
+**Done when:** a fresh player learns, in one evening, to avoid dying of cold, hunger and to the
+Hollows; fun metrics report time to first fire and nights survived; bots fight, die, loot and
 respawn in the bot test.
 
-## Phase 3: A roof over your head
-**Goal:** building a shelter that keeps the night out.
-- Snap-grid building: foundations, walls, doorways and doors, floors, roofs, in wood then stone,
-  procedural and on the shared materials.
-- Doors with owners, chests, a bedroll that sets your respawn.
-- Building is saved per server and season and survives every restart and deploy.
-**Done when:** a player builds a shelter that Hollows can't get into at night, it survives a
-server restart in the bot test, and a walled base fits the render budget.
+## Phase 3: A roof and a wall
+**Goal:** a shelter that keeps the night out, built with friends.
+- Snap-grid timber and stone building, doors, palisades and gates, chests, an ember hearth that
+  stops Hollows rising inside, a bedroll respawn. Saved and restored through every restart.
+- Night sieges: on the darkest nights the Hollows gather on the loudest, brightest holds.
+**Done when:** a group builds a hold that Hollows can't get into, a night siege can be held or
+lost, the hold survives a server restart in the bot test, and a walled hold fits the render
+budget.
 
-## Phase 4: Bands and claims
-**Goal:** friends become a band and stake their land.
-- Bands (2 to 8), ranks, relations; a band panel.
-- Resolve per member and per band; claim stones and 32 m plots; build, door and container
-  permissions inside claims; Hollows don't rise in claims.
-- The spawn town as a safe, unclaimable zone, and its first shared project.
-**Done when:** a band claims land, outsiders can't build or loot there, resolve moves with time
-online and deaths, and all of it runs in the bot test.
+## Phase 4: Into the ruins
+**Goal:** the map's risk ladder: go further, risk more, come back stronger.
+- All four ruin grades (the mine, the drowned village, the abbey, the fallen castle and its
+  crypt), each with its own Hollows (soldiers, the Bell-wight) and loot tables.
+- Signet keys and vaults; smithing, iron and the first armour; bows and crossbows; ember
+  weapons.
+**Done when:** a geared group can clear each grade, grade 4 needs keys from grade 3, and loot
+from each grade is clearly better than the one below.
 
-## Phase 5: Raids and night sieges (the clip moments)
-**Goal:** the moments people share.
-- Breaching tools and build tiers; over-reach; claiming over outer plots; the offline damage
-  rule.
-- Night sieges: on the darkest nights Hollows gather on the loudest, brightest bases.
-- The moments get their own sound, light and camera feel; a server-wide feed line ("A siege is
-  gathering at the north ridge").
-**Done when:** an over-reached band can be raided, a band within its resolve is never raided at
-full strength while all members are offline, a night siege can be held or lost, and the bot
-test runs a raid and a siege.
+## Phase 5: Play with friends
+**Goal:** one friend hosts, the others join, and it just works.
+- A Host button that starts the server build on the player's machine with a chosen world; join
+  by invite code or address; several saved worlds per host; seed and size choice; friendly fire
+  and difficulty as host settings.
+- Joining a world in progress, leaving and coming back, the host closing the world safely.
+**Done when:** a host on a home connection runs a world for 8 players (the bot test runs 8 bots
+against a host-started server), worlds survive closing and reopening, and a friend can join in
+under a minute from the main menu.
 
-## Phase 6: Wipe day (seasons live)
-**Goal:** the season is an event.
-- Season settings (length 6 to 8 weeks), an in-game and server-list countdown, the last night,
-  and the new map at a set hour.
-- Season records (longest survivor, biggest hold, nights held) on a leaderboard and kept on the
-  account; titles that carry over.
-- Streamer mode; a second public server.
-**Done when:** a season ends and a new one starts on a fresh seed without touching accounts or
-records, and the countdown and leaderboard work.
+## Phase 6: Launch-ready
+**Goal:** a stranger buys it, starts it and has a good first hour.
+- A first-hour path that teaches needs, fire, the Hollows and building without a wall of text.
+- Settings and accessibility, streamer mode, performance on the target laptop, the rename to
+  ZombAi everywhere, a store-ready build.
+**Done when:** a new player reaches their first night and survives it without outside help, and
+the build passes the perf budget on Low and Medium.
 
 ## Phase 7: Depth (ongoing)
-Wounds and illness, farming, fishing, more Hollow kinds and bigger sieges, more biomes and set
-pieces, carts, proximity voice, a spectator camera, the spawn town's later projects.
+Wounds and illness, farming, fishing, carts and horses, more Hollow kinds and ruins, weather,
+proximity voice, a spectator camera.
 
-## The next six weeks (director forecast, 2026-11-24)
-A forecast, not a promise: it is redrawn every morning from what actually landed.
+## The next six weeks (director forecast, draft)
+A forecast, not a promise. It is redrawn once the owner confirms the direction.
 
 | Week | Dates | Focus |
 |------|-------|-------|
-| 00 | to Thu 26 Nov | Close Milestones 0 and 1; Phase 1 starts (server and season ids, generator v1 groundwork, server list). |
-| 01 | 27 Nov to 3 Dec | Phase 1 done: generated valley, chunked terrain, two servers in the bot test. |
-| 02 | 4 to 10 Dec | Phase 2: needs, fire and cooking, the first Hollows at night, death and loot. |
-| 03 | 11 to 17 Dec | Phase 3: snap-grid building, doors, chests, bedroll respawn. |
-| 04 | 18 to 24 Dec | Phase 4: bands, resolve, claim stones, the safe spawn town. |
-| 05 | 25 to 31 Dec | Phase 5: breaching, over-reach, offline rule, the first night sieges. |
+| 00 | to Thu 26 Nov | Close Milestones 0 and 1; Phase 1 groundwork (world config, generator v1 land and roads). |
+| 01 | 27 Nov to 3 Dec | Phase 1: ruin sites, chunked building, the first two ruins. |
+| 02 | 4 to 10 Dec | Phase 2: needs, fire and cooking, the first Hollows, death and loot. |
+| 03 | 11 to 17 Dec | Phase 3: building, the ember hearth, the first night sieges. |
+| 04 | 18 to 24 Dec | Phase 4: grade 3 and 4 ruins, keys, smithing, bows. |
+| 05 | 25 to 31 Dec | Phase 5: host button, invites, saved worlds. |
 
 ## Week history
 | Week | Release | Notes |
@@ -160,11 +150,11 @@ gate can't go on. Both are at the top of today's backlogs. Backlogs were trimmed
 items per stream; everything else sits under "Later" in each file, so workers stop picking
 low-value follow-ups ahead of milestone work.
 
-**Director note (2026-11-24, new direction):** the owner chose the small-server survival game
-over the towns MMO and asked for mass appeal, leaving the details to us. See `docs/vision.md`.
-Milestones 2 to 7 are replaced by Phases 1 to 7: combat, creatures and death fold into Phase 2,
-towns shrink to the spawn town (Phase 4), territory becomes bands and claims (Phases 4 and 5),
-and the second zone becomes the generator. Phase 1 is seeded at the top of every backlog.
+**Director note (2026-11-24, ZombAi, draft):** the owner is reshaping the game: renamed
+ZombAi, a post-apocalyptic medieval fantasy (a fallen kingdom), third person, a one-time buy,
+and a map that works like Rust's (generated land, roads and risk-graded ruins), with the Hollows
+as our own undead. The owner then chose 2 to 8 player co-op hosted by a friend; public servers are a "later, maybe". Magic, undead behaviour and the long-term goal are still being asked. See `docs/vision.md`.
+Backlogs are not reseeded until the owner confirms.
 
 ## Backlog (unscheduled)
 - Zone or proximity chat, private messages

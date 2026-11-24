@@ -1,143 +1,173 @@
-# Vision: survive the night, hold your ground
+# ZombAi: vision
 
-**Owner direction, 2026-11-24. This is the game now.** The owner weighed two directions (a
-towns MMO, and a small-server survival game with faction land claims), chose the survival game,
-asked for it to be made for mass appeal and to go viral, and left the remaining calls to us.
-Every stream reads this file; `docs/roadmap.md` holds the phases and their "done when" lists.
+**Draft owner direction, 2026-11-24. Not adopted yet.** While this is in an open draft PR, workers
+keep following `main`. The owner has settled the name, setting, camera, price, map style and
+**2 to 8 player co-op**. A few things are still being decided (section "Still open"). Every
+stream reads this file once it lands; `docs/roadmap.md` holds the phases.
 
-Everything here is our own design under "Inspired by, never copied" (design bible). The feel we
-are reaching for: the deep survival sim of *Project Zomboid*, the land-claim politics of the old
-Minecraft *Factions* servers, and the wipe-day energy of the big survival shooters, made
-quicker to learn and readable on a stream. Those names stay in design docs, never in the game.
+Everything here is our own design under "Inspired by, never copied" (design bible). The feel
+we're reaching for: the deep survival sim of *Project Zomboid*, the procedural map full of
+risk-graded monuments of *Rust*, and the friends-together co-op of the best small-group survival
+games. All of it is made quicker to learn and readable on a stream. Those names stay in design
+docs, never in the game.
 
 ## The game in one paragraph
-Each server is a freshly generated valley for **48 players** that lives for a **season of
-six to eight weeks**. You arrive with nothing. Staying alive is the first game: hunger, thirst,
-cold nights, wounds to tend, and the **Hollows**, the people and animals the Dimming has emptied,
-who drift through the day and come in numbers at night, drawn to noise and light. Your band is
-the second game: a few friends build a shelter, then walls, then a hold, and stake their land
-with a claim stone. A band's grip on its land is only as strong as its members' **resolve**,
-which grows while they play and stay alive and drops each time one of them dies. Claim too much
-and another band can break your walls and take what you built. Then the season ends, the valley
-burns down to ash, and on **wipe day** everyone starts again on a new map.
+**ZombAi** is a third-person survival game set in a **fallen kingdom**. The kingdom died when the
+Dimming rose, and its dead got back up as the **Hollows**. Each world is a freshly generated
+stretch of that kingdom: forests, moors, rivers, the old king's roads, and the **ruins**
+(burned farmsteads, a drowned village, mines, abbeys, and a castle at the heart of it). Each ruin
+is graded by how much it can kill you and how much it pays. You arrive with nothing. You eat,
+drink, keep warm, bandage what bleeds, and learn that noise brings the Hollows and **ember-fire
+burns them**. With your friends you build a shelter, then walls, then a hold, and you push into
+richer and deadlier ruins for the gear to push further. On the darkest nights the Hollows come in
+numbers for the loudest, brightest holds. It's played with **2 to 8 friends** in a world one of
+you hosts.
 
-## What makes it spread (the mass-appeal lean)
-The owner wants it to reach a lot of people. So we lean **accessible and action-heavy rather than
-brutal**, and we design for moments people clip and share.
-- **Quick to learn.** In the first five minutes a new player drinks, eats, lights a fire, swings
-  at a Hollow and knows what will kill them. Every danger is visible and explained the first
-  time; no hidden timer kills you without warning. Needs are forgiving (hours of play, not
-  minutes) and come back fast with food, water and a fire.
-- **Good in a short session.** A 30-minute session always pays: a stash topped up, a wall
-  raised, a skill level, a night survived. A day and night is about 40 minutes, so most sessions
-  see a dusk.
-- **Moments worth clipping**, each built as a set piece with its own sound, light and camera
-  feel:
-  - **Night sieges:** on the darkest nights the Hollows gather and come at the loudest, brightest
-    bases. A band holding its walls by torchlight is the game's signature shot.
-  - **Raids:** breaching a wall is loud, slow and visible across the valley, so a raid draws a
-    crowd (and Hollows).
-  - **Wipe day:** a countdown in game and on the server list, the valley's last night, then a new
-    map at a set hour that everyone races into.
-- **Readable for viewers.** Clear silhouettes (Hollows read grey and ash-cold, players warm and
-  cloth-coloured), big readable effects for the moments above and quiet ones the rest of the
-  time (art bible sections 9 and 10), a minimal HUD, a **streamer mode** (hides server
-  address and other players' names on request), and later a **spectator camera** for
-  server-wide moments.
-- **Social by default.** Bands of two to eight, a safe spawn town, proximity voice later, and a
-  season leaderboard (longest survivor, biggest hold, most nights held) that gives every server a
-  story.
-- **Fair failure.** Death drops what you carried, never what you know. You are back in under a
+## Settled (owner, 2026-11-24)
+- **Name: ZombAi.** The repo, app and builds are renamed later (section "Rename plan"). The
+  player-facing name changes when the rename ships, not before.
+- **Setting: post-apocalyptic medieval fantasy.** A kingdom that fell, not a modern city: swords,
+  axes, bows, crossbows, lanterns, carts, stone keeps, chapels. The grounded art direction stays
+  as it is (`docs/art_bible.md`: muted, weathered, real proportions, moody light). The Dimming
+  and the ember are the kingdom's ruin and its last hope.
+- **Camera: third person.** The over-the-shoulder action camera already on `main` stays.
+- **Price: a one-time buy.** No subscription, no pay-to-win, nothing that sells power, safety
+  or progress. Anything beyond the base game (for example cosmetic packs) is the owner's call,
+  later.
+- **Map: works like Rust's** (in our own design). A procedurally generated landmass with biomes,
+  rivers, roads and ruins placed by a generator, every world different.
+- **Players: 2 to 8 friends in co-op**, PvE against the Hollows and the land. One player hosts;
+  friends join by invite. Solo play works too.
+
+## The lean: accessible, action-heavy, worth sharing
+- **Quick to learn.** In the first five minutes a new player drinks, eats, lights a fire, fights
+  a Hollow and knows what will kill them. Every danger is visible and explained the first time.
+  Needs are forgiving and come back fast.
+- **Good in a short session.** Thirty minutes always pays: a ruin looted, a wall raised, a skill
+  level, a night survived. A day and night lasts about 40 minutes.
+- **Moments worth clipping:** a night siege held by torchlight; a run into the castle's crypt
+  and out again with the hounds behind you; a friend dragged back from a Hollow pack at the
+  last second.
+- **Readable for viewers.** Clear silhouettes (Hollows grey and ash-cold, the living warm and
+  cloth-coloured), a quiet HUD, effects that are big only for the big moments, and a streamer
+  mode.
+- **Fair failure.** Death drops what you carried, never what you know. You're back in under a
   minute.
 
-## The decisions (made 2026-11-24)
-1. **Threat: the Hollows** (our own, from Ashgrove's lore), plus real wildlife. Horde and siege
-   mechanics with our own identity, the grounded look and no gore needed.
-2. **Raiding is on by default**, with a safe spawn town nobody can claim or fight in, and the
-   offline protection rule (section "Bands, claims and resolve").
-3. **Seasons of six to eight weeks on fresh maps.** Accounts, cosmetics, titles and season
-   records carry over; characters' bases, items and world state end with the season. Hard rule 6
-   in `CLAUDE.md` says exactly this now.
-4. **Death:** you drop everything you carried in a lootable pack where you fell, and keep your
-   skills minus a small slice of the current level's XP (never a level).
-5. **Server size: 48 players from season 1** (owner direction, 2026-11-24), on a map sized for 48 (below). 64 only if qa's perf gates ever show the room.
-   Honest note: today the server sends every player to every player; qa measures 48 bots in
-   Phase 1, and if that misses the perf budget, interest management (only send what is near)
-   jumps to the top of gameplay's list.
-6. **The towns idea lives on** as each server's spawn town, raised together by the whole server.
+## The Hollows (our undead)
+The kingdom's dead, emptied by the Dimming. They fit the name without copying anyone's zombie.
+- **Behaviour:** they shamble by day and get faster and gather at night. They're drawn to noise
+  (fighting, chopping, breaking walls, bells) and to the smell of blood. Alone they're
+  beatable; packs are deadly.
+- **Kinds** (each with a clear silhouette and telegraph): the common **Hollow**; the **Hollow
+  soldier** in rusted mail, found in castles and forts, slow and hard to put down; the
+  **Hollow hound**, fast and in packs, found on the moors; the **Bell-wight**, rare, whose
+  shriek calls every Hollow nearby (silence it first). More come in the "Depth" phase.
+- **Ember burns them.** Torches keep them wary, ember-tipped weapons hit hard, and an ember
+  hearth inside your walls stops them rising in your hold. This makes the existing ember motif
+  the core of the game.
+- **The chill.** A Hollow's grip can leave the chill, which slowly drains your warmth. An ember
+  salve cures it if you treat it the same day. It's dangerous but never a hidden death sentence.
 
-## Surviving
-All numbers in data files, tuned like the skill curve.
-- **Needs:** hunger, thirst, warmth (nights and rain are cold; fire, shelter and clothes help),
-  rest. Each is a quiet icon that only appears when it matters.
-- **Wounds:** a few, each with one clear cure: bleeding (bandage), a bite that can fester (clean
-  it), a sprain (rest or a splint).
-- **Food and fire:** forage, hunt, cook at a fire; food spoils slowly; salting and smoking keep it.
-  Farming later.
-- **Carry weight**, not a grid: heavy loads slow you; bags carry more.
-- **Combat** is the action combat already on `main` (aimed light and heavy swings, block, dodge on
-  stamina) against Hollows, wildlife and players.
-- **Skills, the long road kept:** our existing skills and XP carry over and grow: Felling,
-  Quarrying, Toolcraft, plus foraging, cooking, mending, carpentry, masonry and the weapon
-  masteries. Skills are per season character, which keeps every season's road fresh; a season
-  record of what you reached carries over.
+## The map: a generated kingdom with graded ruins
+- **Generator:** a seed per world. It lays out the land (coast or highland rim, rivers to the
+  sea or a lake, forests, moors, farmland gone wild, stone hills, snow on the high ground), then
+  the **king's roads** between the ruins, then the ruins themselves, then resource nodes,
+  wildlife and Hollow spawns. The terrain stays deterministic from the seed, so a server sends a
+  seed and never terrain, and the client builds terrain in chunks around the player.
+- **Ruins** are hand-designed set pieces written as data and placed by the generator, each with a
+  risk grade, a loot table and its own Hollows. Every world has the high-grade ones and a random
+  mix of the rest.
 
-## Bands, claims and resolve
-Our own take on the Factions idea, with its worst parts fixed.
-- **Bands:** two to eight players; a name and banner colour; ranks (leader, officer, member,
-  recruit); relations with other bands (allied, neutral, at feud).
-- **Resolve:** each member has 0 to 10, starting at 5. It climbs about 1 an hour online and alive,
-  regains slowly offline up to 5 (real life isn't punished), and drops on death (more when killed
-  by a player). A band's resolve is the sum of its members'.
-- **Claims:** a **claim stone** stakes 32 m plots joined to each other. Inside them only the band
-  and its allies can build, open doors or take from containers, and Hollows don't rise there
-  (they still walk in at night).
-- **Over-reach:** each plot costs 1 resolve. A band holding more plots than its resolve is
-  **over-reached**: its outer plots can be claimed over, and bands at feud with it can breach its
-  walls.
-- **Breaching:** with tools and crafted breaching gear; loud (it draws Hollows and onlookers) and
-  slow (minutes per wall). Builds come in tiers: wood, stone, reinforced.
-- **Offline protection:** while every member is offline, the band's walls take a quarter of the
-  damage, unless it is over-reached. Stay within your resolve and you can log off safely.
-- **The spawn town:** neutral, safe, unclaimable, raised by the whole server through shared
-  projects (a trader's stall, a better bench, a notice board, a watch fire). Contributors' names
-  stay on its ledger for the season.
+| Grade | Examples | Danger | Pays |
+|---|---|---|---|
+| 1 Quiet | Roadside shrine, burned farmstead, woodcutter's hut | A few Hollows | Food, cloth, basic tools |
+| 2 Uneasy | Abandoned village, toll bridge, watchtower | Small groups, a hound pack nearby | Better tools, the first weapons, the first iron |
+| 3 Grim | The old mine, the drowned village, a walled abbey | Soldiers, tight spaces, darkness | Ore, ember salve, armour pieces, **signet keys** |
+| 4 Deadly | The fallen castle, the royal crypt beneath it | Many soldiers, wights, hounds; a key to get in deep | The best gear and ember relics |
 
-## The world: generated, with places that look designed
-- A **seed per server per season**. The generator lays out a valley about **1.5 km across**,
-  sized for 48 players: room for ten or more bands to claim with open ground between them, a
-  two-minute run from the edge to the spawn town, and wild ground in between where people
-  meet. It has rivers and lakes, hills, ash lowlands, pine heights, stone ridges, and cold grey
-  scars where the Dimming is strongest (more Hollows, better loot).
-- **Hand-made set pieces** written as data and placed by the generator: ruined steadings, a
-  hollow-haunted mill, a lookout crag, the spawn town plot. Every map is new; every map still has
-  places worth a screenshot.
-- The terrain stays deterministic from the seed, so the server sends a seed, never terrain. The
-  client builds terrain in chunks around the player.
-- Today's 512 m Ashgrove stays as the test seed and the current live world until the first season
-  starts.
+- **Signet keys** (our own take on gating loot behind keys): found in grade 3 ruins, they open
+  the vaults in grade 4 ones. That makes a run a plan, and gives a band a reason to send its
+  best.
+- **Size:** about 1 to 1.5 km across (a host setting: small, medium, large), with roads
+  linking the ruins and the high-grade ones toward the centre or the far side from the start.
+
+## Surviving, building, getting stronger
+- **Needs:** hunger, thirst, warmth and rest. Each is a quiet icon that only shows when it
+  matters.
+- **Wounds:** bleeding (bandage), the chill (ember salve), a sprain (rest or a splint).
+- **Food and fire:** forage, hunt, cook; food spoils slowly, and salting and smoking keep it.
+  Farming comes later.
+- **Combat:** the action combat already on `main` (aimed light and heavy swings, block, dodge on
+  stamina), extended with bows and crossbows, against Hollows and wildlife. No PvP in the core
+  game (friendly fire is a host setting, off by default).
+- **Building:** snap-grid timber and stone (foundations, walls, doors, roofs, palisades, gates),
+  chests, an ember hearth, a bedroll. Tiers: wood, stone, iron-bound.
+- **Skills, the long road kept:** our skills and XP carry over and grow (Felling, Quarrying,
+  Toolcraft, plus foraging, cooking, mending, carpentry, masonry, smithing and the weapon
+  masteries). Skills belong to the character in that world.
+- **Carry weight**, not a grid.
+
+## Co-op: how friends play together (owner, 2026-11-24)
+- **Hosting:** a "Host" button in the client starts our own dedicated server build on the
+  player's machine with their world; friends join with an invite code or the host's address.
+  The authoritative server we already have becomes the host's server, so the rules and the bot
+  test stay the same.
+- **Worlds and saves:** a world (its seed, everything built, every character in it) is saved by
+  the host and lasts as long as they keep it. Several worlds per host; a new world picks a
+  seed or rolls one. Characters belong to a world.
+- **Scale:** up to 8 players per world. The server's habit of sending every player to every
+  player is fine at 8; the work goes into Hollows, ruins and building instead.
+- **No servers for us to run.** The one-time buy pays for the game, not for hosting. Railway
+  keeps running a test world for playtests and the bot test.
+- **Dropping in and out:** friends can join a world in progress; the host leaving saves and closes
+  the world (later: the host can hand off, or run the server headless on a spare machine).
+
+## Later, maybe: dedicated servers for bigger groups
+Not in the core plan. If co-op lands well, a dedicated server mode for bigger groups (16 to 48)
+could follow: players or communities run our server build, with optional PvP rules from the
+earlier draft (bands, land claims held by resolve, raids with offline protection, seasons that
+end in a fresh map). Nothing is designed or built for it until the owner asks.
+
+## Still open (being asked)
+- **Magic:** whether the fallen kingdom has magic, and how much (none; ember craft only; or a
+  small, costly school of ember magic).
+- **How the undead behave** beyond the basics above (how hordes form, whether they break walls,
+  how fast they are at night, whether the dead you leave behind rise).
+- **The long-term goal:** what a world builds toward (for example, relighting the kingdom's
+  ember beacons one by one to push the Dimming back, ending in the castle).
+Until answered, workers build only what this file already settles.
 
 ## What carries over from today's build
 | Keeps | Changes | Goes |
 |---|---|---|
-| Godot client, headless authoritative server, WebSocket on Railway, Postgres, accounts | One fixed world becomes a generated world per server and season; terrain built in chunks | The "greatest MMO", thousands-on-one-world framing |
-| Gathering with E, timed bars, node depletion; the bench and crafting; skills and XP | Characters belong to a server and season (add-only columns) | Milestones 2 to 7 as written (they fold into the phases) |
-| Action camera, vitals, swings, dodge, block | Vitals grow into needs and wounds; inventory gets weight | The towns-MMO plan (PR #184, closed), except the spawn town |
-| Grounded Emberlight art and its budgets; grazers and wildlife | New: building, bands and claims, Hollows, death and loot, seasons | |
-| CI, bot test, fun metrics, self-updating client, the worker setup | Fun metrics add survival measures (time to first fire, nights survived) | |
+| Godot client and headless authoritative server (now also started by the host), ENet and WebSocket | One fixed valley becomes a generated kingdom per world, built in chunks | The MMO framing, "thousands on one world", public servers, raiding and seasons (see "Later, maybe") |
+| Gathering with E, timed bars, nodes; the bench and crafting; skills and XP | Vitals grow into needs and wounds; inventory gets weight | Milestones 2 to 7 as written |
+| The third-person action camera, swings, dodge, block | Ashgrove's ember lore becomes the fallen kingdom's (the Dimming, the ember) | The towns-MMO plan (PR #184, closed) |
+| Grounded art and its budgets; wildlife | New: ruins, the Hollows, building, death and loot, hosting and invites | |
+| CI, bot test, fun metrics, the self-updating client, the worker setup | Fun metrics add survival measures (time to first fire, nights survived, ruins cleared) | |
 
-## Lessons we keep (from the study of the big MMO that didn't deliver)
-`docs/research/promises_study.md` studied the settlement MMO that collapsed in 2026. What
-applies here: ship the smallest playable version first; design for the players we actually have
-(48 a server, not thousands); bots test every multiplayer rule, including restarts, before it ships;
-performance is a feature; and **promise only what is on `main`**. The roadmap is a forecast,
-never a promise to players.
+## Rename plan (after the owner confirms)
+The game is called ZombAi in design docs from now on. The rename everywhere else waits for the
+owner's go-ahead, because some steps are theirs:
+1. **Owner:** rename the GitHub repository (Settings → General). GitHub redirects the old URL, so
+   nothing breaks. Rename the Railway service if wanted. Run a proper name check before any
+   store page: a quick web search found no game called ZombAi, but that isn't a trademark search.
+2. **client:** the window title, the login screen, `project.godot`'s application name, export
+   preset names and build file names.
+3. **qa:** CI and release workflows (release titles become `ZombAi Week NN — ...`), the
+   self-updater's repository path (it follows GitHub's redirect, but update it anyway).
+4. **Director:** CLAUDE.md's title and the remaining "AiMMO" mentions in the docs.
+The Budda Games studio intro stays.
+
+## Lessons we keep
+From `docs/research/promises_study.md` (the settlement MMO that collapsed in 2026): ship the
+smallest playable version first; design for the players we actually have; bots test every
+multiplayer rule before it ships, restarts included; performance is a feature; and **promise
+only what is on `main`**.
 
 ## Never
 - Never tell players about a feature before it is on `main` and in the bot test.
-- Never sell power, resolve, protection or progress. Cosmetics only, and only once the owner sets
-  that up.
-- Never end a season early or without a countdown of at least a week in game.
-- Never lose accounts, cosmetics, titles or season records.
-- Never let the offline rule be bypassed: a band within its resolve is never raided at full
-  strength while all its members are offline.
+- Never sell power, safety or progress. It's a one-time buy.
+- Never lose a player's save, world or character.
+- Never make a death the player couldn't have seen coming.

@@ -4,23 +4,24 @@ This is the AI-owned vision for AiMMO. It may evolve, but every change is logged
 Revision history at the bottom with its reason, so the game does not flip-flop.
 
 ## North star
-**Make the survival game everyone wants to play with their friends, and that people can't stop watching.** Owner direction, 2026-11-24: the owner chose a small-server survival game with generated worlds, land claims and seasons (`docs/vision.md`) over the towns MMO, and asked for it to reach the masses and go viral. The bar is the game a band of friends picks for its evenings and a streamer picks for wipe day. The number one way there is still to make it **fun**: if it isn't fun, it isn't the best (see "Fun comes first"). When two options compete, pick the one that is quicker to learn, better in a 30-minute session and more worth sharing, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5). (Until 2026-11-24 the North star was "the Greatest MMO of all time"; the skills, camera, combat and art built for it all carry over.)
+**Make the survival game friends pick for their evenings, and that people love to watch.** Owner direction, 2026-11-24 (draft): the game is **ZombAi**, a third-person survival game in a fallen medieval kingdom, played in co-op by 2 to 8 friends, sold as a one-time buy, and made for mass appeal (`docs/vision.md`). The number one way there is still to make it **fun**: if it isn't fun, it isn't worth shipping (see "Fun comes first"). When two options compete, pick the one that is quicker to learn, better in a 30-minute session with friends and more worth sharing, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5). (Until 2026-11-24 this was "the Greatest MMO of all time"; the skills, camera, combat and art built for it all carry over.)
 
-### The vision in one paragraph (owner direction, 2026-11-24)
-Each server is a freshly generated valley for 48 players that lives for a season of six to
-eight weeks. You arrive with nothing; you survive hunger, cold, wounds and the **Hollows** that
-come at night; you join a **band**, build a shelter and stake your land with a claim stone held by
-your band's **resolve**; you raid bands that over-reach and hold your walls through night sieges;
-and on **wipe day** everyone starts again on a new map. In your hands it is still an action game
-(the over-the-shoulder camera, aimed swings, dodge, block) with gathering and crafting as real
-skills that level by doing. The full design is `docs/vision.md`. The core loop:
-**gather → craft → build → survive the night → claim and defend → wipe and go again**.
+### The vision in one paragraph (owner direction, 2026-11-24, draft)
+A kingdom fell when the Dimming rose, and its dead got back up as the **Hollows**. Each world is
+a freshly generated stretch of that kingdom (forests, moors, rivers, the old king's roads, and
+ruins graded by how much they can kill you and how much they pay) that one player hosts for 2 to
+8 friends. You arrive with nothing; you eat, drink, keep warm and tend wounds; you learn that
+noise brings the Hollows and ember-fire burns them; you build a hold together and hold it through
+the darkest nights; and you push into deadlier ruins for the gear to push further. In your hands
+it is an action game (the over-the-shoulder camera, aimed swings, dodge, block) with gathering
+and crafting as real skills that level by doing. The full design is `docs/vision.md`. The core
+loop: **gather → craft → build → survive the night → raid the ruins → get stronger**.
 
 ## Pillars
-1. **A world that feels lived in, for a season.** Players log in to see what changed, who is around, and whose walls still stand, never to tick a daily chore. A long road inside each season, a fresh start every wipe; tedium, never (see "The long road").
+1. **A world that feels lived in.** Friends come back to their world to see whose walls held, what the night broke and which ruin is next, never to tick a daily chore. A long road of skills and gear, tedium never (see "The long road").
 2. **Small, honest systems that stack.** Each week adds one system that works with the others. No feature ships half-built.
 3. **Everything is grown, not imported.** Terrain, creatures, items, music, and sound come from code and seeds. The look is a consequence of that: **Emberlight**, painted low-poly with colour in the vertices and one shared shader, cheap enough for any laptop (see `docs/art_bible.md`).
-4. **Together first, rivals second.** Surviving rewards people for being near each other: shared fires, bands, the spawn town everyone raises. PvP and raiding are on by default (owner direction, 2026-11-24), but fair: a safe spawn town, raids only on bands at feud, and a band that stays within its resolve is never raided at full strength while all its members are offline (`docs/vision.md`).
+4. **Together first.** Surviving is better with friends: shared fires, a hold you build together, ruins you clear as a group, a friend dragged back from a Hollow pack. The game is co-op PvE; friendly fire is a host setting, off by default.
 
 ## Owner directions (standing rules)
 The owner plays and tests; the AI designs everything else. The owner has given the
@@ -207,20 +208,20 @@ section 0 (pillars) and section 11 (what reads as cheesy) before any visual chan
 Every world and client PR that changes what's on screen follows the art bible and keeps
 inside the budget.
 
-### 8. A small-server survival game, made for everyone (owner direction, 2026-11-24)
-The owner changed the game's direction: a small persistent-world survival game in the spirit of
-Project Zomboid, with randomly generated maps, land claims inspired by the old Minecraft Factions
-servers, and servers capped at a set number of players. Asked to choose the rest, with the aim of
-mass appeal, the director chose (see `docs/vision.md` for the full design):
-- **The Hollows** as the threat, plus wildlife; **raiding on by default** with a safe spawn town and
-  offline protection; **seasons of six to eight weeks** on fresh maps, keeping accounts,
-  cosmetics, titles and records; **death** drops what you carried and costs a small slice of XP,
-  never a level; **48 players** per server from season 1 (the owner's call), on a valley about 1.5 km across.
+### 8. ZombAi: survive a fallen kingdom with friends (owner direction, 2026-11-24, draft)
+The owner changed the game's direction, in steps on one evening: not an MMO but a survival game
+in the spirit of Project Zomboid, then a map that works like Rust's, a post-apocalyptic medieval
+fantasy setting, a third-person camera, a one-time buy, the name **ZombAi**, and finally **2 to
+8 player co-op** hosted by a friend. The full design is `docs/vision.md`. Standing rules:
+- **Co-op first.** 2 to 8 friends, one hosts; PvE against the Hollows and the land. Public
+  servers, raiding and seasons are a "later, maybe" only.
+- **A generated kingdom with graded ruins.** Every world from a seed; hand-designed ruins placed
+  by the generator, each graded by danger and loot.
+- **Our own undead.** The Hollows are original (kinds, behaviour, the chill, ember burns them),
+  never another game's zombies.
 - **Accessible and action-heavy, not brutal:** quick to learn, good in a 30-minute session,
-  visible and explained dangers.
-- **Moments worth clipping:** night sieges, raids and wipe day are built as set pieces; the game
-  reads clearly on a stream (silhouettes, a quiet HUD, streamer mode, later a spectator camera).
-- The towns idea lives on as each server's spawn town, raised by everyone.
+  visible and explained dangers, moments worth clipping.
+- **A one-time buy.** Never sell power, safety or progress.
 
 ### Studio intro (owner direction, 2026-11-23)
 The owner supplied the **Budda Games** intro video and asked for it to replace Godot's boot
@@ -254,7 +255,7 @@ The central mystery, revealed slowly over many weeks: the ember ash trees are th
 ### Geography (current)
 - A 512 m × 512 m playable square centred on the **Spawn Meadow**, a flat, calm clearing.
 - Rolling grass hills, ash groves in the lowlands, pine forests on higher ground, bare rock on the ridges, snow on the highest peaks, and lakes in the hollows.
-- The world is generated from `WORLD_SEED = 20261127` in `game/shared/terrain.gd` and `game/procgen/`. This seed stays permanent for the current live world (season 0) and the test world. From season 1 each server and season has its own seed and a generated valley (`docs/vision.md`); a saved character always loads into its own server and season's world.
+- The world is generated from `WORLD_SEED = 20261127` in `game/shared/terrain.gd` and `game/procgen/`. This seed stays permanent for today's live test world (generator version 0). Under ZombAi every world gets its own seed from the host (`docs/vision.md`); a saved character always loads into its own world.
 
 ### Tone
 Warm, curious, slightly melancholy. Patch notes and in-game text are friendly and a bit wry. Nothing grimdark, nothing sugary.
@@ -285,23 +286,23 @@ The server times the bar and decides the result; the client only shows it. `/gat
 ## Core systems (planned order)
 The phases and what "done" means for each are in `docs/roadmap.md`. In short, after the
 foundations (gathering, crafting, skills and XP, the action camera and combat basics):
-1. The turn: generated worlds, servers and seasons
+1. A kingdom from a seed: the generator, roads, ruin sites, chunked building
 2. Survive the first night: needs, fire and cooking, the Hollows, death and loot
-3. A roof over your head: snap-grid building, doors, chests
-4. Bands and claims: resolve, claim stones, the safe spawn town
-5. Raids and night sieges
-6. Wipe day: seasons live, records, streamer mode
+3. A roof and a wall: building, the ember hearth, night sieges
+4. Into the ruins: all four grades, signet keys, smithing, bows, ember weapons
+5. Play with friends: hosting, invites, saved worlds
+6. Launch-ready: the first hour, settings, the rename, a store build
 7. Depth, ongoing
-The ember ash mystery is told through the Hollows, the Dimming scars and set pieces, a little
-more each season.
+The ember mystery becomes the fallen kingdom's: why the Dimming rose, and what the ember can
+still do (the long-term goal is still being asked).
 
 ## Technical principles
 - The server is authoritative for everything that matters. Clients render and request.
-- The world is deterministic from the seed, so the server never streams terrain; it sends its server and season seed.
+- The world is deterministic from the seed, so the server never streams terrain; it sends the world's seed.
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
-- **Week 00 (2026-11-24, new direction):** The owner said they weren't sure an MMO was the right call and proposed a small persistent-world survival game (Project Zomboid in spirit) with randomly generated maps and land claims like the old Minecraft Factions plugin, capped players per server. Two directions were written up (the towns MMO, PR #184, and this one), the owner chose this one, asked for mass appeal, and left the choices to us. Rewrote the North star and the vision paragraph, added owner direction 8, rewrote pillars 1 and 4 (PvP and raiding are now on by default, made fair by a safe spawn town, feuds and offline protection), replaced the planned order with seven phases, and made the seed per server and season from season 1. Kept everything that carries over: fun first, chat is for talking, the action camera, gathering, the long road of skills (now per season), take the best and beat it, the grounded art direction, and "Inspired by, never copied". `CLAUDE.md` hard rule 6 now says what survives a season's end. The study of the collapsed settlement MMO (`docs/research/promises_study.md`) stays as the reason for honest scope.
+- **Week 00 (2026-11-24, ZombAi, draft):** The owner said they weren't sure an MMO was the right call. Over the evening they moved to a survival game in the spirit of Project Zomboid, with a map that works like Rust's (generated land, roads and risk-graded ruins), a post-apocalyptic medieval fantasy setting (a fallen kingdom), a third-person camera, a one-time buy, the name ZombAi, and 2 to 8 player co-op hosted by a friend; an intermediate draft with 48-player servers, faction land claims and seasons was dropped to "later, maybe". Rewrote the North star, the vision paragraph and pillars 1 and 4 (co-op PvE, not opt-in PvP between strangers), added owner direction 8, replaced the planned order with phases, and made seeds per world. Kept everything that carries over: fun first, chat is for talking, the action camera, gathering, the long road of skills, take the best and beat it, the grounded art direction and its budgets, and "Inspired by, never copied". Ashgrove's ember lore becomes the fallen kingdom's. Still being asked: magic, how the undead behave in detail, and the long-term goal.
 - **Week 01 (2026-11-24, less blocky, low-res look):** The owner asked for characters "less blocky and more low res actual", and for animations. The art bible now adds **low-res paint** to Emberlight: organic low-poly shapes (smooth lofted bodies, never boxes) and a procedural texel grain in the shared shader that makes every surface read like a low-resolution painted texture with nearest-neighbour filtering, without any texture files. The light bands were widened so rounded shapes shade smoothly. Characters were rebuilt from smooth lofts, with separate upper and lower limb pieces ready for a skeleton. Animation (a skinned skeleton and a full set of weighty moves) is its own piece of work and builds on this.
 - **Week 01 (2026-11-24, character overhaul):** The owner said "our dudes look fat and silly". The art bible's "Characters" section now sets lean, grounded adult proportions (about 7 heads, 1.78 m, shoulders wider than hips, long legs, hands to mid-thigh), a back-first silhouette of layered survival gear (hood or hair, wool mantle, framed pack and bedroll, belt with pouch and knife, chest strap, bracers, tall boots), gear colours in the palette, and a per-character cost (5 merged meshes, 5 draw calls). `AvatarBuilder` was rebuilt to match. This replaces the earlier plan of 6 heads with gear in Milestone 3: characters are adult-proportioned now, and gear grows from these layers.
 - **Week 01 (2026-11-24, grounded art direction):** The owner said the current style "is cheesy and looks silly" and asked for the game to feel heavily inspired by the genre of their favourite MMO (New World): a grounded, moody survival-and-crafting MMO, done as low poly, with a style clearly our own and without legal trouble. Direction 7 now says Emberlight is **grounded first**, and `docs/art_bible.md` was rewritten around that: five pillars (grounded before cute, mood from light, earth first and ember rare, weathered, restraint), palette saturation and value rules, light by time of day, character proportions (toward 6 heads, never chibi, no wizard hats), materials, UI tone, effects restraint, a sharper legal "inspired by, never copied" list, and a named list of what read as cheesy with its status. A first pass fixed the worst of it: olive and straw grass instead of lime, rust two-lobed ash crowns on thicker trunks instead of candy lollipops, earthy cloth, hoods and hair instead of cyan tunics and wizard hats, a smaller head, a dusty sky and a whole-frame grade, moonlit-blue night fill, and a translucent level-up column. The performance rules and CI budgets are unchanged.

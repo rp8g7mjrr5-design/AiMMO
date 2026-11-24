@@ -2,7 +2,7 @@
 
 Written 2026-11-24 when the owner asked us to study the promises of **Ashes of Creation**
 (Intrepid Studios) that were not delivered. It was first written for a towns-MMO direction
-(PR #184, closed); the owner then chose a small-server survival game (`docs/vision.md`). The
+(PR #184, closed); the owner then chose ZombAi, a co-op survival game (`docs/vision.md`). The
 lessons in section 4 still bind us: honest scope, design for the players we have, visible
 payoffs, persistence through every deploy, and promising only what has shipped.
 
@@ -119,7 +119,7 @@ Under the feature list, the wish was simple and still unmet by anyone:
 7. **A team that ships what it shows.**
 
 ## 4. Lessons, turned into our rules
-These are binding on every stream; the towns-specific ones (1, 2, 4) now apply to the spawn town.
+These are binding on every stream.
 1. **Visible within a session.** A player's contribution changes the world in front of them the
    same minute (a beam set, a wall course laid), not a number in a bar. Every delivery is
    juiced like a gather.
