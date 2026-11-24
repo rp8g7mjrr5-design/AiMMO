@@ -22,8 +22,11 @@ static func _ensure() -> void:
 	_ridge.frequency = 0.0025
 
 
-## Ground height in metres at world position (x, z).
+## Ground height in metres at world position (x, z), for the world WorldGen is configured
+## for. Ashgrove (gen_version 0, the default) keeps this exact code path, bit for bit.
 static func height(x: float, z: float) -> float:
+	if WorldGen.is_kingdom():
+		return WorldGen.height(x, z)
 	_ensure()
 	var base := _noise.get_noise_2d(x, z) * 9.0
 	var r := 1.0 - absf(_ridge.get_noise_2d(x, z))
@@ -36,11 +39,13 @@ static func height(x: float, z: float) -> float:
 
 ## Water level. Players wade; the ground below it renders as lake bed.
 static func water_level() -> float:
+	if WorldGen.is_kingdom():
+		return WorldGen.water_level()
 	return -2.5
 
 
 static func clamp_to_world(p: Vector3) -> Vector3:
-	var h := GameConfig.WORLD_HALF_SIZE
+	var h := WorldGen.half_size()
 	var x := clampf(p.x, -h, h)
 	var z := clampf(p.z, -h, h)
 	return Vector3(x, height(x, z), z)
