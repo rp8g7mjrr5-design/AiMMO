@@ -156,6 +156,9 @@ func test_a_few_empty_sends_when_the_last_one_leaves_view() -> void:
 func test_the_bolt_reaches_the_player_who_caused_it() -> void:
 	var srv: Node = ServerScript.new()
 	srv.test_now = 100.0
+	# By day: at night a drowsy herd lets you much closer (Wildlife.bolt_distance), and the
+	# server reads the wall clock, so pin it to noon.
+	srv.clock_offset = WorldClock.DAY_SECONDS * 0.25 - fposmod(WorldClock.now_seconds(), WorldClock.DAY_SECONDS)
 	var c: Dictionary = srv.wildlife.creatures[0]
 	var away := Vector2(c.pos.x - c.home.x, c.pos.z - c.home.z)
 	away = Vector2(1, 0) if away.length() < 0.1 else away.normalized()

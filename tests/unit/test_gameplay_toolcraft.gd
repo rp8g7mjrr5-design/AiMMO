@@ -164,8 +164,8 @@ func test_level_up_names_a_real_unlock() -> void:
 ## World drew the ember tools (PR #112), so they are ordinary items now: in ITEMS and in pack
 ## order right after the stone tools, not trailing after the campfires as unknown extras.
 func test_ember_tools_sit_with_the_stone_tools() -> void:
-	check(Inventory.UNDRAWN.is_empty(), "nothing waits for an icon: %s" % [Inventory.UNDRAWN.keys()])
 	for id in ["ember_axe", "ember_pickaxe"]:
+		check(not Inventory.UNDRAWN.has(id), "%s no longer waits for an icon" % id)
 		check(Inventory.ITEMS.has(id) and Inventory.ITEM_ORDER.has(id), "%s is a full item" % id)
 		check(ItemIcons.has_icon(id), "%s has its own icon" % id)
 	var o: Array = Inventory.ITEM_ORDER

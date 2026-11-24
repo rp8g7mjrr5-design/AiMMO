@@ -358,6 +358,10 @@ func _on_chat(id: int, text: String) -> void:
 		if reply != "": # a knock-down already said what happened
 			_send(id, "s2c_system", [reply])
 		return
+	if ChatCommands.is_lure(clean):
+		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
+		_send(id, "s2c_system", [lure_command(id)])
+		return
 	if ChatCommands.is_craft(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [craft(id, "" if ChatCommands.name_of(clean) == "recipes" else ChatCommands.argument(clean))])
@@ -1072,8 +1076,11 @@ func _land_swing(id: int, sw: Dictionary, now: float) -> Array:
 	var s: Dictionary = sessions[id]
 	var pos := CharacterData.position(s.character)
 	var hits := Weapons.targets_hit(pos, float(sw.yaw), str(sw.weapon), str(sw.kind), Wildlife.targets(wildlife))
+	var damage := Weapons.damage(str(sw.weapon), str(sw.kind))
 	for cid in hits:
-		Wildlife.strike(wildlife, int(cid), pos, now)
+		Wildlife.strike(wildlife, int(cid), pos, now, damage)
+		if Wildlife.is_down(wildlife, int(cid)):
+			_hunted(id, int(cid))
 	if not hits.is_empty():
 		Vitals.dealt(vitals_of(id), now)
 		s.swing_hits = int(s.get("swing_hits", 0)) + hits.size()
@@ -1082,6 +1089,37 @@ func _land_swing(id: int, sw: Dictionary, now: float) -> Array:
 		if other == id or not hits.is_empty():
 			_send(other, "s2c_swing_hits", [id, str(sw.kind), hits])
 	return hits
+
+
+## The first hunt (2026-11-24): player `id`'s blow brought creature `cid` down, so its drops
+## (Wildlife.drops) go into their pack; s2c_inventory follows at the end of the tick. No
+## toast yet: s2c_gather_result waits until world has drawn the hide and meat icons (a
+## client's toast and the bot test's icon check want one), so today the pack shows the haul.
+## Returns {item: count added}.
+func _hunted(id: int, cid: int) -> Dictionary:
+	var s: Dictionary = sessions[id]
+	var c := Wildlife.get_by_id(wildlife, cid)
+	var got := {}
+	var words: Array = []
+	for d in Wildlife.drops(str(c.get("kind", "grazer"))):
+		var added := give_item(id, str(d[0]), int(d[1]))
+		if added > 0:
+			got[str(d[0])] = added
+			words.append("+%d %s" % [added, Inventory.label(str(d[0]))])
+	s.hunted = int(s.get("hunted", 0)) + 1
+	print("[hunt] %s brought down %s %d: %s" % [s.character.name, Wildlife.KINDS.get(str(c.get("kind", "grazer")), {}).get("label", "creature"), cid, ", ".join(words) if not words.is_empty() else "pack full"])
+	return got
+
+
+## The hidden dev command /lure (bot test only): the nearest standing grazer lies down drowsy
+## just in front of you (Wildlife.lure), so a bot can land the blows of a hunt without a
+## minute-long night stalk. Returns the reply.
+func lure_command(id: int) -> String:
+	var s: Dictionary = sessions[id]
+	var cid := Wildlife.lure(wildlife, CharacterData.position(s.character), float(s.get("yaw", 0.0)), now_seconds())
+	if cid < 0:
+		return "No grazer is standing to lure."
+	return "Grazer %d lies down in front of you." % cid
 
 
 ## The hidden dev commands /hurt N (1 to 1000 damage, default 10) and /vitals. Returns the
