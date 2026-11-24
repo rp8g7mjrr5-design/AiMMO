@@ -57,6 +57,12 @@ var max_players := 0
 ## command raises one bound to its caller either way. Not on the wire yet, not saved.
 var gloam := Gloam.new_state()
 var gloam_on := false
+## Placed campfires (Phase 2 build-ahead, Campfires): set down from the pack (place_request,
+## today only through the /place and /kindle dev commands, so the live world has none until
+## client's place action and world's model exist), burn out on their own, and keep the Gloam
+## walkers away (gloam_fires). s2c_campfires goes out on every change once a bump adds it.
+## Not saved yet: a restart puts every fire out.
+var campfires := Campfires.new_state()
 ## A swing landing is a noise this loud (m), a finished gather this loud.
 const SWING_NOISE := Gloam.NOISE_RADIUS
 const GATHER_NOISE := Gloam.NOISE_RADIUS
@@ -127,6 +133,7 @@ func use_world(cfg: Dictionary) -> void:
 	gathering = Gathering.new_state()
 	wildlife = Wildlife.new_state()
 	gloam = Gloam.new_state()
+	campfires = Campfires.new_state()
 
 
 ## Whether walkers rise on their own: `--gloam` (or `--gloam=0/1`) wins, then AIMMO_GLOAM
@@ -222,6 +229,7 @@ func _tick() -> void:
 	_tick_vitals(now_seconds())
 	_tick_swings(now_seconds())
 	_tick_wildlife(now_seconds())
+	_tick_campfires(now_seconds())
 	_tick_gloam(now_seconds())
 	if tick % WILDLIFE_SEND_TICKS == 0:
 		_send_wildlife()
@@ -257,10 +265,95 @@ func gloam_players() -> Array:
 	return out
 
 
-## Lit fires the walkers keep away from (Gloam.FIRE_KEEPAWAY). None until campfires can be
-## placed (backlog: placed campfires).
+## Lit fires the walkers keep away from (Gloam.FIRE_KEEPAWAY): every placed campfire still
+## burning. (A held torch joins them once torches can be held; backlog.)
 func gloam_fires() -> Array:
-	return []
+	return Campfires.positions(campfires)
+
+
+## --- Placed campfires (Phase 2 build-ahead) ---
+
+## Player `id` sets down a campfire from their pack, in front of them (Campfires.place). Only
+## "campfire" can be placed today. On success one campfire leaves the pack, everyone gets the
+## new list (s2c_campfires) and the placer a line; a refusal costs nothing. This is what the
+## /place dev command runs now and what c2s_place will run after its bump.
+## Returns {ok, reason, text, fire_id}.
+func place_request(id: int, item: String) -> Dictionary:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return {"ok": false, "reason": "down", "text": Campfires.refusal_text("down"), "fire_id": -1}
+	var s: Dictionary = sessions[id]
+	var word := item.strip_edges().to_lower()
+	if word in ["", "fire", "camp_fire"]:
+		word = Campfires.ITEM
+	if word != Campfires.ITEM:
+		return _refuse_place("unknown")
+	if Vitals.is_dead(vitals_of(id)):
+		return _refuse_place("down")
+	if not Inventory.has(s.character.inventory, Campfires.ITEM):
+		return _refuse_place("no_item")
+	var r := Campfires.place(campfires, str(s.character.name), CharacterData.position(s.character), float(s.get("yaw", 0.0)), now_seconds())
+	if not r.ok:
+		return _refuse_place(str(r.reason))
+	take_item(id, Campfires.ITEM, 1)
+	_lit(r.fire, s.character.name)
+	return {"ok": true, "reason": "", "text": PLACED_TEXT, "fire_id": int(r.fire.id)}
+
+
+## What the placer is told when a fire catches.
+const PLACED_TEXT := "You set down a campfire. It catches and will burn for about four hours."
+
+
+func _refuse_place(reason: String) -> Dictionary:
+	return {"ok": false, "reason": reason, "text": Campfires.refusal_text(reason), "fire_id": -1}
+
+
+func _lit(fire: Dictionary, who: String) -> void:
+	print("[campfire] %s lit campfire %d at (%.1f, %.1f), %d burning" % [who, int(fire.id), fire.pos.x, fire.pos.z, Campfires.count(campfires)])
+	_broadcast_campfires()
+
+
+## The hidden dev command /kindle (bot test, dev servers only): lights a campfire in front of
+## you without using one from the pack (the placement rules still apply). "/kindle status"
+## says how the nearest fire within 20 m is doing. Returns the reply.
+func kindle_command(id: int, arg: String) -> String:
+	var s: Dictionary = sessions[id]
+	var pos := CharacterData.position(s.character)
+	if arg.strip_edges().to_lower() == "status":
+		var close := Campfires.near(campfires, pos, 20.0)
+		return "No campfire is burning near you." if close.is_empty() else Campfires.describe_fire(close[0], pos, now_seconds())
+	var r := Campfires.place(campfires, str(s.character.name), pos, float(s.get("yaw", 0.0)), now_seconds())
+	if not r.ok:
+		return Campfires.refusal_text(str(r.reason))
+	_lit(r.fire, s.character.name)
+	return "A campfire catches in front of you (campfire %d)." % int(r.fire.id)
+
+
+## Every tick: fires that burned down go out; everyone gets the new list, and their owner (if
+## online) is told. Returns the fires that went out.
+func _tick_campfires(now: float) -> Array:
+	var out := Campfires.step(campfires, now)
+	if out.is_empty():
+		return out
+	for f in out:
+		print("[campfire] campfire %d burned down" % int(f.id))
+		for pid in sessions:
+			var s: Dictionary = sessions[pid]
+			if s.logged_in and str(s.character.name).to_lower() == str(f.owner):
+				_send(pid, "s2c_system", [BURNED_DOWN_TEXT])
+	_broadcast_campfires()
+	return out
+
+
+const BURNED_DOWN_TEXT := "Your campfire has burned down to ash."
+
+
+## s2c_campfires(entries) to every logged-in player: the whole list (Campfires.to_wire).
+## Skipped by _send until a protocol bump adds the RPC.
+func _broadcast_campfires() -> void:
+	var entries := Campfires.to_wire(campfires, now_seconds())
+	for pid in sessions:
+		if sessions[pid].logged_in:
+			_send(pid, "s2c_campfires", [entries])
 
 
 ## The walkers take one step: they rise near players (only when gloam_on), hunt, and grab.
@@ -503,6 +596,14 @@ func _on_chat(id: int, text: String) -> void:
 	if ChatCommands.is_gloam(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [gloam_command(id, ChatCommands.argument(clean))])
+		return
+	if ChatCommands.is_place(clean):
+		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
+		_send(id, "s2c_system", [place_request(id, ChatCommands.argument(clean)).text])
+		return
+	if ChatCommands.is_kindle(clean):
+		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
+		_send(id, "s2c_system", [kindle_command(id, ChatCommands.argument(clean))])
 		return
 	if ChatCommands.is_lure(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
@@ -831,6 +932,8 @@ func _send_world_state(id: int) -> void:
 	_send(id, "s2c_inventory", [Inventory.to_wire(sessions[id].character.inventory)])
 	_send(id, "s2c_nodes", [Gathering.depleted_ids(gathering, now_seconds())])
 	_send(id, "s2c_skills", [skills_wire(sessions[id].character.get("skills", {}))])
+	if Campfires.count(campfires) > 0:
+		_send(id, "s2c_campfires", [Campfires.to_wire(campfires, now_seconds())])
 	sessions[id].inv_dirty = false
 
 
