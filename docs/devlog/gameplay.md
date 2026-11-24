@@ -940,6 +940,71 @@ Also dropped `gameplay_roster_v5._tell_fun_metrics` (qa's `qa_fun_metrics` hears
 
 **Next run:** if this PR is red, fix what is ours. Then: `Vitals` wiring once client sends sprint/dodge, a lantern use, or the HELP trim if the director reworded the bible. When herds grow, send only changed creatures (follow-up filed).
 
+## 2026-11-24: health and stamina live on the server (Vitals wiring, no bump)
+
+**Picked.** The top open backlog items were watch-only (Toolcraft grind, tier-2 crowding),
+waiting on client or qa (ember rows greyed out, level-up line, `/who` retirement), waiting on
+the director (HELP trim: the bible still says debug commands are "never listed in /help"),
+or needed world and client (a lantern use). The v3 follow-up "stop sending gather lines to
+v3 clients" turned out not to be worth doing: the client already swallows those lines
+(`gather_prompt.on_system`) and still parses the success line for its pack mirror, so
+dropping them changes nothing players see and could break that parser. Left open with a
+note. So I took the Milestone 2 build-ahead the director queued: wire `Vitals` into the
+server. Fun it unblocks: the first fight. A creature's bite now has somewhere to land, and
+losing is designed to be fair before the first enemy exists.
+
+**Built.**
+- `Server.vitals_of(id)`: one `Vitals` state per session, full on login (not saved; a relog
+  is a full bar), made lazily for sessions built without one (unit tests).
+- `_tick_vitals` every tick: `Vitals.tick` (stamina and out-of-combat health regen), and
+  `s2c_vitals(hp, max_hp, stamina, max_stamina)` in whole points, only when they change. That
+  RPC is not in protocol v6, so `_send` holds it back (one "not in protocol v6 yet" log line)
+  until the bump that brings the client's health bar. A full, idle player sends nothing.
+- `Server.hurt(id, amount, blocking)`: `Vitals.hit`, and at 0 health `knock_down(id)`: any
+  gather ends "moved", the player comes to at once on the Spawn Meadow arc (`unstuck_spot`),
+  full, standing still, pack and XP untouched, and gets `Vitals.KNOCKED_DOWN_TEXT`. Nobody
+  else is told. It doesn't touch the Return to Spawn cooldown.
+- "Return to Spawn Meadow" is refused while in combat ("You can't return to Spawn Meadow
+  mid-fight. Try again in N s.", `wait` = `Vitals.combat_left`), spends no cooldown. That
+  closes the v5 follow-up about it being an escape button.
+- Hidden dev commands `/hurt N` (1 to 1000, default 10) and `/vitals` (`/hp`, `/health`),
+  behind the dev-commands gate, never in HELP. A knock-down's own line is the whole answer.
+- `Vitals.combat_left`, `Vitals.shown`, `Vitals.describe`.
+
+**Why these calls.**
+- Fair failure = lose nothing for now. The design bible wants players back to the fun in
+  seconds; the roadmap says "lose little". With no enemies yet there is nothing to tune, so
+  the cost is only the walk back. If deaths turn out to have no weight once creatures bite,
+  add a small cost (a few seconds' "dazed" slow, or dropping part of one stack at the spot to
+  pick back up) rather than XP loss.
+- No downed state or respawn timer: dead time is the enemy (fun metrics). The knock-down is
+  instant; a short fade is the client's call when it gets `s2c_vitals`.
+- A hit does not interrupt a gather yet. Gather ends only know "moved/far/stopped"; a new
+  "hit" reason would need client text. Follow-up filed for when creatures attack.
+- `s2c_vitals` is produced now rather than at the bump so the bump PR is only the RPC.
+
+**Bot behaviour.** `gameplay_vitals.gd`: every bot, 10 to 14 s after a login: `/hurt 30`
+(must say 70/100, in combat), `/vitals` (still 70, in combat), waits out the fight and 5 s,
+`/vitals` (100/100, out of combat), then, only while not gathering or stalking, `/hurt 1000`
+(must get the knock-down line and be within 4 m of spawn within 3 s). It sets the bot meta
+`knocked_down_at`; `gameplay_gather_v3` forgives a "moved"/"far" end within 3 s of it and
+walks back to its node, and `gameplay_wildlife` gives it the same view grace as an unstuck.
+
+**Tests.** `test_gameplay_vitals_live.gd` (10): full and quiet when idle, hurt then regen
+after the fight with the sends, knock-down (spawn, still, full, pack and XP kept, only the
+victim told), a knock-down ends a gather "moved", no unstuck mid-fight (no cooldown spent),
+the dev commands, dev-only and not in HELP, `/hurt` parsing, health not in the save,
+`combat_left`/`describe`. Unit 669/669 with Postgres. Bot test 8 x 180 s websocket with `--fun-check --perf-check`
+PASSED (8 of 8 levelled, every bot hurt, healed and knocked down once; dead median 25.2 s,
+worst 55.9; first reward 8.0 s; rewards 10.0/min; CPU 1.8 ms/tick; down 73.3 kbit/s median).
+A plain run before it also passed (dead median 33.3). Client smoke PASSED. Local note: the
+container had no `ss`, so the first `--perf-check` run failed "not measured"; `apt-get install
+iproute2` fixed it (not a code problem).
+
+**Next run:** if this PR is red, fix what is ours. Then: put `s2c_vitals` on Net/Play in the
+next protocol bump (with a frozen v6) once client is ready for a health bar (request filed
+with client); a gather interrupted by a hit; sprint/dodge spends once client sends them.
+
 ## 2026-11-24: the first two weapons, rules only (Milestone 2 build-ahead, no bump)
 
 **Run start.** Budget 26 of 40 this week. PR #164 (vitals on the server) had a merge
@@ -1004,3 +1069,92 @@ No recipes or items: they wait for world's weapon icons and models and for the a
 `attack(id, kind)` that spends stamina, waits the windup, and applies `Weapons.targets_hit`
 to grazers (a gentle first hunt) or players knocked down by `/hurt` only in tests; then the
 spear and maul recipes (Toolcraft 2 and 4?) with world's icons; then `s2c_vitals` in a bump.
+
+## 2026-11-24 (later run): #164 fixed for the image test
+
+**Why #164 was red.** CI's image test (`tests/ops/run_image_test.py`, "plays") runs only two
+bots for 40 s with a reconnect part-way, so each login lasts about 15 to 25 s.
+`gameplay_vitals` started 10 to 14 s into a login and needs another ~12 s (6 s fight + 5 s
+regen + answers), so it never finished ("step HEAL") and, worse, its `/hurt 30` landed in
+the last seconds of the run, right when `gameplay_roster_v5` asks "Return to Spawn Meadow",
+which #164 now refuses mid-fight. Both are test-timing problems, not game bugs.
+
+**Fix (tests only, no game code changed):** `gameplay_vitals` starts at 6 % of the run
+(clamped 3 to 10 s, so the 180 s bot test still starts at 10 s like before) and only demands
+the full check if some login was long enough for it (it records `vitals_cut_short` instead).
+`gameplay_roster_v5` accepts the mid-fight refusal as a valid answer as long as its wait is
+between 0 and `Vitals.COMBAT_SECONDS`. Also merged `main` (docs-only conflicts in both
+backlogs and this devlog; kept both sides).
+
+**Tested here:** unit tests 721/721 with Postgres; a 2-bot 40 s WebSocket bot run (the image
+test's shape) three times, all passing with the full vitals check finishing; the full bot
+test 8 x 180 s WebSocket with `--fun-check`: fun passed (first reward median 8.4 s, dead
+time median 25.9 s, 10.95 rewards/min, all 8 levelled); `--perf-check` CPU 1.72 ms/tick,
+but bandwidth was "not measured" because this sandbox has no `ss` (iproute2), so CI is the
+bandwidth check this time. Client smoke test passed. Could not run the image test itself:
+`docker build` can't download Godot through this sandbox's proxy.
+
+**Next run:** if #164 is still red, read the image test log first (`IMAGE TEST FAILED`
+lines are at the end of the Test job). Then the weapons follow-up: server attack wiring.
+
+**No second PR this run.** The next items worth building (server attack wiring for the
+weapons, the first hunt, `s2c_vitals` in a bump) all need #164's `Server.vitals_of` /
+`hurt` on `main`, and the rest of the open list is "watch the numbers" or waits on world or
+client. Branching new work on top of #164 is against the procedure, so this run spent its
+room getting #164 green instead.
+
+## 2026-11-24 (night run): protocol v7, the health bar's data and the first swing
+
+**Picked.** #164 (Vitals on the server) and #167 (weapon rules) both landed, so the two
+follow-ups that waited on them were unblocked and both are protocol changes, which belong in
+one bump: `s2c_vitals` on the wire, and the server side of the attack. Fun in one sentence:
+a player can throw a punch (or a slow haymaker), feel it spend stamina, everyone nearby sees
+it, and a grazer you manage to creep up on and strike bolts off with its whole herd. It is
+plumbing until client ships the attack key and the bar, and this PR names exactly what they
+read (client backlog request).
+
+**Built (protocol v7, all on Net/Play, Net's own list untouched).**
+- `s2c_vitals(hp, max_hp, stamina, max_stamina)`: once right after login
+  (`Server._send_vitals`, before world state) and on every whole-point change, as before.
+- `c2s_attack(kind, yaw)` -> `Server.attack_request`. Refusals go to the swinger alone as
+  `s2c_attack_refused(kind, reason)`: `unknown` (bad kind or non-finite yaw), `busy` (still
+  inside the last swing's `Weapons.swing_seconds`), `gathering`, and Vitals' `dead`/`winded`/
+  `tired`. Accepted: stamina spent by the weapon's cost (new `Vitals.spend_cost`; the flat
+  `Vitals.spend` would charge a fist jab 8 instead of 4.8), the player faces `yaw`,
+  `s2c_swing(peer, weapon, kind, seconds)` to everyone in view.
+- `_tick_swings` lands the blow at `Weapons.hit_at` from where the swinger stands then,
+  facing the swing's yaw, against `Wildlife.targets` (`BODY_RADIUS` 0.6 m).
+  `Wildlife.strike` bolts the struck grazer away from the blow plus every herd-mate within
+  `HERD_RADIUS`, and counts `struck`. A hit puts the swinger in combat (`Vitals.dealt`), so
+  "Return to Spawn Meadow" waits like after being hit. `s2c_swing_hits(peer, kind, ids)`:
+  the swinger always (a whiff is `[]`, so the client can play the miss), others only on a hit.
+- `Server.weapon_of`: the best of `Weapons.ORDER` in the pack, else fists. Nobody can make
+  one yet, so it is fists for everyone today. Knock-down and Return to Spawn Meadow clear a
+  swing in progress.
+
+**Why these calls.**
+- *A swing never cancels a gather; it is refused "gathering".* My first version cancelled the
+  gather ("stopped"), which is what an action MMO does, but that makes a stray click cost a
+  gather on the server's say-so, and it would race every gather behaviour in the bot test
+  (gather_v3 fails on a "stopped" it didn't ask for). The client can get the same feel by
+  sending `c2s_gather_cancel` then `c2s_attack` (same reliable channel, so in order).
+- *No grazer health.* A hit that only startles is the smallest true slice; health, drops
+  (hide, meat) and respawn want new items and icons, so they're the next follow-up.
+- *No dodge.* There is no dodge input yet; `c2s_dodge` with `Weapons.can_cancel` is a
+  follow-up for the next bump.
+- Fists reach 1.4 m and grazers bolt at 4.5 m, so a hit needs creep-and-freeze. That is the
+  stalking skill doing its job; revisit once real players try it.
+
+**Tests.** Unit 743/743 with Postgres (`test_gameplay_protocol_v7.gd`, 14: RPC list v6 + 5
+and Net untouched, re-emits, login bar, a swing spends and shows in view, busy then free,
+bad kinds/yaws, tired then winded, a fist jab's cheaper cost, the blow lands only after the
+windup and the grazer bolts with an onlooker told, a whiff tells only you, never cuts a
+gather, herd-mates bolt, `weapon_of`, a knock-down ends the swing; `test_gameplay_protocol_v6`
+now reads the frozen v6 copies). Bot test 8 x 180 s WebSocket PASSED: every bot swung, was
+refused "busy" mid-swing and saw its blow land in both logins, full bar at both logins; fun
+summary first reward 7.1 s, dead median 34.4 s (gate 55), 7 of 8 levelled. 2-bot 40 s run
+(the image test's shape) passed with the full check. Protocol test passed (v1-v6 told to
+update). Client smoke test passed. No `--perf-check` bandwidth here (no `ss`).
+
+**Next run:** if this PR is red, fix it first. Then the first hunt (grazer health, hide and
+meat drops; ask world for icons first), or `c2s_dodge` for the next bump.

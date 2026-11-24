@@ -59,6 +59,10 @@ var _asked_node := -1 ## a start we sent and the server hasn't answered yet
 var _asked_at := -INF
 var _hold_blocked := false ## after a refusal, holding E doesn't ask again until you let go
 var _toast_age := INF
+## True for the one frame a left-click did nothing (see missed_click); client.gd plays
+## Sfx.miss() for it, so a click at the sky or at a spent node is felt, not silent.
+var click_missed := false
+var _miss_age := INF
 
 
 ## What the prompt shows for a player at `pos` at world time `world_seconds`: the live node
@@ -167,6 +171,18 @@ static func decide(held: bool, pressed: bool, moving: bool, target: Dictionary, 
 	if bool(target.get("aimed", false)) and (click_pressed or (click_held and not blocked)):
 		return {"op": "start", "node": int(target.id)}
 	return {}
+
+
+## True when a fresh left-click this frame did nothing at all: it didn't start a gather
+## (`op` from decide()), no gather is running (a click while chopping keeps chopping, which
+## is not a miss), and no start is waiting on the server (that click is already answered by
+## the bar or a refusal). `since_last` is seconds since the last miss: clicks closer than
+## MISS_GAP make one tick, so a hammered button patters instead of buzzing.
+const MISS_GAP := 0.12
+
+
+static func missed_click(click_pressed: bool, op: Dictionary, gathering: bool, waiting: bool, since_last: float = INF) -> bool:
+	return click_pressed and op.is_empty() and not gathering and not waiting and since_last >= MISS_GAP
 
 
 ## How full the gathering bar is, 0..1, at `now` for a channel {started, seconds}.
@@ -317,6 +333,10 @@ func update(delta: float, pos: Vector3, world_seconds: float, now: float, held: 
 	if not waiting:
 		_asked_node = -1
 	var op := decide(held, pressed, moving, _target, not _channel.is_empty(), waiting, _hold_blocked, click_held, click_pressed)
+	_miss_age += delta
+	click_missed = missed_click(click_pressed, op, not _channel.is_empty(), waiting, _miss_age)
+	if click_missed:
+		_miss_age = 0.0
 	if op.get("op", "") == "start":
 		_asked_node = int(op.node)
 		_asked_at = now

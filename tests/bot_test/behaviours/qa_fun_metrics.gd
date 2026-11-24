@@ -24,10 +24,11 @@ func setup(net: Node) -> void:
 	bot.play_sent.connect(func(_method: String, _args: Array): m.act(bot.elapsed))
 	# Our gather bar starting or stopping is the game answering; also times the gathering
 	# for "first level-up within 90 s of gathering" (Milestone 1).
-	net.gather_begun.connect(func(peer: int, _node: int, _secs: float):
+	# The node's skill splits the timing per skill ("gathered N s of felling, never levelled it").
+	net.gather_begun.connect(func(peer: int, node: int, _secs: float):
 		if peer == bot.my_id:
 			m.feedback(bot.elapsed)
-			m.gather_begun(bot.elapsed))
+			m.gather_begun(bot.elapsed, str(ResourceNodes.info_by_id(node).get("skill", ""))))
 	net.gather_ended.connect(func(peer: int, _node: int, _reason: String):
 		if peer == bot.my_id:
 			m.feedback(bot.elapsed)
@@ -37,8 +38,8 @@ func setup(net: Node) -> void:
 	net.xp_gained.connect(func(_skill: String, _gained: int, _total: int): m.feedback(bot.elapsed))
 	# Return to Spawn Meadow (protocol v5): its answer is the game responding to the press.
 	net.unstuck_result.connect(func(_ok: bool, _text: String, _wait: float): m.feedback(bot.elapsed))
-	net.level_up.connect(func(_skill: String, _level: int, _unlocks: Array):
-		m.level_up(bot.elapsed)
+	net.level_up.connect(func(skill: String, _level: int, _unlocks: Array):
+		m.level_up(bot.elapsed, skill)
 		m.expect_echo("level", bot.elapsed))
 
 
@@ -72,7 +73,7 @@ func _on_system(text: String) -> void:
 	var t: float = bot.elapsed
 	if FunMetrics.is_level_up(text):
 		if not m.echo("level", t):
-			m.level_up(t)
+			m.level_up(t, FunMetrics.level_up_skill(text))
 		return
 	var items := FunMetrics.items_in(text)
 	if text.begins_with("You craft"):

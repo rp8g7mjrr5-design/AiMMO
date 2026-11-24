@@ -320,6 +320,42 @@ static func _flat(p: Vector3) -> Vector2:
 	return Vector2(p.x, p.z)
 
 
+## --- Being struck (protocol v7, the first swing) ---
+
+## A grazer's body for hit checks (Weapons.targets_hit's radius), metres.
+const BODY_RADIUS := 0.6
+
+
+## Every creature as a hit target for Weapons.targets_hit: [{id, pos, radius}, ...].
+static func targets(state: Dictionary) -> Array:
+	var out: Array = []
+	for c in state.creatures:
+		out.append({"id": int(c.id), "pos": c.pos, "radius": BODY_RADIUS})
+	return out
+
+
+## A swing from `from` landed on creature `id`: it bolts away from the blow, and every
+## herd-mate within HERD_RADIUS that isn't already running bolts with it (like a sighting,
+## but at once, whatever it was doing, resting or not). No health yet: the gentle first
+## hunt (hide and meat) comes with drops. Returns the ids that bolted, the struck one first,
+## or [] for an unknown id.
+static func strike(state: Dictionary, id: int, from: Vector3, now: float) -> Array:
+	var c := get_by_id(state, id)
+	if c.is_empty():
+		return []
+	var rng: RandomNumberGenerator = state.rng
+	c.struck = int(c.get("struck", 0)) + 1
+	_bolt(c, from, now, rng)
+	var bolted: Array = [id]
+	for o in state.creatures:
+		if o.id == id or o.herd != c.herd or o.state == "flee":
+			continue
+		if _flat(o.pos).distance_to(_flat(c.pos)) <= HERD_RADIUS:
+			_bolt(o, from, now, rng)
+			bolted.append(int(o.id))
+	return bolted
+
+
 ## The wire form (s2c_wildlife, protocol v6): a PackedFloat32Array of
 ## [id, x, z, yaw, state_index] per creature (clients take y from Terrain.height). Packed
 ## 32-bit floats are 4 bytes a value on the wire, a third of a plain Array's, which keeps 21

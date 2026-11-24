@@ -41,9 +41,11 @@ docs/
   roadmap.md              ← ordered milestones toward the vision (AI-owned)
   playtest.md             ← human's bug inbox (read every week)
   devlog/week-NN.md       ← internal notes: what you built, what failed, notes to next week's self
-  devlog/<stream>.md      ← each workstream's running notes to its next run
+  devlog/<stream>.md      ← each workstream's running notes (folded by the integrator)
+  devlog/<stream>.d/      ← one devlog note per PR, folded into devlog/<stream>.md
   workstreams.md          ← who owns which files, worker and integrator procedures
   workstreams/<stream>.md ← each workstream's backlog
+  workstreams/<stream>.d/ ← one backlog note per PR (ticks, follow-ups, requests), folded in
   weekly_task.md          ← the Friday weekly review
   budget.md               ← weekly work cap, set by the owner
   digest/YYYY-MM-DD.md    ← the director's daily summary for the owner
@@ -71,6 +73,7 @@ Dockerfile                ← server container for Railway
 ## Writing standards
 - **Patch notes** (`CHANGELOG.md`): written for players, fun and clear, newest at top.
 - **Devlog**: honest and technical. Include what you tried that didn't work, known bugs, and specific notes to next week's self.
+- **No shared running files in worker PRs.** Patch notes, devlog notes, backlog ticks and requests each go in a new file per PR, and the integrator folds them in (`docs/workstreams.md`, "Notes go in new files"). This is what keeps parallel PRs from conflicting.
 - **Commits**: small, descriptive messages.
 
 ## Development process

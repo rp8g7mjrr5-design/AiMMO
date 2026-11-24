@@ -1,8 +1,11 @@
 class_name Vitals
 ## Health and stamina (roadmap Milestone 2, "First blood"): the rules only, as pure functions
 ## over a small Dictionary, so they are unit tested without a server. The server will keep
-## one per player in its session (and creatures one each) once combat is wired; nothing
-## calls this yet, and nothing here is saved or sent (no migration, no protocol change).
+## one per player in its session (and creatures one each). Since 2026-11-24 the server keeps
+## one per logged-in player (Server.vitals_of): full on login, ticked every server tick, hurt
+## by Server.hurt (only the hidden /hurt dev command until creatures fight), knocked down at
+## 0 (KNOCKED_DOWN_TEXT). Not saved (a relog is full health); s2c_vitals goes out once at
+## login and on every change (protocol v7), and attacks spend from it (Server.attack_request).
 ##
 ## Our take (design bible, "Take the best, then beat it"): stamina is the one bar every
 ## action move spends (dodge roll, heavy swing, block), the way the best action MMOs and
@@ -38,6 +41,10 @@ const BLOCK_COST := 0.8
 const COMBAT_SECONDS := 6.0
 ## Health back per second out of combat, as a share of max (10%: full in 10 s).
 const HP_REGEN_SHARE := 0.10
+## Fair failure (roadmap Milestone 2): at 0 health you are knocked down and come to at once
+## in Spawn Meadow, full, with everything you carried and every point of XP. No corpse run,
+## no lost pack, no timer: losing costs the walk back, which is the lesson, not a punishment.
+const KNOCKED_DOWN_TEXT := "You were knocked down. You come to in Spawn Meadow with everything you carried."
 
 
 ## A fresh, full state.
@@ -52,6 +59,11 @@ static func is_cost(action: String) -> bool:
 
 static func in_combat(v: Dictionary, now: float) -> bool:
 	return now - float(v.hit_at) < COMBAT_SECONDS
+
+
+## Seconds until `v` is out of combat (0 when it already is).
+static func combat_left(v: Dictionary, now: float) -> float:
+	return maxf(COMBAT_SECONDS - (now - float(v.hit_at)), 0.0)
 
 
 static func is_winded(v: Dictionary, now: float) -> bool:
@@ -92,6 +104,23 @@ static func spend(v: Dictionary, action: String, now: float, seconds: float = 1.
 			return {"ok": true, "reason": "", "spent": 0.0}
 		cost *= maxf(seconds, 0.0)
 	var spent := minf(cost, float(v.stamina))
+	_drain(v, spent, now)
+	return {"ok": true, "reason": "", "spent": spent}
+
+
+## Like spend, but the move costs `cost` instead of the flat COSTS[action] (a weapon's
+## Weapons.stamina_cost: a maul swing costs more than a jab). "tired" when a light or heavy
+## swing can't pay `cost` in full; a dodge still only needs some stamina left. Returns
+## {ok, reason, spent}; a refused spend changes nothing.
+static func spend_cost(v: Dictionary, action: String, cost: float, now: float) -> Dictionary:
+	var why := check(v, action, now)
+	if why == "tired" and action in ["light", "heavy"] and float(v.stamina) >= cost:
+		why = "" # a light weapon's swing can be cheaper than the flat cost
+	if why == "" and action in ["light", "heavy"] and float(v.stamina) < cost:
+		why = "tired"
+	if why != "":
+		return {"ok": false, "reason": why, "spent": 0.0}
+	var spent := minf(maxf(cost, 0.0), float(v.stamina))
 	_drain(v, spent, now)
 	return {"ok": true, "reason": "", "spent": spent}
 
@@ -139,3 +168,16 @@ static func _drain(v: Dictionary, amount: float, now: float) -> void:
 	v.spent_at = now
 	if float(v.stamina) <= 0.0:
 		v.winded_until = now + WINDED_SECONDS
+
+
+## Whole points [hp, stamina], what a health bar can show. The server sends s2c_vitals only
+## when this changes, so a full, idle player costs nothing on the wire.
+static func shown(v: Dictionary) -> Array:
+	return [roundi(float(v.hp)), roundi(float(v.stamina))]
+
+
+## "Health 70/100, stamina 100/100, in combat." for the hidden /vitals dev command.
+static func describe(v: Dictionary, now: float) -> String:
+	var where := "in combat" if in_combat(v, now) else "out of combat"
+	return "Health %d/%d, stamina %d/%d, %s." % [roundi(float(v.hp)), roundi(float(v.max_hp)),
+		roundi(float(v.stamina)), roundi(float(v.max_stamina)), where]

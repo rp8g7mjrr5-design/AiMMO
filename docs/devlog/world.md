@@ -656,6 +656,43 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 
 **Next run.** If #160 has landed, the client's swap is theirs. Otherwise: noon grass saturation or the mid-distance tree mesh.
 
+## 2026-11-24 (run 3): lantern flames flicker (ws/world/lantern-flicker)
+
+**Picked.** #160 (grazers) has landed. The two top items (milestone level-up burst, gather impact puff) still need a client call. Next on the list was the mid-distance tree mesh, but it adds one draw call per visible chunk and night headroom is 11 (289 of 300); it is a perf item players don't feel, and it needs a careful measuring run of its own. The lantern flicker is world-only, small, and finishable here. **What a player will feel:** coming back to the meadow at night, the eight lanterns and the bench lantern look like real flames: the light pools on the grass breathe, each on its own rhythm, instead of sitting there like electric bulbs.
+
+**Built.**
+- `Lamps.flicker(seconds, index)`: pure maths, three sine waves (7.3, 17.3 and 2.9 rad/s) with a golden-angle offset per lantern. Stays inside 1 +- 0.07 (`FLICKER_DEPTH` 0.14) and averages 1, so a night is exactly as bright as before.
+- `Lamps.flicker_lights(world, seconds)`: sets `light_energy = steady * flicker` on every lit meadow lantern light and the bench light (index `COUNT`). `apply_glow` (both `Lamps` and `Workbench`) now stores the steady level as `steady_energy` meta on each light. Lights that are off, or that no repaint has set yet, are left alone.
+- `DayNight._process` calls it every frame on the same clock as the heartbeat (`now_world_seconds`, so every player sees the same flames), and `apply` calls it right after `apply_glow` so a 0.25 s repaint never shows one steady frame (a ~5% blip four times a second would have read as a tick).
+- Cost: 9 `light_energy` sets a frame at night, none by day. No new nodes, materials or draw calls; no colour literals (art lint unchanged).
+
+**Decisions.** Lights only, not the glass: the lantern glass is one shared material across all nine lanterns, so wobbling `emission_energy` would make them all flicker in lock step, which looks worse than steady glass with the heartbeat. Per-lantern glass flicker needs a phase in instance custom data in the `glow` shader; follow-up added. No colour shift with the flicker, because a second flame colour would be a new literal for the art lint and the energy swing alone reads.
+
+**Tests.** `test_world_lantern_flicker.gd` (5 tests): range and mean over 9 lanterns x 100 s; under 2% change per 60 fps frame (worst is about 1.1%); neighbouring lanterns aren't in step (correlation under 0.8); built world lights follow their own flame and re-flicker around a new steady level after a repaint; nothing changes by day or before the first repaint, nothing is created, safe on null and partial worlds. Mutation check: making `_flicker_one` a no-op fails 10 checks. Unit suite with Postgres: 716 pass. 8-bot 180 s websocket bot test passed (278 s). Client smoke test passed (render budget ok). No bot behaviour: nothing on the network.
+
+**Didn't do.** No screenshot pair: a +-7% light swing doesn't show in two stills, and the smoke shots are stills. Worth a look in a real night playtest; if it reads too subtle, raise `FLICKER_DEPTH` to 0.2 (the strobe test allows it).
+
+**Next run.** Milestone burst and impact puff still wait on the client. Otherwise the noon grass saturation follow-up (qa's noon style baseline exists now) or the mid-distance tree mesh with a draw-call measurement.
+
+## 2026-11-24 (run 4): Low draws less far (ws/world/low-draw-distance)
+
+**Picked.** qa's open request "Low barely draws less" (requests come before the backlog). The top backlog items (milestone burst, gather impact puff, ember-tool sparks) still need a client call. **What a player will feel:** on an old laptop with Graphics on Low, the game runs noticeably smoother (fewer hitches while turning the camera across the valley), and the meadow they actually play in looks the same.
+
+**Built.**
+- `Chunks.RANGE_SCALES` (Low 0.5, Medium and High 1.0) and `Chunks.range_scale(level)`. `cut_for(range, chunk, scale)` scales the layer's range but not the half-diagonal padding, so nothing inside the shorter range is ever cut.
+- `Chunks.quality_range_scale()` reads `Quality.level` by path (`q.get("level")` on the loaded script works in 4.3), 1.0 where `client/` isn't exported, like `Flora.quality_density`.
+- `Chunks.build` and `NodeProps._chunked` tag each chunk with its range and chunk size (`set_range`) and cut it for the current level. `Chunks.apply_range_scale(root, scale)` redoes every tagged chunk under a node.
+- `Chunks.RangeWatch` (added by `WorldBuilder.build` under the world root) polls every 0.5 s and rescales the whole world when the Graphics setting changes.
+- No new nodes drawn, no materials, no colour literals.
+
+**Measured** (client smoke, noon spawn, Low vs Medium): at 0.7, primitives -3%, draw calls -7%, frame -15%. At 0.5, primitives -11% (440k -> 394k), draw calls -14% (275 -> 237), frame -25% (152 -> 114 ms software). I put the Medium, Low 0.7 and Low 0.5 shots side by side: the three look the same, because the far tree line is mostly the whole-world resource-node trees plus haze. So 0.5. The scene triangle count doesn't move (visibility ranges hide, they don't build less), which is why qa's `min_saving` on scene triangles still only sees flora's -11%.
+
+**Didn't do.** The node tree layers are whole MultiMeshes and still draw everything on Low; chunking them costs draw calls, follow-up added. No bot behaviour: nothing on the network, and the art lint forbids procgen in bot behaviours.
+
+**Tests.** `test_world_low_ranges.gd` (5 tests): scales per level and clamping; Low cuts nearer for every ranged chunk and node layer but keeps the padding; whole landmark layers never cut; `Chunks.build` and `NodeProps.build` on Low use the Low cut and `apply_range_scale` puts it back; `RangeWatch` follows Low and High within one poll. Unit suite with Postgres: 731 pass. 8-bot 180 s websocket bot test passed (277 s). Client smoke test passed (render budget ok, style check ok).
+
+**Next run.** qa can raise its Low gate. Then the noon grass saturation follow-up or the mid-distance tree mesh.
+
 ## 2026-11-24, less blocky, low-res characters (PR #171 follow-up)
 - Owner asked for characters that look less blocky and more "low res". Every body part is now a smooth `loft()` (rings of width/depth along y) or a low-segment ball, no boxes or cylinders. About 2,340 triangles a character, 5 draw calls, unchanged.
 - Low-res feel comes from maths in the Emberlight shader: object-space texel grain (`texel_size` 0.055 m on bodies, 0.4 m on terrain, ±9%/±7% brightness). No textures imported.

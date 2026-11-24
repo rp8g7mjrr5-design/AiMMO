@@ -523,9 +523,9 @@ static func chunk_size(layer: String) -> float:
 
 ## A layer's chunks' visibility_range_end: its range plus half a chunk diagonal, so a part at
 ## a chunk's corner is still drawn out to the layer's range (as `Chunks.cut_of`). 0 = no limit.
-static func cut_of(layer: String) -> float:
-	var r: float = RANGES.get(layer, 0.0)
-	return 0.0 if r <= 0.0 or chunk_size(layer) <= 0.0 else r + chunk_size(layer) * 0.7072
+## `scale` is the Graphics range scale (`Chunks.range_scale`: 0.5 on Low).
+static func cut_of(layer: String, scale: float = 1.0) -> float:
+	return Chunks.cut_for(RANGES.get(layer, 0.0), chunk_size(layer), scale)
 
 
 ## Layer `l` as a Node3D of chunk MultiMeshes. Parts go in the chunk of their node's position,
@@ -550,7 +550,8 @@ static func _chunked(l: String, mesh: Mesh, lay: Dictionary, where: Array) -> No
 	keys.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
 	var layer_node := Node3D.new()
 	layer_node.name = l
-	var vis := cut_of(l)
+	var r: float = RANGES.get(l, 0.0)
+	var scale := Chunks.quality_range_scale()
 	for k in keys:
 		var at := chunk_centre(l, k)
 		var idx: Array = by_chunk[k]
@@ -560,8 +561,7 @@ static func _chunked(l: String, mesh: Mesh, lay: Dictionary, where: Array) -> No
 			inst.append([Transform3D(t.basis, t.origin - at), all[i][1]])
 		var mmi := _multimesh("c%d_%d" % [k.x, k.y], mesh, inst, l)
 		mmi.position = at
-		if vis > 0.0:
-			mmi.visibility_range_end = vis
+		Chunks.set_range(mmi, r, chunk_size(l), scale)
 		mmi.set_meta("shown", idx.size())
 		layer_node.add_child(mmi)
 		for j in idx.size():

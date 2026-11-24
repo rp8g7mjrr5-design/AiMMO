@@ -42,7 +42,12 @@ func test_video_is_a_small_theora_stream() -> void:
 		check(f != null and f.get_length() < 2 * 1024 * 1024, "%s stays under 2 MB" % path)
 		if f != null:
 			total += f.get_length()
-	check(total < 3 * 1024 * 1024, "both encodes together stay under 3 MB for the auto-updater")
+	check(ResourceLoader.exists(Intro.AUDIO_PATH), "intro sound is in the project")
+	check(load(Intro.AUDIO_PATH) is AudioStreamOggVorbis, "intro sound loads as Ogg Vorbis")
+	var a := FileAccess.open(Intro.AUDIO_PATH, FileAccess.READ)
+	if a != null:
+		total += a.get_length()
+	check(total < 3 * 1024 * 1024, "both encodes and the sound together stay under 3 MB for the auto-updater")
 
 
 func test_picks_the_encode_that_fits_one_to_one() -> void:

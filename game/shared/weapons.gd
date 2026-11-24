@@ -1,8 +1,9 @@
 class_name Weapons
 ## The first crafted weapons (roadmap Milestone 2, "First blood"): the rules only, as data and
-## pure functions, so they are unit tested without a server. Nothing calls this yet: there is
-## no recipe, no item, no protocol change and nothing saved. The server wiring (an attack
-## input, hit checks in the tick, damage into `Vitals.hit`) comes with combat.
+## pure functions, so they are unit tested without a server. Since protocol v7 the server
+## swings with it (Server.attack_request: c2s_attack, stamina, the windup, targets_hit against
+## the grazers, which bolt when struck). There is no recipe or item yet, so everyone fights
+## bare-handed (Server.weapon_of) until the spear and maul can be made.
 ##
 ## Two weapons that play differently (design bible, "Weapons you made"), plus bare hands:
 ## - **Ash spear**: long reach and quick, cheap thrusts in a narrow line. It hits only the
@@ -159,6 +160,22 @@ static func targets_hit(from: Vector3, yaw: float, id: String, kind: String, tar
 			break
 		hit.append(e[1])
 	return hit
+
+
+## What a player is told when a swing is refused (Server.attack_request's reasons). "busy"
+## (pressed again mid-swing) says nothing: the swing you are in is the answer.
+const REFUSALS := {
+	"winded": "You're winded. Catch your breath.",
+	"tired": "Not enough stamina for that swing.",
+	"dead": "",
+	"busy": "",
+	"gathering": "",
+	"unknown": "",
+}
+
+
+static func refusal_text(reason: String) -> String:
+	return str(REFUSALS.get(reason, ""))
 
 
 ## Damage per point of stamina for one attack (a balance measure, see BALANCE_BAND).

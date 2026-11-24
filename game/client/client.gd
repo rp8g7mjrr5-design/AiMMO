@@ -48,6 +48,8 @@ var craft_window: CraftWindow
 var sfx_craft: AudioStreamPlayer
 var notice_line: NoticeLine ## centre-screen system notices (chat is for talking)
 var sfx_nope: AudioStreamPlayer
+var sfx_miss: AudioStreamPlayer ## a left-click that did nothing (GatherPrompt.click_missed)
+var footsteps: Footsteps ## turf steps in time with every avatar's walk cycle
 var reticle: Reticle
 ## Left-click gathering: a press the game itself took (cursor captured, no window or button
 ## under it) since the last frame, and whether that press is still held.
@@ -434,6 +436,7 @@ func _process(delta: float) -> void:
 		# seq + 1 is the input that will carry this frame's walk to the server.
 		prediction.advance(seq + 1, move, delta)
 	var t := 1.0 - exp(-14.0 * delta)
+	var ear: Vector3 = prediction.position if logged_in and prediction.has_position else camera.position
 	for id in avatars:
 		var a: Dictionary = avatars[id]
 		var n: Node3D = a.node
@@ -445,6 +448,7 @@ func _process(delta: float) -> void:
 		var anim: WalkAnim = a.anim
 		anim.step(n.position, delta)
 		anim.apply(a.body)
+		footsteps.step(id, n, anim, my_id, ear)
 		# While gathering, the rendered body turns to the node and swings at it.
 		var swing: GatherSwing = a.swing
 		var gathering: Dictionary = ResourceNodes.get_by_id(int(gather_watch.running[id])) if gather_watch.running.has(id) else {}
@@ -497,6 +501,8 @@ func _update_gather(delta: float, my_pos: Vector3, eye: Vector3, look: Vector3) 
 	_click_tap = false
 	var now := Time.get_ticks_msec() / 1000.0
 	var op := gather_prompt.update(delta, my_pos, TimeDial.current_seconds(), now, held, pressed, _move_vector() != Vector2.ZERO, eye, look, _click_down, click_pressed)
+	if gather_prompt.click_missed and sfx_miss != null:
+		sfx_miss.play()
 	var t := gather_prompt.current_target()
 	reticle.active = not t.is_empty() and bool(t.can)
 	_highlight_target(-1 if t.is_empty() or chat_edit.has_focus() else int(t.id))
@@ -693,6 +699,7 @@ func _on_player_joined(id: int, player_name: String, appearance_seed: int) -> vo
 
 func _on_player_left(id: int) -> void:
 	gather_watch.forget(id)
+	footsteps.forget(id)
 	if avatars.has(id):
 		avatars[id].node.queue_free()
 		avatars.erase(id)
@@ -1305,6 +1312,10 @@ func _build_audio() -> void:
 	sfx_nope.stream = Sfx.nope()
 	sfx_nope.volume_db = -9.0
 	add_child(sfx_nope)
+	sfx_miss = AudioStreamPlayer.new()
+	sfx_miss.stream = Sfx.miss()
+	sfx_miss.volume_db = -12.0
+	add_child(sfx_miss)
 	sfx_level_up = AudioStreamPlayer.new()
 	sfx_level_up.stream = Sfx.level_up()
 	sfx_level_up.volume_db = -3.0
@@ -1313,6 +1324,8 @@ func _build_audio() -> void:
 	sfx_arrive.stream = Sfx.arrive()
 	sfx_arrive.volume_db = -6.0
 	add_child(sfx_arrive)
+	footsteps = Footsteps.new()
+	footsteps.build(self)
 
 
 func _exit_tree() -> void:

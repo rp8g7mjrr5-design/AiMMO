@@ -21,6 +21,12 @@ extends RefCounted
 ##                    about a minute of gathering, and the report holds it to a limit
 ##   gather_s         all seconds spent in timed gathers
 ##   level_ups, levels_per_10_min  every level-up line, and per 10 minutes of play
+##   gather_s_<skill> seconds of timed gathering in that skill (felling, quarrying, ...), by
+##                    the node's skill (ResourceNodes.info_by_id)
+##   level_gather_s_<skill>  seconds gathered in that skill when it first levelled, -1 if
+##                    it never did. A bot's XP is split between skills by whichever nodes it
+##                    walks to, so "N s in one skill and never levelled it" is the fair
+##                    gate, not the bot's total (fun_report.py, skill_unlevelled_gather_s_worst)
 ##
 ## Where the numbers come from (protocol v3/v4): a press of E, a cancel and a Craft press
 ## (bot.play_sent) are actions like a slash command; s2c_gather_begin/end for us, s2c_xp and a
@@ -45,6 +51,9 @@ var _act_since := -1.0 ## first unanswered action since the last feedback, or -1
 var _longest_wait := 0.0
 var _gather_since := -1.0 ## when our running timed gather started, or -1
 var _gather_time := 0.0
+var _gather_skill := "" ## the skill our running gather trains, or ""
+var _skill_gather := {} ## skill -> seconds gathered in it
+var _skill_level := {} ## skill -> seconds gathered in it when it first levelled
 var _first_level := -1.0
 var _first_level_gather := -1.0
 var level_ups := 0
@@ -110,17 +119,23 @@ func crafted(t: float, count: int) -> void:
 
 ## One of our timed gathers started (s2c_gather_begun for us). Only times the gathering;
 ## feedback is still counted from the server lines, as before, so the baseline holds.
-func gather_begun(t: float) -> void:
+## `skill` is what the node trains ("" if unknown: only the total is timed).
+func gather_begun(t: float, skill: String = "") -> void:
 	if _playing:
 		gather_ended(t) # a new start replaces a running one
 		_gather_since = t
+		_gather_skill = skill
 
 
 ## Our running gather stopped, for any reason (done, walked off, cancelled, disconnect).
 func gather_ended(t: float) -> void:
 	if _gather_since >= 0.0:
-		_gather_time += maxf(0.0, t - _gather_since)
+		var secs := maxf(0.0, t - _gather_since)
+		_gather_time += secs
+		if _gather_skill != "":
+			_skill_gather[_gather_skill] = float(_skill_gather.get(_gather_skill, 0.0)) + secs
 	_gather_since = -1.0
+	_gather_skill = ""
 
 
 ## Seconds spent gathering so far, a running gather included up to `t`.
@@ -128,8 +143,16 @@ func gather_time(t: float) -> float:
 	return _gather_time + (maxf(0.0, t - _gather_since) if _gather_since >= 0.0 else 0.0)
 
 
-## A "<Skill> is now level N!" line arrived.
-func level_up(t: float) -> void:
+## Seconds gathered in one skill so far, a running gather in it included up to `t`.
+func skill_gather_time(skill: String, t: float) -> float:
+	var secs := float(_skill_gather.get(skill, 0.0))
+	if _gather_since >= 0.0 and _gather_skill == skill:
+		secs += maxf(0.0, t - _gather_since)
+	return secs
+
+
+## A "<Skill> is now level N!" line arrived (`skill` is its id, "" if unknown).
+func level_up(t: float, skill: String = "") -> void:
 	feedback(t)
 	if not _playing:
 		return
@@ -137,6 +160,8 @@ func level_up(t: float) -> void:
 	if _first_level < 0.0 and _first_login >= 0.0:
 		_first_level = t - _first_login
 		_first_level_gather = gather_time(t)
+	if skill != "" and not _skill_level.has(skill):
+		_skill_level[skill] = skill_gather_time(skill, t)
 
 
 ## An RPC counted an answer the server will also send as text ("gather" with the item count,
@@ -178,7 +203,7 @@ func play_time(now: float) -> float:
 ## The bot's numbers. first_reward_s is -1 when nothing was ever received.
 func result() -> Dictionary:
 	var minutes := _play_time / 60.0
-	return {
+	var out := {
 		"first_reward_s": snappedf(_first_reward, 0.01) if _first_reward >= 0.0 else -1.0,
 		"longest_dead_s": snappedf(_longest_dead, 0.01),
 		"longest_dead_from_s": snappedf(_longest_dead_at - maxf(_first_login, 0.0), 0.01),
@@ -194,6 +219,17 @@ func result() -> Dictionary:
 		"level_ups": level_ups,
 		"levels_per_10_min": snappedf(level_ups / minutes * 10.0, 0.01) if minutes > 0.0 else 0.0,
 	}
+	# Flat keys (not a nested dict) so the per-bot key=value log line tools/fun_trend.py
+	# reads keeps working. Every skill the bot gathered in or levelled appears.
+	var skills := _skill_gather.keys()
+	for k in _skill_level:
+		if not skills.has(k):
+			skills.append(k)
+	skills.sort()
+	for k in skills:
+		out["gather_s_" + str(k)] = snappedf(float(_skill_gather.get(k, 0.0)), 0.01)
+		out["level_gather_s_" + str(k)] = snappedf(float(_skill_level[k]), 0.01) if _skill_level.has(k) else -1.0
+	return out
 
 
 ## How many items a server line gave, or 0. "You gather 2 ash wood ..." gives 2; a craft
@@ -210,6 +246,15 @@ static func items_in(text: String) -> int:
 ## True for a level-up line ("Felling is now level 2! ..."; see Skills.level_up_text).
 static func is_level_up(text: String) -> bool:
 	return RegEx.create_from_string("^\\w+ is now level \\d+!").search(text) != null
+
+
+## The skill id a level-up line names ("Felling is now level 2!" -> "felling"), or "".
+static func level_up_skill(text: String) -> String:
+	var m := RegEx.create_from_string("^(\\w+) is now level \\d+!").search(text)
+	if m == null:
+		return ""
+	var id := m.get_string(1).to_lower()
+	return id if Skills.is_skill(id) else ""
 
 
 ## True for server lines that are other players coming and going, not feedback to us.

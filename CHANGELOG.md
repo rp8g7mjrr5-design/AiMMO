@@ -5,6 +5,28 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- Your game now knows your health and stamina from the moment you log in, ready for the health bar.
+- First blood, part one: the server now understands a swing. Light jabs and heavy haymakers cost stamina, everyone nearby sees you throw them, and a grazer you manage to sneak up on and strike bolts off with its whole herd. (Needs the client's attack button, coming soon; this update asks you to download the new version.)
+- The Budda Games intro's sound now plays smooth, with no crackles or stutters.
+- Behind the scenes: fixed a flaky health check in our test bots that could hold up new features for no reason, so updates reach you sooner.
+- On the **Low** Graphics setting, far-off trees, rocks and flowers now fade into the haze sooner, so older laptops get a smoother frame (about a quarter faster in our test shot) while the meadow looks the same up close.
+- Switching between Low, Medium and High in Settings changes the draw distance straight away, no restart.
+- A left-click that hits nothing (the sky, a spent node, a tree just out of reach) now gives a soft dry tick, so you feel the miss and know to re-aim instead of wondering if the game heard you.
+- Behind the scenes: every test run now checks that each skill levels up on time on its own, so felling and quarrying both keep their first level-up inside about a minute of gathering.
+- The meadow lanterns and the workbench lantern now flicker gently after dark, each flame on its own rhythm, so the pools of light on the grass breathe like real fire.
+- **Getting ready for the first fight:** the server now keeps everyone's health and stamina. When creatures start to bite, losing is fair: you're knocked down and come to straight away in Spawn Meadow with everything you carried and every point of XP. And "Return to Spawn Meadow" won't work mid-fight, so nobody can use it to dodge a loss.
+- Your feet make a sound now: a soft, grassy patter in time with every stride, four variations so it never sounds copy-pasted.
+- Hear other players before you see them: their footsteps come from where they walk and fade out about 18 m away.
+- Behind the scenes for the first fights: the ash spear (long reach, quick, precise) and the stone maul (slow, wide sweeps, heavy hits that stagger) now have their rules. Neither is simply better, and a dodge always gets you out of a wind-up.
+- Fixed a false alarm in our automatic play test that could hold up updates when two test players happened to split their gathering between trees and rocks and level up a little later.
+- The daily report on how fun the game feels now says straight out whether today beat yesterday: faster first reward, quicker first level-up, more items a minute.
+- The herds past the meadow have a look of their own: fawn grazers with tall ears and a pale rump that nibble the grass head-down, snap their heads up when they spot you, trot home, bound away over the hill when you rush them, and lie folded in the grass at night. (They appear as soon as the client update that draws them lands.)
+- The Budda Games intro now ends cleanly on the logo, plays at 60 fps, and its pixel-art logo is razor sharp in the default window.
+- Every release now proves crafting really works end to end: a test player comes home from a haul, presses Craft at the workbench, and must walk away with a campfire and three torches, Toolcraft XP for each, and a pack that saves.
+- Fixed a rare false alarm in our automatic tests for "Return to Spawn Meadow" when the server answered very quickly.
+- The hills past the meadow are alive: herds of grazers now show up in your game, noses in the grass, ambling about their home.
+- Walk up and they lift their heads to look at you. Rush them and the whole herd snorts, kicks up dust and bolts over the hill. Creep in slowly instead and you can get close enough to watch them graze.
+- At night they lie down to rest.
 - Three players working one tree or rock now share it fairly, and every release proves it: the checks send three fresh players to one node at once and fail if anyone is turned away while a charge is left, or paid after the last one is gone.
 - **The hills are waking up:** the herds of grazers that roam just outside Spawn Meadow now reach your game, a few times a second, with every look-up, bolt and lazy walk home. Their bodies arrive with an upcoming update; rush one and the whole herd will scatter over the rise.
 - **Game update (protocol 6):** your game updates itself the next time you launch it.

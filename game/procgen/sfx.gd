@@ -190,6 +190,78 @@ static func snort() -> AudioStreamWAV:
 	return wav
 
 
+## A footstep on meadow turf: a soft low thud of the heel, then a short brush of dark,
+## filtered noise as the grass gives under the foot. Quiet and about 0.15 s, so a steady walk
+## (about three steps a second) is a gentle patter under everything else. Each variant has
+## its own noise and a slightly different heel pitch, so steps never sound copy-pasted.
+const FOOTSTEP_VARIANTS := 4
+const FOOTSTEP_LENGTH := 0.15
+
+
+static func footstep(variant: int) -> AudioStreamWAV:
+	var v_i := posmod(variant, FOOTSTEP_VARIANTS)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7700 + v_i
+	var heel := 82.0 + 9.0 * v_i # Hz
+	var brush_at := 0.018 + 0.006 * (v_i % 2)
+	var data := PackedByteArray()
+	var lp := 0.0
+	var lp2 := 0.0
+	var n := int(RATE * FOOTSTEP_LENGTH)
+	for i in n:
+		var t := float(i) / RATE
+		var noise := rng.randf_range(-1.0, 1.0)
+		lp += (noise - lp) * 0.18
+		lp2 += (lp - lp2) * 0.3
+		var v := sin(TAU * heel * t) * minf(1.0, t * 400.0) * exp(-t * 55.0) * 0.8
+		var d := t - brush_at
+		if d >= 0.0:
+			v += lp2 * sin(PI * clampf(d / 0.09, 0.0, 1.0)) * 2.4
+		var fade := clampf((FOOTSTEP_LENGTH - t) / 0.02, 0.0, 1.0) # no click at the end
+		var s16 := int(clampf(v * fade * 0.3, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = RATE
+	wav.stereo = false
+	wav.data = data
+	return wav
+
+
+## A left-click that hit nothing (the sky, a spent node, a tree out of reach): a dry, quiet
+## tick, a 40 ms brush of bright noise over a fast-dying 640 Hz blip. It is much shorter and
+## softer than nope() (a refusal from the server), so a missed swing reads as "nothing
+## there", not "no". Peak about 0.18 full scale, under -12 dB on top of that in client.gd.
+const MISS_LENGTH := 0.06
+
+
+static func miss() -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 6400
+	var data := PackedByteArray()
+	var hp_prev := 0.0
+	var hp := 0.0
+	var n := int(RATE * MISS_LENGTH)
+	for i in n:
+		var t := float(i) / RATE
+		var noise := rng.randf_range(-1.0, 1.0)
+		hp = 0.6 * (hp + noise - hp_prev) # one-pole high-pass: an airy tick, not a thud
+		hp_prev = noise
+		var v := hp * minf(1.0, t * 900.0) * exp(-t * 110.0) * 0.9
+		v += sin(TAU * 640.0 * t) * minf(1.0, t * 600.0) * exp(-t * 70.0) * 0.5
+		var fade := clampf((MISS_LENGTH - t) / 0.01, 0.0, 1.0) # no click at the end
+		var s16 := int(clampf(v * fade * 0.2, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = RATE
+	wav.stereo = false
+	wav.data = data
+	return wav
+
+
 static func _tones(notes: Array, volume: float) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	for n in notes:

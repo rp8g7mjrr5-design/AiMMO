@@ -1438,3 +1438,88 @@ soft on edges. Both now 60 fps: 720p q9 1.27 MB, 1080p q8 1.59 MB (2.86 MB toget
 720p on ties, so 4K plays the 720p cut at 3x with exact pixels and 1440p at 2x. `Intro.BG` and
 the boot splash colour moved to the video's real background #1e131a so no seam shows around it.
 Under xvfb at 1280x720 the logo is now pixel-exact. The native-720p follow-up is done.
+
+## 2026-11-24: footsteps (ws/client/footsteps)
+
+**Picked:** the top item ("send the camera heading with input") turned out to be done
+already: `c2s_input` carries the camera yaw, the client sends it while moving, and gameplay's
+v5 note says the server validates and faces by it. Ticked it with that note. The next items
+need qa's smoke script or other streams, so I took the footsteps follow-up: walking was silent,
+which made the meadow feel empty and the walk feel weightless. Now every stride lands.
+
+**Built:** `WalkAnim` reports a footfall when the stride phase crosses PI (left) or wraps past
+0 (right) while the gait is at least 0.3 (`FOOTSTEP_MIN_GAIT`), so the sound is locked to the
+legs you see, and the settle-to-rest easing, creeping and teleports never step.
+`Sfx.footstep(v)`: a low heel thud (82-109 Hz by variant) and a 90 ms brush of filtered noise,
+0.15 s, four seeded variants. `Footsteps` (`game/client/footsteps.gd`) plays your own flat at
+-15 dB and others' from an `AudioStreamPlayer3D` riding their avatar (unit size 3, silent past
+18 m, not even triggered further out); pitch wobbles ±6%, variant rotates by id + step count so
+two players side by side don't sound alike; easing into a walk is up to 6 dB softer.
+`pick()` is the pure decision so tests don't need a scene tree (the unit runner has none;
+my first test tried `Engine.get_main_loop().root` and got null).
+
+**Tests:** `test_client_footsteps.gd` (9 tests: cadence two per cycle, alternating feet, no
+steps standing/settling/creeping/teleporting, sound length/peak/no end click/variants differ,
+range and voice choice). Bot behaviour `client_footsteps` runs the walk cycle on real
+snapshots: ~2,000 footfalls per bot over 3 minutes, a few hundred within hearing range, no
+burst over the max cadence, feet alternate. It never makes a sound (art lint). 700 unit tests,
+8-bot 180 s WebSocket bot test and the client smoke test all pass.
+
+**Not heard by hand:** the container has no audio device, so the mix level is set by numbers
+(peak ~0.3 full scale before -15 dB) not by ear. If it reads too loud or too quiet in play,
+change `Footsteps.OWN_DB` / `OTHER_DB`.
+
+**Notes to next run:** follow-ups added for ground-dependent steps, grazer hooves, and a volume
+slider.
+
+## 2026-11-24: missed-click tick (ws/client/missed-click-tick)
+
+**Picked:** #172 (grazers' real model) is green with auto-merge on, so this run took the next
+item I can do alone. The backlog items above it need qa's smoke script (screenshot hooks) or a
+long craft bot; the "nothing there" tick for a left-click that does nothing is the first one
+fully inside client's paths. **Fun:** a click at the sky, a spent node or a tree a step out of
+reach used to be silent, so you couldn't tell a miss from lag; now you hear it and re-aim.
+
+**Built:** `GatherPrompt.missed_click(click_pressed, op, gathering, waiting, since_last)` is the
+pure rule: a fresh click whose `decide()` op is empty, with no gather running (hammering while
+chopping keeps chopping, not a miss) and no start waiting on the server (the bar or a refusal
+answers that one), and at least `MISS_GAP` 0.12 s since the last tick so a hammered button
+patters instead of buzzing. `update()` sets `click_missed` for that frame; `client.gd` plays
+`Sfx.miss()` (60 ms: a one-pole high-passed noise brush over a fast-dying 640 Hz blip, peak
+~0.18 full scale) at -12 dB. It is shorter and softer than `nope()`, so "nothing there" never
+reads as the server saying "no". A click at a greyed node ticks too (the click did nothing);
+the server isn't asked, so there is no refusal to pair with.
+
+**Tests:** `test_client_missed_click.gd` (rule, widget flags across a click sequence incl. gap,
+start, waiting, chopping and an empty meadow, sound length/peak/softer than nope/no end click).
+Bot behaviour `client_missed_click` checks the rule around each of the bot's real gathers
+(sky click near the node ticks, the starting click and a click mid-gather don't); it sends and
+plays nothing, so it stays off the art-lint allow-list. First test run failed my own gap
+check (I'd fed 0.05 s twice more, which crossed 0.12 s); fixed the test, not the rule.
+
+**Not heard by hand:** no audio device in the container; level set by numbers. Tune
+`sfx_miss.volume_db` if it's too loud next to footsteps.
+
+## 2026-11-24: intro sound plays on its own (owner request: "sounds choppy and glitchy")
+
+Run outside the schedule on the owner's request; took the `client` claim.
+
+**Cause:** the sound itself is clean (decoded the owner's 4K60 source and our ogv: no clipping,
+no jumps; the short silences are the same in both and are part of the design). The problem is
+playback: Godot 4.3's Theora player feeds a video's own audio track from the video decoder,
+so when a frame decodes late the sound buffer runs dry and you hear crackles and stutters.
+#166 moved the intro to 60 fps, which doubles the decode work. I could not hear it here (no
+sound device), so this is from how the engine plays video audio, not a recording.
+
+**Fix:** both ogv files are now video only (`-an -c:v copy`, no re-encode) and the sound is
+`client/intro/budda_games_intro.ogg` (Vorbis 44.1 kHz q5, 116 KB, from the 4K60 source),
+imported by Godot like any sound and played by an `AudioStreamPlayer` started on the same
+frame as the video. The mixer streams it steadily no matter how slow video decoding is. Skip
+fades the sound; finish stops it. Under xvfb with the Dummy audio driver: sound and video
+positions agree within ~30 ms after 2 s, the intro finishes at 7.05 s.
+
+**Tests:** `test_video_is_a_small_theora_stream` also checks the sound exists, loads as
+`AudioStreamOggVorbis`, and that all three files stay under 3 MB. 729 unit tests pass.
+
+**Note:** a `-s` probe script that calls a method on the intro after it frees itself segfaults
+Godot 4.3 (same on `main`); use `is_instance_valid` in probes.

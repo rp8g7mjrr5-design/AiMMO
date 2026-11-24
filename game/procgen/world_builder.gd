@@ -35,6 +35,10 @@ static func build() -> Node3D:
 	root.add_child(Lamps.build())
 	root.add_child(Workbench.build())
 	root.add_child(Motes.build())
+	var ranges := Chunks.RangeWatch.new() # Low pulls chunk draw distances in (Chunks.RANGE_SCALES)
+	ranges.name = "RangeWatch"
+	root.add_child(ranges)
+	root.set_meta("range_scale", Chunks.quality_range_scale())
 	dn.apply(DayNight.now_fraction()) # light the lamps and leaves now that they exist
 	WorldSolids.all() # build the camera's decoration solids now (~0.15 s), not on the first camera frame
 	return root
