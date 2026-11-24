@@ -3,7 +3,7 @@ class_name ChatCommands
 ## answers only the sender with a system message and never broadcasts the line itself.
 ## Pure functions, so they are unit tested without a running server.
 ##
-## Commands: /help, /time, /who, /bag, /gather, /craft (and hidden /skills, /hurt, /vitals, /lure). /gather and /craft change the world
+## Commands: /help, /time, /who, /bag, /gather, /craft (and hidden /skills, /hurt, /vitals, /lure, /gloam). /gather and /craft change the world
 ## or a pack, so the server handles them itself (see is_gather, is_craft); everything else
 ## is answered by run(). /craft is a debug and bot command only (owner direction: chat is
 ## for talking): it is never listed in HELP or patch notes. Players craft from a window at
@@ -34,6 +34,9 @@ const VITALS_NAMES := ["vitals", "hp", "health"]
 ## Hidden bot command for the first hunt: /lure lays the nearest grazer down in front of you
 ## (Server.lure_command, Wildlife.lure).
 const LURE_NAMES := ["lure"]
+## Hidden bot command for the Gloam walker: /gloam raises one bound to you, /gloam status
+## (Server.gloam_command).
+const GLOAM_NAMES := ["gloam"]
 const HURT_MAX := 1000
 const HURT_DEFAULT := 10
 
@@ -85,6 +88,11 @@ static func hurt_amount(text: String) -> int:
 		return 0
 	var n := word.to_int()
 	return n if n >= 1 and n <= HURT_MAX else 0
+
+
+## True for the hidden /gloam bot command.
+static func is_gloam(text: String) -> bool:
+	return is_command(text) and name_of(text) in GLOAM_NAMES
 
 
 ## True for the hidden /lure bot command.

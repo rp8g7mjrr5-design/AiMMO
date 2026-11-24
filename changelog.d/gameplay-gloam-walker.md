@@ -1,0 +1,1 @@
+- Something stirs in the dark: the server now knows how the kingdom's dead walk, hear and grab. Nothing changes in the world you play today; they stay below ground until we can show them to you properly.

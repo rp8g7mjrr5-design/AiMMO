@@ -51,6 +51,15 @@ var _roster_dirty := false
 ## (8 main bots plus the extra ones) are never turned away. A login past the cap is refused
 ## with world_full_text() and never kicks anyone already in.
 var max_players := 0
+## The Gloam walkers (Phase 2 build-ahead, Gloam): stepped every tick. Walkers rise near
+## players on their own only when gloam_on (--gloam / AIMMO_GLOAM, off by default, so the
+## live world is untouched until client and world can draw them); the hidden /gloam dev
+## command raises one bound to its caller either way. Not on the wire yet, not saved.
+var gloam := Gloam.new_state()
+var gloam_on := false
+## A swing landing is a noise this loud (m), a finished gather this loud.
+const SWING_NOISE := Gloam.NOISE_RADIUS
+const GATHER_NOISE := Gloam.NOISE_RADIUS
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -63,6 +72,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	var dev: Array = ChatCommands.dev_commands_on(args)
 	dev_commands = dev[0]
 	max_players = parse_max_players(CliArgs.setting(args, "max-players", "MAX_PLAYERS", ""))
+	gloam_on = parse_gloam(args)
 	print("[server] player cap: %s" % (str(max_players) if max_players > 0 else "none"))
 	print("[server] dev commands: %s (%s)" % ["on" if dev_commands else "off", dev[1]])
 	var data_dir := CliArgs.setting(args, "data-dir", "AIMMO_DATA_DIR", OS.get_user_data_dir())
@@ -103,6 +113,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	print("[server] world: ", describe_world())
 	print("[server] resource nodes: ", ResourceNodes.describe())
 	print("[server] wildlife: ", Wildlife.describe())
+	print("[server] gloam: ", Gloam.describe(gloam_on))
 
 
 ## Runs this server on the world `cfg` names ({seed, size_m, gen_version}, as WorldGen.parse
@@ -115,6 +126,17 @@ func use_world(cfg: Dictionary) -> void:
 	ResourceNodes.reset()
 	gathering = Gathering.new_state()
 	wildlife = Wildlife.new_state()
+	gloam = Gloam.new_state()
+
+
+## Whether walkers rise on their own: `--gloam` (or `--gloam=0/1`) wins, then AIMMO_GLOAM
+## (1/true/on). Unset is off. `env` is a name -> value lookup, for tests.
+static func parse_gloam(args: Dictionary, env: Callable = Callable(OS, "get_environment")) -> bool:
+	if args.has("gloam"):
+		var v = args["gloam"]
+		return true if typeof(v) == TYPE_BOOL else ChatCommands._truthy(str(v))
+	var e := str(env.call("AIMMO_GLOAM")).strip_edges()
+	return e != "" and ChatCommands._truthy(e)
 
 
 ## A character saved somewhere this world has no dry land for (out past its border, in a
@@ -200,6 +222,7 @@ func _tick() -> void:
 	_tick_vitals(now_seconds())
 	_tick_swings(now_seconds())
 	_tick_wildlife(now_seconds())
+	_tick_gloam(now_seconds())
 	if tick % WILDLIFE_SEND_TICKS == 0:
 		_send_wildlife()
 	_flush_inventories()
@@ -223,6 +246,42 @@ func player_positions() -> Array:
 ## The grazers take one step (Wildlife.step). Returns the ids that bolted.
 func _tick_wildlife(now: float) -> Array:
 	return Wildlife.step(wildlife, player_positions(), now, GameConfig.TICK_DT, WorldClock.is_night(world_seconds()))
+
+
+## Every logged-in player as Gloam.step wants them: [{id, pos}].
+func gloam_players() -> Array:
+	var out: Array = []
+	for id in sessions:
+		if sessions[id].logged_in:
+			out.append({"id": id, "pos": CharacterData.position(sessions[id].character)})
+	return out
+
+
+## Lit fires the walkers keep away from (Gloam.FIRE_KEEPAWAY). None until campfires can be
+## placed (backlog: placed campfires).
+func gloam_fires() -> Array:
+	return []
+
+
+## The walkers take one step: they rise near players (only when gloam_on), hunt, and grab.
+## A grab hurts its player through Vitals (hurt), which can knock them down. Returns
+## Gloam.step's result plus "risen".
+func _tick_gloam(now: float) -> Dictionary:
+	var players := gloam_players()
+	var night := WorldClock.is_night(world_seconds())
+	var risen: Array = Gloam.rise_near_players(gloam, players, now, night) if gloam_on else []
+	var r := Gloam.step(gloam, players, gloam_fires(), now, GameConfig.TICK_DT, night)
+	r.risen = risen
+	for g in r.grabs:
+		var pid := int(g.player)
+		if not sessions.has(pid) or not sessions[pid].logged_in:
+			continue
+		var s: Dictionary = sessions[pid]
+		s.gloam_grabbed = int(s.get("gloam_grabbed", 0)) + 1
+		var hit := hurt(pid, float(g.damage))
+		print("[gloam] walker %d grabbed %s for %d%s" % [int(g.walker), s.character.name, roundi(float(hit.get("taken", 0.0))),
+			" and knocked them down" if bool(hit.get("knocked_down", false)) else ""])
+	return r
 
 
 ## s2c_wildlife to every logged-in player: the grazers within GameConfig.VIEW_RANGE of them.
@@ -441,6 +500,10 @@ func _on_chat(id: int, text: String) -> void:
 		if reply != "": # a knock-down already said what happened
 			_send(id, "s2c_system", [reply])
 		return
+	if ChatCommands.is_gloam(clean):
+		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
+		_send(id, "s2c_system", [gloam_command(id, ChatCommands.argument(clean))])
+		return
 	if ChatCommands.is_lure(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [lure_command(id)])
@@ -648,6 +711,7 @@ func _finish_channel(id: int, now: float) -> void:
 	if got.depleted:
 		_node_changed(node_id, true, got.respawn)
 	award_xp(id, Skills.skill_for_kind(kind), Skills.gather_xp(kind, has_company(id), int(node.get("tier", 1))))
+	Gloam.noise(gloam, pos, now, GATHER_NOISE) # chopping and mining carry
 	_gather_event(id, "done", node_id, {"item": got.item, "count": added, "tool": tool, "depleted": got.depleted, "audience": audience})
 
 
@@ -1158,16 +1222,36 @@ func _tick_swings(now: float) -> void:
 func _land_swing(id: int, sw: Dictionary, now: float) -> Array:
 	var s: Dictionary = sessions[id]
 	var pos := CharacterData.position(s.character)
-	var hits := Weapons.targets_hit(pos, float(sw.yaw), str(sw.weapon), str(sw.kind), Wildlife.targets(wildlife))
+	var all_hits := Weapons.targets_hit(pos, float(sw.yaw), str(sw.weapon), str(sw.kind), Wildlife.targets(wildlife) + Gloam.targets(gloam))
 	var damage := Weapons.damage(str(sw.weapon), str(sw.kind))
+	# Grazers keep their int ids (s2c_swing_hits names only them, as since v7); walkers are
+	# "w<id>" and stay off the wire until the Gloam has an RPC.
+	var hits: Array = []
+	var walkers: Array = []
+	for t in all_hits:
+		if typeof(t) == TYPE_STRING:
+			walkers.append(Gloam.id_of_key(t))
+		else:
+			hits.append(t)
 	for cid in hits:
 		Wildlife.strike(wildlife, int(cid), pos, now, damage)
 		if Wildlife.is_down(wildlife, int(cid)):
 			_hunted(id, int(cid))
-	if not hits.is_empty():
+	var stagger := str(sw.kind) == "heavy"
+	for wid in walkers:
+		var r := Gloam.strike(gloam, int(wid), id, pos, now, damage, stagger)
+		if bool(r.get("down", false)):
+			s.gloam_downs = int(s.get("gloam_downs", 0)) + 1
+			print("[gloam] %s put walker %d down" % [s.character.name, int(wid)])
+	if not all_hits.is_empty():
 		Vitals.dealt(vitals_of(id), now)
-		s.swing_hits = int(s.get("swing_hits", 0)) + hits.size()
+		s.swing_hits = int(s.get("swing_hits", 0)) + all_hits.size()
+	if not hits.is_empty():
 		print("[combat] %s's %s %s struck grazer %s" % [s.character.name, Weapons.label(str(sw.weapon)).to_lower(), sw.kind, hits])
+	if not walkers.is_empty():
+		print("[combat] %s's %s %s struck walker %s" % [s.character.name, Weapons.label(str(sw.weapon)).to_lower(), sw.kind, walkers])
+	# Fighting is loud: every swing draws the Gloam, hit or miss.
+	Gloam.noise(gloam, pos, now, SWING_NOISE)
 	for other in players_in_view(pos):
 		if other == id or not hits.is_empty():
 			_send(other, "s2c_swing_hits", [id, str(sw.kind), hits])
@@ -1205,6 +1289,25 @@ func lure_command(id: int) -> String:
 	if cid < 0:
 		return "No grazer is standing to lure."
 	return "Grazer %d lies down in front of you." % cid
+
+
+## The hidden dev command /gloam (bot test, dev servers only): with no walker of yours
+## standing, one rises Gloam.SUMMON_DISTANCE in front of you, bound to you (it hunts only you
+## and crumbles when you leave). "/gloam status" (or /gloam with yours still standing) says
+## how it is; once you put it down it says so. Returns the reply.
+func gloam_command(id: int, arg: String) -> String:
+	var s: Dictionary = sessions[id]
+	var pos := CharacterData.position(s.character)
+	var mine := Gloam.get_by_id(gloam, int(s.get("gloam_summoned", -1)))
+	if not mine.is_empty():
+		return Gloam.describe_walker(mine, pos)
+	if arg.strip_edges().to_lower() == "status":
+		if int(s.get("gloam_summoned", -1)) >= 0:
+			return "Your walker %d is down." % int(s.gloam_summoned)
+		return "No walker of yours is standing."
+	var w := Gloam.summon(gloam, id, pos, float(s.get("yaw", 0.0)), now_seconds())
+	s.gloam_summoned = int(w.id)
+	return "A Gloam walker rises %d m in front of you (walker %d)." % [roundi(Gloam.SUMMON_DISTANCE), int(w.id)]
 
 
 ## The hidden dev commands /hurt N (1 to 1000 damage, default 10) and /vitals. Returns the
