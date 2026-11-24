@@ -1,2 +1,0 @@
-- Lost in the hills or wedged somewhere odd? Press Esc and hit **Return to Spawn Meadow**: you're back by the workbench in a blink, with the camera right behind you instead of sweeping across the map.
-- The button counts down its one-minute rest ("Return to Spawn Meadow (42 s)") so you always know when it's ready again, and the answer shows centre screen, never in chat.

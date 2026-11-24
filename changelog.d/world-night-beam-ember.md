@@ -1,1 +1,0 @@
-- When someone levels up across the valley at night, their sky beam now burns deep ember orange over the stars instead of a washed-out grey, so you can spot a friend's level-up from 100 m away in the dark.
