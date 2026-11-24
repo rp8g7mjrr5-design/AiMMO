@@ -587,3 +587,21 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Looked at after.** Midnight: the 15 m and 45 m beams are deep amber, the 100 m one an ember stroke (~(185,133,64), was (151,145,114)). Noon: no visible change (1.6k of 920k pixels differ by more than 8/255, all shimmer and motes timing). Before/after in the project files (`world/level-up-night-beam-*`).
 
 **Next run.** The gather-swing impact puff needs a client call per swing: build world's half (`NodeProps.play_impact(root, id, point)` plus a pure contact-point helper) and file the client request, or the dusk look check added to follow-ups.
+
+## 2026-11-24, run: depleted nodes breathe no sparks (ws/world/depleted-motes)
+
+**Open PRs.** None of world's open. Budget: 30 of 40 world PRs this week before this one.
+
+**Picked.** The milestone burst and the gather impact puff both still need a client call; the tier-2 landmark tuning needs playtest eyes more than code. The motes follow-up is world-only: a felled ember ash or a drained seep kept breathing sparks all night. Fun: at night the sparks over the valley now point only at things you can gather right now, so the motes become a real "go here" signal instead of a lie (art bible: "if it glows ember, you can use it").
+
+**Built.**
+- `Motes.set_dark(world, id, dark)`: shrinks that anchor's High-sized slots (`Motes.slots(a, count)`, index `m * count + a`) to size 0 in custom data, and restores the live custom data (kept in the node's `customs` meta) on regrowth. Still one MultiMesh, one draw call, nothing rebuilt, the quality count is untouched. `Motes.is_dark` reads the state (the dummy renderer drops custom data, so tests read the `dark` meta).
+- `NodeProps.set_depleted` calls it on its parent (the World), so the client's existing calls (join sync and `s2c_node_state`) drive it with no client change. Safe for pines and outcrops (no anchor), unknown ids, and a NodeProps without a parent.
+
+**Tests.** `test_world_depleted_motes.gd` (4 tests): slots partition the pool and sit by their anchor; depleting an ash, a seep and an old ember ash puts each out and regrowth relights only that one; non-ember nodes and missing worlds are safe; the pool, draw call and quality count are unchanged and the live look is kept. Mutation check: removing the call in `set_depleted` fails 4 checks. Unit suite with Postgres: 633 pass. 8-bot 180 s websocket bot test passed (275 s). Client smoke test passed (render budget ok). No new bot behaviour: nothing new on the network, art checks belong in unit tests.
+
+**Looked at.** Midnight, felled old ember ash 397: on main a plume of sparks still rose over the stump; now none (`world/depleted-motes-night-before-after.png` in the project files). My scratch camera framing was off (far, not on the stump), but the plume's disappearance is the whole difference between the two frames.
+
+**Didn't do.** The plume goes out at once on the last hit; NodeFx's burst covers it. A die-out (sparks in the air finish rising) needs a per-anchor time in the shader; follow-up added.
+
+**Next run.** Still waiting on the client for the milestone burst and impact puff. Otherwise the noon grass saturation follow-up or the mid-distance tree mesh.
