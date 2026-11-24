@@ -1499,3 +1499,66 @@ check (I'd fed 0.05 s twice more, which crossed 0.12 s); fixed the test, not the
 
 **Not heard by hand:** no audio device in the container; level set by numbers. Tune
 `sfx_miss.volume_db` if it's too loud next to footsteps.
+
+## 2026-11-24: intro sound plays on its own (owner request: "sounds choppy and glitchy")
+
+Run outside the schedule on the owner's request; took the `client` claim.
+
+**Cause:** the sound itself is clean (decoded the owner's 4K60 source and our ogv: no clipping,
+no jumps; the short silences are the same in both and are part of the design). The problem is
+playback: Godot 4.3's Theora player feeds a video's own audio track from the video decoder,
+so when a frame decodes late the sound buffer runs dry and you hear crackles and stutters.
+#166 moved the intro to 60 fps, which doubles the decode work. I could not hear it here (no
+sound device), so this is from how the engine plays video audio, not a recording.
+
+**Fix:** both ogv files are now video only (`-an -c:v copy`, no re-encode) and the sound is
+`client/intro/budda_games_intro.ogg` (Vorbis 44.1 kHz q5, 116 KB, from the 4K60 source),
+imported by Godot like any sound and played by an `AudioStreamPlayer` started on the same
+frame as the video. The mixer streams it steadily no matter how slow video decoding is. Skip
+fades the sound; finish stops it. Under xvfb with the Dummy audio driver: sound and video
+positions agree within ~30 ms after 2 s, the intro finishes at 7.05 s.
+
+**Tests:** `test_video_is_a_small_theora_stream` also checks the sound exists, loads as
+`AudioStreamOggVorbis`, and that all three files stay under 3 MB. 729 unit tests pass.
+
+**Note:** a `-s` probe script that calls a method on the intro after it frees itself segfaults
+Godot 4.3 (same on `main`); use `is_instance_valid` in probes.
+
+## 2026-11-24: grazers drawn with world's real model (ws/client/grazers-real-model)
+
+**Why this item:** requests from other streams come first, and world's top request to client
+was the swap from my placeholder (#161) to its `Grazers` model (on `main`). The rest of the
+open backlog is smoke hooks qa has to wire, sound follow-ups, and the art-lint move. Fun line:
+the herd past the meadow stops looking like capsules on sticks and reads as animals at a
+glance: a white rump bounding away, a head snapping up, a coat a shade different from its
+neighbour, legs that don't skate.
+
+**Built:** took world's "smallest swap" route rather than its three-call `Grazers.build/feed/
+tick`, because `HerdView` is what the bot behaviour checks against the server and what drives
+the bolt dust and snort; replacing it would leave two smoothers that can disagree about where
+a grazer is.
+- `GrazerFigures` layers now use `Grazers.meshes()` (body, head-and-neck, leg) with
+  `use_colors` and `Grazers.coat_tint(id)` set once per slot at setup. Dust stays our clod.
+  Still four draw calls, no shadows, slots made once.
+- Poses: per grazer a gait record (`new_gait`/`step_gait`, static and pure): legs advance by
+  ground really covered times `Grazers.cycles_per_metre(state)` (so a bolt is long bounds),
+  speed settles at 8/s, and the pose blends toward `Grazers.pose_for(state, ...)` at
+  `Grazers.POSE_RATE`, or `ALERT_RATE` for alert. That's the same blending world's own `tick`
+  does; world's `part_xforms` hook snaps on a state change, which made a grazer drop flat to
+  rest in one frame, so `sync` uses `pose_for` + `blend` + `xforms` on `ground_basis` (tilts
+  with the slope) and `part_xforms` stays only as the unblended static hook.
+- Removed the placeholder meshes, its pose constants and `HerdView.POSES`/`pose()` (nothing
+  else read them).
+
+**Tests:** `test_client_grazers.gd` rewritten where it pinned the placeholder's numbers: poses
+read at a glance (muzzle down grazing, well up alert, lying at rest, yaw on the wire), legs
+swing only when moving, a new gait test (stride per state, a snap doesn't spin the legs, a
+grazer appears already in its pose, alert gets most of the way up in 0.1 s while lying down
+is still partway), and the figures node now also checks world's meshes, `use_colors`, ground
+contact and the drawn pose. Bot behaviour `client_grazers` is network-only and unchanged
+(it only uses `HerdView`). 712 unit tests, the 8-bot 180 s WebSocket bot test and the client
+smoke test pass.
+
+**Notes to next run:** the alert moment still has no sound, and there is still no smoke hook
+for a herd close up (follow-ups added). Screenshot taken by hand with a scratch script that
+builds the world and feeds six grazers in different states.

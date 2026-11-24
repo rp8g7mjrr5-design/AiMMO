@@ -18,6 +18,7 @@ const START_AFTER_MIN := 3.0 ## short runs (the image test's 40 s) start sooner
 const SLACK := 6.0 ## answers, the queue and the trip home
 const ANSWER_TIMEOUT := 4.0
 const MAX_TRIES := 3
+const QUEUED := 30.0 ## _sent_at sits this far ahead while our line waits in the bot's queue
 const REGEN_WAIT := 5.0 ## past the end of the fight; 10 %/s brings 70 back to 100 in 3 s
 const HOME_WITHIN := 4.0 ## metres from spawn after the knock-down
 const HOME_TIMEOUT := 3.0
@@ -26,7 +27,8 @@ enum Step { WAIT, HURT, READ, HEAL, DOWN, HOME, DONE }
 
 var _step := Step.WAIT
 var _next_at := 0.0
-var _sent_at := -1.0 ## when the open command went out (-1: none open)
+var _sent_at := -1.0 ## when the open command went out (-1: none open; in the future: queued)
+var _sends := 0 ## counts _send calls, so only the latest send's callback starts the clock
 var _tries := 0
 var _hurt_at := 0.0
 var _down_at := 0.0
@@ -107,11 +109,20 @@ func on_play(_delta: float) -> void:
 
 func _send(line: String, on_sent: Callable = Callable()) -> void:
 	_tries += 1
-	_sent_at = bot.elapsed + 30.0 # queued; the clock starts when it actually goes out
+	_sends += 1
+	var mine := _sends
+	_sent_at = bot.elapsed + QUEUED # the clock starts when it actually goes out
 	bot.send_command(line, func():
+		if mine != _sends:
+			return # a later send replaced this one: its going out says nothing about ours
 		_sent_at = bot.elapsed
 		if on_sent.is_valid():
 			on_sent.call())
+
+
+## True while our latest command sits in the bot's queue and hasn't gone to the server yet.
+func _queued() -> bool:
+	return _sent_at > bot.elapsed
 
 
 func _answered(next: Step, wait: float) -> void:
@@ -125,6 +136,11 @@ func _on_system(text: String) -> void:
 	if _sent_at < 0.0:
 		return
 	if text == ChatCommands.TOO_FAST:
+		if _queued():
+			# Not ours: our line hasn't gone out yet, so this is another behaviour's line the
+			# server dropped. Resending here put two /vitals (or two /hurt 30) in the queue,
+			# and the spare answer failed the next step (CI, PR #175, 2026-11-24).
+			return
 		_tries = maxi(0, _tries - 1)
 		_sent_at = -1.0
 		_next_at = bot.elapsed + 0.6

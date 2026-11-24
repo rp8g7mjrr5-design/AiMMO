@@ -31,9 +31,9 @@ const DURATION := 2.0 ## seconds from the burst to the last spark going out
 const COLUMN_HEIGHT := 5.5 ## m; about three avatars tall, so it shows over the meadow grass and crowds
 const COLUMN_RADIUS := 0.75 ## m at full width; the avatar's body is 0.32 round
 const RING_RADIUS := 3.2 ## m the ground ring rolls out to
-const SPARKS := 28
+const SPARKS := 16 ## a handful of embers, not confetti (art bible, "Effects: restraint")
 const LIGHT_RANGE := 9.0
-const LIGHT_ENERGY := 2.4 ## at the peak; a meadow lantern is 1.1 at full night
+const LIGHT_ENERGY := 1.8 ## at the peak; a meadow lantern is 1.1 at full night
 const DAY_WIDEN := 0.5 ## full day makes the column this much wider (x1.5)
 const DAY_LIFT := 0.2 ## and this much taller (x1.2)
 const BEAM_HEIGHT := 24.0 ## m; the sky beam clears the tallest ash trees (about 14 m)
@@ -440,7 +440,9 @@ void fragment() {
 	vec3 c = mix(glow.rgb, core.rgb, body * body * 0.6 * (1.0 - 0.5 * day) * (1.0 - night));
 	c = mix(c, ember.rgb, night_ember * night);
 	ALBEDO = c * 1.2;
-	ALPHA = clamp((0.45 + 0.3 * day + 1.0 * body) * top * foot * shimmer * strength * (1.0 + night_boost * night), 0.0, 0.92 + 0.05 * day);
+	// Restraint (art bible, "Effects"): a translucent shaft you can see your character
+	// through, never a solid gold tube that swallows them.
+	ALPHA = clamp((0.30 + 0.2 * day + 0.6 * body) * top * foot * shimmer * strength * (1.0 + night_boost * night), 0.0, 0.62 + 0.05 * day);
 }
 """
 	return sh

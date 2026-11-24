@@ -1,34 +1,27 @@
 class_name GrazerFigures
 extends Node3D
-## Draws the grazers in view (from a HerdView) until world's procedural critter model lands:
-## a chunky low-poly four-legged grazer in warm fawn, painted on the world's shared Emberlight
-## "solid" material. Heads go down to graze, snap up when someone comes close, legs walk with
-## the smoothed speed, a resting grazer lies down, and a bolt kicks up a puff of dust clods and
-## a snort you hear from where it stands.
+## Draws the grazers in view (from a HerdView) with world's procedural critter model
+## (`Grazers`): small deer-like animals in a fawn coat with a cream belly and pale rump, tall
+## ears, dark hooves, each a touch lighter, darker or redder than the next. Heads go down to
+## graze and snap up when someone comes close, legs walk and bound with the smoothed speed
+## (never sliding on the ground), bodies tilt with the slope, a resting grazer folds down, and
+## a bolt kicks up a puff of dust clods and a snort you hear from where it stands.
 ##
 ## Cheap on purpose (art bible section 7): every grazer's bodies share one MultiMesh, heads
 ## another, legs a third and dust a fourth, so the whole herd system is four draw calls however
 ## many are in view. Every instance is made once at setup (slot = creature id, ids are the
-## spawn list's indices); nothing is created or freed while playing. The pose maths is static
-## (`part_xforms`, `dust_xform`), so unit tests check it without a window.
+## spawn list's indices); nothing is created or freed while playing. The look and the poses
+## are world's (`Grazers.meshes`, `pose_for`, `xforms`); this node owns the smoothing glue
+## (HerdView's positions, the gait, blending one pose into the next), the dust and the snort.
 ##
 ## Usage: `figures.setup()`, add it to the world, then each frame `figures.sync(herd, now,
 ## delta)`; on a HerdView "bolt" event call `figures.bolt(id, herd, now)`.
 
-const BODY_RADIUS := 0.3
-const BODY_LENGTH := 1.2
-const BODY_HEIGHT := 0.8 ## metres from the ground to the body's middle, standing
-const NECK := Vector3(0.0, 1.0, 0.5) ## head pivot, relative to the feet
-const HEAD_LENGTH := 0.52
-const HIP_Y := 0.66
-const HIP_X := 0.17
-const HIP_Z := 0.4
-const LEG_LENGTH := 0.66
-const LEG_SWING := 0.6 ## radians at a full trot
-const STRIDE := 1.5 ## metres per gait cycle
-const TROT_SPEED := 4.0 ## m/s that counts as full swing
 const SIZE_SPREAD := 0.12 ## each grazer is up to this much bigger or smaller, from its id
 const DRAW_RANGE := 160.0 ## the art bible's prop fade distance
+const POSE_RATE := Grazers.POSE_RATE ## per second: a state change blends instead of snapping
+const ALERT_RATE := Grazers.ALERT_RATE ## the head snaps up fast: that's the "freeze now" cue
+const SPEED_RATE := 8.0 ## how fast the measured ground speed settles, per second
 
 const DUST_POOL := 48
 const DUST_PER_BOLT := 6
@@ -41,7 +34,7 @@ var _body: MultiMesh
 var _head: MultiMesh
 var _legs: MultiMesh
 var _dust: MultiMesh
-var _gait := {} ## id -> {last: Vector3, phase: float, speed: float}
+var _gait := {} ## id -> {last: Vector3, phase: float (0..1), speed: float (m/s), t: float, pose: Dictionary}
 var _puffs: Array = [] ## {slot, origin: Vector3, vel: Vector3, born: float}
 var _next_puff := 0
 var _voices: Array = [] ## AudioStreamPlayer3D
@@ -50,19 +43,25 @@ var drawn := 0 ## grazers drawn last sync (tests and the F3 panel)
 ## id -> the body transform last written (the headless renderer keeps no MultiMesh data, so
 ## tests read this).
 var bodies := {}
+## id -> the pose last drawn (tests check the blend).
+var poses := {}
 
 
 ## Builds the four MultiMeshes and the snort voices. Call once.
 func setup() -> void:
 	name = "Grazers"
 	count = Wildlife.spawns().size()
-	var hide := Palette.TRUNK.lerp(Palette.ROCK, 0.5).lerp(Palette.HAZE, 0.3) # muted fawn hide: warm, but well clear of ember orange
-	var dark := Palette.TRUNK.lerp(Palette.SOOT, 0.35) # legs and muzzle
-	var dust := Palette.SAND.lerp(Palette.HAZE, 0.5)
-	_body = _layer("Bodies", _capsule(), hide, count, 0.35)
-	_head = _layer("Heads", _head_mesh(), hide.lerp(dark, 0.3), count, 0.2)
-	_legs = _layer("Legs", _leg_mesh(), dark, count * 4, 0.3)
-	_dust = _layer("Dust", _clod(), dust, DUST_POOL, 0.25)
+	var m := Grazers.meshes()
+	_body = _layer("Bodies", m.body, count, true)
+	_head = _layer("Heads", m.head, count, true)
+	_legs = _layer("Legs", m.leg, count * Grazers.LEGS, true)
+	_dust = _layer("Dust", Emberlight.paint(_clod(), Palette.SAND.lerp(Palette.HAZE, 0.5), 0.25), DUST_POOL, false)
+	for id in count:
+		var tint := Grazers.coat_tint(id)
+		_body.set_instance_color(id, tint)
+		_head.set_instance_color(id, tint)
+		for l in Grazers.LEGS:
+			_legs.set_instance_color(id * Grazers.LEGS + l, tint)
 	for i in SNORT_VOICES:
 		var p := AudioStreamPlayer3D.new()
 		p.stream = Sfx.snort()
@@ -74,10 +73,11 @@ func setup() -> void:
 	_hide_all()
 
 
-func _layer(layer_name: String, mesh: Mesh, color: Color, instances: int, ao: float) -> MultiMesh:
+func _layer(layer_name: String, mesh: Mesh, instances: int, tinted: bool) -> MultiMesh:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = Emberlight.paint(mesh, color, ao)
+	mm.use_colors = tinted # per-grazer coat tint (Grazers.coat_tint), multiplied into the baked colours
+	mm.mesh = mesh
 	mm.instance_count = instances
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = layer_name
@@ -90,35 +90,6 @@ func _layer(layer_name: String, mesh: Mesh, color: Color, instances: int, ao: fl
 	mmi.visible = false
 	add_child(mmi)
 	return mm
-
-
-static func _capsule() -> Mesh:
-	var m := CapsuleMesh.new()
-	m.radius = BODY_RADIUS
-	m.height = BODY_LENGTH
-	m.radial_segments = 6
-	m.rings = 1
-	return m
-
-
-static func _head_mesh() -> Mesh:
-	var m := CylinderMesh.new() # a tapered snout: wide at the neck, narrow at the nose
-	m.top_radius = 0.08
-	m.bottom_radius = 0.15
-	m.height = HEAD_LENGTH
-	m.radial_segments = 5
-	m.rings = 1
-	return m
-
-
-static func _leg_mesh() -> Mesh:
-	var m := CylinderMesh.new()
-	m.top_radius = 0.065
-	m.bottom_radius = 0.045
-	m.height = LEG_LENGTH
-	m.radial_segments = 5
-	m.rings = 1
-	return m
 
 
 static func _clod() -> Mesh:
@@ -135,26 +106,39 @@ static func size_of(id: int) -> float:
 	return 1.0 + SIZE_SPREAD * (fposmod(float(id) * 0.6180339, 1.0) * 2.0 - 1.0)
 
 
-## Every part's world transform for one grazer: {body, head, legs: [4]}. `gait_phase` in
-## radians, `gait` 0 (standing) to 1 (full trot).
+## Every part's world transform for one grazer, unblended: {body, head, legs: [4]}.
+## `gait_phase` in radians, `gait` 0 (standing) to 1 (full trot). World's model, same
+## signature as before the swap, so callers and tests didn't change.
 static func part_xforms(pos: Vector3, yaw: float, state_name: String, gait_phase: float, gait: float, size: float = 1.0) -> Dictionary:
-	var p := HerdView.pose(state_name)
-	var drop: float = p.drop
-	var root := Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * size), pos)
-	var lie := Basis(Vector3.RIGHT, PI * 0.5) # the capsule and cylinders are built along +y
-	var body := root * Transform3D(lie, Vector3(0.0, BODY_HEIGHT - drop, 0.0))
-	var pitch := Basis(Vector3.RIGHT, -float(p.head))
-	var head := root * Transform3D(Basis(), NECK - Vector3(0.0, drop, 0.0)) \
-		* Transform3D(pitch, Vector3.ZERO) * Transform3D(lie, Vector3(0.0, 0.0, HEAD_LENGTH * 0.5))
-	var legs: Array = []
-	var corners := [[-1.0, 1.0, 0.0], [1.0, 1.0, PI], [-1.0, -1.0, PI], [1.0, -1.0, 0.0]] # diagonal pairs step together
-	for c in corners:
-		var swing: float = sin(gait_phase + float(c[2])) * LEG_SWING * clampf(gait, 0.0, 1.0)
-		if drop > 0.0:
-			swing = PI * 0.5 * float(c[1]) # lying down: legs folded under, front ones forward
-		var hip := Vector3(HIP_X * float(c[0]), HIP_Y - drop, HIP_Z * float(c[1]))
-		legs.append(root * Transform3D(Basis(Vector3.RIGHT, swing), hip) * Transform3D(Basis(), Vector3(0.0, -LEG_LENGTH * 0.5, 0.0)))
-	return {"body": body, "head": head, "legs": legs}
+	return Grazers.part_xforms(pos, yaw, state_name, gait_phase, gait, size)
+
+
+## One grazer's next gait record after `delta` seconds, now drawn at `pos` in `state_name`:
+## legs advance by the ground really covered (world's stride for the state, so a bound is
+## long and a walk is short), the measured speed settles, and the pose blends toward the
+## state's own (fast for "alert", gently otherwise). Pure, for tests.
+static func step_gait(g: Dictionary, pos: Vector3, state_name: String, delta: float) -> Dictionary:
+	var out := g.duplicate()
+	var moved := Vector2(pos.x - g.last.x, pos.z - g.last.z).length()
+	if moved > HerdView.SNAP_DIST:
+		moved = 0.0 # a jump is a jump: no blur of legs
+	var measured := moved / delta if delta > 0.0 else 0.0
+	out.speed = lerpf(float(g.speed), measured, 1.0 - exp(-SPEED_RATE * delta))
+	out.phase = fposmod(float(g.phase) + moved * Grazers.cycles_per_metre(state_name), 1.0)
+	out.t = float(g.t) + delta
+	out.last = pos
+	var rate := ALERT_RATE if state_name == "alert" else POSE_RATE
+	var target := Grazers.pose_for(state_name, out.t, out.phase, out.speed)
+	out.pose = Grazers.blend(g.pose, target, 1.0 - exp(-rate * delta))
+	return out
+
+
+## A fresh gait record for a grazer first seen at `pos`: already in its state's pose (it
+## appears grazing, not standing up into it), legs at a phase of its own.
+static func new_gait(id: int, pos: Vector3, state_name: String) -> Dictionary:
+	var t := float(id) * 1.7
+	var phase := fposmod(float(id) * 0.37, 1.0)
+	return {"last": pos, "phase": phase, "speed": 0.0, "t": t, "pose": Grazers.pose_for(state_name, t, phase, 0.0)}
 
 
 ## Where one dust clod is `age` seconds after a bolt, and how big. Scale 0 once it's done.
@@ -176,23 +160,18 @@ func sync(herd: HerdView, now: float, delta: float) -> void:
 			continue
 		live[id] = true
 		var pos := herd.position(id, now)
+		var state_name := herd.state(id)
 		var g: Dictionary = _gait.get(id, {})
-		if g.is_empty():
-			g = {"last": pos, "phase": float(id), "speed": 0.0}
-			_gait[id] = g
-		var moved := Vector2(pos.x - g.last.x, pos.z - g.last.z).length()
-		if moved > HerdView.SNAP_DIST:
-			moved = 0.0
-		var measured := moved / delta if delta > 0.0 else 0.0
-		g.speed = lerpf(float(g.speed), measured, 1.0 - exp(-10.0 * delta))
-		g.phase = fmod(float(g.phase) + moved / STRIDE * TAU, TAU)
-		g.last = pos
-		var x := part_xforms(pos, herd.facing(id, now), herd.state(id), g.phase, float(g.speed) / TROT_SPEED, size_of(id))
+		g = new_gait(id, pos, state_name) if g.is_empty() else step_gait(g, pos, state_name, delta)
+		_gait[id] = g
+		var basis := Grazers.ground_basis(pos.x, pos.z, herd.facing(id, now)).scaled(Vector3.ONE * size_of(id))
+		var x := Grazers.xforms(Transform3D(basis, pos), g.pose)
 		_body.set_instance_transform(id, x.body)
 		bodies[id] = x.body
+		poses[id] = g.pose
 		_head.set_instance_transform(id, x.head)
-		for l in 4:
-			_legs.set_instance_transform(id * 4 + l, x.legs[l])
+		for l in Grazers.LEGS:
+			_legs.set_instance_transform(id * Grazers.LEGS + l, x.legs[l])
 		drawn += 1
 	_show_layers(drawn > 0)
 	for id in _gait.keys():
@@ -270,11 +249,12 @@ func clear() -> void:
 
 func _hide(id: int) -> void:
 	bodies.erase(id)
+	poses.erase(id)
 	var gone := Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO)
 	_body.set_instance_transform(id, gone)
 	_head.set_instance_transform(id, gone)
-	for l in 4:
-		_legs.set_instance_transform(id * 4 + l, gone)
+	for l in Grazers.LEGS:
+		_legs.set_instance_transform(id * Grazers.LEGS + l, gone)
 
 
 func _hide_all() -> void:

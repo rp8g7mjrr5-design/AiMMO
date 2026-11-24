@@ -17,6 +17,10 @@ signal finished
 ## pixels are 21 px there, so the 720p cut (a third) has exact 7 px pixels and is the sharpest.
 const VIDEO_PATH := "res://client/intro/budda_games_intro.ogv"
 const VIDEO_PATH_720 := "res://client/intro/budda_games_intro_720.ogv"
+## The sound lives in its own file, played by an AudioStreamPlayer started on the same frame as the
+## video. Godot's Theora player feeds a video's own audio track from the video decoder, so any
+## frame that decodes late starves the sound and it crackles and stutters; the mixer never does.
+const AUDIO_PATH := "res://client/intro/budda_games_intro.ogg"
 const SIZE_1080 := Vector2(1920, 1080)
 const SIZE_720 := Vector2(1280, 720)
 ## The video's background (#1e131a, also its edges and last frame). The boot splash matches it.
@@ -30,6 +34,7 @@ const MAX_SECONDS := 10.0
 const SKIP_ARGS := ["no-intro", "updated", "screenshot", "autoconnect", "bot", "server"]
 
 var _player: VideoStreamPlayer
+var _sound: AudioStreamPlayer
 var _native := SIZE_1080 ## pixel size of the encode playing
 var _fade: ColorRect
 var _done := false
@@ -87,7 +92,14 @@ func _ready() -> void:
 	_layout()
 	get_viewport().size_changed.connect(_layout)
 	_player.finished.connect(_finish)
+	var audio: Resource = load(AUDIO_PATH) if ResourceLoader.exists(AUDIO_PATH) else null
+	if audio is AudioStream:
+		_sound = AudioStreamPlayer.new()
+		_sound.stream = audio
+		add_child(_sound)
 	_player.play()
+	if _sound != null:
+		_sound.play()
 	get_tree().create_timer(MAX_SECONDS).timeout.connect(_finish)
 
 
@@ -135,7 +147,8 @@ func skip() -> void:
 	_skipping = true
 	var tw := create_tween()
 	tw.tween_property(_fade, "color:a", 1.0, SKIP_FADE)
-	tw.parallel().tween_property(_player, "volume_db", -40.0, SKIP_FADE)
+	if _sound != null:
+		tw.parallel().tween_property(_sound, "volume_db", -40.0, SKIP_FADE)
 	tw.tween_callback(_finish)
 
 
@@ -149,5 +162,7 @@ func _finish() -> void:
 	_done = true
 	if _player != null:
 		_player.stop()
+	if _sound != null:
+		_sound.stop()
 	finished.emit()
 	queue_free()

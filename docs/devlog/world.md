@@ -606,6 +606,29 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 
 **Next run.** Still waiting on the client for the milestone burst and impact puff. Otherwise the noon grass saturation follow-up or the mid-distance tree mesh.
 
+## 2026-11-24, owner-directed: grounded art direction (claude/grounded-art-direction)
+
+**Why.** The owner played the build and said the look is "cheesy and looks silly"; they want it heavily inspired by the grounded survival-crafting MMO genre, in low poly, clearly ours, legally safe. Rewrote `docs/art_bible.md` around five pillars and a named "what reads as cheesy" list (section 11), and did a first pass on the worst offenders.
+
+**Built.** Palette: olive and straw grass, dark moss forest floor, dark spruce pines, weathered bark, rust ash crowns (`ASH_LEAF_DRY` for variety), deeper water, old snow; `Palette.CLOTH`, `HAIR`, `skin()`. Ash scatter: thicker trunks, two lopsided lobes per crown (6x2 sphere, so triangles stay in budget). Avatars: earthy cloth, a hood instead of the pointed hat, hair on every non-hooded head (no rng draw added, old seeds keep their draws), head radius 0.24 -> 0.19, quiet eye sockets. Sky: dusty blue keys, `DAY_AMBIENT` 0.36, a whole-frame grade (saturation 0.92, contrast 1.10). Night: moonlit flat ambient (`ambient_color`, `NIGHT_SKY_SHARE`), `NIGHT_LIGHT` 0.55, shader `night_shade` 1.4 so figures turned from the moon are blue-grey, not black. Level-up column translucent (alpha cap 0.92 -> 0.62), 16 sparks, light 1.8.
+
+**Didn't work.** One fat flattened crown lobe read as mushrooms; taller lobes plus a lower side lobe read as trees. 7x3 lobes x2 put night primitives at 518k (ceiling 500k); 6x2 lobes land at 480k. Shrinking the level-up column's radius breaks the "readable at 45 m" tests, so only its opacity changed. In the Compatibility renderer the sky ambient is near nothing at night, so ambient tweaks alone did not lift dark cloth; the shader's night shade did.
+
+**Tests.** Unit 678 pass (no Postgres here). Client smoke passes: primitives 449k noon / 480k night, style baseline rewritten on purpose. Before/after shots in the project files (`art-direction/`).
+
+**Next.** Backlog top item: ground cover patches, wilderness lanterns, level-up sparks, 6-head characters, node ash crowns. Check dark cloth at night on a real GPU (Forward+), CI only sees software GL.
+
+## 2026-11-24, owner-directed: character overhaul (claude/character-overhaul, stacked on the grounded art direction)
+
+**Why.** Owner: "our dudes look fat and silly". The wanderer was a 0.64 m wide capsule about 3.5 heads tall on stubby legs.
+
+**Built.** `AvatarBuilder.parts()` rebuilt as a lean 1.78 m adult about 7 heads tall (constants at the top of the file): a tapered, flattened chest (parts carry `scl` now), a skirt and belt, two-piece arms (sleeve, bracer, hand) and legs (thigh, shin, tall boot, foot), neck, nose, eye sockets, a hood or hair with an optional felt cap, a wool mantle, a chest strap, a pouch and a knife, a framed pack and bedroll inside the arms' swing. The rng draws are unchanged (skin, then style), so every seed keeps its skin, headwear and cloth. `build()` merges each group (body, four limbs) into one mesh (`merged()`), so an avatar is 5 draw calls, not 16 or the 30 the new parts would have been; frame draw calls at spawn 289 to 265.
+
+**Didn't work.** The first build made each part its own node: 316 draw calls at night, over the 300 ceiling with one avatar on screen. Merging fixed it. A hood centred on the head hides the face; set back 6 cm it frames it.
+
+**Tests.** Unit 680 pass (new: lean-adult proportions, merged meshes keep every vertex and colour). Client smoke passes (draw calls 251 noon / 265 night, primitives 449k / 481k). Shots from five angles, day and night, in the project files (`art-direction/characters/`).
+
+**Next.** Client: retune `WalkAnim` for long legs (filed). World: a little build and height variety, beards, two mantle cuts, inside the 5-mesh, 2,000-triangle budget.
 ## 2026-11-24, run: grazer models (ws/world/grazer-models)
 
 **Picked.** "Procedural critter models" (grazer part). It sat low in the backlog as Milestone 2 build-ahead, but gameplay's two requests made it the top open request from another stream: the herds are on the wire since protocol v6 (#158) and the client has nothing to draw them with. Requests come first, and a living herd past the meadow is the most new fun on my list. **What a player will feel:** the hills outside the meadow are alive, and a herd reads at a glance: heads down means creep closer, a head snapping up means freeze, a white rump bounding over the hill means you rushed it.
@@ -650,3 +673,29 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Didn't do.** No screenshot pair: a +-7% light swing doesn't show in two stills, and the smoke shots are stills. Worth a look in a real night playtest; if it reads too subtle, raise `FLICKER_DEPTH` to 0.2 (the strobe test allows it).
 
 **Next run.** Milestone burst and impact puff still wait on the client. Otherwise the noon grass saturation follow-up (qa's noon style baseline exists now) or the mid-distance tree mesh with a draw-call measurement.
+
+## 2026-11-24 (run 4): Low draws less far (ws/world/low-draw-distance)
+
+**Picked.** qa's open request "Low barely draws less" (requests come before the backlog). The top backlog items (milestone burst, gather impact puff, ember-tool sparks) still need a client call. **What a player will feel:** on an old laptop with Graphics on Low, the game runs noticeably smoother (fewer hitches while turning the camera across the valley), and the meadow they actually play in looks the same.
+
+**Built.**
+- `Chunks.RANGE_SCALES` (Low 0.5, Medium and High 1.0) and `Chunks.range_scale(level)`. `cut_for(range, chunk, scale)` scales the layer's range but not the half-diagonal padding, so nothing inside the shorter range is ever cut.
+- `Chunks.quality_range_scale()` reads `Quality.level` by path (`q.get("level")` on the loaded script works in 4.3), 1.0 where `client/` isn't exported, like `Flora.quality_density`.
+- `Chunks.build` and `NodeProps._chunked` tag each chunk with its range and chunk size (`set_range`) and cut it for the current level. `Chunks.apply_range_scale(root, scale)` redoes every tagged chunk under a node.
+- `Chunks.RangeWatch` (added by `WorldBuilder.build` under the world root) polls every 0.5 s and rescales the whole world when the Graphics setting changes.
+- No new nodes drawn, no materials, no colour literals.
+
+**Measured** (client smoke, noon spawn, Low vs Medium): at 0.7, primitives -3%, draw calls -7%, frame -15%. At 0.5, primitives -11% (440k -> 394k), draw calls -14% (275 -> 237), frame -25% (152 -> 114 ms software). I put the Medium, Low 0.7 and Low 0.5 shots side by side: the three look the same, because the far tree line is mostly the whole-world resource-node trees plus haze. So 0.5. The scene triangle count doesn't move (visibility ranges hide, they don't build less), which is why qa's `min_saving` on scene triangles still only sees flora's -11%.
+
+**Didn't do.** The node tree layers are whole MultiMeshes and still draw everything on Low; chunking them costs draw calls, follow-up added. No bot behaviour: nothing on the network, and the art lint forbids procgen in bot behaviours.
+
+**Tests.** `test_world_low_ranges.gd` (5 tests): scales per level and clamping; Low cuts nearer for every ranged chunk and node layer but keeps the padding; whole landmark layers never cut; `Chunks.build` and `NodeProps.build` on Low use the Low cut and `apply_range_scale` puts it back; `RangeWatch` follows Low and High within one poll. Unit suite with Postgres: 731 pass. 8-bot 180 s websocket bot test passed (277 s). Client smoke test passed (render budget ok, style check ok).
+
+**Next run.** qa can raise its Low gate. Then the noon grass saturation follow-up or the mid-distance tree mesh.
+
+## 2026-11-24, less blocky, low-res characters (PR #171 follow-up)
+- Owner asked for characters that look less blocky and more "low res". Every body part is now a smooth `loft()` (rings of width/depth along y) or a low-segment ball, no boxes or cylinders. About 2,340 triangles a character, 5 draw calls, unchanged.
+- Low-res feel comes from maths in the Emberlight shader: object-space texel grain (`texel_size` 0.055 m on bodies, 0.4 m on terrain, ±9%/±7% brightness). No textures imported.
+- First loft pass had inverted winding (back faces drawn, faces looked like masks). The avatar test now checks winding and outward normals.
+- The light ramp is now two soft steps instead of one hard band, so rounded shapes read as rounded.
+- Next: animation thread builds on `AvatarBuilder.parts()/merged()/rig()`; upper arm/forearm and thigh/shin are separate parts ready for elbow and knee pivots.

@@ -8,8 +8,8 @@ the next week. The update must be live and playable by the weekend.
 ## 1. Orient
 1. `CLAUDE.md`, the rules. Follow them over anything else.
 2. `docs/design_bible.md`, especially the North star.
-3. `docs/roadmap.md` and every `docs/workstreams/<stream>.md` backlog.
-4. This week's merged PRs, `docs/devlog/<stream>.md` entries, and last week's `docs/devlog/week-NN.md`.
+3. `docs/roadmap.md` and every `docs/workstreams/<stream>.md` backlog, with its unfolded notes in `docs/workstreams/<stream>.d/`.
+4. This week's merged PRs, `docs/devlog/<stream>.md` entries and unfolded notes in `docs/devlog/<stream>.d/`, and last week's `docs/devlog/week-NN.md`.
 5. `docs/playtest.md`. Make sure every report is tagged `[open]`, `[fixed in Week NN]`, or `[can't reproduce: reason]` and is in a stream's backlog.
 
 ## 2. Health check

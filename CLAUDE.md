@@ -10,6 +10,7 @@ AiMMO is a real-time 3D MMO built by its owner and AI together, aiming to be the
 - The human's only input channel is `docs/playtest.md` (bugs and crashes only). Treat it as bug reports, not design requests.
 - **Fun comes first.** The owner's number one rule: if it isn't fun, it isn't the greatest MMO. Judge every change by whether it makes the game more fun to play (tight feedback, short loops that pay off, juice, no dead time), and say how in your PR. See "Fun comes first" in `docs/design_bible.md`.
 - The owner's standing directions are in `docs/design_bible.md` under "Owner directions" (fun comes first, chat is for talking only, the action camera, how gathering feels, the whole game feels like a modern action MMO, the long road of skills, take the best and beat it, a look of our own that is cheap to draw (`docs/art_bible.md`), and "Inspired by, never copied"). Follow them over any other design choice; everything else stays your call.
+- **The look is grounded, not cute** (owner direction, 2026-11-24). Before any change that shows something on screen, read `docs/art_bible.md`, at least section 0 (the pillars), section 11 (what reads as cheesy) and section 12 (the checklist), and follow it. Muted earthy colours, real proportions, moody light, restrained effects and UI; inspired by the grounded survival-crafting MMO genre, never copying any game.
 - Stay true to `docs/design_bible.md`. You may evolve it, but log every change and its reason in that file's "Revision history" so the vision doesn't flip-flop week to week.
 
 ## Hard rules (never break these)
@@ -36,13 +37,15 @@ AiMMO is a real-time 3D MMO built by its owner and AI together, aiming to be the
 CLAUDE.md                 ← this file
 docs/
   design_bible.md         ← world, lore, art direction, core systems (AI-owned)
-  art_bible.md            ← the Emberlight look and its render budgets (AI-owned)
+  art_bible.md            ← the art direction and style guide: Emberlight, grounded; render budgets (read before any visual change)
   roadmap.md              ← ordered milestones toward the vision (AI-owned)
   playtest.md             ← human's bug inbox (read every week)
   devlog/week-NN.md       ← internal notes: what you built, what failed, notes to next week's self
-  devlog/<stream>.md      ← each workstream's running notes to its next run
+  devlog/<stream>.md      ← each workstream's running notes (folded by the integrator)
+  devlog/<stream>.d/      ← one devlog note per PR, folded into devlog/<stream>.md
   workstreams.md          ← who owns which files, worker and integrator procedures
   workstreams/<stream>.md ← each workstream's backlog
+  workstreams/<stream>.d/ ← one backlog note per PR (ticks, follow-ups, requests), folded in
   weekly_task.md          ← the Friday weekly review
   budget.md               ← weekly work cap, set by the owner
   digest/YYYY-MM-DD.md    ← the director's daily summary for the owner
@@ -70,6 +73,7 @@ Dockerfile                ← server container for Railway
 ## Writing standards
 - **Patch notes** (`CHANGELOG.md`): written for players, fun and clear, newest at top.
 - **Devlog**: honest and technical. Include what you tried that didn't work, known bugs, and specific notes to next week's self.
+- **No shared running files in worker PRs.** Patch notes, devlog notes, backlog ticks and requests each go in a new file per PR, and the integrator folds them in (`docs/workstreams.md`, "Notes go in new files"). This is what keeps parallel PRs from conflicting.
 - **Commits**: small, descriptive messages.
 
 ## Development process

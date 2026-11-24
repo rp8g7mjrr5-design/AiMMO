@@ -1,17 +1,19 @@
 class_name Palette
-## Art direction lives here: a soft, low-poly, late-afternoon palette. See design bible.
+## Art direction lives here (docs/art_bible.md, "Emberlight: grounded"). Earth first: muted,
+## lived-in naturals carry the screen; ember is the one rare saturated note.
 
-const SAND := Color(0.86, 0.78, 0.56)
-const GRASS := Color(0.40, 0.58, 0.30)
-const MEADOW := Color(0.50, 0.65, 0.33)
-const FOREST := Color(0.29, 0.50, 0.27)
-const ROCK := Color(0.52, 0.49, 0.46)
-const SNOW := Color(0.94, 0.95, 0.97)
-const LAKEBED := Color(0.40, 0.46, 0.38)
-const WATER := Color(0.25, 0.52, 0.68, 0.72)
-const TRUNK := Color(0.42, 0.30, 0.20)
-const ASH_LEAF := Color(0.86, 0.52, 0.30) ## the ember-leaved ash trees Ashgrove is named for
-const PINE := Color(0.16, 0.46, 0.30)
+const SAND := Color(0.68, 0.62, 0.48) ## shore silt and dry sand, not beach-postcard yellow
+const GRASS := Color(0.33, 0.41, 0.25) ## olive valley grass: never lime (art bible, "What reads as cheesy")
+const MEADOW := Color(0.39, 0.45, 0.27) ## dry autumn meadow, olive going straw
+const FOREST := Color(0.25, 0.33, 0.22) ## forest floor under the canopy: dark moss
+const ROCK := Color(0.46, 0.44, 0.41) ## weathered grey stone, a touch warm
+const SNOW := Color(0.86, 0.87, 0.88) ## old snow: never paper white
+const LAKEBED := Color(0.30, 0.33, 0.27)
+const WATER := Color(0.20, 0.33, 0.38, 0.80) ## deep cold valley water, not pool blue
+const TRUNK := Color(0.32, 0.25, 0.20) ## weathered bark
+const ASH_LEAF := Color(0.62, 0.31, 0.17) ## the ember-leaved ash trees Ashgrove is named for: rust, not candy orange
+const ASH_LEAF_DRY := Color(0.66, 0.46, 0.25) ## the paler, drier end of an ash crown's range (scatter variety)
+const PINE := Color(0.15, 0.27, 0.21) ## dark spruce: pines are the shadows of the forest
 
 # Emberlight tokens (docs/art_bible.md, section 2). sRGB, like the rest of this file.
 const EMBER := Color("#F2A541") ## the signature glow: anything you can use. Never on plain decoration
@@ -30,9 +32,9 @@ const MOTE := Color(1.0, 0.66, 0.30) ## a rising ember mote: EMBER, a touch redd
 
 # Tier-2 resource nodes (NodeProps, Milestone 1): richer looks than the tier-1 props, so a
 # player can tell from across the meadow which node is worth levelling toward.
-const OLD_ASH_LEAF := Color(1.0, 0.64, 0.28) ## old ember ash crown: brighter, hotter than ASH_LEAF
-const OLD_ASH_BARK := Color(0.50, 0.42, 0.36) ## older, greyer bark than TRUNK
-const RICH_STONE := Color(0.58, 0.50, 0.57) ## rich stone seam: a deeper colour than the grey outcrops
+const OLD_ASH_LEAF := Color(0.78, 0.45, 0.20) ## old ember ash crown: brighter, hotter than ASH_LEAF (the veins do the shouting)
+const OLD_ASH_BARK := Color(0.42, 0.38, 0.34) ## older, greyer bark than TRUNK
+const RICH_STONE := Color(0.45, 0.40, 0.42) ## rich stone seam: a deeper colour than the grey outcrops
 const RICH_FLECK := Color(1.0, 0.86, 0.52) ## bright gold flecks: "this rock is rich"
 
 # Grazers (Grazers, Milestone 2 wildlife): warm, earthy herd animals that sit in the golden
@@ -52,7 +54,50 @@ const SKILL_PLAIN := Color(0.58, 0.56, 0.52) ## a skill with no badge of its own
 const BADGE_INK := Color(0.16, 0.11, 0.09, 0.55) ## soft dark backing so a badge's emblem pops off its disc
 const BADGE_STAR := Color(0.92, 0.88, 0.78) ## the plain badge's pale star
 
-## Stable, pleasant colour for a seed (character tunics, banners...).
+## Cloth a traveller could actually dye in Ashgrove: undyed wool, madder, woad, weld, walnut,
+## lichen. Earthy, below 0.45 saturation, never bright primaries (art bible, "Characters").
+const CLOTH := [
+	Color(0.55, 0.50, 0.42), ## undyed wool
+	Color(0.46, 0.24, 0.19), ## madder red
+	Color(0.27, 0.33, 0.40), ## woad blue
+	Color(0.52, 0.46, 0.27), ## weld yellow, faded
+	Color(0.42, 0.32, 0.24), ## walnut brown
+	Color(0.33, 0.37, 0.27), ## lichen green
+	Color(0.40, 0.34, 0.36), ## sloe, a dusky plum
+	Color(0.38, 0.37, 0.35), ## charcoal grey (the darkest cloth: a figure must still read from behind at night)
+]
+
+
+## Travelling gear (characters): what is worn over the dyed cloth.
+const LEATHER := Color(0.40, 0.29, 0.20) ## packs, pouches, bracers: oiled brown leather
+const LEATHER_DARK := Color(0.22, 0.17, 0.14) ## belts, straps, boots: old, dark leather
+const WOOL := Color(0.47, 0.43, 0.37) ## undyed wool: mantles and hoods
+const TROUSERS := Color(0.27, 0.25, 0.22) ## heavy wool trousers, faded charcoal-brown
+const BEDROLL := Color(0.58, 0.52, 0.42) ## a rolled canvas blanket
+
+
+## Natural hair (characters): black, browns, auburn, ash blond, grey. Never bright.
+const HAIR := [
+	Color(0.17, 0.14, 0.12), Color(0.24, 0.17, 0.12), Color(0.33, 0.23, 0.15),
+	Color(0.38, 0.20, 0.12), Color(0.55, 0.47, 0.35), Color(0.52, 0.50, 0.48),
+]
+
+
+## Skin from three 0..1 draws: deep brown to fair, never orange and never glowing.
+static func skin(a: float, b: float, c: float) -> Color:
+	return Color.from_hsv(0.055 + a * 0.03, 0.30 + b * 0.18, 0.36 + c * 0.44)
+
+
+## A character's tunic for an appearance seed: one of `CLOTH`, with a little seeded wear so two
+## travellers in the same dye are not identical. Same seed, same tunic, on every machine.
+static func cloth_from_seed(seed_value: int) -> Color:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var c: Color = CLOTH[rng.randi() % CLOTH.size()]
+	return c.lightened(rng.randf() * 0.10) if rng.randf() < 0.5 else c.darkened(rng.randf() * 0.12)
+
+
+## Stable, pleasant colour for a seed (banners, UI accents). Not for world cloth: use `cloth_from_seed`.
 static func from_seed(seed_value: int, sat: float = 0.55, val: float = 0.85) -> Color:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
