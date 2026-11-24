@@ -617,3 +617,15 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tests.** Unit 678 pass (no Postgres here). Client smoke passes: primitives 449k noon / 480k night, style baseline rewritten on purpose. Before/after shots in the project files (`art-direction/`).
 
 **Next.** Backlog top item: ground cover patches, wilderness lanterns, level-up sparks, 6-head characters, node ash crowns. Check dark cloth at night on a real GPU (Forward+), CI only sees software GL.
+
+## 2026-11-24, owner-directed: character overhaul (claude/character-overhaul, stacked on the grounded art direction)
+
+**Why.** Owner: "our dudes look fat and silly". The wanderer was a 0.64 m wide capsule about 3.5 heads tall on stubby legs.
+
+**Built.** `AvatarBuilder.parts()` rebuilt as a lean 1.78 m adult about 7 heads tall (constants at the top of the file): a tapered, flattened chest (parts carry `scl` now), a skirt and belt, two-piece arms (sleeve, bracer, hand) and legs (thigh, shin, tall boot, foot), neck, nose, eye sockets, a hood or hair with an optional felt cap, a wool mantle, a chest strap, a pouch and a knife, a framed pack and bedroll inside the arms' swing. The rng draws are unchanged (skin, then style), so every seed keeps its skin, headwear and cloth. `build()` merges each group (body, four limbs) into one mesh (`merged()`), so an avatar is 5 draw calls, not 16 or the 30 the new parts would have been; frame draw calls at spawn 289 to 265.
+
+**Didn't work.** The first build made each part its own node: 316 draw calls at night, over the 300 ceiling with one avatar on screen. Merging fixed it. A hood centred on the head hides the face; set back 6 cm it frames it.
+
+**Tests.** Unit 680 pass (new: lean-adult proportions, merged meshes keep every vertex and colour). Client smoke passes (draw calls 251 noon / 265 night, primitives 449k / 481k). Shots from five angles, day and night, in the project files (`art-direction/characters/`).
+
+**Next.** Client: retune `WalkAnim` for long legs (filed). World: a little build and height variety, beards, two mantle cuts, inside the 5-mesh, 2,000-triangle budget.
