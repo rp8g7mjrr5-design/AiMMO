@@ -106,5 +106,39 @@ class FunTrend(unittest.TestCase):
         self.assertIn(fun_trend.SUMMARY_TAG.strip(), src)
 
 
+    def test_days_are_chicago_days(self):
+        # 01:39 UTC on the 24th is still the evening of the 23rd in Chicago (the budget week's zone).
+        self.assertEqual(fun_trend.day_of("2026-11-24T01:39:16Z"), "2026-11-23")
+        self.assertEqual(fun_trend.day_of("2026-11-24T06:00:00Z"), "2026-11-24")
+
+    def test_vs_yesterday_compares_day_medians(self):
+        def s(first, lv, rpm, dead, levelled):
+            return {"first_reward_s_median": first, "first_level_up_gather_s_median": lv,
+                    "rewards_per_min_median": rpm, "longest_dead_s_median": dead, "bots_levelled": levelled}
+        runs = [
+            ("2026-11-24T15:00:00Z", s(7.0, 30.0, 11.0, 30.0, 8)),
+            ("2026-11-24T14:00:00Z", s(8.0, 32.0, 10.0, 30.0, 8)),
+            ("2026-11-24T13:00:00Z", None),  # a run without metrics is left out
+            ("2026-11-23T15:00:00Z", s(7.5, 36.0, 10.5, 30.0, 8)),
+            ("2026-11-22T15:00:00Z", s(99.0, 99.0, 1.0, 99.0, 0)),  # two days back: ignored
+        ]
+        line = fun_trend.vs_yesterday(runs)
+        self.assertTrue(line.startswith("vs yesterday: 2026-11-24 (2 runs) vs 2026-11-23 (1 run): "), line)
+        self.assertIn("1st reward 7.5 s (same)", line)                       # 7.5 vs 7.5
+        self.assertIn("1st level-up 31 s of gathering (-5, better)", line)   # faster level-up is better
+        self.assertIn("items/min 10.5 (same)", line)
+        self.assertIn("dead max 30 s (same)", line)
+        self.assertIn("levelled 8 bots (same)", line)
+        worse = fun_trend.vs_yesterday([("2026-11-24T15:00:00Z", s(9.0, 40.0, 9.0, 45.0, 6)),
+                                        ("2026-11-23T15:00:00Z", s(7.5, 36.0, 10.5, 30.0, 8))])
+        self.assertIn("1st reward 9 s (+1.5, worse)", worse)
+        self.assertIn("items/min 9 (-1.5, worse)", worse)
+        self.assertIn("levelled 6 bots (-2, worse)", worse)
+
+    def test_vs_yesterday_needs_two_days(self):
+        self.assertIsNone(fun_trend.vs_yesterday([("2026-11-24T15:00:00Z", {"bots_levelled": 8})]))
+        self.assertIsNone(fun_trend.vs_yesterday([]))
+
+
 if __name__ == "__main__":
     unittest.main()

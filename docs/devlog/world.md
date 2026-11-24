@@ -617,3 +617,29 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tests.** Unit 678 pass (no Postgres here). Client smoke passes: primitives 449k noon / 480k night, style baseline rewritten on purpose. Before/after shots in the project files (`art-direction/`).
 
 **Next.** Backlog top item: ground cover patches, wilderness lanterns, level-up sparks, 6-head characters, node ash crowns. Check dark cloth at night on a real GPU (Forward+), CI only sees software GL.
+## 2026-11-24, run: grazer models (ws/world/grazer-models)
+
+**Picked.** "Procedural critter models" (grazer part). It sat low in the backlog as Milestone 2 build-ahead, but gameplay's two requests made it the top open request from another stream: the herds are on the wire since protocol v6 (#158) and the client has nothing to draw them with. Requests come first, and a living herd past the meadow is the most new fun on my list. **What a player will feel:** the hills outside the meadow are alive, and a herd reads at a glance: heads down means creep closer, a head snapping up means freeze, a white rump bounding over the hill means you rushed it.
+
+**Built.** `Grazers` (`game/procgen/grazers.gd`), a small deer-like grazer, ~1.27 m at the withers, ~1.3 m long: fawn coat, cream belly and pale rump, dark hooves, muzzle and eyes (three new `Palette.GRAZER_*` colours, no literals in the file), tall ears, a short tail.
+- Three MultiMesh layers (bodies, head-and-neck, legs with 4 instances per grazer) on Emberlight's shared `solid` material: 3 draw calls and no new material whatever the herd size; capacity 48 (21 today). 620 triangles a grazer (13k for every grazer in the world). Layers stay hidden until fed.
+- Poses as pure maths (`pose_for`, `xforms`): graze (head down, slow nibble), alert (head high), amble (diagonal walk), return (bigger trot with a bob), flee (bound: front pair and back pair half a cycle apart, the body leaps and pitches), rest (body down, legs tucked and shortened). The body tilts with the slope front to back (`ground_basis`).
+- Client API: `build()`, `feed(root, entries)` with the wire list as it arrives, `tick(root, delta)`. Smoothing lives here so the client's job is three calls: exponential follow (7/s) between the ~5 updates a second, snap past 12 m, facing turns at 6/s, gait phase advances by the distance really travelled (no foot sliding, no treading water when stopped), pose blends at 5/s, but `alert` at 14/s so the freeze cue is instant. Request filed in the client backlog.
+
+**Tried.** First cut was 1,072 triangles (7x4 spheres, 6-sided cylinders with a middle ring); 6x3 spheres, 5-sided ring-less cylinders and a box muzzle tip brought it to 620 with no visible change at 7 m.
+
+**Tests.** `test_world_grazers.gd` (9 tests): cheap and on the shared material; hooves on the ground in every standing pose; poses read (muzzle under 0.6 m grazing, over 1.5 m alert, lying body low with legs above ground); walk pairs and the bound; feed/tick follow the wire (glide, snap, removal, empty list, plain Arrays, unknown state); the head is up within a quarter second; legs don't move when the body doesn't; coat tints vary but stay near white; slopes tilt the body. Unit suite with Postgres: 661 pass. 8-bot 180 s websocket bot test passed (274 s). Client smoke test passed (nothing drawn there yet: night 289 draw calls, 463k primitives, unchanged). No new bot behaviour: nothing new on the network, and art checks belong in unit tests (art lint).
+
+**Looked at.** Noon from 7 m and 22 m and midnight from 5 m, all six states side by side at the first herd's home (`world/grazers-noon.png`, `world/grazers-noon-22m.png`, `world/grazers-night.png` in the project files). Noon: warm fawn reads well against the green hill and the pines. Night: dark silhouettes whose pale rumps catch the moonlight, which is right for animals (no ember on living things).
+
+**Next run.** Nothing shows in game until the client wires the three calls. Then: the dust kick on `flee` and an idle ear flick (follow-ups added), and check the smoke test's draw calls once a herd is in a spawn shot.
+
+## 2026-11-24 (run 2): grazer PR #160 back in line with main
+
+**Why.** #160 went into conflict: the client shipped its own placeholder grazers (#161, `HerdView` + `GrazerFigures`) while #160 waited, and both PRs edited the same request lines in `docs/workstreams/client.md` and `world.md`. Fixed it in this run rather than starting a new item, because a living herd is the biggest fun on the world list and it should land.
+
+**What changed.** Merged `main` in (no rebase). Kept main's request text and marked gameplay's two and the client's one as done/answered. Answered the client's ask directly: `Grazers.part_xforms(pos, yaw, state, gait_phase, gait, size)` has the same signature and `{body, head, legs}` result as `GrazerFigures.part_xforms`, so the client can swap in `Grazers.meshes()` and keep `HerdView`, its dust and its snort. It calls the same `pose_for`/`xforms` maths, with the slope-following ground basis. No pose blending through that path (the client's `HerdView` owns smoothing), so a state change snaps there; `Grazers.feed/tick` still blends if the client prefers it. One test added (`test_part_xforms_is_a_drop_in_for_the_client_placeholder`).
+
+**Tests.** Unit suite with Postgres: 688 pass. 8-bot 180 s websocket bot test passed (276 s). Client smoke test passed (render budget ok; `Grazers` isn't drawn by the client yet, so nothing on screen changed).
+
+**Next run.** If #160 has landed, the client's swap is theirs. Otherwise: noon grass saturation or the mid-distance tree mesh.

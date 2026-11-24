@@ -939,3 +939,68 @@ Also dropped `gameplay_roster_v5._tell_fun_metrics` (qa's `qa_fun_metrics` hears
 **Tests.** `test_gameplay_protocol_v6.gd` (8): RPC list vs frozen v5, re-emit, packed type, view filter and precision, 5 a second only to players in view, goodbyes, the bolt and herd in the send, a far login hears nothing. `test_gameplay_wildlife`'s server test now expects the sends; the v5 test checks the frozen v5 files. Unit 637/637 with Postgres. Bot test 8 x 180 s websocket with `--fun-check --perf-check` PASSED (8 of 8 levelled, dead median 21.4 s, worst 37.7; stalker 1 stalk, 1 bolt, herd bolted; CPU 1.9 ms/tick; down 70.8 kbit/s). 45 s ENet bot test PASSED. Protocol test websocket and ENet PASSED. Client smoke PASSED.
 
 **Next run:** if this PR is red, fix what is ours. Then: `Vitals` wiring once client sends sprint/dodge, a lantern use, or the HELP trim if the director reworded the bible. When herds grow, send only changed creatures (follow-up filed).
+
+## 2026-11-24: the first two weapons, rules only (Milestone 2 build-ahead, no bump)
+
+**Run start.** Budget 26 of 40 this week. PR #164 (vitals on the server) had a merge
+conflict in `docs/workstreams/client.md` (client ticked the v6 grazer request on `main` while
+#164 added the vitals note above it): merged `main` in, kept both lines, unit 688/688 with
+Postgres and the 8 x 180 s websocket bot test PASSED, pushed; auto-merge was already on.
+
+**Why this item.** Every unticked item above "Later" is either in #164 (vitals wiring, no
+unstuck mid-fight), waiting on players' numbers (Toolcraft grind, tier-2 crowding), already
+true (`/time`, `/who`, `/skills` are all behind the dev gate since chat-gate-default, and the
+client already hides the gather echo lines with `GatherPrompt.is_echo`, so dropping them
+changes nothing a player sees), or needs another stream first (lantern use, campfires). The
+next thing Week 01 needs from gameplay that doesn't need #164's code is "the first two crafted
+weapons" (roadmap Milestone 2). Rules only, like `Vitals` was in #131: no recipe yet, because a
+weapon that sits in the pack doing nothing would cost players materials for no fun (the
+lantern already does that; I didn't want a second).
+
+**Fun in one sentence.** When combat lands, the first weapon you make is a real choice: a
+quick spear that keeps a creature at arm's length and rewards aim, or a slow maul whose
+sweep clears a crowd and whose heavy swing staggers, and both feel like a big step up from
+your fists.
+
+**Owner direction 6, take the best and beat it (weapons).** The best weapon feel in action
+MMOs (New World is the owner's reference; soulslikes and Monster-Hunter-likes do it too) comes
+from each weapon having a clear identity: reach and speed versus sweep and weight, with a
+heavy attack that is a commitment. What players love: weapons that change how you move and
+where you stand, hits with weight, a heavy you have to read the moment for. What they hate:
+one weapon that is simply best (everyone uses it), long animation locks that punish a misread
+with a guaranteed hit, and stamina costs so steep a fight is mostly waiting. Our take:
+- Two weapons with opposite shapes: ash spear (reach 3.0 m, a 30 degree line, hits one,
+  heavy lunges 1.5 m) and stone maul (2.1 m, a 110 degree sweep, hits up to three, heavy
+  staggers).
+- No best weapon: damage per stamina and damage per second of the two stay within
+  `BALANCE_BAND` (1.35x) of each other per attack, checked in tests. Today: light 1.50 vs
+  1.30 dmg/stamina, 15.5 vs 14.1 dps; heavy 1.06 vs 1.10, 18.4 vs 19.7.
+- Commitment without a lock: every windup is at most `MAX_WINDUP` (0.9 s) and a dodge can
+  cancel any windup (`can_cancel`); once the hit lands you are committed through recovery.
+- Bare hands are at least 1.4x worse in dps than either weapon, so making one is a step up.
+- Mastery: `spearwork` / `maulwork` are named in the data but not in `Skills.ORDER` (adding
+  skills touches the client's skills window and the roster total); each level will add 1%
+  damage (`MASTERY_DAMAGE_PER_LEVEL`), small and visible like gathering's per-level gain.
+
+**Built.** `game/shared/weapons.gd` (`Weapons`): data per weapon and attack (damage, windup,
+active, recovery, stamina scale on `Vitals.COSTS`, lunge, stagger), `damage` with mastery,
+`stamina_cost`, `swing_seconds`, `hit_at`, `can_cancel`, `reach`, `in_swing` (flat reach plus
+arc, a target's radius widens both, yaw forward = (sin, cos) like `Wildlife`), `targets_hit`
+(nearest first, capped at `max_targets`, ties by id), balance helpers and `describe`.
+Nothing calls it yet; nothing is saved or sent.
+
+**Tests.** Unit 689/689 with Postgres; bot test 8 x 180 s websocket PASSED (8 of 8 rewarded, first reward 8.5 s median). `test_gameplay_weapons.gd` (11): sane numbers, unknown ids fight bare-handed, the
+two play differently, no best weapon, a real step up from fists, stamina from Vitals and a
+full bar buys 8+ lights and 2+ heavies, dodge cancels only the windup, mastery, reach/arc
+geometry, spear hits one and maul a crowd, describe. No bot behaviour: there is nothing a
+player or bot can do with it yet (same as #131's `Vitals`); the behaviour comes with the
+attack input.
+
+**Didn't do / known gaps.** `Vitals.spend` charges the flat `COSTS`; when wiring, either add a
+`spend_amount` to `Vitals` or scale there (I didn't touch `vitals.gd` because #164 changes it).
+No recipes or items: they wait for world's weapon icons and models and for the attack input.
+
+**Next run:** if #164 or this PR is red, fix what is ours. Then: once #164 lands, a server
+`attack(id, kind)` that spends stamina, waits the windup, and applies `Weapons.targets_hit`
+to grazers (a gentle first hunt) or players knocked down by `/hurt` only in tests; then the
+spear and maul recipes (Toolcraft 2 and 4?) with world's icons; then `s2c_vitals` in a bump.
