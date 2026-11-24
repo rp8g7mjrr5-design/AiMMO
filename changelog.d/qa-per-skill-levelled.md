@@ -1,0 +1,1 @@
+- Behind the scenes: every test run now checks that each skill levels up on time on its own, so felling and quarrying both keep their first level-up inside about a minute of gathering.

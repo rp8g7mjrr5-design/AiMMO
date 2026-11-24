@@ -1277,3 +1277,35 @@ PASSED in 275 s (8/8 levelled, perf in budget). Client smoke not run: nothing th
 
 **Next run:** check this PR landed and `main` is green. Then the per-skill levelled follow-up, or the
 bot `c2s_input` rate perf follow-up.
+
+## 2026-11-24 — per-skill "never levelled it" gate
+
+**Built:** the levelled-gate follow-up. `fun_metrics.gd` now times gathering per skill (the
+node's skill from `ResourceNodes.info_by_id`, passed by `qa_fun_metrics` on `s2c_gather_begun`)
+and records, per skill, the seconds gathered in it when it first levelled (from `s2c_level_up`'s
+skill, or the skill named in a text-only level-up line via `FunMetrics.level_up_skill`). Results
+are flat keys `gather_s_<skill>` / `level_gather_s_<skill>` (not a nested dict) so the per-bot
+`key=value` log line that `tools/fun_trend.py` parses keeps working. `fun_report.py` rolls them
+up: `skill_level_gather_s_median/worst`, `skill_unlevelled_gather_s_max` (+ which bot and skill),
+prints a per-skill table, gates `skill_unlevelled_gather_s_worst` (60 s) and compares
+`skill_level_gather_s_median` against the baseline (37 s, 8 s slack, fails above 45 s).
+
+**Why these numbers:** one local 8 x 180 s WebSocket + Postgres run: every bot levelled felling
+after 23.6-37.8 s of felling (median 37.65). 60 s is ~1.6x the worst seen. The d9927b3 case
+(43.8 s gathered, split over two skills, neither levelled) passes the new gate, which is the point:
+a split is not a slow curve. A curve that really got slower shows up per skill either way.
+
+**Decision: `bots_levelled_min` stays 6,** not 7 and not dropped. The per-skill gate checks the
+curve; `bots_levelled_min` checks something else (most fresh players level within three minutes),
+and raising it back to 7 would bring back the split-XP flake it was lowered for.
+
+**Surprise:** in this run no bot quarried at all (felling only), so the quarrying curve was not
+measured. Filed a follow-up to make one main bot prefer stone if CI shows the same.
+
+**Tests:** unit 729/729 (Postgres), `tests/bot_test` + `tests/ops` Python OK (4 new report tests,
+3 new GDScript tests in `test_qa_fun_metrics.gd`), bot test 8 x 180 s WebSocket + Postgres with
+`--fun-check --perf-check` PASSED in 277 s (8/8 levelled); its rows replayed against the new
+baseline give no problems. Client smoke not run: nothing the client loads changed.
+
+**Next run:** check this PR landed and `main` is green; then the bot `c2s_input` rate perf
+follow-up, or re-take the per-skill baseline from CI.
