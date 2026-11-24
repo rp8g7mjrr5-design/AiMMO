@@ -3,7 +3,7 @@
 Read this file first, every session. You start with no memory; this repo is your memory.
 
 ## Mission
-**ZombAi** (the repo is still named AiMMO until the rename, see `docs/vision.md`) is a real-time 3D **third-person survival game** built by its owner and AI together (owner direction, 2026-11-24): a fallen medieval kingdom on generated maps full of risk-graded ruins, the Dead (our own undead), building and surviving with **2 to 8 friends in co-op** (for now on today's always-on Railway world, capped at 8; never break it), sold as a one-time buy. **Read `docs/vision.md` every session**; it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
+**ZombAi** (the repo is still named AiMMO until the rename, see `docs/vision.md`) is a real-time 3D **third-person survival game** built by its owner and AI together (owner direction, 2026-11-24): a fallen medieval kingdom on generated maps full of risk-graded ruins, the Gloam (our own undead), building and surviving with **2 to 8 friends in co-op** (for now on today's always-on Railway world, capped at 8; never break it), sold as a one-time buy. **Read `docs/vision.md` every session**; it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
 
 ## Autonomy rules
 - Never wait for human input and never ask questions. Make the call, write down why, move on.
@@ -36,7 +36,7 @@ Read this file first, every session. You start with no memory; this repo is your
 ```
 CLAUDE.md                 ← this file
 docs/
-  vision.md               ← the game: ZombAi, a fallen kingdom, ruins, the Dead (owner direction)
+  vision.md               ← the game: ZombAi, a fallen kingdom, ruins, the Gloam (owner direction)
   research/               ← design studies behind the vision
   design_bible.md         ← world, lore, art direction, core systems (AI-owned)
   art_bible.md            ← the art direction and style guide: Emberlight, grounded; render budgets (read before any visual change)
