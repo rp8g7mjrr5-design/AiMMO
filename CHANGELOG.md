@@ -5,6 +5,19 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- Three players working one tree or rock now share it fairly, and every release proves it: the checks send three fresh players to one node at once and fail if anyone is turned away while a charge is left, or paid after the last one is gone.
+- **The hills are waking up:** the herds of grazers that roam just outside Spawn Meadow now reach your game, a few times a second, with every look-up, bolt and lazy walk home. Their bodies arrive with an upcoming update; rush one and the whole herd will scatter over the rise.
+- **Game update (protocol 6):** your game updates itself the next time you launch it.
+- At night the ember sparks rising over the valley now only float above trees and seeps you can actually gather: fell an ember ash or drain a seep and its sparks go out, and they come back when it grows again.
+- Lost in the hills or wedged somewhere odd? Press Esc and hit **Return to Spawn Meadow**: you're back by the workbench in a blink, with the camera right behind you instead of sweeping across the map.
+- The button counts down its one-minute rest ("Return to Spawn Meadow (42 s)") so you always know when it's ready again, and the answer shows centre screen, never in chat.
+- Level up and your XP bar now fills to the brim and holds there, glowing, while the banner shouts your new level, then rolls over into the next one.
+- The "next goal" line under the compass steps aside for the level-up banner and comes back glowing gold with your new goal as the banner fades.
+- Picked Low graphics on an older laptop? It now really starts on Low: the world is built light from the first frame instead of building everything and thinning it afterwards.
+- **Bench sense is here:** at Toolcraft 3 you can make an **ember lantern** at the workbench (3 ash, 3 pine, 2 stone, 1 ember sap). Each one pays a big chunk of Toolcraft XP, so the road to ember tools is about a dozen lanterns instead of twenty-odd campfires.
+- **Bigger stacks:** each item now stacks to 999 instead of 99, so a long gathering session never stops because your wood is "full".
+- The release checks now measure the Low graphics setting too, and fail any build where picking Low doesn't make the world lighter to draw, so Low keeps helping older computers.
+- When someone levels up across the valley at night, their sky beam now burns deep ember orange over the stars instead of a washed-out grey, so you can spot a friend's level-up from 100 m away in the dark.
 - Behind the scenes for next week: herds of gentle grazers now live in the hills just outside the Spawn Meadow. They graze and wander, lift their heads when you come close, bolt over the hill together if you rush them, and lie down at home at night. Creep in and freeze when they look up, and you can get close enough to watch them. You'll see them as soon as their look is drawn.
 - Every build is now photographed with the F1 controls open, a fresh haul's "+2 Ash wood" and "+10 Felling" popping up, and on the Low graphics setting, so those screens can't quietly break or lose the Emberlight look.
 - Chat is only for talking on every server now, not just the main one: a line starting with "/" always gets the friendly "Press F1 for controls" nudge instead of a hidden developer tool.

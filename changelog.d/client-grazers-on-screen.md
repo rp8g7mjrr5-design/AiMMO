@@ -1,0 +1,3 @@
+- The hills past the meadow are alive: herds of grazers now show up in your game, noses in the grass, ambling about their home.
+- Walk up and they lift their heads to look at you. Rush them and the whole herd snorts, kicks up dust and bolts over the hill. Creep in slowly instead and you can get close enough to watch them graze.
+- At night they lie down to rest.

@@ -37,3 +37,9 @@ saves a character at exactly the level the tier-2 node nearest spawn needs; next
 check, a fresh bot walks there and must be refused ("level" and the "Needs <Skill> 5" line,
 nothing paid), then the veteran works the node empty with every charge paid, and both
 reconnect (still refused; level and XP kept, also in the save). See `../level_gate.gd`.
+
+`client_craft_window.gd` with `--craft-haul` is the craft-haul check: after a long run's main
+bots, `../seed_crafter.gd` saves a character at the workbench holding exactly a campfire's
+and a torch's inputs, and one bot with only this behaviour presses Craft on the real client
+window. It must make both, get Toolcraft XP for each, and end with exactly the goods (also
+checked in the save). See `../craft_haul.gd`; skip it with `--no-craft-haul`.
