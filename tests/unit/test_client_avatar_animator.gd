@@ -228,3 +228,14 @@ func test_apply_moves_the_skeleton() -> void:
 	anim.apply(sk)
 	check(sk.get_bone_global_pose(sk.find_bone("Head")).origin.y < 0.4, "the head is on the ground")
 	sk.free()
+
+
+func test_a_server_swing_plays_on_the_avatar() -> void:
+	# What client._on_swing_begun does with s2c_swing: the weapon's phases, scaled to `seconds`.
+	var a := Weapons.attack(Weapons.FISTS, "heavy")
+	check(not a.is_empty(), "a bare-hand heavy swing exists")
+	var anim := AvatarAnimator.new()
+	anim.swing("heavy", float(a.windup), float(a.active), float(a.recovery))
+	_run(anim, float(a.windup) + float(a.active) * 0.5, func(_t): return {"pos": Vector3.ZERO})
+	var chest: Vector3 = anim.pose().Chest
+	check(chest.y < -0.2, "mid-blow the chest has turned through the haymaker (%.2f)" % chest.y)
