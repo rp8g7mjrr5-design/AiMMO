@@ -9,6 +9,8 @@ class_name SkyClock
 ##
 ## Time of day is a fraction: 0.0 midnight, 0.25 sunrise, 0.5 noon, 0.75 sunset.
 
+## Grounded (art bible section 5): a dusty, high-altitude blue by day, never a postcard
+## cyan, with a hazy warm horizon, so the sky frames the world instead of competing with it.
 ## Sky keys by sun height (sine of elevation). Each: [height, top, horizon, fog/ground, light].
 ## Emberlight part 4 (art bible section 5, "golden-hour bias"): the warm keys reach far up the
 ## sky, so the sun spends most of the day in golden light and only the top of the arc is
@@ -18,13 +20,17 @@ const KEYS := [
 	[-1.00, Color(0.03, 0.05, 0.15), Color(0.08, 0.12, 0.26), Palette.NIGHT_HAZE, Palette.MOONLIGHT],
 	[-0.22, Color(0.04, 0.07, 0.18), Color(0.12, 0.15, 0.30), Palette.NIGHT_HAZE, Palette.MOONLIGHT],
 	[-0.06, Color(0.12, 0.14, 0.32), Color(0.66, 0.36, 0.28), Color(0.34, 0.26, 0.30), Color(0.92, 0.52, 0.36)],
-	[0.06, Color(0.26, 0.38, 0.66), Color(0.99, 0.60, 0.34), Color(0.78, 0.56, 0.42), Color(1.00, 0.66, 0.42)],
-	[0.30, Color(0.32, 0.50, 0.80), Color(0.97, 0.74, 0.50), Palette.HAZE, Palette.GOLDEN_LIGHT],
-	[0.65, Color(0.33, 0.53, 0.83), Color(0.93, 0.80, 0.63), Palette.HAZE, Color(1.00, 0.86, 0.66)],
-	[1.00, Color(0.32, 0.54, 0.86), Color(0.86, 0.84, 0.80), Color(0.86, 0.82, 0.75), Color(1.00, 0.94, 0.84)],
+	[0.06, Color(0.24, 0.32, 0.52), Color(0.92, 0.56, 0.34), Color(0.70, 0.52, 0.40), Color(1.00, 0.66, 0.42)],
+	[0.30, Color(0.30, 0.42, 0.62), Color(0.88, 0.70, 0.50), Palette.HAZE, Palette.GOLDEN_LIGHT],
+	[0.65, Color(0.31, 0.44, 0.63), Color(0.82, 0.75, 0.62), Palette.HAZE, Color(1.00, 0.86, 0.68)],
+	[1.00, Color(0.30, 0.44, 0.64), Color(0.78, 0.76, 0.70), Color(0.78, 0.75, 0.68), Color(1.00, 0.92, 0.82)],
 ]
 
-const NIGHT_LIGHT := 0.26 ## moonlight energy at full night: dim, but you can see the meadow by it
+const DAY_AMBIENT := 0.36 ## sky fill by day: lower than the key, so shadows keep their shape and the meadow never glows
+const DAY_SKY_SHARE := 0.65 ## by day most of the fill is the sky's own colours
+const NIGHT_SKY_SHARE := 0.25 ## at night most of it is a flat moonlit blue (the sky is nearly black)
+const NIGHT_LIGHT := 0.55 ## moonlight energy at full night: dim, but you can see the meadow by it
+const NIGHT_AMBIENT := 0.6 ## sky fill at full night: moody and dark, but the meadow still reads (never black)
 
 
 ## World seconds that land on this day fraction on day 1 (inverse of
@@ -84,7 +90,7 @@ static func sample(frac: float) -> Dictionary:
 	var light_dir := sun_direction(frac) if sun_up else moon_direction(frac)
 	var lift := clampf(absf(h) / 0.12, 0.0, 1.0)
 	var energy := lerpf(0.0, 1.0, lift) if sun_up else lerpf(0.0, NIGHT_LIGHT, lift)
-	var ambient := lerpf(0.18, 0.5, clampf(inverse_lerp(-0.2, 0.3, h), 0.0, 1.0))
+	var ambient := lerpf(NIGHT_AMBIENT, DAY_AMBIENT, clampf(inverse_lerp(-0.2, 0.3, h), 0.0, 1.0))
 	return {
 		"frac": frac,
 		"sun_height": h,
@@ -95,6 +101,13 @@ static func sample(frac: float) -> Dictionary:
 		"light_dir": light_dir,
 		"light_energy": energy,
 		"ambient_energy": ambient,
+		# The flat part of the fill (the rest comes from the sky): moonlit SHADE blue at night,
+		# the warm horizon by day, so a figure turned away from the moon is a blue-grey shape,
+		# never a black hole (art bible, "Light by time of day").
+		"ambient_color": Palette.MOONLIGHT.lerp(horizon, clampf(inverse_lerp(-0.1, 0.2, h), 0.0, 1.0)),
+		# How much of the fill comes from the sky's own colours: most by day, little at night,
+		# when the near-black sky would otherwise leave the fill at nothing.
+		"ambient_sky_share": lerpf(NIGHT_SKY_SHARE, DAY_SKY_SHARE, clampf(inverse_lerp(-0.1, 0.2, h), 0.0, 1.0)),
 		"stars": star_alpha(frac),
 		"night": night_amount(frac),
 		"sun_dir": sun_direction(frac),

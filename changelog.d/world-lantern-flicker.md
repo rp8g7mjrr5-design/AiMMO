@@ -1,1 +1,0 @@
-- The meadow lanterns and the workbench lantern now flicker gently after dark, each flame on its own rhythm, so the pools of light on the grass breathe like real fire.

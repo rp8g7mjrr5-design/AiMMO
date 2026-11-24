@@ -1,5 +1,5 @@
 {
-  "_doc": "Emberlight style baseline for tests/client_smoke/style_check.gd (art bible, Colour). shots: the noon and night spawn shots' colour measures (llvmpipe, 1280x720, HUD masked). big: a move this far away from the art bible fails the Test check. small: a move this far either way is printed for the integrator. A world PR that changes the look on purpose reruns the check with --write-baseline and says so.",
+  "_doc": "Emberlight style baseline for tests/client_smoke/style_check.gd (art bible, Colour). shots: the noon and night spawn shots' colour measures (llvmpipe, 1280x720, HUD masked). big: a move this far away from the art bible fails the Test check. small: a move this far either way is printed for the integrator. A world PR that changes the look on purpose reruns the check with --write-baseline and says so. 2026-11-24, grounded art direction (owner direction, art bible sections 0 and 11): baseline rewritten on purpose. Noon is darker and far less saturated (olive, not lime: luma 0.74 -> 0.54, sat 0.43 -> 0.30), and night moved toward the art bible (blue over green, cool, neon share 0.62 -> ~0.05).",
   "big": {
     "luma": 0.12,
     "sat_mean": 0.12,
@@ -18,20 +18,20 @@
   },
   "shots": {
     "noon": {
-      "luma": 0.742,
-      "sat_mean": 0.43,
-      "neon_share": 0.011,
-      "ember_share": 0.026,
-      "warmth": 0.094,
-      "blue_minus_green": -0.286
+      "luma": 0.534,
+      "sat_mean": 0.294,
+      "neon_share": 0.001,
+      "ember_share": 0.008,
+      "warmth": 0.112,
+      "blue_minus_green": -0.124
     },
     "night": {
-      "luma": 0.18,
-      "sat_mean": 0.808,
-      "neon_share": 0.615,
-      "ember_share": 0.009,
-      "warmth": 0.053,
-      "blue_minus_green": -0.127
+      "luma": 0.142,
+      "sat_mean": 0.684,
+      "neon_share": 0.086,
+      "ember_share": 0.003,
+      "warmth": -0.057,
+      "blue_minus_green": 0.016
     }
   }
 }

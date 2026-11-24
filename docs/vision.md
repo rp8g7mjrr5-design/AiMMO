@@ -6,6 +6,9 @@ arrive, and to deliver them. The study is `docs/research/promises_study.md`; thi
 answer. It is the headline of AiMMO from here on: every stream reads it, and the milestones that
 build it are in `docs/roadmap.md`.
 
+Everything on screen follows the grounded art direction (`docs/art_bible.md`, sections 0 and
+9 to 12): towns are weathered timber, stone and thatch at real proportions, the kind of camp and
+village that would look at home in a moody wilderness, never toy-box houses.
 Everything here is our own design, under "Inspired by, never copied" (design bible): our names,
 our stages, our look. The names below (sites, stages, buildings, the skill) are working names
 the director may refine, but never toward another game's terms.
@@ -50,9 +53,10 @@ to the second zone, a market in a market town, defence as group content).
    data in one file, tuned like the skill curve.
 3. **Delivering.** Walk up to a footing or the ledger post, look at it, press E: the prompt says
    what it still needs and what you carry, e.g. "[E] Lay 12 Stone (38 / 120)". A press delivers
-   what you hold toward the bill. Juice: the stack flies from you to the footing, a thunk, a
-   toast ("+12 Stone to the Storehouse"), and the scaffold **visibly grows**: each tenth of the
-   bill adds a piece (posts, then a wall course, then rafters, then the roof).
+   what you hold toward the bill. Feedback, kept to the art bible's restraint (sections 9 and
+   10): your character sets the load down, a heavy thunk and a little dust, a short quiet toast
+   ("12 Stone to the Storehouse"), and the scaffold **visibly grows**: each tenth of the bill
+   adds a piece (posts, then a wall course, then rafters, then the roof).
 4. **Labour.** At a project with its materials in, press E to work: a timed bar and a motion like
    gathering (hammering, hauling, setting stone). Labour gives XP in a new skill, **Raising**
    (cap 100 like every skill, its own unlocks: work faster, carry more per delivery, a builder's
@@ -60,9 +64,10 @@ to the second zone, a market in a market town, defence as group content).
 5. **Better together.** Several people delivering or working at one site within a minute form a
    **crew**: a small XP bonus and the work bar runs a little faster for each of them, shown on
    screen ("Crew of 3").
-6. **Raised.** When the bill is paid, the last piece drops in with a burst everyone near sees
-   (the level-up beam's cousin), a server-wide banner names the building and the town, and the
-   building's service turns on at once. The ledger board lists the biggest contributors to every
+6. **Raised.** When the bill is paid, the last piece settles into place, the building's fire or
+   lantern lights for the first time (warm light, not sparkle: a raised building is one of the
+   few loud moments, and it is loud through light), a proud one-line banner tells everyone online
+   which town raised what, and the building's service turns on at once. The ledger board lists the biggest contributors to every
    building, permanently.
 7. **Stages.** A town's stage is how many of its buildings stand: **Cold ground → Kindling →
    Steading → Hamlet → Village → Town**. Each stage opens the next set of footings and changes
