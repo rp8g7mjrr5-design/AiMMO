@@ -145,6 +145,7 @@ func _tick() -> void:
 		ch.yaw = s.yaw
 		entries.append_array([id, p.x, p.y, p.z, s.yaw])
 	_tick_channels(now_seconds())
+	_tick_vitals(now_seconds())
 	_tick_wildlife(now_seconds())
 	if tick % WILDLIFE_SEND_TICKS == 0:
 		_send_wildlife()
@@ -268,6 +269,8 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 	s.logged_in = true
 	s.character = ch
 	s.yaw = ch.yaw
+	s.vitals = Vitals.full() # not saved: every login starts at full health
+	s.vitals_shown = Vitals.shown(s.vitals)
 	_send(id, "s2c_login_result", [true, "Welcome to Ashgrove, %s!" % ch.name if is_new else "Welcome back, %s." % ch.name, id, ch])
 	_send(id, "s2c_world_time", [world_seconds()])
 	_send_world_state(id)
@@ -345,6 +348,12 @@ func _on_chat(id: int, text: String) -> void:
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [gather(id, ChatCommands.argument(clean))])
 		_send_queued_lines(id)
+		return
+	if ChatCommands.is_hurt(clean) or ChatCommands.is_vitals(clean):
+		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
+		var reply := vitals_command(id, clean)
+		if reply != "": # a knock-down already said what happened
+			_send(id, "s2c_system", [reply])
 		return
 	if ChatCommands.is_craft(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
@@ -869,7 +878,11 @@ func unstuck_request(id: int) -> Dictionary:
 	var wait := float(s.get("unstuck_at", -1000.0)) + GameConfig.UNSTUCK_COOLDOWN - now
 	var pos := CharacterData.position(s.character)
 	var r := {}
-	if wait > 0.0:
+	var fight := Vitals.combat_left(vitals_of(id), now)
+	if fight > 0.0:
+		# Never an escape button: you can go home only once nothing has hit you for a while.
+		r = {"ok": false, "text": "You can't return to Spawn Meadow mid-fight. Try again in %d s." % ceili(fight), "wait": fight}
+	elif wait > 0.0:
 		r = {"ok": false, "text": "You can return to Spawn Meadow again in %d s." % ceili(wait), "wait": wait}
 	elif Vector2(pos.x - GameConfig.SPAWN_POINT.x, pos.z - GameConfig.SPAWN_POINT.z).length() < GameConfig.UNSTUCK_NEAR:
 		r = {"ok": false, "text": "You're already in Spawn Meadow.", "wait": 0.0}
@@ -886,6 +899,98 @@ func unstuck_request(id: int) -> Dictionary:
 		print("[server] %s returned to Spawn Meadow from %s" % [s.character.name, pos])
 	_send(id, "s2c_unstuck_result", [bool(r.ok), str(r.text), float(r.wait)])
 	return r
+
+
+## --- Health and stamina (Vitals, roadmap Milestone 2 "First blood") ---
+
+## Player `id`'s Vitals state ({} for a player who is not here). Made full on login; a
+## session built without one (unit tests) gets a full one on first use.
+func vitals_of(id: int) -> Dictionary:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return {}
+	var s: Dictionary = sessions[id]
+	if not s.has("vitals"):
+		s.vitals = Vitals.full()
+		s.vitals_shown = Vitals.shown(s.vitals)
+	return s.vitals
+
+
+## Every tick: stamina and health come back (Vitals.tick), and a player whose whole points
+## changed gets s2c_vitals(hp, max_hp, stamina, max_stamina). That RPC is not in protocol v6;
+## _send holds it back until the bump that brings the client's health bar.
+func _tick_vitals(now: float) -> void:
+	for id in sessions:
+		if not sessions[id].logged_in:
+			continue
+		Vitals.tick(vitals_of(id), now, GameConfig.TICK_DT)
+		_send_vitals_if_changed(id)
+
+
+func _send_vitals_if_changed(id: int) -> void:
+	var s: Dictionary = sessions[id]
+	var v := vitals_of(id)
+	var shown := Vitals.shown(v)
+	if shown == s.get("vitals_shown", []):
+		return
+	s.vitals_shown = shown
+	_send(id, "s2c_vitals", [shown[0], roundi(float(v.max_hp)), shown[1], roundi(float(v.max_stamina))])
+
+
+## A hit of `amount` damage on player `id` (Vitals.hit; `blocking` takes most of it on
+## stamina). At 0 health they are knocked down (knock_down). The only source today is the
+## hidden /hurt dev command; creatures call this once they fight. Returns Vitals.hit's
+## {taken, blocked, dead} plus "knocked_down", or {} for a player who is not here.
+func hurt(id: int, amount: float, blocking: bool = false) -> Dictionary:
+	var v := vitals_of(id)
+	if v.is_empty() or not is_finite(amount):
+		return {}
+	var r := Vitals.hit(v, amount, now_seconds(), blocking)
+	r.knocked_down = false
+	if bool(r.dead):
+		knock_down(id)
+		r.knocked_down = true
+	else:
+		_send_vitals_if_changed(id)
+	return r
+
+
+## Fair failure: player `id` hit 0 health. Any gather stops, they come to at once on the
+## Spawn Meadow arc (unstuck_spot), full, with their pack and XP untouched, and are told so.
+## Doesn't touch the Return to Spawn Meadow cooldown.
+func knock_down(id: int) -> void:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return
+	var s: Dictionary = sessions[id]
+	var pos := CharacterData.position(s.character)
+	if GatherChannel.is_active(s.channel):
+		gather_cancel(id, "moved")
+	var spot := unstuck_spot(id)
+	s.character.x = spot.x
+	s.character.y = spot.y
+	s.character.z = spot.z
+	s.move = Vector2.ZERO
+	s.vitals = Vitals.full()
+	s.knocked_down_at = now_seconds()
+	s.knockdowns = int(s.get("knockdowns", 0)) + 1
+	_send_vitals_if_changed(id)
+	_send(id, "s2c_system", [Vitals.KNOCKED_DOWN_TEXT])
+	print("[combat] %s was knocked down at %s and came to in Spawn Meadow" % [s.character.name, pos])
+
+
+## The hidden dev commands /hurt N (1 to 1000 damage, default 10) and /vitals. Returns the
+## reply ("" after a knock-down, whose own line is the answer).
+func vitals_command(id: int, line: String) -> String:
+	if ChatCommands.is_vitals(line):
+		return Vitals.describe(vitals_of(id), now_seconds())
+	var amount := ChatCommands.hurt_amount(line)
+	if amount <= 0:
+		return "Hurt how much? Try /hurt 30 (1 to %d)." % ChatCommands.HURT_MAX
+	var r := hurt(id, float(amount))
+	if r.is_empty():
+		return ""
+	if bool(r.knocked_down):
+		return "" # knock_down sent Vitals.KNOCKED_DOWN_TEXT, which says it all
+	return "You take %d damage. %s" % [amount, Vitals.describe(vitals_of(id), now_seconds())]
 
 
 ## Where "Return to Spawn Meadow" puts player `id`: on a 3 m arc south of spawn, away from
