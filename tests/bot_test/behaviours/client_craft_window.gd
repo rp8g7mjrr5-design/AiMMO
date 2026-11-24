@@ -95,7 +95,7 @@ func on_play(delta: float) -> void:
 		bot.move = Vector2.ZERO # stay at the bench until the haul is crafted, then wander
 	var p: Vector3 = bot.my_pos
 	var at: bool = WindowScript.near_bench(p)
-	var d := Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ)
+	var d := Vector2(p.x, p.z).distance_to(Crafting.workbench_xz())
 	if at != (d <= Crafting.BENCH_RANGE):
 		fail("workbench prompt %s at %.2f m" % [at, d])
 	if at:
@@ -125,7 +125,7 @@ func _quiet() -> bool:
 
 func _press(p: Vector3) -> void:
 	var id := "torch"
-	if WindowScript.row(_w.pack, "campfire", p).reason == "" and Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ) < Crafting.BENCH_RANGE - EDGE:
+	if WindowScript.row(_w.pack, "campfire", p).reason == "" and Vector2(p.x, p.z).distance_to(Crafting.workbench_xz()) < Crafting.BENCH_RANGE - EDGE:
 		id = "campfire"
 	_presses += 1
 	_next_press = bot.elapsed + (HAUL_PRESS_GAP if _haul else PRESS_GAP)
@@ -155,7 +155,7 @@ func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
 	# pack the server judged: its row must have said the same thing.
 	var p: Vector3 = bot.my_pos
 	var r: Dictionary = WindowScript.row(_w.pack, recipe_id, p)
-	var d := Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ)
+	var d := Vector2(p.x, p.z).distance_to(Crafting.workbench_xz())
 	var edge: bool = bool(Crafting.RECIPES.get(recipe_id, {}).get("bench", false)) and absf(d - Crafting.BENCH_RANGE) < EDGE
 	# A pack-changing chat line sent after the press may still have reached the server first.
 	var raced: bool = _pack_command_at >= _sent_at - QUIET_AFTER_GATHER

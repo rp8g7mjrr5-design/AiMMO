@@ -14,13 +14,13 @@ extends PanelContainer
 signal closed
 
 const WIDTH := 520.0
-const ACCENT := Color(1.0, 0.56, 0.24) ## ember orange, as the workbench window and F1 list
-const GOLD := Color(1.0, 0.84, 0.42) ## XP gold, as the XP meter
-const DIM := Color(1, 1, 1, 0.6)
+const ACCENT := HudStyle.EMBER ## ember orange, as the workbench window and F1 list
+const GOLD := HudStyle.XP ## XP gold, as the XP meter
+const DIM := HudStyle.TEXT_DIM
 const BADGE_SIZE := 40
 const BAR_H := 8.0
 const GOAL_FLASH_SECONDS := 1.2 ## the goal line glows gold this long when it moves on to a new goal
-const GOAL_COLOUR := Color(1.0, 0.95, 0.86, 0.85) ## the goal line at rest: warm white, quiet
+const GOAL_COLOUR := Color(HudStyle.TEXT, 0.85) ## the goal line at rest: warm white, quiet
 
 var skills := {}
 var _total_label: Label
@@ -164,12 +164,7 @@ func setup(theme_res: Theme) -> void:
 	offset_top = -190
 	offset_bottom = 190
 	grow_vertical = Control.GROW_DIRECTION_BOTH
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.09, 0.08, 0.07, 0.9)
-	bg.border_color = Color(ACCENT, 0.6)
-	bg.set_border_width_all(1)
-	bg.set_corner_radius_all(6)
-	add_theme_stylebox_override("panel", bg)
+	add_theme_stylebox_override("panel", HudStyle.panel(0.9)) # muted warm grey, no ember frame (art bible section 9)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 18)
@@ -181,7 +176,7 @@ func setup(theme_res: Theme) -> void:
 	box.add_child(head)
 	var title := Label.new()
 	title.text = "Skills"
-	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_font_size_override("font_size", 21)
 	title.add_theme_color_override("font_color", ACCENT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
@@ -241,7 +236,7 @@ func _make_row(skill: String) -> HBoxContainer:
 	fill.bg_color = GOLD
 	fill.set_corner_radius_all(3)
 	var back := StyleBoxFlat.new()
-	back.bg_color = Color(1, 1, 1, 0.12)
+	back.bg_color = HudStyle.TRACK
 	back.set_corner_radius_all(3)
 	bar.add_theme_stylebox_override("fill", fill)
 	bar.add_theme_stylebox_override("background", back)

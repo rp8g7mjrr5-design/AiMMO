@@ -6,7 +6,7 @@ extends Control
 const RADIUS := 7.0
 const DOT := 1.6
 const IDLE := Color(1.0, 0.95, 0.88, 0.55)
-const ACTIVE := Color(1.0, 0.56, 0.24, 0.95) ## ember orange, as the gather prompt
+const ACTIVE := Color(HudStyle.EMBER, 0.95) ## the one accent, as the gather prompt
 const OUTLINE := Color(0, 0, 0, 0.35)
 
 var active := false:

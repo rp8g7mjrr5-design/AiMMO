@@ -21,9 +21,9 @@ const WIDTH := 380.0
 const LIST_HEIGHT := 330.0 ## about eleven rows; more scroll
 const ROW_HEIGHT := 30.0 ## one row plus its gap, for sizing the list to the roster
 const HALF_HEIGHT := 90.0 ## the panel's resting half-height; it grows to fit its rows
-const ACCENT := Color(1.0, 0.56, 0.24) ## ember orange, as the other windows: your own row
-const GOLD := Color(1.0, 0.84, 0.42) ## the "this just changed" glow, the XP meter's gold
-const DIM := Color(1, 1, 1, 0.6)
+const ACCENT := HudStyle.EMBER ## ember orange, as the other windows: your own row
+const GOLD := HudStyle.XP ## the "this just changed" glow, the XP meter's gold
+const DIM := HudStyle.TEXT_DIM
 const FLASH_SECONDS := 1.6 ## how long a row that just changed glows
 const ARRIVED_TEXT := "just arrived"
 
@@ -101,12 +101,7 @@ func setup(theme_res: Theme) -> void:
 	offset_top = -HALF_HEIGHT
 	offset_bottom = HALF_HEIGHT
 	grow_vertical = Control.GROW_DIRECTION_BOTH
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.09, 0.08, 0.07, 0.9)
-	bg.border_color = Color(ACCENT, 0.6)
-	bg.set_border_width_all(1)
-	bg.set_corner_radius_all(6)
-	add_theme_stylebox_override("panel", bg)
+	add_theme_stylebox_override("panel", HudStyle.panel(0.9)) # muted warm grey, no ember frame (art bible section 9)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 18)
@@ -118,7 +113,7 @@ func setup(theme_res: Theme) -> void:
 	box.add_child(head)
 	var title := Label.new()
 	title.text = "Players"
-	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_font_size_override("font_size", 21)
 	title.add_theme_color_override("font_color", ACCENT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
@@ -241,7 +236,7 @@ func step(delta: float) -> void:
 func _paint() -> void:
 	for id in _row_nodes:
 		var n: Dictionary = _row_nodes[id]
-		var base: Color = ACCENT if n.you else Color.WHITE
+		var base: Color = ACCENT if n.you else HudStyle.TEXT
 		var f := flash_of(int(id))
 		n.name.add_theme_color_override("font_color", base.lerp(GOLD, f * f))
 		n.note.text = str(_note.get(int(id), "")) if f > 0.0 else ""

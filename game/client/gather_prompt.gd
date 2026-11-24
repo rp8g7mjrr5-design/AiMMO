@@ -23,9 +23,9 @@ const DOING := {"Chop": "Chopping", "Mine": "Mining", "Collect": "Collecting", "
 const ASK_TIMEOUT := 1.5
 const TOAST_SECONDS := 2.2
 const TOAST_RISE := 26.0 ## px the toast floats up while it fades
-const ACCENT := Color(1.0, 0.56, 0.24) ## ember orange, the ash leaves
-const NOTICE := Color(1.0, 0.82, 0.62) ## a refusal: warm, softer than the haul toast
-const DIM := Color(0.85, 0.85, 0.85, 0.75)
+const ACCENT := HudStyle.EMBER ## the HUD's one accent (art bible section 9)
+const NOTICE := HudStyle.NOTE ## a refusal: warm, softer than the haul toast
+const DIM := HudStyle.TEXT_DIM
 const ICON_GAP := 6.0 ## px between a toast's icon and its text
 ## Short centre-screen words for a refused or broken-off gather (s2c_gather_end's reason).
 ## Reasons the player caused on purpose ("moved", "stopped") or that need no words ("done",
@@ -277,7 +277,7 @@ func setup(theme: Theme) -> void:
 	self.theme = theme
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(WIDTH, HEIGHT)
-	toast_label = _make_label(18, ACCENT)
+	toast_label = _make_label(15, ACCENT)
 	toast_label.position = Vector2(0, 0)
 	toast_label.modulate.a = 0.0
 	toast_icon = TextureRect.new()
@@ -287,7 +287,7 @@ func setup(theme: Theme) -> void:
 	toast_icon.size = Vector2(IconShelf.TOAST_SIZE, IconShelf.TOAST_SIZE)
 	toast_icon.visible = false
 	add_child(toast_icon)
-	prompt_label = _make_label(16, Color.WHITE)
+	prompt_label = _make_label(15, HudStyle.TEXT)
 	prompt_label.position = Vector2(0, 26)
 	bar = ProgressBar.new()
 	bar.show_percentage = false
@@ -300,7 +300,7 @@ func setup(theme: Theme) -> void:
 	fill.bg_color = ACCENT
 	bar.add_theme_stylebox_override("fill", fill)
 	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0, 0, 0, 0.45)
+	bg.bg_color = HudStyle.TRACK
 	bar.add_theme_stylebox_override("background", bg)
 	bar.visible = false
 	add_child(bar)
@@ -312,10 +312,7 @@ func _make_label(font_size: int, color: Color) -> Label:
 	l.size = Vector2(WIDTH, 24)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.add_theme_font_size_override("font_size", font_size)
-	l.add_theme_color_override("font_color", color)
-	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	l.add_theme_constant_override("outline_size", 6)
+	HudStyle.quiet_label(l, font_size, color)
 	add_child(l)
 	return l
 
@@ -347,10 +344,10 @@ func update(delta: float, pos: Vector3, world_seconds: float, now: float, held: 
 	prompt_label.visible = gathering or not _target.is_empty()
 	if gathering:
 		prompt_label.text = str(_channel.text)
-		prompt_label.add_theme_color_override("font_color", Color.WHITE)
+		prompt_label.add_theme_color_override("font_color", HudStyle.TEXT)
 	elif not _target.is_empty():
 		prompt_label.text = _target.text
-		prompt_label.add_theme_color_override("font_color", Color.WHITE if _target.can else DIM)
+		prompt_label.add_theme_color_override("font_color", HudStyle.TEXT if _target.can else DIM)
 	bar.visible = gathering
 	bar.value = progress(_channel, now)
 	_toast_age += delta
@@ -415,7 +412,7 @@ func show_hint(text: String) -> void:
 	if _target.is_empty() and _channel.is_empty():
 		prompt_label.visible = text != ""
 		prompt_label.text = text
-		prompt_label.add_theme_color_override("font_color", Color.WHITE)
+		prompt_label.add_theme_color_override("font_color", HudStyle.TEXT)
 
 
 ## Pops a floating toast like "Crafted: Stone axe!", with `item`'s icon beside it ("" = no icon).
