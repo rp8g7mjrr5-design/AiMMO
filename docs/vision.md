@@ -163,7 +163,8 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
 **Now: one always-on world.** The owner wants friends to be able to drop in any time and try it.
 So, for now, co-op is **today's dedicated server on Railway**: one persistent world, always on,
 capped at **8 players**, updated the way it is today. Nothing about the live server breaks.
-- The cap is a server setting (`MAX_PLAYERS`, 8 on Railway); a full world says so politely.
+- The cap is a server setting (`MAX_PLAYERS`, set to 8 in the Railway image); a full world says so
+  politely and never kicks anyone.
 - When the generator is ready (Phase 1), the Railway world **moves to a generated map** in one
   announced step: characters keep their skills, items and pack, and arrive at the new world's
   spawn. Their old position is the only thing that doesn't carry over.
