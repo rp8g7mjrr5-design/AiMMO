@@ -5,6 +5,9 @@ extends RefCounted
 ## server's snapshots, so the speed of that smoothed motion is what the player sees, and the
 ## gait follows it. Idle avatars breathe gently instead.
 ##
+## Footfalls: after each `step()`, `stepped` is true on the frame a foot comes down (two per
+## stride cycle), so the client can play a footstep sound exactly in time with the legs.
+##
 ## Usage: call `step(node.position, delta)` once per frame, then `apply(body)` on the child
 ## that holds the avatar's meshes (pivot at the feet, facing +Z). Arms or legs named ArmL,
 ## ArmR, LegL, LegR under that child also swing, if the avatar has them.
@@ -17,6 +20,11 @@ const ARM_SWING := 0.65             ## radians each arm swings
 const LEG_SWING := 0.5              ## radians each leg swings
 const BREATH_HEIGHT := 0.012        ## metres of idle breathing
 const TELEPORT_DIST := 3.0          ## metres in one frame that count as a jump, not a walk
+const FOOTSTEP_MIN_GAIT := 0.3      ## below this much walking, a phase crossing is not a step
+
+var footsteps := 0 ## footfalls so far (the phase crossing 0 or PI while walking)
+var stepped := false ## true for the one step() call in which a foot came down
+var foot := 0 ## which foot came down last: 0 left (phase crossed PI), 1 right (crossed 0)
 
 var phase := 0.0   ## stride phase in radians; one full cycle is two footsteps
 var speed := 0.0   ## smoothed planar speed in m/s
@@ -32,6 +40,7 @@ func amount() -> float:
 
 func step(pos: Vector3, delta: float) -> void:
 	if delta <= 0.0:
+		stepped = false
 		return
 	var measured := 0.0
 	if _has_last:
@@ -45,7 +54,20 @@ func step(pos: Vector3, delta: float) -> void:
 	if speed < 0.05:
 		speed = 0.0
 	var a := amount()
+	var before := phase
 	phase = fmod(phase + delta * TAU * STRIDE_CYCLES_PER_SEC * a, TAU)
+	# A foot lands when the stride phase crosses PI (left) or wraps past 0 (right). Only a real
+	# walk counts: the settle below eases the phase too, but that is feet coming to rest.
+	stepped = false
+	if a >= FOOTSTEP_MIN_GAIT:
+		if phase < before:
+			stepped = true
+			foot = 1
+		elif before < PI and phase >= PI:
+			stepped = true
+			foot = 0
+		if stepped:
+			footsteps += 1
 	if a < 0.05:
 		# Settle the feet: ease the phase back to a rest pose instead of freezing mid-stride.
 		var rest := 0.0 if phase < PI * 0.5 or phase > PI * 1.5 else PI
