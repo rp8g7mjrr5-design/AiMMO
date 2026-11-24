@@ -1309,3 +1309,34 @@ baseline give no problems. Client smoke not run: nothing the client loads change
 
 **Next run:** check this PR landed and `main` is green; then the bot `c2s_input` rate perf
 follow-up, or re-take the per-skill baseline from CI.
+
+## 2026-11-24 ~04:10 UTC: flaky health bot check (`ws/qa/vitals-too-fast`)
+
+**What went red:** #175's first CI run failed the 45 s ENet smoke on one bot with
+"[gameplay_vitals] health didn't come back after the fight: Health 70/100, ..., in combat." A
+re-run went green and #175 merged, so this was a flake, but one that can hold any stream's PR
+(or `main`) red at random.
+
+**Cause (reproduced, not guessed):** on 2 cores (`taskset -c 0,1`) the smoke run failed 1 of 2
+times locally. A debug trace showed: `/hurt 30` answered, the READ `/vitals` queued behind
+the bot's command gap, then a "Slow down" (ChatCommands.TOO_FAST) arrived for *another
+behaviour's* line (on a busy box, two lines sent 0.65 s apart can reach the server under 0.5 s
+apart). `gameplay_vitals` took it as its own and queued a second `/vitals`. Both went out: the
+first answered READ, and the spare one's callback restarted the clock on the HEAL step, so its
+"70/100, in combat" answer was read as the post-fight check.
+
+**Fix (tests/ only, qa-owned):** `gameplay_vitals` ignores a TOO_FAST while its own line is still
+in the bot's queue (it can't be ours), and only the latest `_send`'s callback starts the answer
+clock. Unit test `test_qa_vitals_too_fast.gd` (3): both checks fail on the old file and pass now.
+After the fix: 8 of 8 stressed 2-core smoke runs passed (5 before rebasing on #175, 3 after).
+
+**Not done:** other behaviours (inventory, skills, chat_commands, chat_gate) treat any TOO_FAST
+as theirs too, but they only resend idempotent queries and count answers loosely, so a spare
+answer is harmless there. Filed a follow-up to make TOO_FAST ownership a bot-level thing
+(`bot.gd` knows which line went out last) if another one flakes.
+
+**Tests:** unit 732/732 (Postgres), bot test 8 x 180 s WebSocket + Postgres PASSED in 277 s
+(8/8 levelled, 8 skill level-ups, median 34.7 s). Client smoke not run: nothing the client loads changed.
+
+**Next run:** check this PR landed. Then the bot `c2s_input` rate perf follow-up, or re-take the
+per-skill baseline from CI.
