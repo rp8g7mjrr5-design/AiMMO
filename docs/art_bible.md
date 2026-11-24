@@ -114,57 +114,87 @@ Rules of thumb:
   silhouette alone at 30 m. Tools and weapons are about 1.2x real size so they read in hand.
 
 ### Characters
-The owner's words (2026-11-24): "our dudes look fat and silly". Characters are lean,
-grounded adults who live outdoors, rendered as chunky low-poly. `AvatarBuilder` is the
-reference; every new character, NPC or gear piece follows these rules.
+The owner's words (2026-11-24): "our dudes look fat and silly", then "less blocky", then "too
+sticky", then "this is a way better start" for the sculpted body in the test camp, and "fine
+tune our models more, give them direction". Characters are grounded adults who live
+outdoors: fit, weathered, dressed in layers that tell you their trade. This section is the
+**model direction**: every player, NPC, outfit and gear piece follows it.
 
-**Organic, not blocky** (owner, 2026-11-24: "less blocky and more low res actual"). Every
-body part is a smooth lofted shape (`AvatarBuilder.loft()`: rings of width and depth, smooth
-normals) or a squashed ball. No boxes and no bare cylinders on a character; a unit test
-enforces it. The torso swells at the chest and narrows at the waist, the calves swell, the
-head is an egg with a jaw, and the arms hang slightly away from the body. Upper arm and
-forearm, thigh and shin are separate pieces, so the animation work can skin them to a
-skeleton and bend elbows and knees.
+**One sculpted body, not a kit of parts.** A character is one continuous surface, not boxes,
+cylinders or lofted segments stuck together. It is sculpted from soft shapes (round cones
+for limbs, ellipsoids for muscle and fat) blended so the joins melt, then cut down to a low
+triangle count. The surface is smoothed before it is cut down (no lumps or creases from the
+blend) and shaded softly, with hard edges only at hems, belts and real folds (owner, 2026-11-24:
+"they need smoothing out a little"). The silhouette stays low-poly and firm; no seams at the
+shoulder or hip. Forearms and hands are their own blend
+group, so a hand hanging by the belt never melts into the hip. The test camp's sculptor
+(`Sculpt` and `Figure`, scratch today) is the reference until the in-game version lands.
 
-**Proportions (the numbers live in `AvatarBuilder`'s constants):**
-- **About 7 heads tall.** A 1.78 m adult with a 0.25 m head. Never chibi, never a big-headed
-  doll, never a barrel. The old wanderer was about 3.5 heads and 0.64 m wide.
-- **Shoulders wider than hips, a narrow waist.** The chest is a tapered shape about 0.41 m
-  across at the shoulders and 0.31 m at the waist, and only about two-thirds as deep as it is
-  wide. Nothing is a capsule or a ball.
-- **Long legs.** The hips sit at about half the height (0.92 m). Thigh, shin and boot are
-  separate pieces, so the legs taper and read as legs.
-- **Real arms.** The shoulders sit at 1.42 m and the hands hang to mid-thigh (0.63 m of arm).
-  The sleeve, a leather bracer and the hand are separate pieces.
-- **Small, quiet faces.** A slightly narrow head, a neck, a nose and two shadowed eye
-  sockets in the skin's own colour. No black button eyes, no big round heads.
+**Proportions** (the 18-bone `AvatarSkeleton` sets the joints; never move them):
+- **About 7 heads tall.** A 1.78 m adult with a 0.25 m head. Never chibi, never a doll,
+  never a barrel.
+- **A real build.** Shoulder joints 0.47 m apart with full deltoids over them, hips about 0.35 m, a chest
+  about 0.26 m deep. Upper arms about 13 cm thick, thighs about 20 cm. Mass sits in the chest,
+  shoulders, seat and calves; the waist stays narrower than the chest.
+- **Long legs, real arms.** Hips at half the height (0.92 m), shoulders at 1.42 m, hands
+  hanging to mid-thigh.
+- **Build is one number.** `bulk` scales girth, never height or joints: 0.95 is a lean scout,
+  1.05 is the default traveller, 1.15 to 1.2 is a woodcutter or smith. Body types in
+  customization are this number and nothing else, so every outfit fits every build.
 
-**Silhouette, read from the back first** (the action camera sees the back all game):
-- Every head has a hood or hair (with or without a felt cap). No bare skin balls and no
-  comedy hats: no pointed wizard hats, party hats or crowns.
-- A wool mantle over the shoulders, a framed pack with a bedroll on top, a belt with a pouch
-  and a knife, a strap across the chest. Players should read "someone who sleeps outdoors"
-  at 20 m.
-- The pack stays between the swinging arms (`PACK_WIDTH`), and nothing hangs where an arm
-  or leg swings through it.
+**Heads and faces read at 10 m, quiet up close:**
+- A full jaw and cheeks (no hollow cheeks: hollows read as a skull), a nose, a brow ridge,
+  ears that sit flat.
+- Eyes are two small dark slits under the brow, painted, not cut in (cut sockets go black
+  and read as a skull). Eyebrows are a thin painted band in a darker shade of the hair.
+- Beards are real mass on the jaw and chin, in the hair's colour, never a painted patch.
+- The hairline is a clean painted line across the forehead; hair is a cap with volume swept
+  back and over the ears. Every head has hair or a hood.
 
-**Layers and colour:**
-- The base is dyed cloth (`Palette.CLOTH`). Over it go gear layers in `Palette.LEATHER`,
-  `LEATHER_DARK`, `WOOL`, `TROUSERS` and `BEDROLL`. The cloth colour shows on the chest, the
-  skirt and the sleeves. Everything else is worn leather and wool.
-- No bright primaries, no pure colours, no glow on characters. Ember on a character is
-  reserved for gear that does something, later.
-- Gear (Milestone 3) changes the silhouette in this same language: shoulders, gloves,
-  helmets and weapons grow out of these layers, about 1.2x real size so they read in hand.
+**Clothing is layers, and hems are straight:**
+- Order from skin out: shirt (dyed `Palette.CLOTH`), trousers (`TROUSERS`), boots (`LEATHER_DARK`
+  with a turned-down cuff), then the trade layer (jerkin, coat, apron, hood and cloak), then
+  the belt (`LEATHER_DARK`, an iron buckle) with a pouch and a knife at the back hip.
+- Every layer that sits over another is sculpted slightly proud of it (a few millimetres to
+  a few centimetres), so it casts its own shading. Paint alone does not make a layer.
+- **Hems and colour borders are straight lines** at set heights: boot top 0.36 m, cuffs, belt
+  at 1.0 m, shirt hem 0.93 m, coat hem 0.6 m, apron hem 0.64 m, neckline 1.44 m. A garment's
+  lower edge is cut flat, never a rounded sack. Ragged, saw-tooth borders are a bug.
+- Sleeves: full to the wrist with a leather bracer, or rolled to the elbow for heavy trades.
+- Nothing is skin-tight: cloth hangs a little off the body and gathers at the belt.
 
-**Cost:** each traveller is drawn as five merged meshes (body and four limbs) on the shared
-Emberlight material: 5 draw calls, about 2,300 triangles. New parts go into those merged
-meshes, never as extra nodes. Hard limits: 6 draw calls and 3,000 triangles a character.
+**Archetypes** (the reference lineup; customization and NPCs start from these):
 
-**Animation** is its own piece of work (the owner asked for it on 2026-11-24): a skinned
-skeleton on these segment meshes with idle, walk, run, gathering, crafting, jump, light and
-heavy swings, knockdown and getting up, and sitting. It should be weighty and grounded:
-weight shifts onto the planted foot, swings wind up before they land, nothing snaps.
+| Archetype | Build | Silhouette from behind | Layers |
+|---|---|---|---|
+| Woodcutter | 1.14 | broad shoulders, beard | dyed shirt, rolled sleeves, leather jerkin |
+| Scout | 0.96 | hood and a cloak to the knee | hood, cloak, bracers, no jerkin |
+| Elder | 1.06 | long coat to the knee, grey beard | coat over the shirt, belted |
+| Smith | 1.2 | heaviest build, apron front | pale shirt, rolled sleeves, long leather apron |
+
+**Colour and surface:**
+- Flat colour per region in vertex colour (converted to linear, as `Emberlight.paint` does),
+  plus a fine texel grain (about 1.8 cm) so cloth never looks like bare plastic.
+- Muted, earthy and slightly dirty: no bright primaries, no pure colours, no glow. Ember on a
+  character is reserved for gear that does something, later.
+- The Gloam use this same body with the art bible's ash-cold palette and torn layers, so the
+  living read warm and the dead read cold at a glance (`docs/vision.md`).
+
+**Silhouette, read from the back first** (the action camera sees the back all game): head
+covered by hair or a hood, a readable trade layer (jerkin, cloak, coat or apron), a belt with
+gear, and later a pack. Players should read "someone who lives out here" at 20 m. Nothing
+hangs where an arm or leg swings through it.
+
+**Cost:** one skinned mesh on the shared Emberlight material: 1 draw call for the body (plus
+1 for a held tool), at most 5,000 triangles. The sculpt and the paint happen once per look and
+are cached (a body takes seconds to build in GDScript, so it is never built in a frame). Paint
+borders are kept when the mesh is cut down, so the straight hems survive the budget. The old
+five-mesh traveller was 5 draw calls and 2,300 triangles; the new body spends a few more
+triangles and far fewer draw calls.
+
+**Animation** is its own piece of work (the owner asked for it on 2026-11-24): the same
+skeleton, weighty and grounded. Weight shifts onto the planted foot, swings wind up before
+they land, nothing snaps.
 
 **Creatures** are animals first: real gaits, real proportions, muted coats (the grazers'
 build is right; keep tails and markings understated).
@@ -372,6 +402,8 @@ reintroduces them.
 | Big bald orange head, black button eyes | About 3.5 heads tall, a doll's face | **Fixed 2026-11-24**: hair or a hood on every head, natural skin, a nose and quiet eyes |
 | Blocky mannequin bodies ("less blocky, more low res actual") | Boxes and cylinders, plastic flat colour | **Fixed 2026-11-24**: smooth lofted bodies and the low-res texel grain on everything (section 1) |
 | Fat, barrel-shaped bodies ("our dudes look fat and silly") | A 0.64 m wide capsule on short stubby legs | **Fixed 2026-11-24 (character overhaul)**: lean 7-head adults, tapered chest, long legs, layered survival gear (section 3, "Characters") |
+| Skull faces | Hollow cheeks and cut eye sockets go black under low light | **Direction set 2026-11-24**: full jaw and cheeks, painted eye slits and brows, real beards (section 3, "Characters"); lands with the sculpted body |
+| Saw-tooth clothing edges and sack-shaped coats | Colour picked per triangle; long garments as rounded tubes | **Direction set 2026-11-24**: straight hems at set heights, flat-cut lower edges, layers sculpted proud; lands with the sculpted body |
 | Postcard-cyan noon sky | Bright and flat, no mood | **Fixed 2026-11-24**: dusty blue, hazy horizon |
 | Solid gold level-up tube and red crystal sparks | Swallowed the avatar; arcade effect | **Toned down 2026-11-24**: translucent, fewer sparks, dimmer light. Next: rounder ember sparks instead of hexagon shards, a subtler ground ring |
 | Teal, green-lit nights | Neither moonlit nor dark | **Improved 2026-11-24**: navy and blue-grey, moon-blue fill. Next: check dark cloth reads on a real GPU (CI renders in software) |
