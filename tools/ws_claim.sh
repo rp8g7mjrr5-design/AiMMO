@@ -11,11 +11,11 @@
 #   tools/ws_claim.sh status  <stream>
 #
 # Needs no clone of the game, so run it before cloning:
-#   bash <(gh api repos/rp8g7mjrr5-design/AiMMO/contents/tools/ws_claim.sh -H "Accept: application/vnd.github.raw") take qa "starting"
+#   bash <(gh api repos/rp8g7mjrr5-design/ZombAi/contents/tools/ws_claim.sh -H "Accept: application/vnd.github.raw") take qa "starting"
 # A claim older than AIMMO_CLAIM_STALE_MIN minutes (default 150) belongs to a run that died, and
 # the next run takes it over.
 set -uo pipefail
-REPO=${AIMMO_REPO:-rp8g7mjrr5-design/AiMMO}
+REPO=${AIMMO_REPO:-rp8g7mjrr5-design/ZombAi}
 URL=${AIMMO_REPO_URL:-https://github.com/$REPO}
 STALE_MIN=${AIMMO_CLAIM_STALE_MIN:-150}
 cmd=${1:?take|note|release|status}

@@ -1006,7 +1006,7 @@ func _build_ui() -> void:
 	margin.add_child(box)
 
 	var title := Label.new()
-	title.text = "AiMMO · Ashgrove"
+	title.text = "ZombAi · Ashgrove"
 	title.add_theme_font_size_override("font_size", 30)
 	box.add_child(title)
 	var sub := Label.new()

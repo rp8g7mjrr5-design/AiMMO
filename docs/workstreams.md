@@ -1,6 +1,6 @@
 # Continuous development: workstreams
 
-AiMMO is developed around the clock by several AI sessions working in parallel. Each
+ZombAi (repo renamed from AiMMO) is developed around the clock by several AI sessions working in parallel. Each
 **worker** owns one area of the game and ships one small, tested improvement per run as a
 pull request and turns on GitHub auto-merge, so GitHub squash-merges it once the required
 "Test" check passes. No session calls merge directly. The **integrator** reviews what landed,
@@ -98,7 +98,7 @@ holds a **claim** while it works: a branch `claim/<stream>` that `tools/ws_claim
 atomically. It needs no clone, so take it before doing anything expensive:
 
 ```sh
-CLAIM() { bash <(gh api repos/rp8g7mjrr5-design/AiMMO/contents/tools/ws_claim.sh -H "Accept: application/vnd.github.raw") "$@"; }
+CLAIM() { bash <(gh api repos/rp8g7mjrr5-design/ZombAi/contents/tools/ws_claim.sh -H "Accept: application/vnd.github.raw") "$@"; }
 CLAIM take <stream> "starting"        # exit 3 = another run of this stream is working: stop now, one line
 CLAIM note <stream> "<item you picked>"   # once you've picked, and every ~45 min of a long run
 CLAIM release <stream> "<PR link or why>" # last thing you do, whether you shipped or not

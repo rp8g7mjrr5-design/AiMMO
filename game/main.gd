@@ -3,6 +3,7 @@ extends Node
 ## Every role creates the same `Net` child so RPC node paths match on all peers.
 
 const NetScript := preload("res://shared/net.gd")
+const GAME_TITLE := "ZombAi"
 
 
 func _ready() -> void:
@@ -18,6 +19,10 @@ func _ready() -> void:
 	elif args.has("bot"):
 		role = load("res://tests/bot_test/bot.gd").new()
 	else:
+		# The game is ZombAi, but project.godot's config/name stays "AiMMO" because it names the
+		# user data folder (settings, downloaded updates) players already have. So the window
+		# title is set here instead.
+		get_window().title = GAME_TITLE
 		if Intro.should_play(args):
 			# The Budda Games intro replaces the engine splash; it ends on its own or on any key.
 			var intro := Intro.new()

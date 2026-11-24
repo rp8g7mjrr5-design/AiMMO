@@ -1,4 +1,4 @@
-; AiMMO Godot 4 project. One project, two roles: dedicated server and desktop client.
+; ZombAi Godot 4 project (config/name stays "AiMMO": it names the user data folder players already have). One project, two roles: dedicated server and desktop client.
 ; Role is picked at launch: `-- --server`, `-- --bot`, or no flag for the client.
 
 config_version=5
@@ -6,7 +6,7 @@ config_version=5
 [application]
 
 config/name="AiMMO"
-config/description="A real-time 3D MMO designed, built, and run by AI."
+config/description="ZombAi: a third-person co-op survival game in a fallen kingdom, designed and built by AI."
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.3")
 ; No engine logo at launch: the client opens on the Budda Games intro (client/intro.gd),

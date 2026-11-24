@@ -1,0 +1,1 @@
+- The game has a new name: **ZombAi**. The window, the login screen and the update screen say so now. Your character, your settings and automatic updates carry on exactly as before; there is nothing to reinstall.

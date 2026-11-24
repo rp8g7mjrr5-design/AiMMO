@@ -42,7 +42,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "tests" / "bot_test"))
 import fun_report  # noqa: E402
 
-REPO = "rp8g7mjrr5-design/AiMMO"
+REPO = "rp8g7mjrr5-design/ZombAi"
 TIMESTAMP = re.compile(r"^\d{4}-\d\d-\d\dT[\d:.]+Z ?")
 STEP = "##[group]Run "
 SUMMARY_TAG = "[bot-test] fun summary: "

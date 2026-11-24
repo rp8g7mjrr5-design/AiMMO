@@ -255,7 +255,7 @@ func _download(file: Dictionary, build: int) -> String:
 	var part := final_path + ".part"
 	if FileAccess.file_exists(final_path) and FileAccess.get_sha256(final_path) == file.sha256:
 		return final_path
-	_title.text = "Updating AiMMO"
+	_title.text = "Updating ZombAi"
 	_set_status("Downloading the newest world...", 0.0)
 	_http.timeout = 0.0
 	_http.download_file = part
@@ -330,7 +330,7 @@ func _cleanup_old(keep: String) -> void:
 
 
 func _ask_for_install() -> void:
-	_title.text = "A new AiMMO installer is out"
+	_title.text = "A new ZombAi installer is out"
 	_set_status("This update needs a fresh install, just this once.", -1.0)
 	_detail.text = "Download the new version from the page that opens, then play from it."
 	var page := Button.new()
@@ -370,7 +370,7 @@ func _build_ui() -> void:
 	center.add_child(box)
 
 	_title = Label.new()
-	_title.text = "AiMMO · Ashgrove"
+	_title.text = "ZombAi · Ashgrove"
 	_title.add_theme_font_size_override("font_size", 30)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_title)

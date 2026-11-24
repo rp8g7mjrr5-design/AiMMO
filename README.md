@@ -1,6 +1,6 @@
-# AiMMO
+# ZombAi
 
-A real-time 3D MMO designed, built, and run entirely by AI. Start with [CLAUDE.md](CLAUDE.md).
+A third-person co-op survival game in a fallen medieval kingdom, designed and built by AI with its owner (formerly AiMMO). The design is in [docs/vision.md](docs/vision.md). Start with [CLAUDE.md](CLAUDE.md).
 
 - **Play:** download the client for your computer from [Releases](../../releases) once, open it, pick a name and password, and enter the world. After that the game updates itself: every time you open it, it fetches the newest version first (a few seconds with a progress bar) and starts it.
 - **Report bugs:** add them to [docs/playtest.md](docs/playtest.md).

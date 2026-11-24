@@ -1,16 +1,16 @@
-# ZombAi (repo: AiMMO) — Project Constitution
+# ZombAi Project Constitution
 
 Read this file first, every session. You start with no memory; this repo is your memory.
 
 ## Mission
-**ZombAi** (the repo is still named AiMMO until the rename, see `docs/vision.md`) is a real-time 3D **third-person survival game** built by its owner and AI together (owner direction, 2026-11-24): a fallen medieval kingdom on generated maps full of risk-graded ruins, the Gloam (our own undead), building and surviving with **2 to 8 friends in co-op** (for now on today's always-on Railway world, capped at 8; never break it), sold as a one-time buy. **Read `docs/vision.md` every session**; it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
+**ZombAi** (the repo was renamed from AiMMO on 2026-11-24; the game's internal data folder and `AIMMO_*` settings keep the old name on purpose, see `docs/vision.md`) is a real-time 3D **third-person survival game** built by its owner and AI together (owner direction, 2026-11-24): a fallen medieval kingdom on generated maps full of risk-graded ruins, the Gloam (our own undead), building and surviving with **2 to 8 friends in co-op** (for now on today's always-on Railway world, capped at 8; never break it), sold as a one-time buy. **Read `docs/vision.md` every session**; it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
 
 ## Autonomy rules
 - Never wait for human input and never ask questions. Make the call, write down why, move on.
 - The human's only input channel is `docs/playtest.md` (bugs and crashes only). Treat it as bug reports, not design requests.
 - **Fun comes first.** The owner's number one rule: if it isn't fun, it isn't worth shipping. Judge every change by whether it makes the game more fun to play (tight feedback, short loops that pay off, juice, no dead time), and say how in your PR. See "Fun comes first" in `docs/design_bible.md`.
 - The owner's standing directions are in `docs/design_bible.md` under "Owner directions" (fun comes first, chat is for talking only, the action camera, how gathering feels, the whole game feels like a modern action game, the long road of skills, take the best and beat it, a look of our own that is cheap to draw (`docs/art_bible.md`), the ZombAi survival game (`docs/vision.md`), and "Inspired by, never copied"). Follow them over any other design choice; everything else stays your call.
-- **The look is grounded, not cute** (owner direction, 2026-11-24). Before any change that shows something on screen, read `docs/art_bible.md`, at least section 0 (the pillars), section 11 (what reads as cheesy) and section 12 (the checklist), and follow it. Muted earthy colours, real proportions, moody light, restrained effects and UI; inspired by the grounded survival-crafting MMO genre, never copying any game.
+- **The look is grounded, not cute** (owner direction, 2026-11-24). Before any change that shows something on screen, read `docs/art_bible.md`, at least section 0 (the pillars), section 11 (what reads as cheesy) and section 12 (the checklist), and follow it. Muted earthy colours, real proportions, moody light, restrained effects and UI; inspired by grounded survival-crafting games, never copying any game.
 - Stay true to `docs/design_bible.md`. You may evolve it, but log every change and its reason in that file's "Revision history" so the vision doesn't flip-flop week to week.
 
 ## Hard rules (never break these)
@@ -22,6 +22,7 @@ Read this file first, every session. You start with no memory; this repo is your
 6. **Never break save compatibility.** Players' existing characters, items, worlds and progress must load after every update, including worlds saved by hosts on their own machines.
 
 ## Tech stack
+- **Repository:** `rp8g7mjrr5-design/ZombAi` (renamed from AiMMO). Use the new name in every `gh api` path and `add_repo` call: the API answers the old name with a redirect the session proxy refuses. Never create a new repository named AiMMO, because installed games follow GitHub's redirect from the old name to find updates.
 - **Engine:** Godot 4 (GDScript), one project in `game/` with two export presets:
   - `server`: headless dedicated server (Linux), deployed to Railway via Docker.
   - `client`: desktop builds for Windows, macOS, and Linux.
