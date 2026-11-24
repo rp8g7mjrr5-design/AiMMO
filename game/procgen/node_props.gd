@@ -611,6 +611,8 @@ static func set_depleted(root: Node3D, id: int, depleted: bool) -> bool:
 	var fx := root.get_node_or_null("Fx") as NodeFx
 	if fx:
 		fx.refresh(id)
+	# A felled ash or dry seep stops breathing sparks (if it glows ember, you can use it).
+	Motes.set_dark(root.get_parent(), id, depleted)
 	return true
 
 
