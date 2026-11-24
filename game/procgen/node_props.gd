@@ -37,9 +37,9 @@ const VEIN_CRACKS := {"ash": 3, "pine": 2, "stone": 2, "ember_sap": 3} ## at tie
 const MAX_VEIN_PARTS := 10 ## NodeFx's glow shell holds 10 parts per layer
 
 ## Colours. Live nodes are lifted above the decoration palette so they stand out.
-const ASH_NODE_LEAF := Color(0.93, 0.50, 0.24)
-const PINE_NODE := Color(0.18, 0.52, 0.33)
-const STONE_NODE := Color(0.62, 0.60, 0.57)
+const ASH_NODE_LEAF := Color(0.70, 0.36, 0.18) ## a touch hotter than the scatter ash, so a gatherable reads
+const PINE_NODE := Color(0.17, 0.31, 0.23)
+const STONE_NODE := Color(0.54, 0.52, 0.49)
 const STONE_VEIN := Color(0.80, 0.76, 0.66) ## a pale quartz seam: "this rock is worth hitting"
 const SAP_GLOW := Color(1.0, 0.55, 0.18)
 const SAP_RIM := Color(0.30, 0.24, 0.20)

@@ -605,3 +605,15 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Didn't do.** The plume goes out at once on the last hit; NodeFx's burst covers it. A die-out (sparks in the air finish rising) needs a per-anchor time in the shader; follow-up added.
 
 **Next run.** Still waiting on the client for the milestone burst and impact puff. Otherwise the noon grass saturation follow-up or the mid-distance tree mesh.
+
+## 2026-11-24, owner-directed: grounded art direction (claude/grounded-art-direction)
+
+**Why.** The owner played the build and said the look is "cheesy and looks silly"; they want it heavily inspired by the grounded survival-crafting MMO genre, in low poly, clearly ours, legally safe. Rewrote `docs/art_bible.md` around five pillars and a named "what reads as cheesy" list (section 11), and did a first pass on the worst offenders.
+
+**Built.** Palette: olive and straw grass, dark moss forest floor, dark spruce pines, weathered bark, rust ash crowns (`ASH_LEAF_DRY` for variety), deeper water, old snow; `Palette.CLOTH`, `HAIR`, `skin()`. Ash scatter: thicker trunks, two lopsided lobes per crown (6x2 sphere, so triangles stay in budget). Avatars: earthy cloth, a hood instead of the pointed hat, hair on every non-hooded head (no rng draw added, old seeds keep their draws), head radius 0.24 -> 0.19, quiet eye sockets. Sky: dusty blue keys, `DAY_AMBIENT` 0.36, a whole-frame grade (saturation 0.92, contrast 1.10). Night: moonlit flat ambient (`ambient_color`, `NIGHT_SKY_SHARE`), `NIGHT_LIGHT` 0.55, shader `night_shade` 1.4 so figures turned from the moon are blue-grey, not black. Level-up column translucent (alpha cap 0.92 -> 0.62), 16 sparks, light 1.8.
+
+**Didn't work.** One fat flattened crown lobe read as mushrooms; taller lobes plus a lower side lobe read as trees. 7x3 lobes x2 put night primitives at 518k (ceiling 500k); 6x2 lobes land at 480k. Shrinking the level-up column's radius breaks the "readable at 45 m" tests, so only its opacity changed. In the Compatibility renderer the sky ambient is near nothing at night, so ambient tweaks alone did not lift dark cloth; the shader's night shade did.
+
+**Tests.** Unit 678 pass (no Postgres here). Client smoke passes: primitives 449k noon / 480k night, style baseline rewritten on purpose. Before/after shots in the project files (`art-direction/`).
+
+**Next.** Backlog top item: ground cover patches, wilderness lanterns, level-up sparks, 6-head characters, node ash crowns. Check dark cloth at night on a real GPU (Forward+), CI only sees software GL.

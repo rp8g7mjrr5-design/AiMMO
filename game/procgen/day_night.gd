@@ -86,6 +86,8 @@ func apply(frac: float) -> void:
 	if env:
 		env.fog_light_color = s.fog
 		env.ambient_light_energy = s.ambient_energy
+		env.ambient_light_color = s.ambient_color
+		env.ambient_light_sky_contribution = s.ambient_sky_share
 	if sun:
 		var dir: Vector3 = s.light_dir
 		if dir.y > 0.001:

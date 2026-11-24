@@ -1,25 +1,46 @@
-# AiMMO Art Bible: Emberlight
+# AiMMO Art Bible: Emberlight, grounded
 
-This is how Ashgrove looks, and how it stays cheap to draw. It is an owner direction
-(2026-11-23, see "7. A look of our own, cheap to draw" in `docs/design_bible.md`): the
-owner wants a look in the same family as their favourite modern MMO (stylized, painterly
-realism with moody golden light and a dark supernatural layer), made unmistakably ours, and
-built in the most efficient way possible for the server, the client and the bots.
+This is how Ashgrove looks, and how it stays cheap to draw. Every worker whose change shows
+anything on screen reads this first (CLAUDE.md, "Owner directions"). Owned by the director;
+every change is logged in the design bible's Revision history, like any other change to the
+vision. `world` builds the look, `client` owns the HUD, render settings and quality options,
+`qa` enforces the budgets and the style check in CI.
 
-Owned by the director. Every change is logged in the design bible's Revision history, like
-any other change to the vision. `world` builds the look, `client` owns the render settings
-and quality options, `qa` enforces the budgets and the style check in CI.
+## 0. What the owner asked for (owner direction, 2026-11-24)
+The owner played the build and said the style "is cheesy and looks silly". They want AiMMO to
+feel **heavily inspired by the genre of grounded survival-and-crafting action MMOs** (their
+favourite is New World): a real-feeling wilderness, moody painterly light, weathered materials,
+the sense that the world is old and a little dangerous. Done in **low poly**, with a style that
+is **clearly our own**, and without getting us in trouble (section 6).
+
+So the bar for every visual change is: *would this look at home in a grounded, moody
+wilderness MMO, rendered as chunky low-poly?* If it would look at home in a mobile party game
+or a toy box, it is wrong for Ashgrove.
+
+### The five pillars
+1. **Grounded before cute.** Real proportions, real materials, real weight. Nothing is round
+   because round is friendly; things are the shape their job and their age made them.
+2. **Mood comes from light.** Atmosphere is built with low sun, haze, long shadows, dusk and
+   real night, not with brighter colours. A good screenshot of Ashgrove could be a painting of
+   a quiet evening.
+3. **Earth first, ember rare.** About 90% of the screen is muted, lived-in naturals (olive,
+   moss, bark, stone, rust, straw). The ember glow is the one saturated note, and it means
+   "you can use this".
+4. **Weathered and worn.** Everything has been out in the weather: darker at the base, paler
+   where the sun hits, never factory-clean, never plastic.
+5. **Restraint.** Effects, UI and colour whisper until something important happens. The world
+   is the show; the HUD and effects are the frame.
 
 ## 1. The style in one line
-**Emberlight: painted low-poly.** Grounded proportions and real lighting logic, simplified
-into chunky low-poly shapes, with colour *painted into the geometry* (vertex colours,
-gradients and one shared shader), never photographic textures. Golden late-afternoon light,
-cool blue shadows, and a living ember glow that pulses through everything the sleeping thing
-under the valley touches.
+**Emberlight: grounded painted low-poly.** Grounded proportions and real lighting logic,
+simplified into chunky faceted shapes, with colour *painted into the geometry* (vertex
+colours, gradients and one shared shader), never photographic textures. A muted autumn
+valley under low golden light and cool blue shadows, with a faint ember glow pulsing through
+everything the sleeping thing under the valley touches.
 
 The family is "stylized realism". What makes it ours, and what makes it cheap, is the same
-thing: **no textures, one shader, colour in the vertices.** A texture-painted realistic MMO
-cannot look like this, and could not run on this budget.
+thing: **no textures, one shader, colour in the vertices, big facets.** A texture-painted
+realistic MMO cannot look like this, and could not run on this budget.
 
 ## 2. Palette
 The palette lives in `game/procgen/palette.gd`. New content picks from it or extends it
@@ -27,55 +48,86 @@ there, with a comment saying what the colour is for. No other file hard-codes a 
 world art (qa lints this, see section 8).
 
 **The 60 / 30 / 10 rule.** About 60% of any screen is muted natural colour (grass, bark,
-rock, sky), about 30% is warm light (sunlight, lit faces, haze), and at most 10% is ember
+rock, sky), about 30% is warm light (sunlit faces, haze, rust crowns), and at most 10% is ember
 accent. Ember is rare on purpose: that is why it reads.
 
-| Token | Hex | Use |
+**Saturation and value rules.**
+- **Naturals stay below about 0.45 saturation** (HSV) in the palette, and the whole frame is
+  graded a touch flatter on top (section 5). Only `EMBER` / `EMBER_CORE` glows go brighter.
+- **No lime, no candy.** Greens lean olive, moss and spruce (hue toward yellow-grey or
+  blue-grey, never toward highlighter). Oranges lean rust and burnt sienna, never traffic cone.
+- **Darks carry the mood.** Pines, bark, forest floor and shadows are genuinely dark (value
+  0.15 to 0.35). A screen with no real darks reads as a toy.
+- **Never pure black, never paper white.** `SOOT` is the darkest value, old snow is the
+  brightest.
+
+| Token | Value | Use |
 |---|---|---|
-| `EMBER` | `#F2A541` | **The signature.** Glow on anything you can use: gatherable nodes, interactables, magic, level-ups. Reserved: never on plain decoration. |
+| `GRASS` | `(0.33, 0.41, 0.25)` | Olive valley grass. The biggest share of most screens |
+| `MEADOW` | `(0.39, 0.45, 0.27)` | Dry autumn meadow on the valley floor, olive going straw |
+| `FOREST` | `(0.25, 0.33, 0.22)` | Forest floor and higher slopes: dark moss |
+| `ROCK` | `(0.46, 0.44, 0.41)` | Weathered grey stone, a touch warm |
+| `SAND` / `LAKEBED` | `(0.68, 0.62, 0.48)` / `(0.30, 0.33, 0.27)` | Silt shores, not a beach postcard |
+| `SNOW` | `(0.86, 0.87, 0.88)` | Old snow. Never paper white |
+| `WATER` | `(0.20, 0.33, 0.38, 0.80)` | Deep cold valley water, not pool blue |
+| `TRUNK` | `(0.32, 0.25, 0.20)` | Weathered bark |
+| `PINE` | `(0.15, 0.27, 0.21)` | Dark spruce: pines are the shadows of the forest |
+| `ASH_LEAF` / `ASH_LEAF_DRY` | `(0.62, 0.31, 0.17)` / `(0.66, 0.46, 0.25)` | Ember ash crowns, rust to dry ochre. The valley's calling card |
+| `EMBER` | `#F2A541` | **The signature.** Glow on anything you can use: gatherable nodes, interactables, magic, level-ups. Never on plain decoration |
 | `EMBER_CORE` | `#FFD27A` | The hot centre of a glow, sparks, the brightest pixel of an ember vein |
-| `ASH_LEAF` | `#DB854D` | Ember ash crowns, the valley's name colour (exists today) |
 | `SMOULDER` | `#B5432A` | Deep ember red: dying embers, danger, the edge of a vein |
 | `COLD_ASH` | `#6E7A86` | The Dimming (section 4): drained, blue-grey ash |
-| `SOOT` | `#2B2A2E` | The darkest value. Never pure black anywhere in the world |
+| `SOOT` | `#2B2A2E` | The darkest value |
 | `SHADE` | `#4A5878` | Shadow tint. Shadows lean blue-violet, never grey or black |
-| `HAZE` | `#E8C9A0` | Valley haze and fog by day: warm, golden |
-| existing | see `palette.gd` | SAND, GRASS, MEADOW, FOREST, ROCK, SNOW, LAKEBED, WATER, TRUNK, PINE stay; they are the 60% |
+| `HAZE` | `#E8C9A0` | Valley haze by day: warm, golden |
+| `CLOTH` (8 dyes) | see `palette.gd` | Characters' cloth: undyed wool, madder, woad, weld, walnut, lichen, sloe, charcoal |
+| `HAIR`, `skin()` | see `palette.gd` | Natural hair and skin ranges. No orange skin, no bright hair |
 
 Rules of thumb:
 - **Warm light, cool shadow.** The lit side of everything leans gold; the shaded side leans
   `SHADE`. This one rule does most of the "painterly" work.
-- **No neon, no pure colours.** Natural colours stay below about 0.65 saturation. Only
-  `EMBER`/`EMBER_CORE` glows go brighter.
-- **Night is blue and ember, never black.** Moonlit `SHADE` blues, and the ember glow
-  carries the light.
-- **Gameplay signal:** *if it glows ember, you can use it.* Players learn that in a minute
-  and it stays true in every zone.
+- **Night is blue and ember, never black.** Moonlit blues, and the ember glow carries the
+  light.
+- **Gameplay signal:** *if it glows ember, you can use it.* Players learn that in a minute and
+  it stays true in every zone.
 
 ## 3. Shape language
 - **Chunky and grounded.** Thick trunks, heavy bases, a slight taper to the top. Things sit
   *in* the ground (root flares, buried stone), never on it.
-- **A little lean and twist.** Nothing tall is perfectly vertical or perfectly symmetric.
-  Each instance gets a small seeded lean, twist and scale.
-- **Bevelled, not sharp.** Low-poly facets with soft edges: 5 to 8 radial segments for
-  props (as today), flat-shaded faces, but gradients across them so they never look like
-  bare untextured blocks.
+- **Big facets, few of them.** Low poly means *visible, confident facets*, like a carved
+  wooden model, not smoothed blobs. 5 to 8 radial segments for props, flat-shaded faces with
+  gradients across them so they never look like bare untextured blocks.
+- **Irregular and asymmetric.** Nothing tall is perfectly vertical or perfectly symmetric.
+  Each instance gets a seeded lean, twist and scale. Tree crowns are **lopsided clusters of
+  lobes** (today: two per ash), never one ball on a stick ("lollipop trees" read as a toy).
 - **Readable from the shoulder camera.** Every gatherable, interactable or enemy reads by
   silhouette alone at 30 m. Tools and weapons are about 1.2x real size so they read in hand.
-- **Characters** keep their rounded wanderer build for now and grow toward grounded
-  proportions (about 5.5 to 6 heads tall, chunky hands and boots) when gear arrives in
-  Milestone 3, so gear has room to change the silhouette. Never chibi, never thin-realistic.
+
+### Characters
+- **Proportions:** grounded people, never chibi. Target **6 heads tall** with Milestone 3 gear
+  (shoulders, belts, boots and gloves that change the silhouette). Today's step: about 4.5
+  heads (head radius 0.19 m on a 1.65 m body; it was 0.24 m, about 3.5 heads, which read as a
+  toy). Each further step keeps the limb pivots the walk cycle swings.
+- **Cloth, not costume.** Tunics are dyed cloth from `Palette.CLOTH`; trousers, boots, belts
+  and packs are leather and wool. No bright primaries, no cyan, no pure colours.
+- **Headwear is gear.** Hoods, felt caps, later helmets. **No pointed wizard hats**, no party
+  hats, no comedy shapes. Every head has hair or headwear: the camera sees the back of the
+  head all game, and a bare ball there reads as a doll.
+- **Faces are quiet.** Small shadowed eye sockets in the skin's own colour, never black
+  buttons or big cartoon eyes.
+- **Creatures** are animals first: real gaits, real proportions, muted coats (the grazers'
+  build is right; keep tails and markings understated).
 
 ## 4. Signature motifs
-These are what a player should recognise in one screenshot.
+These are what a player should recognise in one screenshot, and they are ours.
 1. **Ember veins.** Thin glowing cracks of `EMBER` through bark, stone seams and sap: the
    sleeping thing's warmth showing through. Every gatherable and special thing has some;
-   richer tiers have more.
-2. **The heartbeat.** Every ember glow in the world pulses together, slowly (about one
-   beat every 4 s), from one shared value. Stand still at night and you can see the whole
-   valley breathe. One global shader parameter, so it costs nothing per object.
-3. **Leaves that never fall.** Ember ash crowns stay orange-red all year and glow faintly at
-   night (exists today; keep it the valley's calling card).
+   richer tiers have more. Thin lines, never big glowing patches.
+2. **The heartbeat.** Every ember glow in the world pulses together, slowly (about one beat
+   every 4 s), from one shared value. Stand still at night and you can see the whole valley
+   breathe. One global shader parameter, so it costs nothing per object.
+3. **Leaves that never fall.** Ember ash crowns stay rust-red all year and glow faintly at
+   night: the valley's calling card. Rust and dry ochre by day, deep smouldering red at night.
 4. **Rising motes.** At dusk and at night, a few ember motes drift upward near ash trees and
    seeps. Few, slow, and capped by the quality setting.
 5. **Lit from within.** Tall things shade from dark at the base to warm at the top, as if the
@@ -83,32 +135,59 @@ These are what a player should recognise in one screenshot.
 
 **The dark supernatural layer: the Dimming.** Where the sleeper's warmth has been drawn
 out, colour drains toward `COLD_ASH` and `SOOT`, the veins go `SMOULDER` and flicker out of
-beat, and the motes fall instead of rise. It is our dark-fantasy side: cold, grey and
-quiet, the opposite of the warm valley. It comes in with the hostile areas (Milestone 2 on).
+beat, and the motes fall instead of rise. It is our dark-fantasy side: cold, grey and quiet,
+the opposite of the warm valley. It comes in with the hostile areas (Milestone 2 on).
 
 ## 5. Light and atmosphere
-- **Golden-hour bias.** The day and night cycle spends more of its time with the sun low:
-  long warm light, long blue shadows. Noon is short and still warm.
+
+### Light by time of day
+The day is where the mood lives. `SkyClock` holds the keys; these are the targets.
+
+| Time | Sky | Key light | Ground and shadows | Feel |
+|---|---|---|---|---|
+| Dawn | Deep blue top, ember-rose horizon | Low, red-orange, weak | Long blue shadows, haze lying in hollows | Cold and quiet, the valley waking |
+| Morning, golden hour | Dusty blue, warm haze at the horizon | Low gold (`GOLDEN_LIGHT`) | Long shadows, warm faces, haze glowing toward the sun | The valley's favourite hour; most of the day looks like this |
+| Noon | Dusty high-altitude blue, never postcard cyan | Warm white, still a little gold | Olive and rust, real shadow shapes (sky fill kept low) | Short, bright but never washed out or lime |
+| Dusk | Rose-violet top, ember horizon | Sinking red-orange | Ground goes dark first, crowns hold the last light | Melancholy; lamps come on |
+| Night | Deep navy with stars, never black | Moonlight (`MOONLIGHT`), dim | Blue-grey meadow, ember crowns and lanterns carry the colour | Dark and a little dangerous, but you can always see the path and every player |
+
+- **Golden-hour bias.** The day spends most of its time with the sun low: long warm light,
+  long blue shadows. Noon is short and still warm.
 - **Warm key, cool fill, strong rim.** The sun is the warm key light, the sky ambient is the
-  cool fill, and the shared shader adds a soft rim on silhouettes against the sky.
-- **Height haze.** Warm `HAZE` fills the valley floors and lake hollows by day; it goes blue
-  at night. Fog distance is also the draw distance (section 7), so the haze is the culling.
+  cool fill (kept low by day so shadows keep their shape: `SkyClock.DAY_AMBIENT`), and the
+  shared shader adds a soft rim on silhouettes against the sky. At night the fill is mostly a
+  flat moonlit blue (`NIGHT_SKY_SHARE`) and the shader adds extra `SHADE` to the side turned
+  away from the moon, so figures read as blue-grey shapes, never black holes.
+- **The grade.** One whole-frame grade in the tonemap pass Godot already draws (free):
+  saturation x0.92, contrast x1.10 (`WorldBuilder.GRADE_*`). It is the "same film stock" that
+  makes every scene sit in one key. Change it only on purpose, with before and after shots.
+- **Height haze.** Warm `HAZE` fills the valley floors and lake hollows by day; it goes blue at
+  night. Fog distance is also the draw distance (section 7), so the haze is the culling.
 - **Glow, not lights.** Ember things glow through emission and one cheap bloom pass, not
   through real lights. Real lights are few (section 7).
 
-## 6. "Inspired by, never copied": what to avoid
-We share a family (stylized realism, moody light, a supernatural layer) with the owner's
-favourite MMO. We never share its expression. Concretely:
-- **No photographic or hand-painted texture look**, no realistic PBR materials, no
-  high-detail realistic models. Ours are painted low-poly (and procedural, CLAUDE.md hard
-  rule 3).
-- **No purple-black, tendril or "corrupted" look** for the dark layer, and no blue
-  magic-energy glow as the signature. Our supernatural is warm ember; our darkness is cold
-  grey ash (the Dimming).
-- **No colonial-explorer or 17th-century costume look**, no gold-on-dark-parchment UI, no
-  UI layouts, icons, fonts or HUD looking like any existing game.
-- **No names** borrowed for styles, zones or effects. "Emberlight" and "the Dimming" are ours.
-When in doubt, push it further toward ember, ash and late-afternoon warmth.
+## 6. "Inspired by, never copied": staying legally safe
+We take inspiration from a **genre** (grounded survival-and-crafting action MMOs) and its
+**mood, lighting philosophy, palette philosophy and gameplay feel**. Those are free for anyone.
+The *expression* of any particular game is not. Concretely, never:
+- **Names**: no place, faction, creature, item, resource, skill, effect or style names from
+  any existing game, and no near-misses or puns on them. "Emberlight", "Ashgrove" and "the
+  Dimming" are ours.
+- **Lore and setting hooks**: no colonial-expedition or "cursed island" premise, no
+  17th-century explorer costume look, no corruption faction look.
+- **The dark layer of another game**: no purple-black, tendril or "corrupted" look, and no
+  blue magic-energy glow as the signature. Our supernatural is warm ember; our darkness is
+  cold grey ash.
+- **UI**: no HUD or menu layouts, icon sets, fonts, frames, or gold-on-dark-parchment window
+  style that look like an existing game (section 9 has ours).
+- **Assets or lookalikes**: no traced, recreated or "low-poly version of" any existing
+  character, creature, building, weapon, landmark or logo. No photographic or hand-painted
+  texture look, no realistic PBR materials (and CLAUDE.md hard rule 3 makes all art
+  procedural anyway).
+- **References in public**: patch notes, in-game text and PRs describe *our* look in our words;
+  they never say "like <game>".
+When in doubt, push it further toward ember, ash, weathered wood and late-afternoon warmth,
+which no one else owns.
 
 ## 7. Performance is part of the style
 The look is designed so that it is cheap. These rules are as binding as the palette.
@@ -193,3 +272,62 @@ today's number and `world` brings it down; ceilings only ever go down.
   them today are listed and the list only shrinks).
 - **Art-free server lint:** `game/server/` and `game/shared/` never reference visual
   `game/procgen/` classes or create meshes, materials or textures.
+
+## 9. UI tone
+The HUD is the frame, not the picture. It should feel like a field journal and a worn
+leather satchel, our own, never like another game's menus.
+- **Quiet by default.** Small, calm type; muted panels (dark warm-grey, about 70 to 85%
+  opaque); no big saturated buttons. Colour in the UI is information (an ember accent for
+  "ready", `SMOULDER` for danger, a skill's own muted badge colour), never decoration.
+- **One accent.** The UI's accent is `EMBER`, used sparingly (a title, a ready button, a
+  progress fill). Never rainbow progress bars, never neon text.
+- **Text, not shouting.** Toasts and floaters are short and sit near what they describe; no
+  thick black outlines on big bold yellow type; no exclamation marks except real milestones.
+- **Level-up banners** are proud, not loud: the skill badge, the new level, the unlock in one
+  line, on screen for about 3 s.
+- **Ours, not borrowed.** Our own layouts, our own procedural icons (`ItemIcons`,
+  `SkillIcons`), Godot's bundled font until we generate our own. See section 6.
+
+## 10. Effects: restraint
+Effects mark moments. If everything sparkles, nothing does.
+- **Small and short by default.** Gather hits: a few chips or leaves and a puff, gone in about
+  half a second. Pickups: one quick motion into the pack.
+- **Translucent light, not solid shapes.** Glows, columns and rings are soft and see-through;
+  you can always see your character through an effect (the level-up column was a solid gold
+  tube that swallowed the avatar; it is now a translucent shaft with half the sparks).
+- **Ember, not rainbow.** Effects use `EMBER`, `EMBER_CORE` and `SMOULDER`, plus the
+  material's own colour (wood chips, stone dust). No rainbow rings, no pure yellow, no
+  confetti, no cartoon stars or hearts.
+- **Scale with importance.** A gather is a whisper, a craft is a word, a level-up is the one
+  loud moment (design bible "Level-ups are moments") and even that stays inside the frame:
+  about 2 s, readable from across the meadow by its light, not by covering the screen.
+- **Cheap.** Pooled, capped by quality, no per-frame allocation (section 7).
+
+## 11. What reads as cheesy, and its status
+The owner's "cheesy and silly" came from these. Fixed items stay listed so nobody
+reintroduces them.
+
+| Offender | Why it read as cheesy | Status |
+|---|---|---|
+| Lime-green, glowing grass | Highlighter green over 60% of the screen is the single biggest "toy" signal | **Fixed 2026-11-24**: olive and straw palette, lower sky fill, whole-frame grade |
+| Candy-orange lollipop ash trees | One saturated ball on a thin stick, repeated | **Fixed 2026-11-24**: rust and ochre, thicker trunks, two lopsided lobes per crown |
+| Pointed wizard hat | A comedy prop on a traveller | **Fixed 2026-11-24**: a travelling hood |
+| Bright cyan and primary tunics | Toy colours | **Fixed 2026-11-24**: `Palette.CLOTH` dyes |
+| Big bald orange head, black button eyes | About 3.5 heads tall, a doll's face | **Fixed 2026-11-24**: smaller head (about 4.5 heads), hair, natural skin, quiet eyes. Next: 6 heads with gear |
+| Postcard-cyan noon sky | Bright and flat, no mood | **Fixed 2026-11-24**: dusty blue, hazy horizon |
+| Solid gold level-up tube and red crystal sparks | Swallowed the avatar; arcade effect | **Toned down 2026-11-24**: translucent, fewer sparks, dimmer light. Next: rounder ember sparks instead of hexagon shards, a subtler ground ring |
+| Teal, green-lit nights | Neither moonlit nor dark | **Improved 2026-11-24**: navy and blue-grey, moon-blue fill. Next: check dark cloth reads on a real GPU (CI renders in software) |
+| Bold outlined yellow floaters and banners | Mobile-game shouting | **To do** (client): section 9 |
+| Thin black lamp posts with red boxes | Reads as a street lamp, not a wilderness lantern | **To do** (world): timber posts, iron and horn lanterns |
+| Uniform flat terrain facets at noon | No sense of ground cover | **To do** (world): gentle colour patches (moss, dry grass, bare earth) in the ground palette |
+
+## 12. Checklist for any PR that changes what is on screen
+1. Before and after screenshots at noon, golden hour and night (the client smoke shots plus
+   your own), in the PR and in the project files.
+2. Grounded? Proportions, materials and colours would sit in a moody wilderness MMO (pillar 1).
+3. Palette from `palette.gd`, naturals under about 0.45 saturation, ember only on usable things.
+4. Effects translucent, short, ember-coloured; the character visible through them.
+5. Nothing named, shaped or laid out after another game (section 6).
+6. Inside the render budget (section 7), and the style check passes; if the look changed on
+   purpose, the style baseline was rewritten with `--write-baseline` and the PR says so.
+

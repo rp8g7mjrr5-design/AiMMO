@@ -7,6 +7,8 @@ class_name WorldBuilder
 
 const HAZE_TOP := 3.0 ## metres: height haze thickens below this (the meadow floor is ~0-1.5 m)
 const HAZE_DENSITY := 0.035 ## extra fog density per metre below HAZE_TOP; gentle, it must not hide the meadow
+const GRADE_SATURATION := 0.92 ## whole-frame saturation: grounded, never candy
+const GRADE_CONTRAST := 1.10 ## a little more weight in the darks
 const SUN_SCATTER := 0.22 ## how much the haze glows when you look towards the sun
 
 
@@ -47,8 +49,15 @@ static func _environment() -> WorldEnvironment:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.5
+	env.ambient_light_energy = SkyClock.DAY_AMBIENT
+	env.ambient_light_sky_contribution = SkyClock.DAY_SKY_SHARE # DayNight moves it with the sky
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# The grade (art bible section 5): a touch less saturation and a touch more contrast over
+	# everything, so the whole frame sits in one muted, grounded key. Runs in the tonemap pass
+	# Godot draws anyway, so it costs nothing.
+	env.adjustment_enabled = true
+	env.adjustment_saturation = GRADE_SATURATION
+	env.adjustment_contrast = GRADE_CONTRAST
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.85, 0.78, 0.70)
 	env.fog_density = 0.006
@@ -120,16 +129,16 @@ const SCATTER_LAYERS := ["Trunks", "AshCrowns", "PineTiers", "Rocks"]
 ## The decorative scatter's meshes, one per layer.
 static func scatter_meshes() -> Dictionary:
 	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.top_radius = 0.18
-	trunk_mesh.bottom_radius = 0.28
+	trunk_mesh.top_radius = 0.22 # grounded: a trunk that could hold its crown, not a lollipop stick
+	trunk_mesh.bottom_radius = 0.36
 	trunk_mesh.height = 2.4
 	trunk_mesh.radial_segments = 6
 	trunk_mesh.rings = 1
-	var crown_mesh := SphereMesh.new() # ash crowns: chunky low-poly balls
+	var crown_mesh := SphereMesh.new() # ash crowns: broad, heavy canopy lobes (two per tree), never a ball on a stick
 	crown_mesh.radius = 1.6
-	crown_mesh.height = 2.6
-	crown_mesh.radial_segments = 7
-	crown_mesh.rings = 3
+	crown_mesh.height = 3.0
+	crown_mesh.radial_segments = 6 # two lobes per tree now, so each is a little cheaper (render budget)
+	crown_mesh.rings = 2
 	var cone_mesh := CylinderMesh.new() # pine tiers
 	cone_mesh.top_radius = 0.0
 	cone_mesh.bottom_radius = 1.4
@@ -146,7 +155,7 @@ static func scatter_meshes() -> Dictionary:
 	# and the forest's look-from-afar are unchanged.
 	return {
 		"Trunks": Emberlight.bake(trunk_mesh, 0.45, 1.6),
-		"AshCrowns": Emberlight.bake(crown_mesh, 0.35),
+		"AshCrowns": Emberlight.bake(crown_mesh, 0.5), # heavy shade under the canopy
 		"PineTiers": Emberlight.bake(cone_mesh, 0.40),
 		"Rocks": Emberlight.bake(rock_mesh, 0.40, 1.5),
 	}
@@ -177,8 +186,13 @@ static func scatter_parts(items: Array) -> Array:
 		match it.kind:
 			"ash":
 				parts.append({"layer": "Trunks", "xform": Transform3D(basis, p + Vector3.UP * 1.2 * it.scale), "color": Palette.TRUNK})
-				var leaf := Palette.ASH_LEAF.lerp(Color(0.95, 0.70, 0.35), rng.randf() * 0.5)
-				parts.append({"layer": "AshCrowns", "xform": Transform3D(basis, p + Vector3.UP * 3.2 * it.scale), "color": leaf})
+				var leaf := Palette.ASH_LEAF.lerp(Palette.ASH_LEAF_DRY, rng.randf() * 0.6)
+				# Two overlapping canopy lobes, the second smaller, lower and off to one side
+				# (from the tree's own rotation, no rng draw), so the silhouette is lopsided and
+				# heavy like a real crown instead of a lollipop (art bible, "Shape language").
+				parts.append({"layer": "AshCrowns", "xform": Transform3D(basis, p + Vector3.UP * 3.4 * it.scale), "color": leaf})
+				var side: Vector3 = Vector3(cos(it.rot), 0.0, sin(it.rot)) * 1.15 * float(it.scale)
+				parts.append({"layer": "AshCrowns", "xform": Transform3D(basis.scaled(Vector3.ONE * 0.62), p + side + Vector3.UP * 2.9 * it.scale), "color": leaf.darkened(0.08)})
 			"pine":
 				parts.append({"layer": "Trunks", "xform": Transform3D(basis, p + Vector3.UP * 1.2 * it.scale), "color": Palette.TRUNK.darkened(0.2)})
 				for tier in 3:
