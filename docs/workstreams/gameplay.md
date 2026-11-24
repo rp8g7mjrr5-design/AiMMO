@@ -37,7 +37,7 @@ _Director, 2026-11-23: ordered by fun for players soonest. Milestone 0 leftovers
 - [ ] Follow-up (Bench sense, 2026-11-23): lanterns sit in the pack and do nothing yet. Give them a use: place one (like placed campfires, under Later) so it lights the ground around it at night for everyone, or let a carried lantern widen the night view. Needs world (a world model, request already in world's backlog) and client.
 - [ ] Follow-up (stacks, 2026-11-23): world's `test_world_item_icons.gd` still lists `ember_lantern` in `DRAWN_AHEAD`; it passes, but world can drop it now that the lantern is a real item (tell world).
 
-- [ ] Follow-up (wildlife v6, 2026-11-24): with 21 grazers and 8 players `s2c_wildlife` is about 21 x 5 values x 5 a second per player (roughly 4 to 6 kbit/s each). Fine for now; if qa's per-player bandwidth budget complains or herds grow, send only creatures that moved or changed state since the last send (with a full refresh every second or so).
+- [ ] Follow-up (wildlife v6, 2026-11-24): with 21 grazers and 8 players `s2c_wildlife` is 21 x 5 packed floats 5 times a second per player: about 10 kbit/s each on the wire (down 70.8 vs the 60.5 baseline, gate 90.75). If qa's per-player bandwidth budget gets tight or herds grow, send only creatures that moved or changed state since the last send (with a full refresh every second or so).
 - [ ] Follow-up (wildlife v6): grazers are not saved and reset to their homes on a server restart. Harmless; revisit only if a hunted herd needs to stay thinned out.
 - [ ] Follow-up (wildlife, Milestone 2): grazers as the first hunt (drops hide and meat for campfires), creep-and-freeze as the stalking skill. Needs combat (Vitals wiring) first.
 
