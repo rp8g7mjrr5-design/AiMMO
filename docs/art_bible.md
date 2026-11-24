@@ -118,6 +118,13 @@ The owner's words (2026-11-24): "our dudes look fat and silly". Characters are l
 grounded adults who live outdoors, rendered as chunky low-poly. `AvatarBuilder` is the
 reference; every new character, NPC or gear piece follows these rules.
 
+**Lean, not sticky** (owner, 2026-11-24, later the same day: "they are to sticky"). Lean
+means a fit adult with real mass, not a stick figure: a full chest and back about 0.31 m
+deep, upper arms about 16 cm across at the shoulder, thighs about 21 cm across, hands you
+can read at a glance. Joint positions and the skeleton stay the same. The bulk lives in the
+loft rings, so slimmer or sturdier body types are a girth factor on the same rings (the
+customization work).
+
 **Organic, not blocky** (owner, 2026-11-24: "less blocky and more low res actual"). Every
 body part is a smooth lofted shape (`AvatarBuilder.loft()`: rings of width and depth, smooth
 normals) or a squashed ball. No boxes and no bare cylinders on a character; a unit test
@@ -130,7 +137,7 @@ skeleton and bend elbows and knees.
 - **About 7 heads tall.** A 1.78 m adult with a 0.25 m head. Never chibi, never a big-headed
   doll, never a barrel. The old wanderer was about 3.5 heads and 0.64 m wide.
 - **Shoulders wider than hips, a narrow waist.** The chest is a tapered shape about 0.41 m
-  across at the shoulders and 0.31 m at the waist, and only about two-thirds as deep as it is
+  across at the chest and 0.36 m at the waist, and about seven-tenths as deep as it is
   wide. Nothing is a capsule or a ball.
 - **Long legs.** The hips sit at about half the height (0.92 m). Thigh, shin and boot are
   separate pieces, so the legs taper and read as legs.

@@ -23,7 +23,7 @@ const UPPER_ARM := 0.31
 const FOREARM := 0.27
 const ARM_LENGTH := 0.63 ## shoulder to fingertips
 const ARM_SPLAY := 0.09 ## radians the arms hang out from the body at rest
-const ARM_RADIUS := 0.058 ## the sleeve at the shoulder, the widest part of the arm
+const ARM_RADIUS := 0.082 ## the sleeve at the shoulder, the widest part of the arm
 const THIGH := 0.46
 const SHIN := 0.4
 const LEG_LENGTH := 0.92 ## hip to sole
@@ -33,10 +33,10 @@ const HEAD_HEIGHT := 0.25
 const HEAD_Y := HEIGHT - HEAD_HEIGHT * 0.5 ## the head's centre
 const CHEST_TOP := 1.47 ## the shoulder line, where the neck starts
 const WAIST_Y := 1.02
-const CHEST_DEPTH := 0.68 ## the chest is this much as deep as it is wide
+const CHEST_DEPTH := 0.7 ## the chest is this much as deep as it is wide
 const PART_AO := 0.14 ## baked shade at the bottom of each part, so limbs and the body read as round
 const PACK_WIDTH := 0.27 ## narrow enough to stay inside the swinging arms
-const PACK_BACK := 0.21 ## the pack's centre behind the body's centre (the chest is about 0.14 deep)
+const PACK_BACK := 0.245 ## the pack's centre behind the body's centre (the chest is about 0.16 deep)
 const LEATHER := Palette.LEATHER ## kept for callers that name it
 
 
@@ -104,10 +104,10 @@ static func parts(appearance_seed: int) -> Array:
 	# a chest that is deeper than the belly, flatter front to back. Index 0 is the tunic and
 	# index 1 the head, as they have always been. Each ring: [y, half width, half depth, z].
 	out.append(_p("", loft([
-		[0.84, 0.10, 0.07, 0.0], [0.88, 0.145, 0.10, 0.0], [0.96, 0.158, 0.105, 0.0],
-		[WAIST_Y, 0.148, 0.098, 0.0], [1.12, 0.158, 0.108, 0.008], [1.24, 0.182, 0.122, 0.012],
-		[1.33, 0.192, 0.118, 0.006], [1.40, 0.18, 0.105, 0.0], [1.445, 0.145, 0.088, 0.0],
-		[CHEST_TOP, 0.085, 0.065, 0.0], [CHEST_TOP + 0.01, 0.055, 0.05, 0.0],
+		[0.84, 0.12, 0.09, 0.0], [0.88, 0.172, 0.125, 0.0], [0.96, 0.188, 0.134, 0.0],
+		[WAIST_Y, 0.18, 0.13, 0.006], [1.12, 0.19, 0.142, 0.012], [1.24, 0.212, 0.156, 0.018],
+		[1.33, 0.22, 0.152, 0.012], [1.40, 0.21, 0.134, 0.0], [1.445, 0.178, 0.11, 0.0],
+		[CHEST_TOP, 0.11, 0.08, 0.0], [CHEST_TOP + 0.01, 0.07, 0.062, 0.0],
 	]), tunic, Vector3.ZERO))
 	# Head: an egg a little narrower than it is deep, with a jaw that tapers to the chin.
 	out.append(_p("", loft([
@@ -116,7 +116,7 @@ static func parts(appearance_seed: int) -> Array:
 		[0.105, 0.07, 0.08, -0.008], [0.125, 0.02, 0.025, -0.008],
 	], 12), skin, Vector3(0, HEAD_Y, 0.0)))
 
-	out.append(_p("", loft([[-0.07, 0.05, 0.048, 0.0], [0.0, 0.046, 0.044, 0.0], [0.07, 0.05, 0.05, 0.005]], 8), skin.darkened(0.06), Vector3(0, CHEST_TOP + 0.04, 0)))
+	out.append(_p("", loft([[-0.07, 0.062, 0.058, 0.0], [0.0, 0.056, 0.053, 0.0], [0.07, 0.054, 0.054, 0.005]], 8), skin.darkened(0.06), Vector3(0, CHEST_TOP + 0.04, 0)))
 	out.append(_p("", _ball(0.016, 6), skin.darkened(0.04), Vector3(0, HEAD_Y - 0.008, 0.108), Vector3(-0.3, 0, 0), Vector3(0.75, 1.4, 1.0))) # nose
 	var socket := skin.darkened(0.5)
 	for x in [-0.036, 0.036]:
@@ -131,16 +131,16 @@ static func parts(appearance_seed: int) -> Array:
 			out.append(_p("", loft([[0.0, 0.112, 0.124, 0.0], [0.035, 0.105, 0.115, 0.0], [0.06, 0.07, 0.08, 0.0], [0.07, 0.01, 0.01, 0.0]], 12), tunic.darkened(0.3), Vector3(0, HEAD_Y + 0.045, -0.012), Vector3(-0.12, 0, 0)))
 
 	# The tunic's skirt to mid-thigh, flaring a little, belted at the waist.
-	out.append(_p("", loft([[0.0, 0.162, 0.112, 0.0], [-0.12, 0.175, 0.122, 0.0], [-0.24, 0.19, 0.13, 0.0], [-0.25, 0.17, 0.11, 0.0]]), tunic.darkened(0.08), Vector3(0, WAIST_Y + 0.0, 0)))
-	out.append(_p("", loft([[-0.028, 0.158, 0.108, 0.0], [0.028, 0.158, 0.108, 0.0]]), dark_leather, Vector3(0, WAIST_Y, 0)))
+	out.append(_p("", loft([[0.0, 0.194, 0.144, 0.006], [-0.12, 0.208, 0.152, 0.0], [-0.24, 0.222, 0.16, 0.0], [-0.25, 0.2, 0.14, 0.0]]), tunic.darkened(0.08), Vector3(0, WAIST_Y + 0.0, 0)))
+	out.append(_p("", loft([[-0.03, 0.19, 0.14, 0.006], [0.03, 0.19, 0.14, 0.006]]), dark_leather, Vector3(0, WAIST_Y, 0)))
 	# Gear on the belt: a pouch on the left hip, a knife on the right.
-	out.append(_p("", _ball(0.05, 8), leather, Vector3(0.13, WAIST_Y - 0.07, 0.085), Vector3(0, 0.5, 0), Vector3(0.95, 1.05, 0.65)))
-	out.append(_p("", loft([[-0.1, 0.008, 0.012, 0.0], [-0.08, 0.02, 0.026, 0.0], [0.1, 0.02, 0.026, 0.0]], 6), dark_leather, Vector3(-0.165, WAIST_Y - 0.11, 0.02), Vector3(0, 0, 0.18)))
+	out.append(_p("", _ball(0.05, 8), leather, Vector3(0.16, WAIST_Y - 0.07, 0.115), Vector3(0, 0.5, 0), Vector3(0.95, 1.05, 0.65)))
+	out.append(_p("", loft([[-0.1, 0.008, 0.012, 0.0], [-0.08, 0.02, 0.026, 0.0], [0.1, 0.02, 0.026, 0.0]], 6), dark_leather, Vector3(-0.2, WAIST_Y - 0.11, 0.03), Vector3(0, 0, 0.18)))
 
 	# A strap across the chest to the pack, and a wool mantle over the shoulders: the layers
 	# that make a traveller read as someone who sleeps outdoors.
-	out.append(_p("", loft([[-0.26, 0.022, 0.008, 0.0], [0.26, 0.022, 0.008, 0.0]], 6), dark_leather, Vector3(0.0, 1.24, 0.128), Vector3(0, 0, 0.62)))
-	out.append(_p("", loft([[-0.13, 0.215, 0.135, -0.005], [-0.09, 0.21, 0.132, 0.0], [-0.03, 0.185, 0.12, 0.0], [0.0, 0.14, 0.1, 0.0], [0.025, 0.075, 0.07, 0.0], [0.03, 0.055, 0.055, 0.0]]), wool, Vector3(0, CHEST_TOP - 0.015, 0)))
+	out.append(_p("", loft([[-0.26, 0.022, 0.008, 0.0], [0.26, 0.022, 0.008, 0.0]], 6), dark_leather, Vector3(0.0, 1.24, 0.164), Vector3(0, 0, 0.62)))
+	out.append(_p("", loft([[-0.13, 0.246, 0.166, -0.005], [-0.09, 0.24, 0.162, 0.0], [-0.03, 0.214, 0.146, 0.0], [0.0, 0.168, 0.12, 0.0], [0.025, 0.094, 0.084, 0.0], [0.03, 0.07, 0.068, 0.0]]), wool, Vector3(0, CHEST_TOP - 0.015, 0)))
 
 	# Back: a soft canvas pack and the bedroll strapped on top of it, inside the arms' swing.
 	out.append(_p("", loft([[-0.19, 0.08, 0.04, 0.0], [-0.17, 0.125, 0.065, 0.0], [0.12, 0.13, 0.07, 0.0], [0.19, 0.1, 0.05, 0.0], [0.2, 0.03, 0.02, 0.0]], 10), leather, Vector3(0, 1.17, -PACK_BACK)))
@@ -151,9 +151,9 @@ static func parts(appearance_seed: int) -> Array:
 	# a skeleton can bend them at the elbow later.
 	for a in ["ArmL", "ArmR"]:
 		var side := 1.0 if a == "ArmL" else -1.0
-		out.append(_p(a, loft([[-UPPER_ARM, 0.046, 0.05, 0.0], [-0.2, 0.054, 0.057, 0.0], [-0.06, 0.062, 0.064, 0.0], [0.0, 0.06, 0.062, 0.0], [0.04, 0.03, 0.03, 0.0]], 8), tunic.darkened(0.1), Vector3(side * 0.004, 0, 0)))
-		out.append(_p(a, loft([[-ARM_LENGTH + 0.08, 0.034, 0.036, 0.01], [-UPPER_ARM - 0.1, 0.046, 0.048, 0.008], [-UPPER_ARM + 0.01, 0.048, 0.05, 0.0]], 8), leather.darkened(0.1), Vector3.ZERO))
-		out.append(_p(a, _ball(0.046, 8), skin, Vector3(0, -ARM_LENGTH + 0.05, 0.012), Vector3.ZERO, Vector3(0.75, 1.25, 1.0)))
+		out.append(_p(a, loft([[-UPPER_ARM, 0.062, 0.066, 0.0], [-0.2, 0.074, 0.078, 0.006], [-0.07, 0.082, 0.084, 0.0], [0.0, 0.082, 0.082, 0.0], [0.05, 0.045, 0.045, 0.0]], 8), tunic.darkened(0.1), Vector3(side * 0.004, 0, 0)))
+		out.append(_p(a, loft([[-ARM_LENGTH + 0.08, 0.046, 0.048, 0.01], [-UPPER_ARM - 0.1, 0.066, 0.066, 0.008], [-UPPER_ARM + 0.01, 0.064, 0.066, 0.0]], 8), leather.darkened(0.1), Vector3.ZERO))
+		out.append(_p(a, _ball(0.058, 8), skin, Vector3(0, -ARM_LENGTH + 0.05, 0.014), Vector3.ZERO, Vector3(0.8, 1.25, 1.05)))
 	# Arms hang a little away from the body, not glued to its sides like a mannequin's: each
 	# arm part turns about its shoulder pivot (the walk cycle still swings the pivot).
 	for p in out:
@@ -164,10 +164,10 @@ static func parts(appearance_seed: int) -> Array:
 	# Legs: a thigh that tapers to the knee, a calf that swells and narrows to the ankle, a
 	# tall boot with a rounded toe. Thigh and shin are separate pieces (a knee, later).
 	for l in ["LegL", "LegR"]:
-		out.append(_p(l, loft([[-THIGH - 0.02, 0.058, 0.064, 0.0], [-THIGH * 0.6, 0.072, 0.08, 0.0], [-0.06, 0.085, 0.092, 0.0], [0.02, 0.08, 0.085, 0.0]], 8), trousers, Vector3.ZERO))
-		out.append(_p(l, loft([[-LEG_LENGTH + 0.24, 0.054, 0.06, 0.0], [-THIGH - 0.12, 0.062, 0.07, -0.006], [-THIGH + 0.01, 0.058, 0.064, 0.0]], 8), trousers.darkened(0.08), Vector3.ZERO))
-		out.append(_p(l, loft([[-LEG_LENGTH + 0.03, 0.058, 0.07, 0.0], [-LEG_LENGTH + 0.12, 0.06, 0.066, 0.0], [-LEG_LENGTH + 0.27, 0.07, 0.074, 0.0], [-LEG_LENGTH + 0.28, 0.062, 0.066, 0.0]], 8), dark_leather, Vector3.ZERO))
-		out.append(_p(l, _ball(0.06, 8), dark_leather.darkened(0.15), Vector3(0, -LEG_LENGTH + 0.038, 0.05), Vector3.ZERO, Vector3(0.85, 0.65, 2.0)))
+		out.append(_p(l, loft([[-THIGH - 0.02, 0.074, 0.08, 0.0], [-THIGH * 0.6, 0.094, 0.102, 0.0], [-0.06, 0.108, 0.114, 0.0], [0.02, 0.1, 0.104, 0.0]], 8), trousers, Vector3.ZERO))
+		out.append(_p(l, loft([[-LEG_LENGTH + 0.24, 0.066, 0.072, 0.0], [-THIGH - 0.12, 0.08, 0.09, -0.01], [-THIGH + 0.01, 0.074, 0.08, 0.0]], 8), trousers.darkened(0.08), Vector3.ZERO))
+		out.append(_p(l, loft([[-LEG_LENGTH + 0.03, 0.07, 0.082, 0.0], [-LEG_LENGTH + 0.12, 0.072, 0.08, 0.0], [-LEG_LENGTH + 0.27, 0.086, 0.092, 0.0], [-LEG_LENGTH + 0.28, 0.078, 0.082, 0.0]], 8), dark_leather, Vector3.ZERO))
+		out.append(_p(l, _ball(0.07, 8), dark_leather.darkened(0.15), Vector3(0, -LEG_LENGTH + 0.04, 0.055), Vector3.ZERO, Vector3(0.85, 0.65, 2.0)))
 	return out
 
 
