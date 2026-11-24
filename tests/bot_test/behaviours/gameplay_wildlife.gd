@@ -25,6 +25,7 @@ const STALK_MAX_START := 45.0 ## don't start a stalk whose grazer is further tha
 const STALK_TIMEOUT := 12.0
 const BOLT_SLACK := 1.5 ## the grazer reacts on the server's tick; our position is a snapshot behind
 const HERD_WAIT := 1.5 ## after the target bolts, its herd-mates must within this
+const HERD_SLACK := 2.0 ## metres off HERD_RADIUS for herd-mates we must see bolt (they move between sends)
 const QUIET_BEFORE := 20.0 ## no stalk this close to the end of the run
 const LOGIN_SETTLE := 8.0
 ## gameplay_roster_v5's "Return to Spawn Meadow" moves us up to ~100 m in one tick; skip the
@@ -42,6 +43,7 @@ var sends := 0
 var empties := 0
 var max_seen := 0
 var _latest: Dictionary = {} ## id -> [x, z, yaw, state name]
+var _before: Dictionary = {} ## _latest as it was one s2c_wildlife earlier
 
 var _stalker := false
 var _stalk := Stalk.WAIT
@@ -53,6 +55,8 @@ var stalks := 0
 var bolts := 0
 var herd_bolts := 0
 var skipped := 0
+var _must_follow := 0 ## calm herd-mates near the target just before it bolted
+var herd_unchecked := 0 ## bolts with no calm herd-mate close enough that it had to follow
 
 
 func setup(net: Node) -> void:
@@ -85,6 +89,7 @@ func _on_wildlife(entries: PackedFloat32Array) -> void:
 		return
 	var count := Wildlife.spawns().size()
 	var seen := {}
+	_before = _latest.duplicate()
 	_latest.clear()
 	for i in range(0, entries.size(), Wildlife.WIRE_STRIDE):
 		var id := int(entries[i])
@@ -213,6 +218,12 @@ func _watch_stalk() -> void:
 		bolts += 1
 		_bolted_at = bot.elapsed
 		_stalk = Stalk.HERD
+		# Only herd-mates that were standing calm within Wildlife.HERD_RADIUS of it (less a
+		# little for our stale view) must go with it. One that was further off, already
+		# running, or down (gone from the wire) never would, so when none ran and none had to,
+		# the check can't fail fairly: count it and hand the bot back (the old flake, seen on #172 and
+		# ws/gameplay/kingdom-placement).
+		_must_follow = _calm_mates_near(_target)
 	if _stalk == Stalk.HERD:
 		var herd := int(Wildlife.spawns()[_target].herd)
 		for id in _latest:
@@ -220,6 +231,25 @@ func _watch_stalk() -> void:
 				herd_bolts += 1
 				_end_stalk(true)
 				return
+		if _must_follow == 0:
+			herd_unchecked += 1
+			_end_stalk(true)
+
+
+## Herd-mates of grazer `id` in the s2c_wildlife before the one where it bolted that were not
+## running then and stood within Wildlife.HERD_RADIUS - HERD_SLACK of it.
+func _calm_mates_near(id: int) -> int:
+	var herd := int(Wildlife.spawns()[id].herd)
+	var then: Dictionary = _before if _before.has(id) else _latest
+	var at := Vector2(then[id][0], then[id][1])
+	var n := 0
+	for other in then:
+		var e: Array = then[other]
+		if other == id or e[3] == "flee" or int(Wildlife.spawns()[other].herd) != herd:
+			continue
+		if Vector2(e[0], e[1]).distance_to(at) <= Wildlife.HERD_RADIUS - HERD_SLACK:
+			n += 1
+	return n
 
 
 func _end_stalk(done: bool) -> void:
@@ -240,5 +270,6 @@ func on_finish() -> void:
 		stat("bolts", bolts)
 		stat("herd_bolts", herd_bolts)
 		stat("stalks_skipped", skipped)
+		stat("herd_unchecked", herd_unchecked)
 	if _login_elapsed_total > 10.0 and sends / _login_elapsed_total > MAX_RATE:
 		fail("%.1f s2c_wildlife a second, the server sends 5" % (sends / _login_elapsed_total))
