@@ -110,6 +110,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.level_up.connect(_on_level_up)
 	net.level_up_seen.connect(_on_level_up_seen)
 	net.roster_changed.connect(_on_roster)
+	net.unstuck_result.connect(_on_unstuck)
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _set_status("Could not reach the server.", true))
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -416,6 +417,8 @@ func _process(delta: float) -> void:
 	xp_meter.step(delta)
 	level_up_banner.step(delta)
 	notice_line.step(delta)
+	if settings_menu.visible and settings_menu.in_game:
+		settings_menu.refresh_home(Time.get_ticks_msec())
 	pack_window.step(delta)
 	players_panel.step(delta)
 	_step_goal(delta)
@@ -618,6 +621,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	pack_button.visible = true
 	players_button.visible = true
 	players_panel.set_me(id)
+	settings_menu.set_in_game(true)
 	goal_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
 	prediction.reset()
@@ -658,6 +662,7 @@ func _on_server_disconnected() -> void:
 	pack_window.reset()
 	pack_button.visible = false
 	players_panel.reset()
+	settings_menu.set_in_game(false)
 	players_button.visible = false
 	players_button.text = PlayersPanel.button_text(0)
 	goal_label.visible = false
@@ -691,7 +696,11 @@ func _on_snapshot(_tick: int, entries: Array) -> void:
 			a.target = Vector3(entries[i + 1], entries[i + 2], entries[i + 3])
 			if id == my_id:
 				# Replay the walk the server hasn't seen on top of where it has you.
+				var snaps_before := prediction.snaps
 				prediction.reconcile(a.target, net.last_ack_seq)
+				if prediction.snaps != snaps_before:
+					# A teleport (Return to Spawn Meadow): the camera goes with you, not across the map.
+					cam.jump_to(prediction.position)
 				i += 5
 				continue
 			a.yaw = entries[i + 4]
@@ -827,6 +836,20 @@ func _on_level_up_seen(peer_id: int, _skill: String, level: int) -> void:
 ## The bench's answer to a Craft press: the window shows the server's words; a success also
 ## gets the toast with the product's icon and the craft sound (the Toolcraft "+N" floater
 ## comes from s2c_xp, sent with it).
+## The answer to the Esc menu's "Return to Spawn Meadow". On ok the next snapshot carries
+## you home (prediction snaps, the camera jumps with it in _on_snapshot); the menu closes so
+## you see the meadow, and the words show centre screen, never in chat.
+func _on_unstuck(ok: bool, text: String, wait_seconds: float) -> void:
+	settings_menu.home.answered(ok, wait_seconds, Time.get_ticks_msec())
+	settings_menu.refresh_home(Time.get_ticks_msec())
+	notice_line.show_notice(text, not ok)
+	if ok:
+		settings_menu.close(true)
+		sfx_arrive.play()
+	else:
+		sfx_nope.play()
+
+
 func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
 	var r := craft_window.on_craft_result(recipe_id, ok, text)
 	if str(r.crafted) != "":
@@ -1222,7 +1245,10 @@ func _build_ui() -> void:
 	settings_menu = SettingsMenu.new()
 	settings_menu.setup(settings, theme)
 	settings_menu.changed.connect(_apply_settings)
-	settings_menu.closed.connect(func(): sfx_chime.play())
+	settings_menu.closed.connect(func():
+		if not settings_menu.quiet_close:
+			sfx_chime.play())
+	settings_menu.home_requested.connect(func(): net.play.c2s_unstuck.rpc_id(1))
 	ui.add_child(settings_menu)
 
 
