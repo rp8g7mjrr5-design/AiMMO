@@ -43,12 +43,13 @@ func test_limbs_do_not_change_existing_looks() -> void:
 	for s in [1, 42, 1234, 20261127]:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = s
-		var skin := Color.from_hsv(0.07 + rng.randf() * 0.04, 0.35 + rng.randf() * 0.25, 0.55 + rng.randf() * 0.4)
+		var skin := AvatarBuilder.skin_tone(rng.randf(), rng.randf(), rng.randf())
 		var style := rng.randi() % 3
 		var root_parts := AvatarBuilder.parts(s).filter(func(p): return p.limb == "")
-		check_eq(root_parts[0].color, Palette.from_seed(s), "tunic for seed %d" % s)
+		check_eq(root_parts[0].color, Palette.cloth_from_seed(s), "tunic for seed %d" % s)
 		check_eq(root_parts[1].color, skin, "skin for seed %d" % s)
-		check_eq(root_parts.size(), 7 if style == 2 else 8, "headwear (and belt, pack, bedroll) for seed %d" % s)
+		# hood (style 0); cap and hair (1); hair (2); plus belt, pack, bedroll
+		check_eq(root_parts.size(), [8, 9, 8][style], "headwear and hair (and belt, pack, bedroll) for seed %d" % s)
 
 
 func test_walk_cycle_swings_the_limbs() -> void:

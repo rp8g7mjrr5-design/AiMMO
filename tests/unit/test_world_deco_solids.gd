@@ -154,7 +154,7 @@ func test_deterministic_and_scatter_unchanged() -> void:
 	for i in range(0, a.size(), 37):
 		for j in a[i].size():
 			check(a[i][j].xform.is_equal_approx(b[i][j].xform) and a[i][j].color == b[i][j].color, "item %d part %d same every time" % [i, j])
-	var counts := {"ash": 2, "pine": 4, "rock": 1}
+	var counts := {"ash": 3, "pine": 4, "rock": 1} # ash: trunk and two canopy lobes (art bible, grounded pass)
 	var items := Props.scatter()
 	for i in range(0, items.size(), 53):
 		check_eq(a[i].size(), counts[items[i].kind], "%s has its usual parts" % items[i].kind)

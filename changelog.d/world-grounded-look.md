@@ -1,0 +1,3 @@
+- Ashgrove has a new, grounded look: olive meadows instead of neon grass, rust-red ember ash trees with heavy, lopsided crowns, a dusty sky, and long golden light that makes the valley feel old and a little wild.
+- Travellers dress the part: earthy dyed cloth, travelling hoods and felt caps, real hair and more grown-up proportions. The pointed hats are gone.
+- Nights are moonlit blue with the ember trees and lanterns carrying the colour, and your level-up is now a shaft of warm light you can still see yourself through.

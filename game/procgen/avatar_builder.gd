@@ -1,5 +1,5 @@
 class_name AvatarBuilder
-## Builds a little low-poly wanderer from an appearance seed: tunic colour, hood or hat,
+## Builds a low-poly traveller from an appearance seed: tunic cloth, hood or cap,
 ## arms and short legs, and a name tag. Faces local +Z, feet at y = 0.
 ##
 ## Limbs are bare `Node3D` pivots named ArmL, ArmR, LegL, LegR, direct children of the root,
@@ -20,6 +20,8 @@ const ARM_LENGTH := 0.5
 const LEG_LENGTH := 0.4
 const LEATHER := Color(0.45, 0.31, 0.19)
 const BEDROLL := Color(0.70, 0.63, 0.50)
+const HEAD_RADIUS := 0.19 ## m; with HEAD_Y, about 4.5 heads tall: grounded, never chibi
+const HEAD_Y := 1.44 ## m; the head's centre, just over the tunic's neck at 1.26
 const PART_AO := 0.18 ## baked shade at the bottom of each part, so limbs and the tunic read as round
 const PACK_BACK := 0.38 ## how far behind the body's centre the pack sits (the body is 0.32 round)
 
@@ -61,41 +63,55 @@ static func rig() -> Node3D:
 static func parts(appearance_seed: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = appearance_seed
-	var tunic := Palette.from_seed(appearance_seed)
-	var skin := Color.from_hsv(0.07 + rng.randf() * 0.04, 0.35 + rng.randf() * 0.25, 0.55 + rng.randf() * 0.4)
+	var tunic := Palette.cloth_from_seed(appearance_seed) # earthy dyed cloth, never bright primaries
+	var skin := skin_tone(rng.randf(), rng.randf(), rng.randf())
 	var out: Array = []
 
 	# The tunic sits on the legs: from just above the knees (y 0.3) to the neck (1.26).
 	out.append(_p("", _capsule(0.32, 0.96, 8, 2), tunic, Vector3(0, 0.78, 0)))
 
+	# Grounded proportions (art bible, "Characters"): a head about a sixth of the body's
+	# height reads as a person, not a toy. It was 0.48 m on a 1.66 m body (chibi).
 	var head := SphereMesh.new()
-	head.radius = 0.24
-	head.height = 0.48
+	head.radius = HEAD_RADIUS
+	head.height = HEAD_RADIUS * 2.05
 	head.radial_segments = 8
 	head.rings = 4
-	out.append(_p("", head, skin, Vector3(0, 1.42, 0)))
+	out.append(_p("", head, skin, Vector3(0, HEAD_Y, 0)))
 
+	# Eyes: small shadowed sockets in the skin's own colour, not black buttons.
 	var eye := BoxMesh.new()
-	eye.size = Vector3(0.06, 0.08, 0.04)
-	out.append(_p("", eye, Color(0.1, 0.1, 0.12), Vector3(-0.09, 1.46, 0.21)))
-	out.append(_p("", eye, Color(0.1, 0.1, 0.12), Vector3(0.09, 1.46, 0.21)))
+	eye.size = Vector3(0.045, 0.03, 0.03)
+	var socket := skin.darkened(0.55)
+	out.append(_p("", eye, socket, Vector3(-0.065, HEAD_Y + 0.03, HEAD_RADIUS * 0.88)))
+	out.append(_p("", eye, socket, Vector3(0.065, HEAD_Y + 0.03, HEAD_RADIUS * 0.88)))
 
 	var style := rng.randi() % 3
-	if style == 0: # pointed hat
-		var hat := CylinderMesh.new()
-		hat.top_radius = 0.0
-		hat.bottom_radius = 0.32
-		hat.height = 0.5
-		hat.radial_segments = 8
-		out.append(_p("", hat, tunic.darkened(0.35), Vector3(0, 1.82, 0)))
-	elif style == 1: # flat cap
+	if style == 0: # a travelling hood, pulled up: was a pointed wizard's hat (art bible, "What reads as cheesy")
+		var hood := SphereMesh.new()
+		hood.radius = HEAD_RADIUS + 0.04
+		hood.height = (HEAD_RADIUS + 0.04) * 2.1
+		hood.radial_segments = 8
+		hood.rings = 4
+		out.append(_p("", hood, tunic.darkened(0.25), Vector3(0, HEAD_Y + 0.04, -0.05)))
+	elif style == 1: # a felt cap, the same cloth a shade darker
 		var cap := CylinderMesh.new()
-		cap.top_radius = 0.22
-		cap.bottom_radius = 0.27
-		cap.height = 0.12
+		cap.top_radius = HEAD_RADIUS * 0.85
+		cap.bottom_radius = HEAD_RADIUS + 0.025
+		cap.height = 0.09
 		cap.radial_segments = 8
-		out.append(_p("", cap, tunic.lightened(0.3), Vector3(0, 1.64, 0)))
+		out.append(_p("", cap, tunic.darkened(0.2), Vector3(0, HEAD_Y + HEAD_RADIUS * 0.72, 0)))
 	# style 2: bare-headed
+	if style != 0:
+		# Hair (no rng draw, so every older look keeps its draws): what the over-the-shoulder
+		# camera sees most is the back of the head, and a bare skin-coloured ball there read as
+		# a toy (art bible, "What reads as cheesy").
+		var hair := SphereMesh.new()
+		hair.radius = HEAD_RADIUS + 0.018
+		hair.height = (HEAD_RADIUS + 0.018) * 1.9
+		hair.radial_segments = 8
+		hair.rings = 4
+		out.append(_p("", hair, hair_colour(appearance_seed), Vector3(0, HEAD_Y + 0.035, -0.045)))
 
 	# Limbs take no rng draws, so every existing appearance seed keeps its hat and skin.
 	var sleeve := tunic.darkened(0.12)
@@ -138,6 +154,17 @@ static func parts(appearance_seed: int) -> Array:
 	roll.rings = 1
 	out.append(_p("", roll, BEDROLL, Vector3(0, 1.17, -PACK_BACK + 0.01), Vector3(0, 0, PI * 0.5)))
 	return out
+
+
+## Skin from three 0..1 draws: the same draws as always (saved looks keep their place in the
+## range), but a grounded range: no orange, no glow, from deep brown to fair.
+static func skin_tone(a: float, b: float, c: float) -> Color:
+	return Palette.skin(a, b, c)
+
+
+## Natural hair for a seed, from its own hash (no rng draw): black, browns, auburn, ash blond, grey.
+static func hair_colour(appearance_seed: int) -> Color:
+	return Palette.HAIR[posmod(hash(appearance_seed), Palette.HAIR.size())]
 
 
 static func _p(limb: String, mesh: Mesh, color: Color, pos: Vector3, rot: Vector3 = Vector3.ZERO) -> Dictionary:

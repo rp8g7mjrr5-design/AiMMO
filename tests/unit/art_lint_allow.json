@@ -9,7 +9,7 @@
 	},
 	"palette": {
 		"_about": "Colour literals per game/procgen/ file as of 2026-11-23 (palette.gd excluded). New colours go in palette.gd with a comment saying what they are for.",
-		"avatar_builder.gd": 9,
+		"avatar_builder.gd": 6,
 		"flora.gd": 11,
 		"item_icons.gd": 20,
 		"lamps.gd": 4,
@@ -19,6 +19,6 @@
 		"skill_icons.gd": 0,
 		"sky_clock.gd": 21,
 		"workbench.gd": 5,
-		"world_builder.gd": 3
+		"world_builder.gd": 2
 	}
 }
