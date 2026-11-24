@@ -57,3 +57,10 @@ numbers here (no `ss`).
 **Next run:** if world has drawn `hide` / `raw_meat`, move them into `ITEMS`/`ITEM_ORDER`
 and send `s2c_gather_result` per drop from `_hunted` (the toast). Then `c2s_dodge` in the next
 bump, or recipes that use hide and meat (cooked meat at a campfire, a hide wrap).
+
+**Caught after merging `main`:** two server-level tests (`test_gameplay_protocol_v6`'s bolt
+test, `test_gameplay_wildlife`'s server tick test) put a player 3.5 m from a grazer and
+expected a bolt; the server reads the wall clock, so at night (the drowsy 1.0 m ring) they
+failed. Both now pin `clock_offset` to noon. The second 8 x 180 s bot test ran at night
+(world 01:05) and passed, including `gameplay_wildlife`'s rush check (a rushing player still
+spooks a sleeping herd when the 1 s alert runs out) and the hunt.
