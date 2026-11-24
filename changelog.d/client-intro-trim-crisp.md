@@ -1,0 +1,1 @@
+- The Budda Games intro now ends cleanly on the logo, and the logo is sharper in the default window.

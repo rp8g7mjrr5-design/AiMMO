@@ -1404,3 +1404,27 @@ the tree logs an error, so the snort only plays in the tree.
 world's backlog asks for a static `part_xforms` like ours so the swap is a few lines). The
 alert moment has no sound yet (follow-up). No smoke hook for a herd shot yet (qa owns the
 script); taken by hand.
+
+## 2026-11-24: intro trimmed and sharpened (owner request)
+
+Run outside the schedule on the owner's request in a project thread ("I can see my other game
+at the tail end of the intro", "it looks a little blurry"); took the `client` claim.
+
+**Tail:** frame-diffing the shipped ogv against a held logo frame showed it identical until
+~6.43 s, then the owner's recording crossfades into a different game's title screen
+("BlightShore", menu buttons, moon) for the last ~0.45 s under a fade to black. Re-encoded
+from the owner's original mp4 (project uploads), cut at 6.4 s with `fade=out:st=5.95:d=0.35`
+to #1d161a (= `Intro.BG`) and a matching audio fade, so the clip lands on the intro's own
+background. Checked every tail frame with autocontrast: only the logo.
+
+**Blur:** the client window opens at 1280x720 with stretch disabled, so the 1080p video was
+GPU-bilinear-shrunk by 2/3 in an `AspectRatioContainer`. Now there are two encodes
+(1080p q9 1.7 MB, Lanczos 720p q9 0.97 MB; tests cap each at 2 MB and both at 3 MB).
+`Intro.pick_video` plays the 1080p one only when the window holds it 1:1, otherwise the 720p
+one; `Intro.video_scale` uses the largest whole scale (nearest filter), shrinking with linear
+only when the window is smaller than 720p. The video's edges are BG, so it sits centred on the
+ColorRect at any size. Under xvfb at 1280x720 the edges are visibly cleaner than the old
+screenshot, but not perfect: the art's pixels are ~3.4 screen px at 720p, so any downscale of
+a 1080p master softens them a bit. Follow-up added (native 720p export from the owner).
+
+**Tests:** `test_client_intro.gd` gains pick/scale tests and checks both files. 680 unit tests pass.
