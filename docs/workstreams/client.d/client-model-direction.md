@@ -1,0 +1,4 @@
+Follow-ups:
+- [ ] Top (owner direction, 2026-11-24: "fine tune our models more, give them direction"): bring the sculpted body into the game. Port the test camp's `Sculpt` and `Figure` (shots and scripts in `/mnt/project-files/art-direction/overhaul/`) to `game/procgen/`, skinned to the existing 18-bone `AvatarSkeleton`, 1 draw call, at most 5,000 triangles, built once per look and cached. Follow art bible section 3, "Characters". Auto-merge off; before and after shots for the owner.
+- [ ] Follow-up (model direction): paint per vertex on the dense mesh and split vertices at colour borders before cutting it down, so the straight hems survive the 5,000-triangle budget (the scratch version slices after cutting and lands near 16,000 triangles).
+- [ ] Follow-up (model direction): the body takes about 28 s to build in GDScript in the scratch version. Cache built looks (on disk per look hash, or a native step) so a new player's look never stalls a frame.
