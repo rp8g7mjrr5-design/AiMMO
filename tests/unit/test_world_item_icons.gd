@@ -41,7 +41,7 @@ func _all_items() -> Array:
 
 ## Icons world drew before gameplay added the item (gameplay's request in world's backlog):
 ## they get every check the real items get, so they are ready the moment the item exists.
-const DRAWN_AHEAD := ["ember_lantern"]
+const DRAWN_AHEAD := ["ember_lantern", "cooked_meat"]
 
 
 func test_every_item_has_its_own_icon() -> void:
@@ -179,3 +179,24 @@ func test_hunt_drops_are_drawn_earthy_and_never_glow() -> void:
 	check(Palette.HIDE_FUR.s < 0.5 and Palette.HIDE_FUR.v < 0.6, "hide fur is a muted brown (%s)" % Palette.HIDE_FUR)
 	# The two drops come off one animal at once, so the toast must tell them apart.
 	check(ItemIcons.tint("hide") != ItemIcons.tint("raw_meat"), "hide and meat tint differently")
+
+
+func test_cooked_meat_is_drawn_ahead_browned_and_never_glows() -> void:
+	# Drawn ahead of gameplay's cooking (campfires): food, not fire, so no halo and no ember.
+	check(ItemIcons.has_icon("cooked_meat"), "cooked_meat has its own icon")
+	check(not ItemIcons.shapes("cooked_meat").any(func(s): return s.get("glow", 0.0) > 0.0), "cooked_meat has no halo")
+	check(_stats(ItemIcons.image("cooked_meat", 48)).warm < 5, "cooked_meat has no ember-bright pixels")
+	var c := Palette.COOKED_MEAT
+	check(c.s < 0.7 and c.v < 0.55, "cooked meat is a dull brown (%s)" % c)
+	check(absf(c.h - Palette.RAW_MEAT.h) > 0.02, "cooked meat is browner than raw (%.3f vs %.3f)" % [c.h, Palette.RAW_MEAT.h])
+	check(ItemIcons.tint("cooked_meat") != ItemIcons.tint("raw_meat"), "cooked and raw tint differently")
+	# Cooking should be visible in the pack: the two icons differ by more than a tint.
+	var a := ItemIcons.image("cooked_meat", 24)
+	var b := ItemIcons.image("raw_meat", 24)
+	var diff := 0.0
+	for y in 24:
+		for x in 24:
+			var p := a.get_pixel(x, y)
+			var q := b.get_pixel(x, y)
+			diff += absf(p.r - q.r) + absf(p.g - q.g) + absf(p.b - q.b) + absf(p.a - q.a)
+	check(diff / (24 * 24) > 0.08, "cooked_meat looks different from raw_meat (%.3f)" % (diff / (24 * 24)))

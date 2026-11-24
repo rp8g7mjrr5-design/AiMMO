@@ -174,6 +174,7 @@ static func apply_glow(world: Node, glow: float) -> void:
 			(omni as OmniLight3D).light_energy = v.seep_light
 			(omni as OmniLight3D).visible = v.lights_on and not omni.get_meta("dry", false)
 	Workbench.apply_glow(world.get_node_or_null("Workbench"), glow)
+	CampfireProps.apply_glow(world.get_node_or_null(CampfireProps.NODE_NAME), glow)
 
 
 ## A lantern flame's light at `seconds` as a multiple of its steady level, for lantern
@@ -208,6 +209,8 @@ static func flicker_lights(world: Node, seconds: float) -> void:
 		for omni in seeps.get_children():
 			_flicker_one(omni as OmniLight3D, seconds, j)
 			j += 1
+	# Placed campfires: flames and their light pools (nothing while no fire burns).
+	CampfireProps.animate(world.get_node_or_null(CampfireProps.NODE_NAME), seconds)
 
 
 static func _flicker_one(omni: OmniLight3D, seconds: float, index: int) -> void:

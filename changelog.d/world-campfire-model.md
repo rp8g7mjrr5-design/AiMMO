@@ -1,0 +1,2 @@
+- Coming soon, built behind the scenes: campfires now have their look. A ring of smoke-blackened stones, split logs leaned in, coals and flickering flames that throw a warm pool of light at night. As a fire burns low the logs slump and the flames shrink, and a burned-out fire leaves charred stubs in grey ash for a while. You'll see them once you can set one down.
+- Coming soon: a cooked meat icon, ready for when the campfire learns to cook.

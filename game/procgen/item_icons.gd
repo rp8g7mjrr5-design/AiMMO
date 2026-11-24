@@ -122,6 +122,8 @@ static func tint(item: String) -> Color:
 			return Palette.HIDE_FUR.lightened(0.15)
 		"raw_meat":
 			return Palette.RAW_MEAT.lightened(0.2)
+		"cooked_meat":
+			return Palette.COOKED_MEAT.lightened(0.25)
 	return CLOTH
 
 
@@ -502,6 +504,26 @@ static func _recipe(item: String) -> Array:
 				# The bone, cut through near one edge: a pale ring with darker marrow.
 				_circle(Vector2(0.70, 0.56), 0.085, Palette.MEAT_FAT, {"outline": false, "shade": 0.15}),
 				_circle(Vector2(0.70, 0.56), 0.045, Palette.MEAT_FAT.darkened(0.35), {"outline": false, "shade": 0.0}),
+			]
+		"cooked_meat":
+			# The same cut as raw_meat, seared over a campfire: a browned crust with dark grill
+			# lines across the grain, the fat rim gone golden-brown, the bone, and two faint
+			# wisps of steam. Warm but dull on purpose: no ember halo, it is food, not fire.
+			return [
+				_poly([Vector2(0.16, 0.54), Vector2(0.26, 0.34), Vector2(0.48, 0.24), Vector2(0.72, 0.28), Vector2(0.88, 0.44), Vector2(0.86, 0.66),
+					Vector2(0.70, 0.82), Vector2(0.44, 0.86), Vector2(0.24, 0.76)], Palette.MEAT_FAT.darkened(0.3), {"shade": 0.22}),
+				_poly([Vector2(0.21, 0.56), Vector2(0.30, 0.40), Vector2(0.49, 0.32), Vector2(0.70, 0.35), Vector2(0.82, 0.47), Vector2(0.80, 0.64),
+					Vector2(0.67, 0.77), Vector2(0.45, 0.80), Vector2(0.28, 0.72)], Palette.COOKED_MEAT, {"outline": false, "shade": 0.26}),
+				# Sear lines: three dark bars across the grain.
+				_capsule(Vector2(0.30, 0.46), Vector2(0.44, 0.72), 0.018, Palette.SEAR, {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.44, 0.38), Vector2(0.58, 0.72), 0.018, Palette.SEAR, {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.58, 0.36), Vector2(0.68, 0.56), 0.016, Palette.SEAR, {"outline": false, "shade": 0.0}),
+				# The bone, browned at the edge.
+				_circle(Vector2(0.70, 0.62), 0.08, Palette.MEAT_FAT.darkened(0.1), {"outline": false, "shade": 0.15}),
+				_circle(Vector2(0.70, 0.62), 0.04, Palette.SEAR, {"outline": false, "shade": 0.0}),
+				# Steam: two thin pale wisps rising off the top.
+				_capsule(Vector2(0.42, 0.22), Vector2(0.38, 0.10), 0.014, Palette.MEAT_FAT.lightened(0.3), {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.56, 0.24), Vector2(0.60, 0.11), 0.012, Palette.MEAT_FAT.lightened(0.3), {"outline": false, "shade": 0.0}),
 			]
 		FALLBACK:
 			return [

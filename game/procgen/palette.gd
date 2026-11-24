@@ -55,6 +55,17 @@ const HIDE_FUR := Color(0.46, 0.34, 0.24) ## a fresh hide's fur side: GRAZER_COA
 const HIDE_FLESH := Color(0.78, 0.69, 0.56) ## the scraped flesh side of a hide: pale tan, not cream
 const RAW_MEAT := Color(0.47, 0.17, 0.16) ## a raw cut: deep brown-red, darker than SMOULDER and nowhere near EMBER
 const MEAT_FAT := Color(0.80, 0.72, 0.60) ## the fat rim and marbling on a cut, and the bone's cross-section
+const COOKED_MEAT := Color(0.44, 0.27, 0.17) ## a seared cut: browned crust, warm but dull, still nowhere near EMBER
+const SEAR := Color(0.24, 0.15, 0.11) ## grill-dark sear lines on a cooked cut (lighter than SOOT so they read)
+
+# Placed campfires (CampfireProps, Phase 2 build-ahead): a ring of fire-blackened field stones
+# and split logs. The flame is the one ember note (a fire is something you use); the rest is
+# soot, char and old ash, so a burned-out fire reads as cold from across a clearing.
+const FIRE_STONE := Color(0.42, 0.40, 0.38) ## ring stones: ROCK, a little darker from the smoke
+const FIRE_STONE_SOOT := Color(0.29, 0.27, 0.26) ## the sootier ring stones
+const FIRE_LOG := Color(0.30, 0.22, 0.16) ## split logs in a fire: bark going to char
+const FIRE_CHAR := Color(0.18, 0.16, 0.15) ## burned-out log stubs: charcoal, near SOOT but never black
+const FIRE_ASH := Color(0.47, 0.45, 0.43) ## the ash bed: pale grey ash, a touch warm
 
 
 # Skill badges (SkillIcons, Milestone 1): one colour per skill, used for the badge disc and

@@ -34,6 +34,7 @@ static func build() -> Node3D:
 	root.add_child(NodeProps.build())
 	root.add_child(Lamps.build())
 	root.add_child(Workbench.build())
+	root.add_child(CampfireProps.build()) # hidden and empty until the server says a fire burns
 	root.add_child(Motes.build())
 	var ranges := Chunks.RangeWatch.new() # Low pulls chunk draw distances in (Chunks.RANGE_SCALES)
 	ranges.name = "RangeWatch"
