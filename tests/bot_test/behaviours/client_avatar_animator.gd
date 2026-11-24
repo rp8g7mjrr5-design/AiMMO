@@ -1,13 +1,13 @@
 extends "res://tests/bot_test/bot_behaviour.gd"
 ## Client: runs the traveller's animation state machine (AvatarAnimator) on the real snapshot
-## stream, the way the client does for every avatar it sees, and poses a real skeleton with it.
+## stream, the way the client does for every avatar it sees. No skeleton here: behaviours stay
+## art-free (the skinned traveller is covered by unit tests and the client smoke test).
 ## Other bots walk around, so at least one avatar must break into a stride, and no pose may
 ## ever be NaN or wild, however the server's positions jump (spawns, reconnects, corrections).
 ## It also fires a knock-down, a get-up and a sit on one avatar now and then, so every body
 ## state runs on live, moving data.
 
 var _anims := {} ## peer id -> AvatarAnimator
-var _skel: Skeleton3D
 var _last_tick_at := -1.0
 var _poses := 0
 var _max_speed := 0.0
@@ -18,8 +18,6 @@ var _ticks := 0
 func on_login(_reconnect: bool, _character: Dictionary) -> void:
 	_anims.clear() # peer ids change across reconnects
 	_last_tick_at = -1.0
-	if _skel == null:
-		_skel = AvatarSkeleton.build()
 
 
 func on_snapshot(_tick: int, entries: Array) -> void:
@@ -58,7 +56,6 @@ func on_snapshot(_tick: int, entries: Array) -> void:
 				if bad or (k != "root_pos" and maxf(absf(v.x), maxf(absf(v.y), absf(v.z))) > 3.3):
 					fail("bad pose %s=%s for peer %d in %s" % [k, str(v), id, anim.body])
 					return
-			anim.apply(_skel)
 		i += 5
 
 
@@ -66,9 +63,6 @@ func on_finish() -> void:
 	stat("poses", _poses)
 	stat("max_speed", snappedf(_max_speed, 0.01))
 	stat("body_states", ",".join(_states.keys()))
-	if _skel != null:
-		_skel.free()
-		_skel = null
 	if _poses < 50:
 		return # the bot barely played; bot.gd reports why
 	if _max_speed < 1.5:
