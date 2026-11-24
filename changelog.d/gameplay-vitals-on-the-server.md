@@ -1,1 +1,0 @@
-- **Getting ready for the first fight:** the server now keeps everyone's health and stamina. When creatures start to bite, losing is fair: you're knocked down and come to straight away in Spawn Meadow with everything you carried and every point of XP. And "Return to Spawn Meadow" won't work mid-fight, so nobody can use it to dodge a loss.

@@ -1,1 +1,0 @@
-- Behind the scenes for the first fights: the ash spear (long reach, quick, precise) and the stone maul (slow, wide sweeps, heavy hits that stagger) now have their rules. Neither is simply better, and a dodge always gets you out of a wind-up.

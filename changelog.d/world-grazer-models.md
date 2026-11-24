@@ -1,1 +1,0 @@
-- The herds past the meadow have a look of their own: fawn grazers with tall ears and a pale rump that nibble the grass head-down, snap their heads up when they spot you, trot home, bound away over the hill when you rush them, and lie folded in the grass at night. (They appear as soon as the client update that draws them lands.)
