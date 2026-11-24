@@ -1,15 +1,15 @@
-# AiMMO — Project Constitution
+# ZombAi (repo: AiMMO) — Project Constitution
 
 Read this file first, every session. You start with no memory; this repo is your memory.
 
 ## Mission
-AiMMO is a real-time 3D MMO built by its owner and AI together, aiming to be the best MMO there is. It plays like a modern action MMO and progresses like a long-road skill MMO (see "The vision in one paragraph" in `docs/design_bible.md`). The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current milestone in `docs/roadmap.md`.
+**ZombAi** (the repo is still named AiMMO until the rename, see `docs/vision.md`) is a real-time 3D **third-person survival game** built by its owner and AI together (owner direction, 2026-11-24): a fallen medieval kingdom on generated maps full of risk-graded ruins, the Gloam (our own undead), building and surviving with **2 to 8 friends in co-op** (for now on today's always-on Railway world, capped at 8; never break it), sold as a one-time buy. **Read `docs/vision.md` every session**; it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
 
 ## Autonomy rules
 - Never wait for human input and never ask questions. Make the call, write down why, move on.
 - The human's only input channel is `docs/playtest.md` (bugs and crashes only). Treat it as bug reports, not design requests.
-- **Fun comes first.** The owner's number one rule: if it isn't fun, it isn't the greatest MMO. Judge every change by whether it makes the game more fun to play (tight feedback, short loops that pay off, juice, no dead time), and say how in your PR. See "Fun comes first" in `docs/design_bible.md`.
-- The owner's standing directions are in `docs/design_bible.md` under "Owner directions" (fun comes first, chat is for talking only, the action camera, how gathering feels, the whole game feels like a modern action MMO, the long road of skills, take the best and beat it, a look of our own that is cheap to draw (`docs/art_bible.md`), and "Inspired by, never copied"). Follow them over any other design choice; everything else stays your call.
+- **Fun comes first.** The owner's number one rule: if it isn't fun, it isn't worth shipping. Judge every change by whether it makes the game more fun to play (tight feedback, short loops that pay off, juice, no dead time), and say how in your PR. See "Fun comes first" in `docs/design_bible.md`.
+- The owner's standing directions are in `docs/design_bible.md` under "Owner directions" (fun comes first, chat is for talking only, the action camera, how gathering feels, the whole game feels like a modern action game, the long road of skills, take the best and beat it, a look of our own that is cheap to draw (`docs/art_bible.md`), the ZombAi survival game (`docs/vision.md`), and "Inspired by, never copied"). Follow them over any other design choice; everything else stays your call.
 - **The look is grounded, not cute** (owner direction, 2026-11-24). Before any change that shows something on screen, read `docs/art_bible.md`, at least section 0 (the pillars), section 11 (what reads as cheesy) and section 12 (the checklist), and follow it. Muted earthy colours, real proportions, moody light, restrained effects and UI; inspired by the grounded survival-crafting MMO genre, never copying any game.
 - Stay true to `docs/design_bible.md`. You may evolve it, but log every change and its reason in that file's "Revision history" so the vision doesn't flip-flop week to week.
 
@@ -19,7 +19,7 @@ AiMMO is a real-time 3D MMO built by its owner and AI together, aiming to be the
 3. **All art is procedural.** No imported models, textures, sounds, or fonts beyond what Godot ships with. Everything visual and audible is generated in code (`game/procgen/`).
 4. **No secrets in code.** Credentials come only from environment variables set by the human on Railway and in GitHub repository secrets.
 5. **Small, finished increments.** Each worker run ships at most one feature for its workstream, plus bug fixes, as one PR with GitHub auto-merge on. No session calls merge: GitHub squash-merges a PR into `main` only when the required "Test" check passes, and the integrator reviews and reverts anything that breaks a rule. Small and working beats big and broken.
-6. **Never break save compatibility.** Players' existing characters, items, and progress must load after every update.
+6. **Never break save compatibility.** Players' existing characters, items, worlds and progress must load after every update, including worlds saved by hosts on their own machines.
 
 ## Tech stack
 - **Engine:** Godot 4 (GDScript), one project in `game/` with two export presets:
@@ -36,9 +36,11 @@ AiMMO is a real-time 3D MMO built by its owner and AI together, aiming to be the
 ```
 CLAUDE.md                 ← this file
 docs/
+  vision.md               ← the game: ZombAi, a fallen kingdom, ruins, the Gloam (owner direction)
+  research/               ← design studies behind the vision
   design_bible.md         ← world, lore, art direction, core systems (AI-owned)
   art_bible.md            ← the art direction and style guide: Emberlight, grounded; render budgets (read before any visual change)
-  roadmap.md              ← ordered milestones toward the vision (AI-owned)
+  roadmap.md              ← ordered phases toward the vision (AI-owned)
   playtest.md             ← human's bug inbox (read every week)
   devlog/week-NN.md       ← internal notes: what you built, what failed, notes to next week's self
   devlog/<stream>.md      ← each workstream's running notes (folded by the integrator)

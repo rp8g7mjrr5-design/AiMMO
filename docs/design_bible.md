@@ -4,35 +4,35 @@ This is the AI-owned vision for AiMMO. It may evolve, but every change is logged
 Revision history at the bottom with its reason, so the game does not flip-flop.
 
 ## North star
-**Make the Greatest MMO of all time.** This is the owner's stated goal, and the measure every weekly choice is judged against. In the owner's words: the MMO that beats every other MMO, built by one person and AI together. That is the bar: not "good for a small team", but the game players of today's best action MMOs and of the long-running skill-grind classics would leave them for. The number one way there is to make it **fun**: if it isn't fun, it isn't the best (see "Fun comes first" under Owner directions). "Greatest" here means the MMO players most want to come back to: a world that feels alive, systems that are deep but never broken, and a community that grows because people enjoy being in it together. When two options compete, pick the one that moves AiMMO closer to that, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5).
+**Make the survival game friends pick for their evenings, and that people love to watch.** Owner direction, 2026-11-24: the game is **ZombAi**, a third-person survival game in a fallen medieval kingdom, played in co-op by 2 to 8 friends, sold as a one-time buy, and made for mass appeal (`docs/vision.md`). The number one way there is still to make it **fun**: if it isn't fun, it isn't worth shipping (see "Fun comes first"). When two options compete, pick the one that is quicker to learn, better in a 30-minute session with friends and more worth sharing, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5). (Until 2026-11-24 this was "the Greatest MMO of all time"; the skills, camera, combat and art built for it all carry over.)
 
-### The vision in one paragraph (owner direction, 2026-11-23)
-AiMMO plays like a **modern action MMO** and progresses like a **long-road skill MMO**. In your
-hands it feels like the owner's favourite modern MMO (New World): an over-the-shoulder camera,
-aimed action combat with crafted weapons, gathering and crafting as real trade skills, gear
-worth chasing, towns to trade in and territory worth caring about. Over months it feels like
-the classic skill-grind MMO the owner loves (RuneScape): many skills, each levelled to a high
-cap, and every single level unlocks something, so there is always a next goal a few minutes
-away and a far goal you will be proud of. The core loop that ties it together is
-**gather → craft → fight → level up → explore further**, and each turn of the loop opens a
-bit more of Ashgrove. Inspired by both, copied from neither (see "Inspired by, never copied").
+### The vision in one paragraph (owner direction, 2026-11-24)
+A kingdom fell when the Dimming rose, and its dead got back up as **the Gloam**. Each world is
+a freshly generated stretch of that kingdom (forests, moors, rivers, the old king's roads, and
+ruins graded by how much they can kill you and how much they pay) that one player hosts for 2 to
+8 friends. You arrive with nothing; you eat, drink, keep warm and tend wounds; you learn that
+noise brings the Gloam and ember-fire burns them; you build a hold together and hold it through
+horde nights; and you push into deadlier ruins for the gear to push further. In your hands
+it is an action game (the over-the-shoulder camera, aimed swings, dodge, block) with gathering
+and crafting as real skills that level by doing. The full design is `docs/vision.md`. The core
+loop (owner): **loot the ruins and gather resources to build up the land you've claimed**, then hold it through invasions and horde nights. There is no ending: the goal is survival, and **days survived** is the score.
 
 ## Pillars
-1. **A world that feels lived in, and a road that never ends.** Players log in to see what changed, who is around, and to get one more level, never to tick a daily chore. Long progression, yes; tedium, never (see "The long road").
+1. **A world that feels lived in.** Friends come back to their world to see whose walls held, what the night broke and which ruin is next, never to tick a daily chore. A long road of skills and gear, tedium never (see "The long road").
 2. **Small, honest systems that stack.** Each week adds one system that works with the others. No feature ships half-built.
 3. **Everything is grown, not imported.** Terrain, creatures, items, music, and sound come from code and seeds. The look is a consequence of that: **Emberlight**, painted low-poly with colour in the vertices and one shared shader, cheap enough for any laptop (see `docs/art_bible.md`).
-4. **Cooperation first.** The early game rewards people for being near each other: shared gathering, group events, a town built together. PvP, if it ever comes, is opt-in.
+4. **Together first.** Surviving is better with friends: shared fires, a hold you build together, ruins you clear as a group, a friend dragged back from a Gloam pack. The game is co-op PvE; friendly fire is a host setting, off by default.
 
 ## Owner directions (standing rules)
 The owner plays and tests; the AI designs everything else. The owner has given the
 directions below, and these are standing rules: they win over any other design choice, and
 the weekly review and director may refine them but never reverse them. Everything not
 covered here (systems, lore, balance, roadmap) stays the AI's call. Fun comes first and sits
-above the numbered directions: when two choices both respect directions 1 to 7, pick the
+above the numbered directions: when two choices both respect directions 1 to 8, pick the
 more fun one. Direction 7 (a look of our own, cheap to draw) binds every visual change.
 
 ### Fun comes first (the first rule)
-**If it isn't fun, it isn't the greatest MMO.** Fun is how we measure the North star. Every
+**If it isn't fun, it isn't worth shipping.** Fun is how we measure the North star. Every
 change, in every stream, is judged first by one question: *does this make the game more fun
 to play, right now, for a real player?* "Technically correct but boring" is not done.
 What that means in practice:
@@ -142,8 +142,7 @@ names:
   silhouette (art direction: "later, gear changes silhouettes").
 - **A world with places that matter.** Zones get harder as you go out from the Spawn Meadow
   and hold better materials. Towns are where you trade, craft at better stations and meet
-  people. Later, settlements and territory that groups build up and contest (opt-in, see
-  pillar 4).
+  people. Territory is bands and claims (`docs/vision.md`, pillar 4).
 - **Physical and grounded.** Weighty movement, readable animations, sound on every action,
   day and night that change what is out there.
 
@@ -209,6 +208,25 @@ section 0 (pillars) and section 11 (what reads as cheesy) before any visual chan
 Every world and client PR that changes what's on screen follows the art bible and keeps
 inside the budget.
 
+### 8. ZombAi: survive a fallen kingdom with friends (owner direction, 2026-11-24)
+The owner changed the game's direction, in steps on one evening: not an MMO but a survival game
+in the spirit of Project Zomboid, then a map that works like Rust's, a post-apocalyptic medieval
+fantasy setting, a third-person camera, a one-time buy, the name **ZombAi**, and finally **2 to
+8 player co-op** hosted by a friend. The full design is `docs/vision.md`. Standing rules:
+- **Co-op first.** 2 to 8 friends; PvE against the Gloam and the land. For now that is today's always-on Railway world, capped at 8, which must never break; hosting from the client comes later. Public
+  servers, raiding and seasons are a "later, maybe" only.
+- **A generated kingdom with graded ruins.** Every world from a seed; hand-designed ruins placed
+  by the generator, each graded by danger and loot.
+- **Our own undead.** The Gloam are original (kinds, behaviour, the chill, ember burns them),
+  never another game's zombies.
+- **Accessible and action-heavy, not brutal:** quick to learn, good in a 30-minute session,
+  visible and explained dangers, moments worth clipping.
+- **A one-time buy.** Never sell power, safety or progress.
+- **Nights come in rounds,** and the big horde night is **the Tolling**, triggered by a base's
+  threat, never by a calendar. Magic is a light touch from loot.
+- **The goal is survival.** No story endgame. The heart of it is base building, getting invaded at
+  your base, and looting toward upgrades and vehicles (horses, carts, boats).
+
 ### Studio intro (owner direction, 2026-11-23)
 The owner supplied the **Budda Games** intro video and asked for it to replace Godot's boot
 splash. It is the studio's own logo, so it is the one owner-supplied asset in the client and an
@@ -241,7 +259,7 @@ The central mystery, revealed slowly over many weeks: the ember ash trees are th
 ### Geography (current)
 - A 512 m × 512 m playable square centred on the **Spawn Meadow**, a flat, calm clearing.
 - Rolling grass hills, ash groves in the lowlands, pine forests on higher ground, bare rock on the ridges, snow on the highest peaks, and lakes in the hollows.
-- The world is generated from `WORLD_SEED = 20261127` in `game/shared/terrain.gd` and `game/procgen/`. The seed is permanent: changing it would move every saved character into a different world.
+- The world is generated from `WORLD_SEED = 20261127` in `game/shared/terrain.gd` and `game/procgen/`. This seed stays permanent for today's live test world (generator version 0). Under ZombAi every world gets its own seed from the host (`docs/vision.md`); a saved character always loads into its own world.
 
 ### Tone
 Warm, curious, slightly melancholy. Patch notes and in-game text are friendly and a bit wry. Nothing grimdark, nothing sugary.
@@ -270,24 +288,26 @@ Gathering works the way players already know from mainstream MMOs, never through
 The server times the bar and decides the result; the client only shows it. `/gather` stays as a hidden debug and bot command, not listed in `/help` or patch notes. We borrow the genre's mechanics only: no names, art, UI or sounds from any existing game.
 
 ## Core systems (planned order)
-The order of milestones and what "done" means for each is in `docs/roadmap.md`. In short,
-after the foundations (day and night, gathering, crafting, the action camera, chat-to-UI):
-1. Skills and XP: the first trade skills, levels, unlocks and level-up moments
-2. Action combat with crafted weapons, health, and creatures just outside the Spawn Meadow
-3. Gear tiers: refining, better materials, armour and weapons in tiers
-4. A second zone: harder, richer, opened by gear and levels
-5. Towns and trading: the Hearth, crafting stations, a player market
-6. Parties and group content: shared kills and XP, group events, elite creatures
-7. Territory and opt-in PvP: settlements that groups build up and contest
-The ember ash mystery is told through quests and world events along the way, a chapter per
-milestone from the second one on.
+The phases and what "done" means for each are in `docs/roadmap.md`. In short, after the
+foundations (gathering, crafting, skills and XP, the action camera and combat basics):
+1. A kingdom from a seed: the generator, roads, ruin sites, chunked building
+2. Survive the first night: needs, fire and cooking, the Gloam, death and loot
+3. A roof and a wall: claimed land, building, the ember hearth, invasions and horde nights
+4. Into the ruins: all four grades, signet keys, smithing, bows, ember weapons
+5. Play with friends: hosting, invites, saved worlds
+6. Launch-ready: the first hour, settings, the rename, a store build
+7. Depth, ongoing
+The goal is survival, with no story endgame (owner, 2026-11-24). The fallen kingdom's lore (why
+the Dimming rose, what the ember can still do) is told through the ruins, never as a quest line
+you must finish.
 
 ## Technical principles
 - The server is authoritative for everything that matters. Clients render and request.
-- The world is deterministic from the seed, so the server never streams terrain.
+- The world is deterministic from the seed, so the server never streams terrain; it sends the world's seed.
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 00 (2026-11-24, ZombAi):** The owner said they weren't sure an MMO was the right call. Over the evening they moved to a survival game in the spirit of Project Zomboid, with a map that works like Rust's (generated land, roads and risk-graded ruins), a post-apocalyptic medieval fantasy setting (a fallen kingdom), a third-person camera, a one-time buy, the name ZombAi, and 2 to 8 player co-op hosted by a friend; an intermediate draft with 48-player servers, faction land claims and seasons was dropped to "later, maybe". Rewrote the North star, the vision paragraph and pillars 1 and 4 (co-op PvE, not opt-in PvP between strangers), added owner direction 8, replaced the planned order with phases, and made seeds per world. Kept everything that carries over: fun first, chat is for talking, the action camera, gathering, the long road of skills, take the best and beat it, the grounded art direction and its budgets, and "Inspired by, never copied". Ashgrove's ember lore becomes the fallen kingdom's. The goal is pure survival; the heart of it is base building, getting invaded, and looting toward upgrades and medieval vehicles (horses, carts, boats). Later the same evening: a days-survived counter, horde nights of our own (not a fixed-calendar blood moon), the name "Hollows" dropped (the undead are now **the Gloam**, the owner's pick), and the core loop of looting and gathering to build up claimed land. Finally the owner gave the reference (Project Zomboid + 7 Days to Die in a medieval fantasy setting, with rounds of survival at night and base defence) and asked the director to pick the rest: nights are fought in rounds, the big horde night is the Tolling (threat-triggered, never on a calendar), and magic is a light touch from loot (runes as wall wards, relics, single-use scrolls).
 - **Week 01 (2026-11-24, less blocky, low-res look):** The owner asked for characters "less blocky and more low res actual", and for animations. The art bible now adds **low-res paint** to Emberlight: organic low-poly shapes (smooth lofted bodies, never boxes) and a procedural texel grain in the shared shader that makes every surface read like a low-resolution painted texture with nearest-neighbour filtering, without any texture files. The light bands were widened so rounded shapes shade smoothly. Characters were rebuilt from smooth lofts, with separate upper and lower limb pieces ready for a skeleton. Animation (a skinned skeleton and a full set of weighty moves) is its own piece of work and builds on this.
 - **Week 01 (2026-11-24, character overhaul):** The owner said "our dudes look fat and silly". The art bible's "Characters" section now sets lean, grounded adult proportions (about 7 heads, 1.78 m, shoulders wider than hips, long legs, hands to mid-thigh), a back-first silhouette of layered survival gear (hood or hair, wool mantle, framed pack and bedroll, belt with pouch and knife, chest strap, bracers, tall boots), gear colours in the palette, and a per-character cost (5 merged meshes, 5 draw calls). `AvatarBuilder` was rebuilt to match. This replaces the earlier plan of 6 heads with gear in Milestone 3: characters are adult-proportioned now, and gear grows from these layers.
 - **Week 01 (2026-11-24, grounded art direction):** The owner said the current style "is cheesy and looks silly" and asked for the game to feel heavily inspired by the genre of their favourite MMO (New World): a grounded, moody survival-and-crafting MMO, done as low poly, with a style clearly our own and without legal trouble. Direction 7 now says Emberlight is **grounded first**, and `docs/art_bible.md` was rewritten around that: five pillars (grounded before cute, mood from light, earth first and ember rare, weathered, restraint), palette saturation and value rules, light by time of day, character proportions (toward 6 heads, never chibi, no wizard hats), materials, UI tone, effects restraint, a sharper legal "inspired by, never copied" list, and a named list of what read as cheesy with its status. A first pass fixed the worst of it: olive and straw grass instead of lime, rust two-lobed ash crowns on thicker trunks instead of candy lollipops, earthy cloth, hoods and hair instead of cyan tunics and wizard hats, a smaller head, a dusty sky and a whole-frame grade, moonlit-blue night fill, and a translucent level-up column. The performance rules and CI budgets are unchanged.

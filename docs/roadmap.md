@@ -1,19 +1,19 @@
 # AiMMO Roadmap
 
-The road from today to the game in the design bible's "The vision in one paragraph":
-**gather → craft → fight → level up → explore further**. The roadmap is a list of
-**milestones in order**, not dates. Each milestone has a goal a player can feel and a
-"done when" list. Streams work on the **current milestone** first; they may build ahead on
-the next one only when nothing in the current one is unblocked for them. A broken system or
-a serious bug always goes first. The weekly review names each week's release after what that
-week added to the current milestone, and moves the "current" marker when a milestone's
-"done when" list is all true.
+The road from today to **ZombAi** in `docs/vision.md` (owner direction, 2026-11-24):
+a third-person survival game in a fallen medieval kingdom, on generated maps full of
+risk-graded ruins, against the Gloam. The roadmap is a list of **phases in order**, not dates.
+Each has a goal a player can feel and a "done when" list. Streams work on the **current phase**
+first; they may build ahead on the next one only when nothing in the current one is unblocked
+for them. A broken system or a serious bug always goes first. Milestones 0 and 1 below are the
+foundations already built; anything still open in them stays first in its backlog. The game is
+**2 to 8 player co-op**, hosted by a friend (owner, 2026-11-24).
 
-Every milestone follows the owner directions in `docs/design_bible.md`, especially fun comes
-first, 5 (the long road) and 6 (take the best, then beat it): before a milestone's first
-system PR, its stream writes a few lines in its devlog on which MMO does that feature best,
-what players love and hate about it, and how ours improves on it. Everything a milestone puts
-on screen follows the Emberlight art bible (`docs/art_bible.md`) and stays inside its render budget.
+Every phase follows the owner directions in `docs/design_bible.md` (fun comes first, the lean in
+`docs/vision.md`, take the best and beat it): before a phase's first system PR, its stream
+writes a few lines in its devlog on which game does that feature best, what players love and
+hate about it, and how ours improves on it. Everything on screen follows the art bible
+(`docs/art_bible.md`) and stays inside its render budget.
 
 ## Milestone 0: Foundations (finishing now)
 Shared world, accounts, movement, chat, persistence, day and night, gathering, crafting at
@@ -25,7 +25,7 @@ client).
 **Done when:** a new player can gather and craft with keys and windows only, no chat command
 anywhere, through the over-the-shoulder camera.
 
-## Milestone 1: The long road begins (skills and XP) ← current
+## Milestone 1: The long road begins (skills and XP) (finishing now)
 **Goal:** every gather and craft visibly moves you toward a level, every level gives you
 something, and there is always a next unlock in view.
 - Four skills to start, with our own names: **Felling** (ash and pine), **Quarrying**
@@ -46,82 +46,101 @@ next unlock; levels survive logout; tier-2 nodes refuse a too-low level with a c
 the bot test covers XP, a level-up and persistence, and qa's fun metrics report time to
 first level-up.
 
-## Milestone 2: First blood (action combat with crafted weapons)
-**Goal:** something worth fighting just outside the Spawn Meadow, with weapons you made.
-- Health and stamina. Aimed light and heavy attacks, block, dodge roll. Enemies telegraph.
-- First weapons crafted at the bench from Milestone 1 materials (a couple of weapon types
-  that play differently), each with its own mastery skill that levels by use.
-- Creatures: gentle wildlife first (the old Week 04), then a few hostile ones in the
-  ridges and at night (the old Week 05). Drops that feed crafting. Torches and campfires
-  keep danger back at night.
-- Fair failure: you respawn at the meadow and lose little.
-- First chapter of the ember ash mystery hinted by what the creatures guard.
-**Done when:** a player can craft a weapon, fight and kill a creature with readable,
-responsive combat (input feedback under 100 ms), level a weapon mastery, and die and come
-back without losing progress; bots fight in the bot test.
+## Phase 1: A kingdom from a seed ← current
+**Goal:** every world is a new, generated stretch of the fallen kingdom, and what we already
+built (gathering, crafting, skills, combat basics) works in it.
+- The live Railway world stays up the whole time (owner, 2026-11-24: friends drop in any time),
+  capped at 8 players (`MAX_PLAYERS`).
+- A world config (seed, size, generator version) the server sends at login; today's 512 m
+  Ashgrove stays as version 0 until the Railway world moves to a generated map, in one announced
+  step where characters keep skills, items and pack and arrive at the new spawn.
+- The generator v1: land, rivers, biomes, the king's roads, and **ruin sites** with grades,
+  resource nodes and the spawn point placed from the seed.
+- Terrain, props and ruins built in chunks around the player, inside the render budget.
+- The first two ruins as data-driven set pieces (a grade 1 burned farmstead, a grade 2 abandoned
+  village), built from a procedural medieval kit (timber, stone, thatch, all weathered).
+**Done when:** five seeds each give a playable world with water, every node kind, roads and
+ruins; a fresh character can gather and craft end to end in one; the spawn shot fits the render
+budget; the world builds in under 3 s.
 
-## Milestone 3: Better gear (tiers and refining)
-**Goal:** a reason to keep crafting: each tier of material makes clearly better gear.
-- Refining skills (wood to planks, stone and ore to bars) and the first ore.
-- Armour and weapons in tiers, with some rolled variation per craft; master crafters make
-  better rolls. Gear changes your silhouette.
-- A character panel with equipped gear.
-**Done when:** there are at least three gear tiers, refined materials, armour that changes
-how fights go and how you look, and a crafted item's quality depends on skill level.
+## Phase 2: Survive the first night (in rounds)
+**Goal:** staying alive is the game, and nights are fought in rounds against the Gloam.
+- Hunger, thirst, warmth and rest on top of today's vitals, forgiving and readable; bandages and
+  the first wounds.
+- Fire, water, foraging, cooking, hunting.
+- The Gloam: the walker and the Gloam hound, drawn by noise, with clear telegraphs; torches and
+  ember-fire hurt them.
+- **Night rounds:** waves until dawn, each a bit tougher, with a short lull between; the round
+  number and days survived on screen; rounds only come for players who are online.
+- Death drops a lootable pack where you fell; respawn in under a minute.
+- The **days survived** counter per character and per world (on the always-on world, days alive
+  and online for part of the day), with best runs kept.
+**Done when:** a fresh player learns, in one evening, to avoid dying of cold, hunger and to the
+Gloam and survives a night of rounds; fun metrics report time to first fire, rounds survived and
+nights survived; bots fight rounds, die, loot and respawn in the bot test, and no round ever
+spawns for a player who is offline.
 
-## Milestone 4: Beyond the valley (a second zone)
-**Goal:** a harder place with better resources that you need Milestone 3 gear to survive.
-- A new zone next to Ashgrove (same seed rules: new zone, its own seed, the old world
-  unchanged), with its own look, creatures, tier-3 and tier-4 materials, landmarks.
-- Soft gating: you can walk in, but it is dangerous below the right gear and levels.
-- Chapter two of the mystery as a short quest chain (the old Week 07 "Embers Below").
-**Done when:** a geared player can travel there, survive, gather and fight things that
-can't be found at home, and bring them back to craft.
+## Phase 3: A roof, a wall, and the first invasion
+**Goal:** the heart of the game (owner, 2026-11-24): build a base with friends and hold it when
+the Gloam come for it.
+- A **claim marker** that stakes your land and grows as you build it up.
+- Snap-grid timber and stone building, doors, palisades and gates, chests, an ember hearth that
+  stops the Gloam rising inside, a bedroll respawn. Saved and restored through every restart.
+- Base **threat** (size, noise, light, stored wealth); night rounds hit your walls; **the Tolling** (our horde night: triggered by threat, a bell the evening before, more rounds, soldiers and wights) grows with it,
+  announced a minute ahead; the Gloam that break doors and weak walls.
+- The first defences: spiked barricades, braziers, a warning bell; the first **runes** as wall wards.
+- On the always-on world a base is only attacked while one of its owners is online.
+**Done when:** a group builds a base, an invasion comes for it and can be held or lost, a bigger
+base draws bigger invasions, the base survives a server restart in the bot test, and a walled
+base fits the render budget.
 
-## Milestone 5: A town of our own (towns and trading)
-**Goal:** a place to meet, trade and build together.
-- The Hearth (the old Week 06): players donate resources to raise communal buildings at
-  the meadow, which unlock better crafting stations.
-- Player trading: direct trades, then a market that is easy to use and hard to exploit.
-- Storage, a bank or chest per player.
-**Done when:** two players can trade safely, anyone can buy and sell through the market,
-and the town visibly grows from what players gave.
+## Phase 4: Into the ruins
+**Goal:** the map's risk ladder: go further, risk more, come back stronger.
+- All four ruin grades (the mine, the drowned village, the abbey, the fallen castle and its
+  crypt), each with its own Gloam (soldiers, the Bell-wight) and loot tables.
+- Signet keys and vaults; smithing, iron and the first armour; bows and crossbows; ember
+  weapons; relics that enchant gear and single-use spell scrolls from vaults; base upgrades from
+  ruin loot (iron-bound walls, a gatehouse, traps, arrow slits).
+- **Horses and carts:** wild horses and ruined stables, taming, feeding, stabling, riding; a cart
+  to haul a ruin's loot home.
+**Done when:** a geared group can clear each grade, grade 4 needs keys from grade 3, loot from
+each grade is clearly better than the one below and upgrades the base, and a group can ride out
+and haul a cart of loot home.
 
-## Milestone 6: Better together (parties and group content)
-**Goal:** doing things with friends is the best way to play.
-- Parties with shared kill credit and XP, party markers on the compass.
-- Group events in the world and elite creatures that need a group.
-- Proximity or zone chat (from the backlog).
-**Done when:** a party of four can form, take on an elite or event together, and all get
-rewarded, with the bot test running parties.
+## Phase 5: Host your own world
+**Goal:** beyond the always-on world, any player can host, the others join, and it just works.
+- A Host button that starts the server build on the player's machine with a chosen world; join
+  by invite code or address; several saved worlds per host; seed and size choice; friendly fire
+  and difficulty as host settings.
+- Joining a world in progress, leaving and coming back, the host closing the world safely.
+**Done when:** a host on a home connection runs a world for 8 players (the bot test runs 8 bots
+against a host-started server), worlds survive closing and reopening, and a friend can join in
+under a minute from the main menu.
 
-## Milestone 7: Ground worth holding (territory and opt-in PvP)
-**Goal:** groups build up and contest places in the world, for those who want it.
-- Groups (our own design and name) that claim and improve settlements.
-- Opt-in PvP: flag yourself for it; contests over territory between willing groups.
-- Territory perks that matter to the whole town (better stations, lower fees).
-**Done when:** a group can claim and improve a settlement, another willing group can
-contest it, and players who never flag for PvP are never forced into it.
+## Phase 6: Launch-ready
+**Goal:** a stranger buys it, starts it and has a good first hour.
+- A first-hour path that teaches needs, fire, the Gloam and building without a wall of text.
+- Settings and accessibility, streamer mode, performance on the target laptop, the rename to
+  ZombAi everywhere, a store-ready build.
+**Done when:** a new player reaches their first night and survives it without outside help, and
+the build passes the perf budget on Low and Medium.
 
-## Further out
-More skills (cooking, fishing-like and others, each with our own name), more zones, deeper
-chapters of the mystery, housing, seasonal world events, Steam (blocked until the owner sets
-it up).
+## Phase 7: Depth (ongoing)
+Boats (rowboat, then a small sail boat for the coast), great hordes, wounds and illness,
+farming, fishing, more kinds of Gloam and ruins, weather,
+proximity voice, a spectator camera.
 
-## The next six weeks (director forecast, 2026-11-23)
-A forecast, not a promise: it is redrawn every morning from what actually landed. Release
-weeks start Friday; the PR budget week starts Wednesday (`docs/budget.md`), so each stream
-has about 40 PRs between Wednesdays. At 2026-11-23's pace (60 worker PRs landed in a day) a
-milestone takes two to four days of work, and the budget, not the work, sets the pace.
+## The next six weeks (director forecast, 2026-11-24)
+A forecast, not a promise: it is redrawn every morning from what actually landed.
 
 | Week | Dates | Focus |
 |------|-------|-------|
-| 00 | to Thu 26 Nov | Close Milestone 0 (craft window on `c2s_craft`, chat gate, pack window, facing yaw v5) and Milestone 1 (level-up moment, skills window, tier-2 nodes and props, Toolcraft recipes, pace check, bot-test gates). |
-| 01 | 27 Nov to 3 Dec | Milestone 2 starts: health and stamina, light and heavy attacks, dodge, the first two crafted weapons and their mastery skills, gentle wildlife outside the meadow. |
-| 02 | 4 to 10 Dec | Milestone 2 done: hostile creatures in the ridges and at night with clear telegraphs, fair death and respawn, torches and placed campfires, the first hint of the mystery. |
-| 03 | 11 to 17 Dec | Milestone 3: refining skills, the first ore, three gear tiers, rolled quality from crafting level, a character panel, gear that changes your silhouette. |
-| 04 | 18 to 24 Dec | Milestone 4 starts: the second zone's terrain, look and landmarks, tier-3 materials, soft gating by gear. |
-| 05 | 25 to 31 Dec | Milestone 4 done (its creatures and the "Embers Below" quest chain); Milestone 5 groundwork (the Hearth, storage). |
+| 00 | to Thu 26 Nov | Close Milestones 0 and 1; Phase 1 groundwork (world config, generator v1 land and roads). |
+| 01 | 27 Nov to 3 Dec | Phase 1: ruin sites, chunked building, the first two ruins. |
+| 02 | 4 to 10 Dec | Phase 2: needs, fire and cooking, the first the Gloam, death and loot. |
+| 03 | 11 to 17 Dec | Phase 3: claimed land, building, the ember hearth, the first Tolling. |
+| 04 | 18 to 24 Dec | Phase 4: grade 3 and 4 ruins, keys, smithing, bows. |
+| 05 | 25 to 31 Dec | Phase 5: host button, invites, saved worlds. |
 
 ## Week history
 | Week | Release | Notes |
@@ -149,6 +168,12 @@ up in CI. Milestone 0 is not closed yet: the workbench window still sends `/craf
 gate can't go on. Both are at the top of today's backlogs. Backlogs were trimmed to 12 ordered
 items per stream; everything else sits under "Later" in each file, so workers stop picking
 low-value follow-ups ahead of milestone work.
+
+**Director note (2026-11-24, ZombAi):** the owner is reshaping the game: renamed
+ZombAi, a post-apocalyptic medieval fantasy (a fallen kingdom), third person, a one-time buy,
+and a map that works like Rust's (generated land, roads and risk-graded ruins), with the Gloam
+as our own undead. The owner then chose 2 to 8 player co-op hosted by a friend; public servers are a "later, maybe". For now co-op is today's always-on Railway world, capped at 8, so friends can drop in any time; hosting from the client comes in Phase 5. The goal is pure survival (no story endgame); the heart of it is base building, getting invaded and looting toward upgrades and vehicles (horses, carts, boats). The owner then asked the director to pick the rest, with the reference "Project Zomboid + 7 Days to Die in a medieval fantasy setting, with a round survive element at night and base defence": nights come in rounds, the big horde night is **the Tolling** (threat-triggered, a bell the evening before), and magic is a light touch from loot (runes as wards, relics, scrolls). The undead are **the Gloam**. Phase 1 is seeded in every backlog. See `docs/vision.md`.
+Backlogs are not reseeded until the owner confirms.
 
 ## Backlog (unscheduled)
 - Zone or proximity chat, private messages
