@@ -747,3 +747,81 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tests.** `test_world_item_icons::test_hunt_drops_are_drawn_earthy_and_never_glow` (own icon, no halo, no ember-bright pixels, own tint, meat dark red off ember's hue, hide muted). The existing fill, margin and distinctness tests pick both up automatically through `Inventory.UNDRAWN`. No bot behaviour: nothing new on the network (the drops are gameplay's, already in their bot test), and the art lint keeps procgen out of behaviours.
 
 **Next run.** Gameplay moves the two into `ITEMS` (request filed). Then wilderness lanterns (owner art step 2), or the client's knee/elbow pivots if #196 and #192 have landed.
+
+## 2026-11-24 — kingdom-generator
+
+## Kingdom generator v1 (ws/world/kingdom-generator)
+
+**Picked.** Top of the backlog: owner direction 8, Phase 1 part 1, the kingdom generator. Gameplay part 3, client parts 1 and 3 and qa part 3 all wait on it. The night-on-Compatibility bug is second; it stays next. **What a player will feel:** nothing yet on the live world (on purpose, it stays Ashgrove). This unblocks the day every world is a new kingdom to explore, with roads to follow and ruins whose danger you can read on the map before you go.
+
+**Built.**
+- `WorldGen` (`game/shared/worldgen.gd`, world owns it): the config `{seed, size_m, gen_version}` with `configure`, `apply`, `reset`, `config` and `parse("seed:gen:size")` (sizes by number or `small`/`medium`/`large`). Plain data and pure functions; nothing visual, so the server can read it (art lint passes).
+- `gen_version` 0 is Ashgrove: `Terrain.height` keeps its exact old code path, so it is bit-identical (a test compares against a frozen copy of the old formula). Version 0 ignores seed and size. `Terrain.water_level()` and `clamp_to_world()` follow the config (unchanged numbers on 0).
+- `gen_version` 1, the kingdom, built once per config in a fixed order: rim (60% coast on one side, else hills all round), spawn (inland, a quarter turn from the coast, the calmest of 24 candidates), lakes (in low ground, away from spawn), one river (a spring in the rim to the sea or the main lake, meandering, kept off the spawn plot), ruins (castle first on the far side, then grades 3, 2, 1 in distance bands from spawn; every world has a burned farmstead and an abandoned village), and roads (a spanning tree over spawn and ruins plus one loop). Height = uplift-driven lowlands and hills with ridges, rim hills, sea, lake beds and a river bed, land bumps fading along roads, then flat pads for spawn and each ruin.
+- River and road distances are baked once into 4 m rasters by stamping each segment only into its own box, so `height()` stays cheap (a 1.5 km layout plus ~1,000 node spots in about 0.3 s).
+- Biomes: forest, moor, farmland (wild fields), stone hills, plus water, shore and snow. `node_spots()` places nodes on a jittered 12 m grid by each biome's density and mix, off roads, rivers and ruin pads, 6 m apart, with the same 7-node starter ring around spawn as Ashgrove. Ordered and stable per config, so gameplay can use the index as the id.
+- `WorldMap` (`game/procgen/world_map.gd`): paints the configured world as a small relief map (biome colours, north-west light, water, roads, ruin discs by grade, spawn). New `Palette.MAP_*` tokens; no colour literals outside the palette. Client's map item can show it as is.
+
+**Tried and fixed.** First pass placed no castle at all: the river raster was capped at 60 m but the castle asked for 78 m of clearance, so every candidate "failed" the river check. Then larger worlds had dry river stretches near spawn, because the spawn plot's 70 m blend (and ruin pads' blends) lifted the river bed. Now the river keeps clear of the plot's blend, and each ruin's blend stops short of the nearest water. Swept seeds 1 to 40 plus two big ones at 1000, 1200 and 1500 m: every check passes on all of them.
+
+**Looked at.** Maps of seeds 1 to 5 next to Ashgrove (project files `world/kingdom-generator/`). Reads like a kingdom: coast or ring of hills, one river, roads joining small pale grade 1 marks near spawn out to the big dark red castle. Honest notes: stone hills are about a quarter of the land and read as grey blobs with hard edges on the map; the highland worlds have little water (lakes only, ~2%); snow shows only on the rim's corners. No 3D shots yet: the world builder still sizes everything from `GameConfig.WORLD_HALF_SIZE` (part 2, chunks) and the client's `--world` flag isn't on `main`.
+
+**Tests.** `test_world_worldgen.gd` (8 tests): Ashgrove default and bit-identical (also after visiting a kingdom); parse and apply; same seed same world, different seeds differ; five seeds each have a dry flat spawn, water, a river that holds water, every node kind (and all reachable on foot by flood fill), the full starter ring, a ruin of every grade, both must-have set pieces, grades further out in order, roads to every ruin, and every ruin reachable on foot; node spots stay off water, roads and pads and 6 m apart, ruin pads are flat; bigger worlds have more ruins and nodes; layout under 2.5 s; the map paints water and all four grade marks. No bot behaviour: nothing is on the wire or playable yet (gameplay's config bump and part 3 make it so; qa's part 3 runs bots on a generated world).
+
+**Next run.** The Compatibility night bug. After that, part 2 (chunks), which also swaps `GameConfig.WORLD_HALF_SIZE` for `WorldGen.half_size()` in the world builder, so the client's `--world` flag can show a kingdom in 3D and I can tune ground colours and flora for its heights.
+
+## 2026-11-24 — kingdom-dressing
+
+## A generated kingdom dresses itself (ws/world/kingdom-dressing)
+
+**Picked.** Requests from other streams come first, and gameplay's (`world.d/from-gameplay-kingdom-placement.md`) was open: the server now puts nodes, herds and the bench on a generated kingdom, but the meadow dressing still centred on `GameConfig.SPAWN_POINT` and sized itself by `GameConfig.WORLD_HALF_SIZE`. Rendering seed 11 from main showed how bad that is: the 512 m Ashgrove terrain chunk floating in fog, no ground at the kingdom's spawn at all, lanterns 330 m away at the origin. The Compatibility night bug stays next. **What a player will feel:** the first time a kingdom runs, they spawn in a lantern-lit meadow next to the bench, and look out over forests that sit where the map says forest, with roads and ruin grounds left open to walk to.
+
+**Built.**
+- `Lamps.positions()`, `Workbench.spot()`: centre and face on `WorldGen.spawn_point()`, seeded by the world's seed.
+- `WorldBuilder`: terrain and water plane span `WorldGen.half_size()`.
+- `Props.scatter()`: Ashgrove keeps its exact code path. A kingdom goes to `_scatter_kingdom`: count scaled by area (`count_for_world`: 0.55 of Ashgrove's density, capped at 9,000), kept per biome (forest 1.0, stone hills 0.32, moor 0.16, farmland 0.10), kind by biome (ash and pine in forest, pines higher up; pines and rocks on stone hills and moor; lone ashes on fields), never on water, shore, snow, within 24 m of spawn, on the king's roads (+2.5 m) or a ruin's pad (+4 m, room for the ruin kit). Seed 11 at 1.2 km: 5,438 items in 0.4 s.
+- `Flora`: seed, half size and spawn from `WorldGen`; the cache follows the config (like `ResourceNodes`); on a kingdom, boulders go on forest and stone hills, flowers on fields and moor, roads and ruin pads stay clear, counts scale by area (birches by its square root: shores grow with the water's edge), and 20 tries per spot instead of 60.
+- `Palette.ground_at`: on a kingdom, colour comes from the biome (`_kingdom_ground_at`): forest floor, straw-olive meadow on farmland, brown heath (`GRASS` toward `MAP_HEATH`) on moor, thin grass over stone on stone hills, rock on steep slopes, snow only past `WorldGen.SNOW_LINE`. Ground cover patches as on Ashgrove. Before, Ashgrove's height bands painted everything over 17 m (all of the 30 m rim) as snow.
+
+**Ashgrove is bit-identical.** Hashed Props, Flora, Lamps and Workbench outputs on main before touching anything and froze them in `test_world_kingdom_dressing`; they match after a trip to a kingdom too.
+
+**Looked at.** Seed 11, 1.2 km, noon, golden hour, night, from the lantern ring and from 45 m up, before and after: project files `world/kingdom-dressing/`. Spawn meadow with lanterns and bench, a forest edge on two sides, a dark-moss forest band against lighter fields from above, a thin strip of real snow on the far peaks. Night reads (Forward+ was not available here; the shots are opengl3).
+
+**Honest notes / didn't work.**
+- Birches: only 60 on seed 11 (Ashgrove has 260). Random sampling rarely lands on the thin shore band, and the 20-try cap stops it. Fine for now; better is to sample along `WorldGen.lakes()` and `rivers()` directly.
+- Kingdom flora takes ~1.9 s (biome lookups on every try). With the terrain at 1.2 km (about 5x Ashgrove's chunks) a kingdom's world build is slow; part 2 (chunks) is what fixes startup. Not live yet, so not a player problem today.
+- Biome edges are hard lines on the ground (the moisture threshold in `biome_for`), most visible from above. A soft blend over ~15 m in `_kingdom_ground_at` would help.
+- No bot behaviour: nothing new is playable or on the wire; the client doesn't load a kingdom yet (client's `--world` flag).
+
+**Next run.** The Compatibility night bug.
+
+## 2026-11-24 — compat-night
+
+## Night on the Compatibility renderer (ws/world/compat-night)
+
+**Picked.** Next on the backlog after the generator and the kingdom dressing: night near black on opengl3 (CI's smoke shots and any player whose GPU has no Vulkan). **What a player will feel:** on an older or Vulkan-less machine, night is a moonlit blue meadow where you can see the pines, the path and your friends, instead of a black screen with lanterns floating in it.
+
+**Root cause.** Not lighting. Godot 4.3's Compatibility renderer treats a spatial shader's `ALBEDO` and `EMISSION` as **sRGB** and linearises them itself (`drivers/gles3/shaders/scene.glsl`, "Convert colors to linear", a cubic approximation in `tonemap_inc.glsl`), and it leaves `source_color` uniforms in sRGB. Forward+ and Mobile take `ALBEDO`/`EMISSION` as linear, and linearise `source_color` uniforms on upload. Every one of our shaders writes linear colours (`Emberlight.paint()` stores vertex colours linear, palette constants are baked with `srgb_to_linear()`), so on Compatibility every colour was linearised twice: a mid tone kept about a fifth of its brightness. By day the bright key hid it (just darker, more saturated); at night everything sits in the tonemapper's toe and went near black.
+
+How I found it: installed `mesa-vulkan-drivers` here, which gives a working **Forward+ on lavapipe** next to opengl3 on llvmpipe, same machine. Then bisected with a scratch scene: grey albedo matched on both renderers, vertex colours and constant emission did not; unshaded swatches (0.02 to 1.0) showed opengl3 putting out exactly `srgb_to_linear` of what Forward+ put out. Reading the 4.3 GLES3 shader source confirmed it.
+
+**Built.**
+- `Emberlight.srgb_output()`: true on Compatibility (no `RenderingDevice`, not headless). `RenderingServer.get_current_rendering_method()` doesn't exist in 4.3, and the shader preprocessor's `CURRENT_RENDERER` check broke `#endif` parsing in my test, so the choice is made in GDScript when the shader source is built: `compat_define()` prepends `#define COMPAT_SRGB`. Forward+ and Mobile get byte-identical shaders to before.
+- `COMPAT_GLSL`: `compat_decode` (Godot's own cubic) and `compat_encode`, its exact inverse (quadratic first guess, three Newton steps). The usual pow approximation of linear to sRGB left the darks up to 60% off, which is exactly where night lives. A GDScript mirror is unit tested down to linear 0.0005.
+- Emberlight (every world surface, terrain, avatars, node props): on Compatibility, `emission_color` is decoded to linear first, then `ALBEDO` and `EMISSION` are encoded once at the end of `fragment()`. Motes and the level-up sparks (linear constants and instance colours, unshaded) encode their `ALBEDO` too.
+- `COMPAT_ALBEDO = 0.5`: even with colours right, lit surfaces still came out brighter on Compatibility than on Forward+ (its sky ambient differs; I didn't find exactly where). Scaling only the lit paint brings the spawn shot to Forward+'s brightness: centre luma at night 0.22 vs 0.26, golden hour 0.55 vs 0.54, noon 0.71 vs 0.64.
+
+**Numbers (same night shot, centre luma).** opengl3 before 0.06, after 0.22; Forward+ 0.26. CI smoke night shot luma 0.05 -> 0.19. Before/after/Forward+ triptychs at night, golden hour and noon: project files `world/compat-night/`.
+
+**Style baseline rewritten on purpose** (`tests/client_smoke/style_baseline.json`, as its `_doc` allows for a world PR that changes the look; reason appended there). Night luma 0.05 -> 0.19, noon 0.54 -> 0.67.
+
+**Honest notes / didn't work.**
+- Every earlier art pass that was tuned from opengl3 shots (all of mine since this container had no Vulkan) was tuned against colours that were too dark and too saturated. Players on Forward+ always saw the brighter, softer version. From now on the CI shots show what they see.
+- Night `neon_share` is now 0.19 on CI (the art bible wants at most 0.10): the ember-ash crowns read saturated orange-red at night, on Forward+ too. It was hidden by the darkening. Follow-up filed.
+- Noon on opengl3 is still a touch paler and its sky a touch bluer than Forward+ (sky and fog differ in the GLES3 sky shader, which treats sky `COLOR` as sRGB as well; our sky's colours come from `source_color` uniforms, which happen to come out right). Left alone.
+- Not touched: `NodeFx`'s highlight rim and the level-up column and ring. They colour from `source_color` uniforms, which Compatibility already shows about right.
+- No bot behaviour: nothing changed on the server or the wire; this is client rendering only. Unit tests cover the maths and the shader sources; the client smoke test covers the real render.
+
+**Tip for next runs:** `apt-get install -y mesa-vulkan-drivers` gives Forward+ here (`--rendering-method forward_plus --rendering-driver vulkan`). Compare against it before trusting an opengl3 shot.
+
+**Next run.** The ember-ash night saturation follow-up is small; then part 2 (chunks) or the material merge before the ruin kit, per the director's order.

@@ -1,1 +1,0 @@
-- Groundwork for generated worlds: the server can now lay out where trees, stone, ember seeps, herds and the workbench go from a world's seed. Nothing changes in the world you play today.
