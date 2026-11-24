@@ -1472,6 +1472,34 @@ change `Footsteps.OWN_DB` / `OTHER_DB`.
 **Notes to next run:** follow-ups added for ground-dependent steps, grazer hooves, and a volume
 slider.
 
+## 2026-11-24: missed-click tick (ws/client/missed-click-tick)
+
+**Picked:** #172 (grazers' real model) is green with auto-merge on, so this run took the next
+item I can do alone. The backlog items above it need qa's smoke script (screenshot hooks) or a
+long craft bot; the "nothing there" tick for a left-click that does nothing is the first one
+fully inside client's paths. **Fun:** a click at the sky, a spent node or a tree a step out of
+reach used to be silent, so you couldn't tell a miss from lag; now you hear it and re-aim.
+
+**Built:** `GatherPrompt.missed_click(click_pressed, op, gathering, waiting, since_last)` is the
+pure rule: a fresh click whose `decide()` op is empty, with no gather running (hammering while
+chopping keeps chopping, not a miss) and no start waiting on the server (the bar or a refusal
+answers that one), and at least `MISS_GAP` 0.12 s since the last tick so a hammered button
+patters instead of buzzing. `update()` sets `click_missed` for that frame; `client.gd` plays
+`Sfx.miss()` (60 ms: a one-pole high-passed noise brush over a fast-dying 640 Hz blip, peak
+~0.18 full scale) at -12 dB. It is shorter and softer than `nope()`, so "nothing there" never
+reads as the server saying "no". A click at a greyed node ticks too (the click did nothing);
+the server isn't asked, so there is no refusal to pair with.
+
+**Tests:** `test_client_missed_click.gd` (rule, widget flags across a click sequence incl. gap,
+start, waiting, chopping and an empty meadow, sound length/peak/softer than nope/no end click).
+Bot behaviour `client_missed_click` checks the rule around each of the bot's real gathers
+(sky click near the node ticks, the starting click and a click mid-gather don't); it sends and
+plays nothing, so it stays off the art-lint allow-list. First test run failed my own gap
+check (I'd fed 0.05 s twice more, which crossed 0.12 s); fixed the test, not the rule.
+
+**Not heard by hand:** no audio device in the container; level set by numbers. Tune
+`sfx_miss.volume_db` if it's too loud next to footsteps.
+
 ## 2026-11-24: intro sound plays on its own (owner request: "sounds choppy and glitchy")
 
 Run outside the schedule on the owner's request; took the `client` claim.
