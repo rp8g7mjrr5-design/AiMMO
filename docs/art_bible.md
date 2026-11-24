@@ -104,19 +104,47 @@ Rules of thumb:
   silhouette alone at 30 m. Tools and weapons are about 1.2x real size so they read in hand.
 
 ### Characters
-- **Proportions:** grounded people, never chibi. Target **6 heads tall** with Milestone 3 gear
-  (shoulders, belts, boots and gloves that change the silhouette). Today's step: about 4.5
-  heads (head radius 0.19 m on a 1.65 m body; it was 0.24 m, about 3.5 heads, which read as a
-  toy). Each further step keeps the limb pivots the walk cycle swings.
-- **Cloth, not costume.** Tunics are dyed cloth from `Palette.CLOTH`; trousers, boots, belts
-  and packs are leather and wool. No bright primaries, no cyan, no pure colours.
-- **Headwear is gear.** Hoods, felt caps, later helmets. **No pointed wizard hats**, no party
-  hats, no comedy shapes. Every head has hair or headwear: the camera sees the back of the
-  head all game, and a bare ball there reads as a doll.
-- **Faces are quiet.** Small shadowed eye sockets in the skin's own colour, never black
-  buttons or big cartoon eyes.
-- **Creatures** are animals first: real gaits, real proportions, muted coats (the grazers'
-  build is right; keep tails and markings understated).
+The owner's words (2026-11-24): "our dudes look fat and silly". Characters are lean,
+grounded adults who live outdoors, rendered as chunky low-poly. `AvatarBuilder` is the
+reference; every new character, NPC or gear piece follows these rules.
+
+**Proportions (the numbers live in `AvatarBuilder`'s constants):**
+- **About 7 heads tall.** A 1.78 m adult with a 0.25 m head. Never chibi, never a big-headed
+  doll, never a barrel. The old wanderer was about 3.5 heads and 0.64 m wide.
+- **Shoulders wider than hips, a narrow waist.** The chest is a tapered shape about 0.41 m
+  across at the shoulders and 0.31 m at the waist, and only about two-thirds as deep as it is
+  wide. Nothing is a capsule or a ball.
+- **Long legs.** The hips sit at about half the height (0.92 m). Thigh, shin and boot are
+  separate pieces, so the legs taper and read as legs.
+- **Real arms.** The shoulders sit at 1.42 m and the hands hang to mid-thigh (0.63 m of arm).
+  The sleeve, a leather bracer and the hand are separate pieces.
+- **Small, quiet faces.** A slightly narrow head, a neck, a nose and two shadowed eye
+  sockets in the skin's own colour. No black button eyes, no big round heads.
+
+**Silhouette, read from the back first** (the action camera sees the back all game):
+- Every head has a hood or hair (with or without a felt cap). No bare skin balls and no
+  comedy hats: no pointed wizard hats, party hats or crowns.
+- A wool mantle over the shoulders, a framed pack with a bedroll on top, a belt with a pouch
+  and a knife, a strap across the chest. Players should read "someone who sleeps outdoors"
+  at 20 m.
+- The pack stays between the swinging arms (`PACK_WIDTH`), and nothing hangs where an arm
+  or leg swings through it.
+
+**Layers and colour:**
+- The base is dyed cloth (`Palette.CLOTH`). Over it go gear layers in `Palette.LEATHER`,
+  `LEATHER_DARK`, `WOOL`, `TROUSERS` and `BEDROLL`. The cloth colour shows on the chest, the
+  skirt and the sleeves. Everything else is worn leather and wool.
+- No bright primaries, no pure colours, no glow on characters. Ember on a character is
+  reserved for gear that does something, later.
+- Gear (Milestone 3) changes the silhouette in this same language: shoulders, gloves,
+  helmets and weapons grow out of these layers, about 1.2x real size so they read in hand.
+
+**Cost:** each traveller is drawn as five merged meshes (body and four limbs) on the shared
+Emberlight material: 5 draw calls, about 1,300 triangles. New parts go into those merged
+meshes, never as extra nodes. Hard limits: 6 draw calls and 2,000 triangles a character.
+
+**Creatures** are animals first: real gaits, real proportions, muted coats (the grazers'
+build is right; keep tails and markings understated).
 
 ## 4. Signature motifs
 These are what a player should recognise in one screenshot, and they are ours.
@@ -313,7 +341,8 @@ reintroduces them.
 | Candy-orange lollipop ash trees | One saturated ball on a thin stick, repeated | **Fixed 2026-11-24**: rust and ochre, thicker trunks, two lopsided lobes per crown |
 | Pointed wizard hat | A comedy prop on a traveller | **Fixed 2026-11-24**: a travelling hood |
 | Bright cyan and primary tunics | Toy colours | **Fixed 2026-11-24**: `Palette.CLOTH` dyes |
-| Big bald orange head, black button eyes | About 3.5 heads tall, a doll's face | **Fixed 2026-11-24**: smaller head (about 4.5 heads), hair, natural skin, quiet eyes. Next: 6 heads with gear |
+| Big bald orange head, black button eyes | About 3.5 heads tall, a doll's face | **Fixed 2026-11-24**: hair or a hood on every head, natural skin, a nose and quiet eyes |
+| Fat, barrel-shaped bodies ("our dudes look fat and silly") | A 0.64 m wide capsule on short stubby legs | **Fixed 2026-11-24 (character overhaul)**: lean 7-head adults, tapered chest, long legs, layered survival gear (section 3, "Characters") |
 | Postcard-cyan noon sky | Bright and flat, no mood | **Fixed 2026-11-24**: dusty blue, hazy horizon |
 | Solid gold level-up tube and red crystal sparks | Swallowed the avatar; arcade effect | **Toned down 2026-11-24**: translucent, fewer sparks, dimmer light. Next: rounder ember sparks instead of hexagon shards, a subtler ground ring |
 | Teal, green-lit nights | Neither moonlit nor dark | **Improved 2026-11-24**: navy and blue-grey, moon-blue fill. Next: check dark cloth reads on a real GPU (CI renders in software) |

@@ -48,8 +48,8 @@ func test_limbs_do_not_change_existing_looks() -> void:
 		var root_parts := AvatarBuilder.parts(s).filter(func(p): return p.limb == "")
 		check_eq(root_parts[0].color, Palette.cloth_from_seed(s), "tunic for seed %d" % s)
 		check_eq(root_parts[1].color, skin, "skin for seed %d" % s)
-		# hood (style 0); cap and hair (1); hair (2); plus belt, pack, bedroll
-		check_eq(root_parts.size(), [8, 9, 8][style], "headwear and hair (and belt, pack, bedroll) for seed %d" % s)
+		# 14 body and gear parts, plus: a hood (style 0); hair and a cap (1); hair (2)
+		check_eq(root_parts.size(), [15, 16, 15][style], "headwear and hair (and body and gear) for seed %d" % s)
 
 
 func test_walk_cycle_swings_the_limbs() -> void:
@@ -63,3 +63,38 @@ func test_walk_cycle_swings_the_limbs() -> void:
 	check_near(arm_l, -r.get_node("ArmR").rotation.x, 0.0001, "arms swing opposite")
 	check_near(r.get_node("LegL").rotation.x, -arm_l * WalkAnim.LEG_SWING / WalkAnim.ARM_SWING, 0.0001, "left leg opposes left arm")
 	r.free()
+
+
+func test_lean_adult_proportions() -> void:
+	# Art bible section 3, "Characters": about 7 heads tall, never chibi, never a barrel.
+	var top := -INF
+	var widest := 0.0
+	for p in AvatarBuilder.parts(42):
+		var base: Vector3 = Vector3.ZERO if p.limb == "" else AvatarBuilder.LIMB_PIVOTS[p.limb]
+		var aabb: AABB = (p.mesh as Mesh).get_aabb()
+		var scl: Vector3 = p.get("scl", Vector3.ONE)
+		top = maxf(top, base.y + p.pos.y + aabb.end.y * scl.y)
+		if p.limb == "" and p.pos.y > 0.8 and p.pos.y < 1.5 and absf(p.pos.z) < 0.05:
+			widest = maxf(widest, aabb.size.x * scl.x)
+	check(top > 1.7 and top < 1.9, "an adult's height (%.2f m)" % top)
+	check_near(top / AvatarBuilder.HEAD_HEIGHT, 7.0, 0.5, "about 7 heads tall")
+	check(widest < 0.52, "a lean body, not a barrel (%.2f m across the body)" % widest)
+	check(AvatarBuilder.LIMB_PIVOTS.ArmL.x - AvatarBuilder.ARM_RADIUS > AvatarBuilder.PACK_WIDTH * 0.5, "the pack fits between the swinging arms")
+	check(AvatarBuilder.LIMB_PIVOTS.ArmL.y - AvatarBuilder.ARM_LENGTH < AvatarBuilder.LIMB_PIVOTS.LegL.y - 0.1, "hands reach below the hips")
+
+
+func test_each_limb_and_the_body_merge_into_one_mesh() -> void:
+	# Five draw calls an avatar (art bible section 7): the body and each limb are one mesh.
+	var groups := {}
+	for p in AvatarBuilder.parts(42):
+		groups[p.limb] = groups.get(p.limb, []) + [p]
+	check_eq(groups.size(), 5, "the body and four limbs")
+	for limb in groups:
+		var want := 0
+		for p in groups[limb]:
+			want += ((p.mesh as Mesh).surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+		var m := AvatarBuilder.merged(groups[limb])
+		check_eq(m.get_surface_count(), 1, "%s is one surface" % limb)
+		var arrays := m.surface_get_arrays(0)
+		check_eq((arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size(), want, "%s keeps every part's vertices" % limb)
+		check((arrays[Mesh.ARRAY_COLOR] as PackedColorArray).size() == want, "%s keeps its painted colours" % limb)

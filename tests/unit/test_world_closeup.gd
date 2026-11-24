@@ -116,5 +116,5 @@ func test_avatar_carries_a_pack_on_its_back() -> void:
 		var near_z: float = p.pos.z + aabb.end.z # the bedroll turns about z, which keeps its depth
 		check(near_z > -0.34, "%s touches the back (front face at z %.2f)" % [p.mesh.get_class(), near_z])
 		check(absf(p.pos.x) + 0.22 < AvatarBuilder.LIMB_PIVOTS.ArmL.x, "clear of the swinging arms")
-	var belt := AvatarBuilder.parts(42).filter(func(p): return p.limb == "" and p.color == AvatarBuilder.LEATHER.darkened(0.3))
+	var belt := AvatarBuilder.parts(42).filter(func(p): return p.limb == "" and p.mesh is CylinderMesh and p.color == Palette.LEATHER_DARK and is_equal_approx(p.pos.y, AvatarBuilder.WAIST_Y))
 	check_eq(belt.size(), 1, "a belt")

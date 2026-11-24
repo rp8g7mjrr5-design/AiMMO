@@ -1,6 +1,6 @@
 class_name AvatarBuilder
-## Builds a low-poly traveller from an appearance seed: tunic cloth, hood or cap,
-## arms and short legs, and a name tag. Faces local +Z, feet at y = 0.
+## Builds a low-poly traveller from an appearance seed: a lean adult in dyed cloth and survival
+## gear, with a hood or hair, arms and legs the walk cycle swings, and a name tag. Faces local +Z, feet at y = 0.
 ##
 ## Limbs are bare `Node3D` pivots named ArmL, ArmR, LegL, LegR, direct children of the root,
 ## with the pivot at the shoulder or hip and the meshes hanging below it, so the client's
@@ -12,26 +12,48 @@ class_name AvatarBuilder
 ## labels log engine errors.
 
 const LIMBS := ["ArmL", "ArmR", "LegL", "LegR"]
+## Lean adult proportions (art bible section 3, "Characters"): about 1.78 m and 7 heads tall,
+## shoulders at 1.44 m, hips at 0.92 m, hands reaching mid-thigh.
 const LIMB_PIVOTS := {
-	"ArmL": Vector3(0.4, 1.04, 0), "ArmR": Vector3(-0.4, 1.04, 0), # shoulders
-	"LegL": Vector3(0.14, 0.4, 0), "LegR": Vector3(-0.14, 0.4, 0), # hips
+	"ArmL": Vector3(0.235, 1.42, 0), "ArmR": Vector3(-0.235, 1.42, 0), # shoulders
+	"LegL": Vector3(0.095, 0.92, 0), "LegR": Vector3(-0.095, 0.92, 0), # hips
 }
-const ARM_LENGTH := 0.5
-const LEG_LENGTH := 0.4
-const LEATHER := Color(0.45, 0.31, 0.19)
-const BEDROLL := Color(0.70, 0.63, 0.50)
-const HEAD_RADIUS := 0.19 ## m; with HEAD_Y, about 4.5 heads tall: grounded, never chibi
-const HEAD_Y := 1.44 ## m; the head's centre, just over the tunic's neck at 1.26
-const PART_AO := 0.18 ## baked shade at the bottom of each part, so limbs and the tunic read as round
-const PACK_BACK := 0.38 ## how far behind the body's centre the pack sits (the body is 0.32 round)
+const UPPER_ARM := 0.31
+const FOREARM := 0.27
+const ARM_LENGTH := 0.63 ## shoulder to fingertips
+const ARM_RADIUS := 0.058 ## the sleeve at the shoulder, the widest part of the arm
+const THIGH := 0.46
+const SHIN := 0.4
+const LEG_LENGTH := 0.92 ## hip to sole
+const HEIGHT := 1.78 ## m, crown of the head
+const HEAD_RADIUS := 0.11 ## m across; the head is about 0.25 m tall, a seventh of the body
+const HEAD_HEIGHT := 0.25
+const HEAD_Y := HEIGHT - HEAD_HEIGHT * 0.5 ## the head's centre
+const CHEST_TOP := 1.47 ## the shoulder line, where the neck starts
+const WAIST_Y := 1.02
+const CHEST_DEPTH := 0.68 ## the chest is this much as deep as it is wide
+const PART_AO := 0.14 ## baked shade at the bottom of each part, so limbs and the body read as round
+const PACK_WIDTH := 0.27 ## narrow enough to stay inside the swinging arms
+const PACK_BACK := 0.21 ## the pack's centre behind the body's centre (the chest is about 0.14 deep)
+const LEATHER := Palette.LEATHER ## kept for callers that name it
 
 
 static func build(display_name: String, appearance_seed: int, is_self: bool) -> Node3D:
 	var root := rig()
+	# One mesh for the body and one per limb (5 draw calls an avatar, not one per part): every
+	# part's colour is in its vertices and they share one material, so merging costs nothing and
+	# a crowd of travellers stays inside the render budget (art bible section 7).
+	var groups := {}
 	for p in parts(appearance_seed):
-		var parent: Node3D = root if p.limb == "" else root.get_node(p.limb)
-		var mi := _part(p.mesh, p.color, p.pos)
-		mi.rotation = p.get("rot", Vector3.ZERO)
+		if not groups.has(p.limb):
+			groups[p.limb] = []
+		groups[p.limb].append(p)
+	for limb in groups:
+		var parent: Node3D = root if limb == "" else root.get_node(limb)
+		var mi := MeshInstance3D.new()
+		mi.name = "Mesh"
+		mi.mesh = merged(groups[limb])
+		mi.material_override = material()
 		parent.add_child(mi)
 
 	var tag := Label3D.new()
@@ -58,102 +80,126 @@ static func rig() -> Node3D:
 	return root
 
 
-## Every mesh of the avatar as {limb, mesh, color, pos, rot}: `limb` is "" for parts on the root,
-## else the pivot it hangs from, and `pos` is relative to that parent. Deterministic.
+## Every mesh of the avatar as {limb, mesh, color, pos, rot, scl}: `limb` is "" for parts on the
+## root, else the pivot it hangs from, and `pos` is relative to that parent. `scl` squashes a
+## round primitive into a lean, flattened body part (a chest is wider than it is deep).
+## Deterministic.
+##
+## The traveller (art bible section 3, "Characters"): a lean adult about 1.78 m and 7 heads
+## tall, shoulders wider than hips, long legs, layered survival gear over dyed cloth. Read
+## from the back first, because that is what the action camera sees all game: hood or hair,
+## a wool mantle on the shoulders, a bedroll on a framed pack, a belt with a pouch and a knife.
 static func parts(appearance_seed: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = appearance_seed
 	var tunic := Palette.cloth_from_seed(appearance_seed) # earthy dyed cloth, never bright primaries
 	var skin := skin_tone(rng.randf(), rng.randf(), rng.randf())
+	var style := rng.randi() % 3 # hood, cap or bare-headed: the same draw as always
+	var hair := hair_colour(appearance_seed)
+	var wool := Palette.WOOL.lerp(tunic, 0.25) # the mantle and hood: undyed wool with a touch of the tunic's dye
+	var trousers := Palette.TROUSERS
+	var leather := Palette.LEATHER
+	var dark_leather := Palette.LEATHER_DARK
 	var out: Array = []
 
-	# The tunic sits on the legs: from just above the knees (y 0.3) to the neck (1.26).
-	out.append(_p("", _capsule(0.32, 0.96, 8, 2), tunic, Vector3(0, 0.78, 0)))
-
-	# Grounded proportions (art bible, "Characters"): a head about a sixth of the body's
-	# height reads as a person, not a toy. It was 0.48 m on a 1.66 m body (chibi).
+	# Torso: a tapered chest, wider than deep, from the waist (1.02) to the shoulders (1.46).
+	# Index 0 is the tunic and index 1 the head, as they have always been.
+	out.append(_p("", _cyl(0.205, 0.155, CHEST_TOP - WAIST_Y, 8), tunic, Vector3(0, (CHEST_TOP + WAIST_Y) * 0.5, 0), Vector3.ZERO, Vector3(1.0, 1.0, CHEST_DEPTH)))
 	var head := SphereMesh.new()
 	head.radius = HEAD_RADIUS
-	head.height = HEAD_RADIUS * 2.05
+	head.height = HEAD_HEIGHT
 	head.radial_segments = 8
-	head.rings = 4
-	out.append(_p("", head, skin, Vector3(0, HEAD_Y, 0)))
+	head.rings = 5
+	out.append(_p("", head, skin, Vector3(0, HEAD_Y, 0.005), Vector3.ZERO, Vector3(0.92, 1.0, 1.0)))
 
-	# Eyes: small shadowed sockets in the skin's own colour, not black buttons.
+	# Neck, jaw-line and a nose: enough for a face to read as a face at 3 m, no more.
+	out.append(_p("", _cyl(0.048, 0.055, 0.12, 6), skin.darkened(0.06), Vector3(0, CHEST_TOP + 0.04, 0)))
+	var nose := BoxMesh.new()
+	nose.size = Vector3(0.022, 0.045, 0.03)
+	out.append(_p("", nose, skin.darkened(0.04), Vector3(0, HEAD_Y - 0.01, HEAD_RADIUS * 0.95), Vector3(-0.25, 0, 0)))
 	var eye := BoxMesh.new()
-	eye.size = Vector3(0.045, 0.03, 0.03)
+	eye.size = Vector3(0.028, 0.014, 0.02)
 	var socket := skin.darkened(0.55)
-	out.append(_p("", eye, socket, Vector3(-0.065, HEAD_Y + 0.03, HEAD_RADIUS * 0.88)))
-	out.append(_p("", eye, socket, Vector3(0.065, HEAD_Y + 0.03, HEAD_RADIUS * 0.88)))
+	out.append(_p("", eye, socket, Vector3(-0.038, HEAD_Y + 0.018, HEAD_RADIUS * 0.86)))
+	out.append(_p("", eye, socket, Vector3(0.038, HEAD_Y + 0.018, HEAD_RADIUS * 0.86)))
 
-	var style := rng.randi() % 3
-	if style == 0: # a travelling hood, pulled up: was a pointed wizard's hat (art bible, "What reads as cheesy")
+	# Head: a hood pulled up, or hair (and a felt cap on top of it).
+	if style == 0:
 		var hood := SphereMesh.new()
-		hood.radius = HEAD_RADIUS + 0.04
-		hood.height = (HEAD_RADIUS + 0.04) * 2.1
+		hood.radius = HEAD_RADIUS + 0.028
+		hood.height = HEAD_HEIGHT + 0.06
 		hood.radial_segments = 8
-		hood.rings = 4
-		out.append(_p("", hood, tunic.darkened(0.25), Vector3(0, HEAD_Y + 0.04, -0.05)))
-	elif style == 1: # a felt cap, the same cloth a shade darker
-		var cap := CylinderMesh.new()
-		cap.top_radius = HEAD_RADIUS * 0.85
-		cap.bottom_radius = HEAD_RADIUS + 0.025
-		cap.height = 0.09
-		cap.radial_segments = 8
-		out.append(_p("", cap, tunic.darkened(0.2), Vector3(0, HEAD_Y + HEAD_RADIUS * 0.72, 0)))
-	# style 2: bare-headed
-	if style != 0:
-		# Hair (no rng draw, so every older look keeps its draws): what the over-the-shoulder
-		# camera sees most is the back of the head, and a bare skin-coloured ball there read as
-		# a toy (art bible, "What reads as cheesy").
-		var hair := SphereMesh.new()
-		hair.radius = HEAD_RADIUS + 0.018
-		hair.height = (HEAD_RADIUS + 0.018) * 1.9
-		hair.radial_segments = 8
-		hair.rings = 4
-		out.append(_p("", hair, hair_colour(appearance_seed), Vector3(0, HEAD_Y + 0.035, -0.045)))
+		hood.rings = 5
+		out.append(_p("", hood, wool.darkened(0.12), Vector3(0, HEAD_Y + 0.025, -0.06), Vector3(-0.15, 0, 0), Vector3(1.0, 1.0, 1.0))) # set back, so the face shows in its opening
+	else:
+		var cut := SphereMesh.new()
+		cut.radius = HEAD_RADIUS + 0.012
+		cut.height = HEAD_HEIGHT * 0.86
+		cut.radial_segments = 8
+		cut.rings = 4
+		out.append(_p("", cut, hair, Vector3(0, HEAD_Y + 0.03, -0.02), Vector3.ZERO, Vector3(0.95, 1.0, 1.0)))
+		if style == 1:
+			out.append(_p("", _cyl(HEAD_RADIUS * 0.8, HEAD_RADIUS + 0.018, 0.07, 8), tunic.darkened(0.3), Vector3(0, HEAD_Y + HEAD_HEIGHT * 0.36, -0.01), Vector3(-0.12, 0, 0)))
 
-	# Limbs take no rng draws, so every existing appearance seed keeps its hat and skin.
-	var sleeve := tunic.darkened(0.12)
-	var trousers := tunic.darkened(0.5).lerp(Color(0.32, 0.27, 0.22), 0.5)
-	var boots := Color(0.2, 0.15, 0.12)
-	var arm := _capsule(0.085, ARM_LENGTH, 6, 1)
-	var hand := SphereMesh.new()
-	hand.radius = 0.075
-	hand.height = 0.15
-	hand.radial_segments = 6
-	hand.rings = 3
-	var leg := _capsule(0.1, LEG_LENGTH, 6, 1)
-	var boot := BoxMesh.new()
-	boot.size = Vector3(0.17, 0.09, 0.24)
-	for a in ["ArmL", "ArmR"]:
-		out.append(_p(a, arm, sleeve, Vector3(0, -ARM_LENGTH * 0.5 + 0.06, 0)))
-		out.append(_p(a, hand, skin, Vector3(0, -ARM_LENGTH + 0.04, 0)))
-	for l in ["LegL", "LegR"]:
-		out.append(_p(l, leg, trousers, Vector3(0, -LEG_LENGTH * 0.5 + 0.02, 0)))
-		out.append(_p(l, boot, boots, Vector3(0, -LEG_LENGTH + 0.045, 0.03)))
+	# Hips and the tunic's skirt to mid-thigh, belted at the waist.
+	out.append(_p("", _cyl(0.16, 0.175, 0.26, 8), tunic.darkened(0.08), Vector3(0, WAIST_Y - 0.12, 0), Vector3.ZERO, Vector3(1.0, 1.0, 0.8)))
+	out.append(_p("", _cyl(0.163, 0.163, 0.055, 8), dark_leather, Vector3(0, WAIST_Y, 0), Vector3.ZERO, Vector3(1.0, 1.0, CHEST_DEPTH + 0.04)))
+	# Gear on the belt: a pouch on the left hip, a knife on the right.
+	var pouch := BoxMesh.new()
+	pouch.size = Vector3(0.09, 0.1, 0.06)
+	out.append(_p("", pouch, leather, Vector3(0.13, WAIST_Y - 0.07, 0.08), Vector3(0, 0.5, 0)))
+	var sheath := BoxMesh.new()
+	sheath.size = Vector3(0.035, 0.2, 0.05)
+	out.append(_p("", sheath, dark_leather, Vector3(-0.155, WAIST_Y - 0.11, 0.02), Vector3(0, 0, 0.18)))
 
-	# What the action camera sees most: the back. A belt, a small travel pack and a rolled
-	# blanket on top of it, so the wanderer reads as a traveller from over the shoulder.
-	# Root parts, added last and with no rng draws, so older looks and part indices keep.
-	var belt := CylinderMesh.new()
-	belt.top_radius = 0.335
-	belt.bottom_radius = 0.335
-	belt.height = 0.07
-	belt.radial_segments = 8
-	belt.rings = 1
-	out.append(_p("", belt, LEATHER.darkened(0.3), Vector3(0, 0.68, 0)))
+	# A strap across the chest to the pack, and a wool mantle over the shoulders: the layers
+	# that make a traveller read as someone who sleeps outdoors.
+	var strap := BoxMesh.new()
+	strap.size = Vector3(0.05, 0.5, 0.02)
+	out.append(_p("", strap, dark_leather, Vector3(0.0, 1.25, 0.135), Vector3(0, 0, 0.62)))
+	out.append(_p("", _cyl(0.1, 0.25, 0.17, 8), wool, Vector3(0, CHEST_TOP - 0.035, -0.005), Vector3.ZERO, Vector3(1.0, 1.0, 0.72)))
+
+	# Back: a framed pack and the bedroll strapped on top of it, inside the arms' swing.
 	var pack := BoxMesh.new()
-	pack.size = Vector3(0.34, 0.36, 0.16)
-	out.append(_p("", pack, LEATHER, Vector3(0, 0.94, -PACK_BACK)))
+	pack.size = Vector3(PACK_WIDTH, 0.38, 0.14)
+	out.append(_p("", pack, leather, Vector3(0, 1.17, -PACK_BACK)))
 	var roll := CylinderMesh.new()
-	roll.top_radius = 0.075
-	roll.bottom_radius = 0.075
-	roll.height = 0.42
+	roll.top_radius = 0.06
+	roll.bottom_radius = 0.06
+	roll.height = PACK_WIDTH + 0.02
 	roll.radial_segments = 7
 	roll.rings = 1
-	out.append(_p("", roll, BEDROLL, Vector3(0, 1.17, -PACK_BACK + 0.01), Vector3(0, 0, PI * 0.5)))
+	out.append(_p("", roll, Palette.BEDROLL, Vector3(0, 1.4, -PACK_BACK - 0.01), Vector3(0, 0, PI * 0.5)))
+
+	# Arms: a sleeve, a leather bracer over the forearm, a hand. Hanging to mid-thigh.
+	for a in ["ArmL", "ArmR"]:
+		out.append(_p(a, _cyl(0.058, 0.048, UPPER_ARM, 6), tunic.darkened(0.1), Vector3(0, -UPPER_ARM * 0.5 + 0.02, 0)))
+		out.append(_p(a, _cyl(0.05, 0.042, FOREARM, 6), leather.darkened(0.1), Vector3(0, -UPPER_ARM - FOREARM * 0.5 + 0.02, 0.01)))
+		var hand := SphereMesh.new()
+		hand.radius = 0.045
+		hand.height = 0.11
+		hand.radial_segments = 6
+		hand.rings = 3
+		out.append(_p(a, hand, skin, Vector3(0, -ARM_LENGTH + 0.04, 0.01)))
+	# Legs: trousers, a tall boot with a turned-down cuff, and a foot that points forward.
+	for l in ["LegL", "LegR"]:
+		out.append(_p(l, _cyl(0.085, 0.064, THIGH, 6), trousers, Vector3(0, -THIGH * 0.5 + 0.02, 0)))
+		out.append(_p(l, _cyl(0.062, 0.054, SHIN, 6), trousers.darkened(0.08), Vector3(0, -THIGH - SHIN * 0.5 + 0.02, 0)))
+		out.append(_p(l, _cyl(0.07, 0.064, 0.24, 6), dark_leather, Vector3(0, -LEG_LENGTH + 0.16, 0)))
+		var foot := BoxMesh.new()
+		foot.size = Vector3(0.1, 0.075, 0.25)
+		out.append(_p(l, foot, dark_leather.darkened(0.15), Vector3(0, -LEG_LENGTH + 0.0375, 0.045)))
 	return out
+
+
+static func _cyl(top: float, bottom: float, height: float, segments: int) -> CylinderMesh:
+	var m := CylinderMesh.new()
+	m.top_radius = top
+	m.bottom_radius = bottom
+	m.height = height
+	m.radial_segments = segments
+	m.rings = 1
+	return m
 
 
 ## Skin from three 0..1 draws: the same draws as always (saved looks keep their place in the
@@ -167,28 +213,22 @@ static func hair_colour(appearance_seed: int) -> Color:
 	return Palette.HAIR[posmod(hash(appearance_seed), Palette.HAIR.size())]
 
 
-static func _p(limb: String, mesh: Mesh, color: Color, pos: Vector3, rot: Vector3 = Vector3.ZERO) -> Dictionary:
-	return {"limb": limb, "mesh": mesh, "color": color, "pos": pos, "rot": rot}
+static func _p(limb: String, mesh: Mesh, color: Color, pos: Vector3, rot: Vector3 = Vector3.ZERO, scl: Vector3 = Vector3.ONE) -> Dictionary:
+	return {"limb": limb, "mesh": mesh, "color": color, "pos": pos, "rot": rot, "scl": scl}
 
 
-static func _capsule(radius: float, height: float, segments: int, rings: int) -> CapsuleMesh:
-	var m := CapsuleMesh.new()
-	m.radius = radius
-	m.height = height
-	m.radial_segments = segments
-	m.rings = rings
-	return m
-
-
-## One part on the world's shared Emberlight material (art bible section 2): the colour and a
-## little baked shading live in the mesh's vertex colours, so every avatar in the world, however
-## many there are, draws with the same single material as the trees and stones around it.
-static func _part(mesh: Mesh, color: Color, pos: Vector3) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.mesh = Emberlight.paint(mesh, color, PART_AO)
-	mi.material_override = material()
-	mi.position = pos
-	return mi
+## Every part is painted (colour and a little baked shading in its vertex colours) and merged,
+## so every avatar in the world, however many there are, draws with the same single material
+## as the trees and stones around it (art bible section 2).
+## The parts of one group (same parent) as one painted mesh, each placed by its pos, rot and scl
+## the way a child node with that transform would be.
+static func merged(group: Array) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for p in group:
+		var basis := Basis.from_euler(p.get("rot", Vector3.ZERO)) * Basis.from_scale(p.get("scl", Vector3.ONE))
+		st.append_from(Emberlight.paint(p.mesh, p.color, PART_AO), 0, Transform3D(basis, p.pos))
+	return st.commit()
 
 
 ## The material every avatar part uses: the world's shared Emberlight "solid".
