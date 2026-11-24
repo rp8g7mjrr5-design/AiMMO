@@ -53,7 +53,7 @@ const BARK := Color(0.47, 0.34, 0.23) ## a shade lighter than tree trunks so log
 ## Where the bench stands: {pos: Vector3 on the ground, rot: yaw}. Local +Z faces spawn.
 static func spot() -> Dictionary:
 	var pos := Crafting.workbench_pos()
-	var to_spawn := GameConfig.SPAWN_POINT - pos
+	var to_spawn := WorldGen.spawn_point() - pos
 	var rot := atan2(to_spawn.x, to_spawn.z) if Vector2(to_spawn.x, to_spawn.z).length() > 0.01 else 0.0
 	return {"pos": pos, "rot": rot}
 

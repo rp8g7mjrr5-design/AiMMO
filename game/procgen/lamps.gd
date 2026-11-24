@@ -51,7 +51,8 @@ const FLICKER_WAVES := [[7.3, 0.5], [17.3, 0.3], [2.9, 0.2]]
 ## outward if a resource node is in the way. Deterministic on every machine.
 static func positions() -> Array:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = GameConfig.WORLD_SEED + 301
+	rng.seed = int(WorldGen.config().seed) + 301 # GameConfig.WORLD_SEED on Ashgrove
+	var spawn := WorldGen.spawn_point()
 	var turn := rng.randf() * TAU
 	var out: Array = []
 	for i in COUNT:
@@ -59,7 +60,7 @@ static func positions() -> Array:
 		var r := RING_RADIUS + rng.randf_range(-0.6, 0.6)
 		var p := Vector3.ZERO
 		for _step in 8:
-			p = GameConfig.SPAWN_POINT + Vector3(cos(a) * r, 0.0, sin(a) * r)
+			p = spawn + Vector3(cos(a) * r, 0.0, sin(a) * r)
 			if ResourceNodes.near(p, NODE_CLEARANCE).is_empty():
 				break
 			r += 1.0
