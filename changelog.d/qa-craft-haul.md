@@ -1,2 +1,0 @@
-- Every release now proves crafting really works end to end: a test player comes home from a haul, presses Craft at the workbench, and must walk away with a campfire and three torches, Toolcraft XP for each, and a pack that saves.
-- Fixed a rare false alarm in our automatic tests for "Return to Spawn Meadow" when the server answered very quickly.
