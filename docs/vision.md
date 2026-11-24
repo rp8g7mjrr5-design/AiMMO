@@ -20,8 +20,8 @@ is graded by how much it can kill you and how much it pays. You arrive with noth
 drink, keep warm, bandage what bleeds, and learn that noise brings the Hollows and **ember-fire
 burns them**. With your friends you build a shelter, then walls, then a hold, and you push into
 richer and deadlier ruins for the gear to push further. On the darkest nights the Hollows come in
-numbers for the loudest, brightest holds. It's played with **2 to 8 friends** in a world one of
-you hosts.
+numbers for the loudest, brightest holds. It's played with **2 to 8 friends** in a shared world:
+for now the always-on server, later one a friend hosts.
 
 ## Settled (owner, 2026-11-24)
 - **Name: ZombAi.** The repo, app and builds are renamed later (section "Rename plan"). The
@@ -36,8 +36,9 @@ you hosts.
   later.
 - **Map: works like Rust's** (in our own design). A procedurally generated landmass with biomes,
   rivers, roads and ruins placed by a generator, every world different.
-- **Players: 2 to 8 friends in co-op**, PvE against the Hollows and the land. One player hosts;
-  friends join by invite. Solo play works too.
+- **Players: 2 to 8 friends in co-op**, PvE against the Hollows and the land. For now that is
+  today's always-on Railway world, capped at 8, so friends can drop in any time; hosting your
+  own world comes later. Solo play works too.
 
 ## The lean: accessible, action-heavy, worth sharing
 - **Quick to learn.** In the first five minutes a new player drinks, eats, lights a fire, fights
@@ -109,19 +110,26 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
 - **Carry weight**, not a grid.
 
 ## Co-op: how friends play together (owner, 2026-11-24)
-- **Hosting:** a "Host" button in the client starts our own dedicated server build on the
-  player's machine with their world; friends join with an invite code or the host's address.
-  The authoritative server we already have becomes the host's server, so the rules and the bot
-  test stay the same.
-- **Worlds and saves:** a world (its seed, everything built, every character in it) is saved by
-  the host and lasts as long as they keep it. Several worlds per host; a new world picks a
-  seed or rolls one. Characters belong to a world.
-- **Scale:** up to 8 players per world. The server's habit of sending every player to every
-  player is fine at 8; the work goes into Hollows, ruins and building instead.
-- **No servers for us to run.** The one-time buy pays for the game, not for hosting. Railway
-  keeps running a test world for playtests and the bot test.
-- **Dropping in and out:** friends can join a world in progress; the host leaving saves and closes
-  the world (later: the host can hand off, or run the server headless on a spare machine).
+**Now: one always-on world.** The owner wants friends to be able to drop in any time and try it.
+So, for now, co-op is **today's dedicated server on Railway**: one persistent world, always on,
+capped at **8 players**, updated the way it is today. Nothing about the live server breaks.
+- The cap is a server setting (`MAX_PLAYERS`, 8 on Railway); a full world says so politely.
+- When the generator is ready (Phase 1), the Railway world **moves to a generated map** in one
+  announced step: characters keep their skills, items and pack, and arrive at the new world's
+  spawn. Their old position is the only thing that doesn't carry over.
+- Everything built later (holds, chests) is saved by that server and survives every deploy.
+
+**Later: friends host their own worlds.** Once the game is ready for people beyond the owner's
+friends (Phase 5):
+- A "Host" button in the client starts our own server build on the player's machine with their
+  world; friends join with an invite code or the host's address. It is the same authoritative
+  server, so the rules and the bot test stay the same.
+- A host keeps several worlds (each with its seed, everything built and its characters), picks
+  or rolls a seed for a new one, and keeps them as long as they like.
+- Up to 8 players per world. Sending every player to every player is fine at 8; the effort goes
+  into Hollows, ruins and building instead.
+- The one-time buy pays for the game, not for hosting. The Railway world stays as the owner's
+  friends' world and the playtest world.
 
 ## Later, maybe: dedicated servers for bigger groups
 Not in the core plan. If co-op lands well, a dedicated server mode for bigger groups (16 to 48)

@@ -213,7 +213,7 @@ The owner changed the game's direction, in steps on one evening: not an MMO but 
 in the spirit of Project Zomboid, then a map that works like Rust's, a post-apocalyptic medieval
 fantasy setting, a third-person camera, a one-time buy, the name **ZombAi**, and finally **2 to
 8 player co-op** hosted by a friend. The full design is `docs/vision.md`. Standing rules:
-- **Co-op first.** 2 to 8 friends, one hosts; PvE against the Hollows and the land. Public
+- **Co-op first.** 2 to 8 friends; PvE against the Hollows and the land. For now that is today's always-on Railway world, capped at 8, which must never break; hosting from the client comes later. Public
   servers, raiding and seasons are a "later, maybe" only.
 - **A generated kingdom with graded ruins.** Every world from a seed; hand-designed ruins placed
   by the generator, each graded by danger and loot.

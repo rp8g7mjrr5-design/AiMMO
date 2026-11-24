@@ -49,8 +49,11 @@ first level-up.
 ## Phase 1: A kingdom from a seed ← current (once adopted)
 **Goal:** every world is a new, generated stretch of the fallen kingdom, and what we already
 built (gathering, crafting, skills, combat basics) works in it.
+- The live Railway world stays up the whole time (owner, 2026-11-24: friends drop in any time),
+  capped at 8 players (`MAX_PLAYERS`).
 - A world config (seed, size, generator version) the server sends at login; today's 512 m
-  Ashgrove stays as version 0 until the first generated world goes live.
+  Ashgrove stays as version 0 until the Railway world moves to a generated map, in one announced
+  step where characters keep skills, items and pack and arrive at the new spawn.
 - The generator v1: land, rivers, biomes, the king's roads, and **ruin sites** with grades,
   resource nodes and the spawn point placed from the seed.
 - Terrain, props and ruins built in chunks around the player, inside the render budget.
@@ -89,8 +92,8 @@ budget.
 **Done when:** a geared group can clear each grade, grade 4 needs keys from grade 3, and loot
 from each grade is clearly better than the one below.
 
-## Phase 5: Play with friends
-**Goal:** one friend hosts, the others join, and it just works.
+## Phase 5: Host your own world
+**Goal:** beyond the always-on world, any player can host, the others join, and it just works.
 - A Host button that starts the server build on the player's machine with a chosen world; join
   by invite code or address; several saved worlds per host; seed and size choice; friendly fire
   and difficulty as host settings.
@@ -153,7 +156,7 @@ low-value follow-ups ahead of milestone work.
 **Director note (2026-11-24, ZombAi, draft):** the owner is reshaping the game: renamed
 ZombAi, a post-apocalyptic medieval fantasy (a fallen kingdom), third person, a one-time buy,
 and a map that works like Rust's (generated land, roads and risk-graded ruins), with the Hollows
-as our own undead. The owner then chose 2 to 8 player co-op hosted by a friend; public servers are a "later, maybe". Magic, undead behaviour and the long-term goal are still being asked. See `docs/vision.md`.
+as our own undead. The owner then chose 2 to 8 player co-op hosted by a friend; public servers are a "later, maybe". For now co-op is today's always-on Railway world, capped at 8, so friends can drop in any time; hosting from the client comes in Phase 5. Magic, undead behaviour and the long-term goal are still being asked. See `docs/vision.md`.
 Backlogs are not reseeded until the owner confirms.
 
 ## Backlog (unscheduled)
