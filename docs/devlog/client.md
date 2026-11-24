@@ -1471,3 +1471,27 @@ change `Footsteps.OWN_DB` / `OTHER_DB`.
 
 **Notes to next run:** follow-ups added for ground-dependent steps, grazer hooves, and a volume
 slider.
+
+## 2026-11-24: intro sound plays on its own (owner request: "sounds choppy and glitchy")
+
+Run outside the schedule on the owner's request; took the `client` claim.
+
+**Cause:** the sound itself is clean (decoded the owner's 4K60 source and our ogv: no clipping,
+no jumps; the short silences are the same in both and are part of the design). The problem is
+playback: Godot 4.3's Theora player feeds a video's own audio track from the video decoder,
+so when a frame decodes late the sound buffer runs dry and you hear crackles and stutters.
+#166 moved the intro to 60 fps, which doubles the decode work. I could not hear it here (no
+sound device), so this is from how the engine plays video audio, not a recording.
+
+**Fix:** both ogv files are now video only (`-an -c:v copy`, no re-encode) and the sound is
+`client/intro/budda_games_intro.ogg` (Vorbis 44.1 kHz q5, 116 KB, from the 4K60 source),
+imported by Godot like any sound and played by an `AudioStreamPlayer` started on the same
+frame as the video. The mixer streams it steadily no matter how slow video decoding is. Skip
+fades the sound; finish stops it. Under xvfb with the Dummy audio driver: sound and video
+positions agree within ~30 ms after 2 s, the intro finishes at 7.05 s.
+
+**Tests:** `test_video_is_a_small_theora_stream` also checks the sound exists, loads as
+`AudioStreamOggVorbis`, and that all three files stay under 3 MB. 729 unit tests pass.
+
+**Note:** a `-s` probe script that calls a method on the intro after it frees itself segfaults
+Godot 4.3 (same on `main`); use `is_instance_valid` in probes.

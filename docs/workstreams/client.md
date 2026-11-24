@@ -35,6 +35,7 @@ _Director, 2026-11-23: ordered by fun for players soonest. Milestone 0 leftovers
 
 - [x] (in review, ws/client/budda-games-intro) **Owner request (2026-11-23): the Budda Games intro replaces the Godot boot splash.** `Intro` (`game/client/intro.gd`) plays the owner's video at launch, skippable with any key, click or pad button; boot splash image off with the video's background colour.
 - [x] (in review, ws/client/intro-trim-crisp) **Owner request (2026-11-24): the intro's last half second showed another project's title screen, and the logo looked blurry.** Re-encoded from the owner's clean 4K60 export (`/mnt/project-files/client/budda-games-intro-4k60-source.mp4`); 720p and 1080p 60 fps cuts, drawn at whole-number scales.
+- [x] (in review, ws/client/intro-audio) **Owner request (2026-11-24): intro sound choppy.** Sound split out of the videos into `budda_games_intro.ogg`, played by an AudioStreamPlayer so slow video decoding can no longer starve it.
 - [ ] Follow-up (intro): after the video ends the screen holds its dark last frame while the client builds the world (about 5 s on software GL in CI, much less on a real GPU). Building the world in steps across frames, or showing the login panel before the world, would remove that pause.
 
 - [ ] Follow-up (centre notices): smoke screenshot with `--show-notice` (hook in `client.gd`, shows a two-line "spent" notice; qa owns `tests/client_smoke/run.sh`). Taken by hand: `/mnt/project-files/client/centre-notices.png`.
