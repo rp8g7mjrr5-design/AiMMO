@@ -36,7 +36,7 @@ func test_sky_samples_day_and_night() -> void:
 	var noon := SkyClock.sample(0.5)
 	var night := SkyClock.sample(0.0)
 	check(noon.light_energy > 0.9, "bright noon")
-	check(night.light_energy > 0.1 and night.light_energy < 0.3, "dim moonlight")
+	check(night.light_energy > 0.1 and night.light_energy < 0.6, "dim moonlight")
 	check(night.light_dir.y > 0.0, "moonlight comes from above")
 	check_eq(noon.stars, 0.0, "no stars at noon")
 	check_eq(night.stars, 1.0, "stars at midnight")

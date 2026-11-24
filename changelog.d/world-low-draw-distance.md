@@ -1,2 +1,0 @@
-- On the **Low** Graphics setting, far-off trees, rocks and flowers now fade into the haze sooner, so older laptops get a smoother frame (about a quarter faster in our test shot) while the meadow looks the same up close.
-- Switching between Low, Medium and High in Settings changes the draw distance straight away, no restart.

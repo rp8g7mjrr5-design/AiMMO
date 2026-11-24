@@ -71,6 +71,18 @@ signal unstuck_result(ok: bool, text: String, wait_seconds: float)
 ## names in Wildlife.STATES). An empty one means the last one just left your view.
 signal wildlife_changed(entries: PackedFloat32Array)
 
+# --- protocol v7, carried by Net/Play: health, stamina and the first swing ---
+## A player swings: kind "light" or "heavy", facing yaw.
+signal attack_requested(peer_id: int, kind: String, yaw: float)
+## Your health and stamina, whole points: at login and on every change.
+signal vitals_changed(hp: int, max_hp: int, stamina: int, max_stamina: int)
+## Someone in view (maybe you) started a swing of `seconds` with `weapon`.
+signal swing_begun(peer_id: int, weapon: String, kind: String, seconds: float)
+## That swing's blow landed on these grazer ids (empty: a whiff, sent only to the swinger).
+signal swing_landed(peer_id: int, kind: String, creature_ids: Array)
+## Your swing was refused: "busy", "winded", "tired", "dead" or "unknown".
+signal attack_refused(kind: String, reason: String)
+
 var last_ack_seq := -1
 var play: Node
 

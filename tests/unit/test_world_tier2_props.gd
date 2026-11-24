@@ -200,7 +200,7 @@ func test_layout_and_hit_bits_know_the_tier() -> void:
 		var o: Vector3 = (b.p0 - (ash.pos as Vector3)) / float(ash.scale)
 		var e := Vector2(o.x, o.z).length_squared() / (2.47 * 2.47) + pow((o.y - 4.6) / 1.95, 2.0)
 		check(e > 1.0, "old ash leaves start outside the main crown (%.2f)" % e)
-		check(b.color.r > 0.95, "old ash sheds its bright gold leaves")
+		check(b.color.r >= NodeProps.OLD_ASH_LEAF.r - 0.01 and b.color.r > b.color.b + 0.4, "old ash sheds its own warm gold leaves")
 	var stone: Dictionary = nodes[2]
 	var bits := NodeFx.spawn_bits(stone)
 	check(bits[0].color.is_equal_approx(NodeProps.RICH_FLECK), "a rich seam throws gold flecks")

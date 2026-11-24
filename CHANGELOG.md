@@ -5,6 +5,15 @@
 Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
 
 ### New
+- Your game now knows your health and stamina from the moment you log in, ready for the health bar.
+- First blood, part one: the server now understands a swing. Light jabs and heavy haymakers cost stamina, everyone nearby sees you throw them, and a grazer you manage to sneak up on and strike bolts off with its whole herd. (Needs the client's attack button, coming soon; this update asks you to download the new version.)
+- The Budda Games intro's sound now plays smooth, with no crackles or stutters.
+- Behind the scenes: fixed a flaky health check in our test bots that could hold up new features for no reason, so updates reach you sooner.
+- On the **Low** Graphics setting, far-off trees, rocks and flowers now fade into the haze sooner, so older laptops get a smoother frame (about a quarter faster in our test shot) while the meadow looks the same up close.
+- Switching between Low, Medium and High in Settings changes the draw distance straight away, no restart.
+- A left-click that hits nothing (the sky, a spent node, a tree just out of reach) now gives a soft dry tick, so you feel the miss and know to re-aim instead of wondering if the game heard you.
+- Behind the scenes: every test run now checks that each skill levels up on time on its own, so felling and quarrying both keep their first level-up inside about a minute of gathering.
+- The meadow lanterns and the workbench lantern now flicker gently after dark, each flame on its own rhythm, so the pools of light on the grass breathe like real fire.
 - **Getting ready for the first fight:** the server now keeps everyone's health and stamina. When creatures start to bite, losing is fair: you're knocked down and come to straight away in Spawn Meadow with everything you carried and every point of XP. And "Return to Spawn Meadow" won't work mid-fight, so nobody can use it to dodge a loss.
 - Your feet make a sound now: a soft, grassy patter in time with every stride, four variations so it never sounds copy-pasted.
 - Hear other players before you see them: their footsteps come from where they walk and fade out about 18 m away.

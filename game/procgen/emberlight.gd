@@ -12,6 +12,8 @@ class_name Emberlight
 ## - A soft rim on silhouettes when you look towards the light.
 ## - "Brush noise": a slow, world-position value noise that varies the paint a few percent,
 ##   so big flat faces never look like bare untextured blocks.
+## - "Low-res paint": a grain of small square texels from the mesh's own position (hashed,
+##   no texture), so surfaces read like a low-resolution painted texture, not flat plastic.
 ## - Colour from vertex colours (MultiMesh instance colours multiply in), including the
 ##   baked ambient occlusion from `bake()` and the terrain builder.
 ## - Ember veins (glow variant): vertex alpha below 1 marks a vein, vein strength = 1 - alpha.
@@ -164,8 +166,10 @@ uniform float shade_strength = 0.30; // how far the turned-away side leans towar
 uniform float warmth = 0.10; // how far the lit side leans gold
 uniform float rim_strength = 0.35; // soft rim on silhouettes when looking towards the light
 uniform float brush = 0.07; // world-position paint variation, +- this fraction
+uniform float texel_size = 0.055; // metres per "texel" of the low-res paint grain, in the mesh's own space
+uniform float texel_grain = 0.09; // how far each texel's paint varies, +- this fraction (0 = off)
 uniform float night_desat = 0.55; // at full night the paint keeps only this much less of its colour
-uniform float night_shade = 0.35; // extra SHADE blue in the shadows at full night
+uniform float night_shade = 1.4; // extra SHADE blue in the shadows at full night: the moonlit side of a figure turned away from the moon (never a black hole)
 uniform vec3 emission_color : source_color = vec3(1.0, 0.42, 0.14);
 uniform float emission_energy = 0.0; // a whole-surface glow (the ash leaves at night)
 uniform float pulse_depth = 0.25; // how much emission_energy swells with the heartbeat
@@ -178,6 +182,7 @@ uniform float vein_energy = 2.0;
 #endif
 
 varying vec3 world_pos;
+varying vec3 local_pos;
 #ifdef GLOW
 varying float vein;
 #endif
@@ -185,6 +190,12 @@ varying float vein;
 float hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
 	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
+}
+
+float hash13(vec3 p3) {
+	p3 = fract(p3 * 0.1031);
+	p3 += dot(p3, p3.zyx + 31.32);
 	return fract((p3.x + p3.y) * p3.z);
 }
 
@@ -205,6 +216,7 @@ void vertex() {
 	VERTEX.z += sin(phase * 0.73 + 1.7) * sway * 0.6 * h;
 #endif
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	local_pos = VERTEX;
 #ifdef GLOW
 	vein = 1.0 - COLOR.a;
 #endif
@@ -213,6 +225,12 @@ void vertex() {
 void fragment() {
 	float n = value_noise(world_pos.xz * 0.35) * 0.65 + value_noise(world_pos.xz * 1.7 + world_pos.y) * 0.35;
 	ALBEDO = COLOR.rgb * (1.0 + (n - 0.5) * 2.0 * brush);
+	// Low-res paint (art bible section 1): the colour breaks into small square texels, like a
+	// hand-painted texture shown with nearest-neighbour filtering, but computed from the mesh's
+	// own position, so there is no texture to load and it sticks to the thing as it moves.
+	vec3 texel = floor(local_pos / texel_size);
+	float g = hash13(texel + 17.0) - 0.5;
+	ALBEDO *= 1.0 + g * 2.0 * texel_grain;
 	// Night is blue and ember (art bible section 2): the moon drains the greens, so the
 	// ground reads moonlit instead of green-black and every glow stands out against it.
 	// Only the greens drain: warm paint (ash crowns, bark, the lanterns) keeps its colour.
@@ -229,8 +247,10 @@ void fragment() {
 
 void light() {
 	float ndl = dot(NORMAL, LIGHT);
-	// Two soft bands: shadow, half light, full light.
-	float ramp = smoothstep(0.0, 0.15, ndl) * 0.5 + smoothstep(0.35, 0.55, ndl) * 0.5;
+	// Two wide, soft bands: shadow, half light, full light. Wide enough that a smooth,
+	// rounded surface (a body, a limb, a boulder) shades smoothly around its curve instead of
+	// breaking into hard planes, while flat-faceted props still read as painted planes.
+	float ramp = smoothstep(-0.08, 0.3, ndl) * 0.5 + smoothstep(0.25, 0.75, ndl) * 0.5;
 	float lit = ramp * ATTENUATION;
 	vec3 key = LIGHT_COLOR * mix(vec3(1.0), vec3(1.0, 0.86, 0.66), warmth);
 	DIFFUSE_LIGHT += key * lit / PI;
