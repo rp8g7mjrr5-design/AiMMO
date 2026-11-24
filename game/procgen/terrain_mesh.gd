@@ -82,4 +82,6 @@ static func _tri(st: SurfaceTool, a: Array, b: Array, c: Array) -> void:
 static func material() -> ShaderMaterial:
 	var m := Emberlight.material("solid", "terrain")
 	m.set_shader_parameter("rim_strength", 0.05)
+	m.set_shader_parameter("texel_size", 0.4) # the ground is big: coarser texels, like a tiled low-res ground texture
+	m.set_shader_parameter("texel_grain", 0.07)
 	return m

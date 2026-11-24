@@ -54,8 +54,8 @@ func test_lantern_glass_still_lights_at_night() -> void:
 
 func test_avatars_share_one_material_and_keep_their_colours() -> void:
 	# (AvatarBuilder.build() makes MeshInstance3Ds, which log engine errors on the headless
-	# dummy renderer, so this checks the pieces build() is made of: every part goes through
-	# `_part()`, which paints the part's mesh and puts it on `material()`.)
+	# dummy renderer, so this checks the pieces build() is made of: every part is painted and
+	# merged into its group's mesh by `merged()`, which goes on `material()`.)
 	check_eq(AvatarBuilder.material(), Emberlight.material("solid"), "every avatar part: the world's own solid")
 	check(Emberlight.is_emberlight(AvatarBuilder.material()), "avatar parts on Emberlight")
 	var src := (load("res://procgen/avatar_builder.gd") as GDScript).source_code

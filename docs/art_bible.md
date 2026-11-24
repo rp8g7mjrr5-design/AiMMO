@@ -38,8 +38,18 @@ colours, gradients and one shared shader), never photographic textures. A muted 
 valley under low golden light and cool blue shadows, with a faint ember glow pulsing through
 everything the sleeping thing under the valley touches.
 
+**Low-res paint** (owner direction, 2026-11-24: "less blocky and more low res actual"). Two
+things carry it. Shapes are *organic low poly*: smooth, rounded silhouettes with real
+anatomy and few polygons, never boxes. Surfaces carry a *low-res texel grain*: the colour
+breaks into small square texels, like a low-resolution hand-painted texture shown with
+nearest-neighbour filtering. The grain is computed in the shared shader from each mesh's own
+position (no texture files, no lookups), so it costs almost nothing and sticks to things as
+they move. Characters use about 5.5 cm texels, props the same, and the ground about 40 cm.
+The light bands are wide and soft, so a rounded body shades smoothly around its curve while
+faceted rocks and crowns still read as painted planes.
+
 The family is "stylized realism". What makes it ours, and what makes it cheap, is the same
-thing: **no textures, one shader, colour in the vertices, big facets.** A texture-painted
+thing: **no texture files, one shader, colour in the vertices, a procedural low-res grain.** A texture-painted
 realistic MMO cannot look like this, and could not run on this budget.
 
 ## 2. Palette
@@ -104,19 +114,60 @@ Rules of thumb:
   silhouette alone at 30 m. Tools and weapons are about 1.2x real size so they read in hand.
 
 ### Characters
-- **Proportions:** grounded people, never chibi. Target **6 heads tall** with Milestone 3 gear
-  (shoulders, belts, boots and gloves that change the silhouette). Today's step: about 4.5
-  heads (head radius 0.19 m on a 1.65 m body; it was 0.24 m, about 3.5 heads, which read as a
-  toy). Each further step keeps the limb pivots the walk cycle swings.
-- **Cloth, not costume.** Tunics are dyed cloth from `Palette.CLOTH`; trousers, boots, belts
-  and packs are leather and wool. No bright primaries, no cyan, no pure colours.
-- **Headwear is gear.** Hoods, felt caps, later helmets. **No pointed wizard hats**, no party
-  hats, no comedy shapes. Every head has hair or headwear: the camera sees the back of the
-  head all game, and a bare ball there reads as a doll.
-- **Faces are quiet.** Small shadowed eye sockets in the skin's own colour, never black
-  buttons or big cartoon eyes.
-- **Creatures** are animals first: real gaits, real proportions, muted coats (the grazers'
-  build is right; keep tails and markings understated).
+The owner's words (2026-11-24): "our dudes look fat and silly". Characters are lean,
+grounded adults who live outdoors, rendered as chunky low-poly. `AvatarBuilder` is the
+reference; every new character, NPC or gear piece follows these rules.
+
+**Organic, not blocky** (owner, 2026-11-24: "less blocky and more low res actual"). Every
+body part is a smooth lofted shape (`AvatarBuilder.loft()`: rings of width and depth, smooth
+normals) or a squashed ball. No boxes and no bare cylinders on a character; a unit test
+enforces it. The torso swells at the chest and narrows at the waist, the calves swell, the
+head is an egg with a jaw, and the arms hang slightly away from the body. Upper arm and
+forearm, thigh and shin are separate pieces, so the animation work can skin them to a
+skeleton and bend elbows and knees.
+
+**Proportions (the numbers live in `AvatarBuilder`'s constants):**
+- **About 7 heads tall.** A 1.78 m adult with a 0.25 m head. Never chibi, never a big-headed
+  doll, never a barrel. The old wanderer was about 3.5 heads and 0.64 m wide.
+- **Shoulders wider than hips, a narrow waist.** The chest is a tapered shape about 0.41 m
+  across at the shoulders and 0.31 m at the waist, and only about two-thirds as deep as it is
+  wide. Nothing is a capsule or a ball.
+- **Long legs.** The hips sit at about half the height (0.92 m). Thigh, shin and boot are
+  separate pieces, so the legs taper and read as legs.
+- **Real arms.** The shoulders sit at 1.42 m and the hands hang to mid-thigh (0.63 m of arm).
+  The sleeve, a leather bracer and the hand are separate pieces.
+- **Small, quiet faces.** A slightly narrow head, a neck, a nose and two shadowed eye
+  sockets in the skin's own colour. No black button eyes, no big round heads.
+
+**Silhouette, read from the back first** (the action camera sees the back all game):
+- Every head has a hood or hair (with or without a felt cap). No bare skin balls and no
+  comedy hats: no pointed wizard hats, party hats or crowns.
+- A wool mantle over the shoulders, a framed pack with a bedroll on top, a belt with a pouch
+  and a knife, a strap across the chest. Players should read "someone who sleeps outdoors"
+  at 20 m.
+- The pack stays between the swinging arms (`PACK_WIDTH`), and nothing hangs where an arm
+  or leg swings through it.
+
+**Layers and colour:**
+- The base is dyed cloth (`Palette.CLOTH`). Over it go gear layers in `Palette.LEATHER`,
+  `LEATHER_DARK`, `WOOL`, `TROUSERS` and `BEDROLL`. The cloth colour shows on the chest, the
+  skirt and the sleeves. Everything else is worn leather and wool.
+- No bright primaries, no pure colours, no glow on characters. Ember on a character is
+  reserved for gear that does something, later.
+- Gear (Milestone 3) changes the silhouette in this same language: shoulders, gloves,
+  helmets and weapons grow out of these layers, about 1.2x real size so they read in hand.
+
+**Cost:** each traveller is drawn as five merged meshes (body and four limbs) on the shared
+Emberlight material: 5 draw calls, about 2,300 triangles. New parts go into those merged
+meshes, never as extra nodes. Hard limits: 6 draw calls and 3,000 triangles a character.
+
+**Animation** is its own piece of work (the owner asked for it on 2026-11-24): a skinned
+skeleton on these segment meshes with idle, walk, run, gathering, crafting, jump, light and
+heavy swings, knockdown and getting up, and sitting. It should be weighty and grounded:
+weight shifts onto the planted foot, swings wind up before they land, nothing snaps.
+
+**Creatures** are animals first: real gaits, real proportions, muted coats (the grazers'
+build is right; keep tails and markings understated).
 
 ## 4. Signature motifs
 These are what a player should recognise in one screenshot, and they are ours.
@@ -219,6 +270,11 @@ The look is designed so that it is cheap. These rules are as binding as the pale
 - **Textures are the exception.** Only UI icons and small lookup images, at most 256 px,
   generated once on first use and cached for the session (as `ItemIcons` does). None in the
   world shaders.
+- **The low-res look is maths, not textures.** The texel grain hashes the mesh's own position
+  in the fragment shader (`texel_size`, `texel_grain` uniforms on the shared materials). If a
+  later step wants painted patterns (bark lines, cloth weave) they are generated the same way
+  or as tiny 32 to 64 px images made in code, shown with nearest-neighbour filtering, and
+  shared by every instance.
 
 ### Draw less
 - **Instance everything repeated** with MultiMesh (as trees, rocks, flora, nodes and lamps
@@ -313,13 +369,15 @@ reintroduces them.
 | Candy-orange lollipop ash trees | One saturated ball on a thin stick, repeated | **Fixed 2026-11-24**: rust and ochre, thicker trunks, two lopsided lobes per crown |
 | Pointed wizard hat | A comedy prop on a traveller | **Fixed 2026-11-24**: a travelling hood |
 | Bright cyan and primary tunics | Toy colours | **Fixed 2026-11-24**: `Palette.CLOTH` dyes |
-| Big bald orange head, black button eyes | About 3.5 heads tall, a doll's face | **Fixed 2026-11-24**: smaller head (about 4.5 heads), hair, natural skin, quiet eyes. Next: 6 heads with gear |
+| Big bald orange head, black button eyes | About 3.5 heads tall, a doll's face | **Fixed 2026-11-24**: hair or a hood on every head, natural skin, a nose and quiet eyes |
+| Blocky mannequin bodies ("less blocky, more low res actual") | Boxes and cylinders, plastic flat colour | **Fixed 2026-11-24**: smooth lofted bodies and the low-res texel grain on everything (section 1) |
+| Fat, barrel-shaped bodies ("our dudes look fat and silly") | A 0.64 m wide capsule on short stubby legs | **Fixed 2026-11-24 (character overhaul)**: lean 7-head adults, tapered chest, long legs, layered survival gear (section 3, "Characters") |
 | Postcard-cyan noon sky | Bright and flat, no mood | **Fixed 2026-11-24**: dusty blue, hazy horizon |
 | Solid gold level-up tube and red crystal sparks | Swallowed the avatar; arcade effect | **Toned down 2026-11-24**: translucent, fewer sparks, dimmer light. Next: rounder ember sparks instead of hexagon shards, a subtler ground ring |
 | Teal, green-lit nights | Neither moonlit nor dark | **Improved 2026-11-24**: navy and blue-grey, moon-blue fill. Next: check dark cloth reads on a real GPU (CI renders in software) |
 | Bold outlined yellow floaters and banners | Mobile-game shouting | **To do** (client): section 9 |
 | Thin black lamp posts with red boxes | Reads as a street lamp, not a wilderness lantern | **To do** (world): timber posts, iron and horn lanterns |
-| Uniform flat terrain facets at noon | No sense of ground cover | **To do** (world): gentle colour patches (moss, dry grass, bare earth) in the ground palette |
+| Uniform flat terrain facets at noon | No sense of ground cover | **Improved 2026-11-24**: the low-res grain breaks the ground into 40 cm texels. Still to do (world): colour patches (moss, dry grass, bare earth) in the ground palette |
 
 ## 12. Checklist for any PR that changes what is on screen
 1. Before and after screenshots at noon, golden hour and night (the client smoke shots plus

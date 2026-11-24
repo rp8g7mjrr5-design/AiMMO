@@ -617,6 +617,18 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tests.** Unit 678 pass (no Postgres here). Client smoke passes: primitives 449k noon / 480k night, style baseline rewritten on purpose. Before/after shots in the project files (`art-direction/`).
 
 **Next.** Backlog top item: ground cover patches, wilderness lanterns, level-up sparks, 6-head characters, node ash crowns. Check dark cloth at night on a real GPU (Forward+), CI only sees software GL.
+
+## 2026-11-24, owner-directed: character overhaul (claude/character-overhaul, stacked on the grounded art direction)
+
+**Why.** Owner: "our dudes look fat and silly". The wanderer was a 0.64 m wide capsule about 3.5 heads tall on stubby legs.
+
+**Built.** `AvatarBuilder.parts()` rebuilt as a lean 1.78 m adult about 7 heads tall (constants at the top of the file): a tapered, flattened chest (parts carry `scl` now), a skirt and belt, two-piece arms (sleeve, bracer, hand) and legs (thigh, shin, tall boot, foot), neck, nose, eye sockets, a hood or hair with an optional felt cap, a wool mantle, a chest strap, a pouch and a knife, a framed pack and bedroll inside the arms' swing. The rng draws are unchanged (skin, then style), so every seed keeps its skin, headwear and cloth. `build()` merges each group (body, four limbs) into one mesh (`merged()`), so an avatar is 5 draw calls, not 16 or the 30 the new parts would have been; frame draw calls at spawn 289 to 265.
+
+**Didn't work.** The first build made each part its own node: 316 draw calls at night, over the 300 ceiling with one avatar on screen. Merging fixed it. A hood centred on the head hides the face; set back 6 cm it frames it.
+
+**Tests.** Unit 680 pass (new: lean-adult proportions, merged meshes keep every vertex and colour). Client smoke passes (draw calls 251 noon / 265 night, primitives 449k / 481k). Shots from five angles, day and night, in the project files (`art-direction/characters/`).
+
+**Next.** Client: retune `WalkAnim` for long legs (filed). World: a little build and height variety, beards, two mantle cuts, inside the 5-mesh, 2,000-triangle budget.
 ## 2026-11-24, run: grazer models (ws/world/grazer-models)
 
 **Picked.** "Procedural critter models" (grazer part). It sat low in the backlog as Milestone 2 build-ahead, but gameplay's two requests made it the top open request from another stream: the herds are on the wire since protocol v6 (#158) and the client has nothing to draw them with. Requests come first, and a living herd past the meadow is the most new fun on my list. **What a player will feel:** the hills outside the meadow are alive, and a herd reads at a glance: heads down means creep closer, a head snapping up means freeze, a white rump bounding over the hill means you rushed it.
@@ -680,3 +692,10 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tests.** `test_world_low_ranges.gd` (5 tests): scales per level and clamping; Low cuts nearer for every ranged chunk and node layer but keeps the padding; whole landmark layers never cut; `Chunks.build` and `NodeProps.build` on Low use the Low cut and `apply_range_scale` puts it back; `RangeWatch` follows Low and High within one poll. Unit suite with Postgres: 731 pass. 8-bot 180 s websocket bot test passed (277 s). Client smoke test passed (render budget ok, style check ok).
 
 **Next run.** qa can raise its Low gate. Then the noon grass saturation follow-up or the mid-distance tree mesh.
+
+## 2026-11-24, less blocky, low-res characters (PR #171 follow-up)
+- Owner asked for characters that look less blocky and more "low res". Every body part is now a smooth `loft()` (rings of width/depth along y) or a low-segment ball, no boxes or cylinders. About 2,340 triangles a character, 5 draw calls, unchanged.
+- Low-res feel comes from maths in the Emberlight shader: object-space texel grain (`texel_size` 0.055 m on bodies, 0.4 m on terrain, ±9%/±7% brightness). No textures imported.
+- First loft pass had inverted winding (back faces drawn, faces looked like masks). The avatar test now checks winding and outward normals.
+- The light ramp is now two soft steps instead of one hard band, so rounded shapes read as rounded.
+- Next: animation thread builds on `AvatarBuilder.parts()/merged()/rig()`; upper arm/forearm and thigh/shin are separate parts ready for elbow and knee pivots.
