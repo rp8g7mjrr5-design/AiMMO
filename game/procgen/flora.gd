@@ -391,11 +391,16 @@ static func _meshes() -> Dictionary:
 	}
 
 
-## Which shared Emberlight material each flora layer uses: all of them share `solid` with the
-## scatter forest. (Not `foliage` for the birch crowns yet: its sway is in mesh units, and
-## these are unit meshes scaled up, so a 4 m crown would swing about 0.3 m and slide off its
+## Which shared Emberlight material each flora layer uses: birch bark and mossy rocks share the
+## painted bark and stone materials with the scatter forest, the rest share `solid`. (Not
+## `foliage` for the birch crowns yet: its sway is in mesh units, and these are unit meshes scaled up, so a 4 m crown would swing about 0.3 m and slide off its
 ## trunk. See the world backlog follow-up.)
-static func layer_material(_layer: String) -> ShaderMaterial:
+static func layer_material(layer: String) -> ShaderMaterial:
+	match layer:
+		"BirchBark":
+			return Emberlight.painted("bark")
+		"MossRocks":
+			return Emberlight.painted("stone")
 	return Emberlight.material("solid")
 
 

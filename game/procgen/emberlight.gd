@@ -49,6 +49,31 @@ static func material(variant: String = "solid", name: String = "") -> ShaderMate
 	return _materials[key]
 
 
+## The shared "solid" material painted with SurfaceTex `kind` detail (bark, stone, wood): one
+## material per kind, so every tree trunk shares one and every rock another.
+const PAINT := {
+	"bark": {"tpm": 1.2, "mix": 0.7},
+	"stone": {"tpm": 0.9, "mix": 0.65},
+	"wood": {"tpm": 1.6, "mix": 0.6},
+	"ground": {"tpm": 0.6, "mix": 0.7},
+}
+
+
+static func painted(kind: String, variant: String = "solid") -> ShaderMaterial:
+	var m := material(variant, kind)
+	if not m.has_meta("painted"):
+		m.set_meta("painted", true)
+		paint_material(m, kind)
+	return m
+
+
+## Lay SurfaceTex `kind` over material `m` at the art bible's strength for that kind.
+static func paint_material(m: ShaderMaterial, kind: String) -> void:
+	m.set_shader_parameter("paint_tex", SurfaceTex.get_texture(kind))
+	m.set_shader_parameter("paint_tpm", float(PAINT[kind].tpm))
+	m.set_shader_parameter("paint_mix", float(PAINT[kind].mix))
+
+
 ## Distinct Emberlight materials made so far this session.
 static func count() -> int:
 	return _materials.size()
@@ -248,6 +273,9 @@ uniform float night_shade = 1.4; // extra SHADE blue in the shadows at full nigh
 uniform vec3 emission_color : source_color = vec3(1.0, 0.42, 0.14);
 uniform float emission_energy = 0.0; // a whole-surface glow (the ash leaves at night)
 uniform float pulse_depth = 0.25; // how much emission_energy swells with the heartbeat
+uniform sampler2D paint_tex : filter_nearest_mipmap, repeat_enable, hint_default_white; // SurfaceTex detail, brightness around 0.5
+uniform float paint_mix = 0.0; // how much the painted surface detail shows (0 = off, the default)
+uniform float paint_tpm = 1.0; // how many times the detail texture repeats per metre of world
 uniform float night_rim = 1.5; // extra moonlit rim at full night (x rim_strength), so figures, trunks and crowns keep a readable edge against the dark
 #ifdef FOLIAGE
 uniform float sway = 0.06; // metres of sway per metre of height up the mesh
@@ -259,6 +287,7 @@ uniform float vein_energy = 2.0;
 
 $COMPAT_GLSL
 varying vec3 world_pos;
+varying vec3 world_nrm;
 varying vec3 local_pos;
 #ifdef GLOW
 varying float vein;
@@ -293,6 +322,7 @@ void vertex() {
 	VERTEX.z += sin(phase * 0.73 + 1.7) * sway * 0.6 * h;
 #endif
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	world_nrm = (MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz;
 	local_pos = VERTEX;
 #ifdef GLOW
 	vein = 1.0 - COLOR.a;
@@ -308,6 +338,16 @@ void fragment() {
 	vec3 texel = floor(local_pos / texel_size);
 	float g = hash13(texel + 17.0) - 0.5;
 	ALBEDO *= 1.0 + g * 2.0 * texel_grain;
+	// Painted surface detail (SurfaceTex): a small tiling texture of grass and earth, bark,
+	// stone or wood grain, projected along the face's main axis in world space (no UVs needed,
+	// and it lines up across every tree and rock of a layer). Brightness only: the colour stays
+	// the vertex colour's.
+	if (paint_mix > 0.0) {
+		vec3 an = abs(world_nrm);
+		vec2 uv = an.y > an.x && an.y > an.z ? world_pos.xz : (an.x > an.z ? vec2(world_pos.z, -world_pos.y) : vec2(world_pos.x, -world_pos.y));
+		float detail = texture(paint_tex, uv * paint_tpm).r;
+		ALBEDO *= mix(1.0, detail * 2.0, paint_mix);
+	}
 	// Night is blue and ember (art bible section 2): the moon drains the greens, so the
 	// ground reads moonlit instead of green-black and every glow stands out against it.
 	// Only the greens drain: warm paint (ash crowns, bark, the lanterns) keeps its colour.

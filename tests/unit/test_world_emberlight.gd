@@ -20,15 +20,21 @@ func test_scatter_layers_use_emberlight() -> void:
 		var m := WorldBuilder.scatter_material(l)
 		check(Emberlight.is_emberlight(m), "%s is on Emberlight" % l)
 		seen[m.get_instance_id()] = true
-	check_eq(WorldBuilder.scatter_material("Trunks"), WorldBuilder.scatter_material("Rocks"), "bark and stone share solid")
-	check(seen.size() <= 3, "four scatter layers, at most three materials")
+	check_eq(WorldBuilder.scatter_material("Trunks"), Emberlight.painted("bark"), "trunks on the shared painted bark")
+	check_eq(WorldBuilder.scatter_material("Rocks"), Emberlight.painted("stone"), "rocks on the shared painted stone")
+	check(seen.size() <= 4, "four scatter layers, at most four materials")
 	check(Emberlight.count() <= 24, "within the art bible's 24-material budget")
 
 
-func test_shader_uses_no_textures() -> void:
+func test_shader_reads_only_the_surface_detail() -> void:
+	# Art bible section 7: the world shaders' one texture is SurfaceTex's tiny painted detail,
+	# off unless a material asks for it.
 	for v in Emberlight.VARIANTS:
 		var src := Emberlight.source(v)
-		check(not src.contains("sampler2D") and not src.contains("texture("), "%s: no texture lookups" % v)
+		check_eq(src.count("sampler2D"), 1, "%s: one sampler" % v)
+		check(src.contains("uniform sampler2D paint_tex : filter_nearest_mipmap"), "%s: crisp, nearest-filtered detail" % v)
+		check(src.contains("uniform float paint_mix = 0.0"), "%s: detail is off by default" % v)
+		check_eq(src.count("texture("), 1, "%s: one lookup" % v)
 		check(src.contains("global uniform float ember_pulse"), "%s: reads the shared heartbeat" % v)
 		check(not src.contains("$"), "%s: every palette token filled in" % v)
 	check(Emberlight.source("foliage").contains("#define FOLIAGE"), "foliage sways")
@@ -110,3 +116,27 @@ func test_pulse_parameter_registered() -> void:
 	Emberlight.ensure_globals()
 	Emberlight.set_pulse(0.5) # must not error, headless or not
 	check(true, "set_pulse runs")
+
+
+func test_painted_materials_are_shared_and_tiny() -> void:
+	check_eq(Emberlight.painted("bark"), Emberlight.painted("bark"), "one bark material")
+	check(Emberlight.painted("bark") != Emberlight.painted("stone"), "bark and stone differ")
+	check(float(Emberlight.painted("stone").get_shader_parameter("paint_mix")) > 0.0, "stone shows its detail")
+	check_eq(TerrainMesh.material().get_shader_parameter("paint_tex"), SurfaceTex.get_texture("ground"), "the ground is painted")
+	for k in SurfaceTex.KINDS:
+		var t := SurfaceTex.get_texture(k)
+		check_eq(t, SurfaceTex.get_texture(k), "%s built once" % k)
+		check(t.get_width() <= 64 and t.get_height() <= 64, "%s is a tiny image (art bible: 32 to 64 px)" % k)
+		# brightness only, centred on 0.5, so it never shifts a colour's overall brightness
+		var im := SurfaceTex.image(k)
+		var total := 0.0
+		var lo := 1.0
+		var hi := 0.0
+		for y in im.get_height():
+			for x in im.get_width():
+				var v := im.get_pixel(x, y).r
+				total += v
+				lo = minf(lo, v)
+				hi = maxf(hi, v)
+		check_near(total / (im.get_width() * im.get_height()), 0.5, 0.03, "%s averages mid grey" % k)
+		check(hi - lo > 0.2, "%s has visible detail" % k)

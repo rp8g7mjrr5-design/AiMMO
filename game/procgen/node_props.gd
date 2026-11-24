@@ -760,7 +760,8 @@ static func _meshes() -> Dictionary:
 
 
 ## Which shared Emberlight material each node layer uses (docs/art_bible.md, section 7):
-## bark, stone and stumps share `solid` with the scatter forest; pine tiers share its
+## trunks and stumps share the painted bark material, stones the painted stone, with the scatter
+## forest; pine tiers share its
 ## `foliage`; node ash leaves have their own named foliage material (they glow brighter at
 ## night than the decorative ones, from one number in Lamps.apply_glow); the sap pools a
 ## named glow material (a whole-surface glow, swelling with the heartbeat); veins the plain
@@ -790,6 +791,10 @@ static func layer_material(layer: String) -> ShaderMaterial:
 			# the beat rather than clipping to white in the noon sun.
 			vein.set_shader_parameter("vein_energy", 1.4)
 			return vein
+		"NodeTrunks", "NodeStumps":
+			return Emberlight.painted("bark")
+		"NodeStones":
+			return Emberlight.painted("stone")
 		_:
 			return Emberlight.material("solid")
 

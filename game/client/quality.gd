@@ -13,14 +13,16 @@ const NAMES := ["Low", "Medium", "High"]
 
 ## Per level: ClientSettings.shadow_quality index (1 = 60 m, 2 = 120 m), view distance in
 ## metres (600 m is where the valley haze is solid, so Medium and High end at the haze), the
-## sun's shadow map size, the soft-shadow filter, and the flora and mote multipliers world reads.
+## sun's shadow map size, the soft-shadow filter, the flora and mote multipliers world reads, and
+## whether the world gets screen-space ambient occlusion (contact shadow where things meet the
+## ground and each other; Forward+ only, the Compatibility renderer ignores it).
 const PRESETS := [
 	{"shadow_quality": 1, "draw_distance": 400.0, "shadow_atlas": 2048,
-		"soft_shadows": RenderingServer.SHADOW_QUALITY_HARD, "flora": 0.5, "motes": 0.5},
+		"soft_shadows": RenderingServer.SHADOW_QUALITY_HARD, "flora": 0.5, "motes": 0.5, "ao": false},
 	{"shadow_quality": 1, "draw_distance": 600.0, "shadow_atlas": 4096,
-		"soft_shadows": RenderingServer.SHADOW_QUALITY_SOFT_LOW, "flora": 1.0, "motes": 1.0},
+		"soft_shadows": RenderingServer.SHADOW_QUALITY_SOFT_LOW, "flora": 1.0, "motes": 1.0, "ao": true},
 	{"shadow_quality": 2, "draw_distance": 600.0, "shadow_atlas": 4096,
-		"soft_shadows": RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM, "flora": 1.0, "motes": 1.5},
+		"soft_shadows": RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM, "flora": 1.0, "motes": 1.5, "ao": true},
 ]
 
 ## The level in use on this computer. The client sets it from ClientSettings on start and on
@@ -50,6 +52,11 @@ static func motes_scale(l: int = level) -> float:
 	return float(preset(l).motes)
 
 
+## Whether the world draws screen-space ambient occlusion at this level.
+static func ambient_occlusion(l: int = level) -> bool:
+	return bool(preset(l).ao)
+
+
 ## Puts a level in force: `level` for world code that reads it, and the renderer's shadow map.
 ## The client calls it with the saved level before it builds the world, and on every change.
 static func use(l: int) -> void:
@@ -64,3 +71,12 @@ static func apply_renderer(l: int) -> void:
 	var p := preset(l)
 	RenderingServer.directional_shadow_atlas_set_size(int(p.shadow_atlas), true)
 	RenderingServer.directional_soft_shadow_filter_set_quality(int(p.soft_shadows))
+	# Ambient occlusion at half resolution and low quality: most of the look for a fraction of
+	# the cost on the target laptop. A world already built takes the new level at once.
+	RenderingServer.environment_set_ssao_quality(RenderingServer.ENV_SSAO_QUALITY_LOW, true, 0.5, 2, 50.0, 300.0)
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null and tree.root != null:
+		for we in tree.root.find_children("*", "WorldEnvironment", true, false):
+			var env := (we as WorldEnvironment).environment
+			if env != null:
+				env.ssao_enabled = bool(p.ao)
