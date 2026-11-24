@@ -64,7 +64,8 @@ class FunReport(unittest.TestCase):
             r = row(first=b["first_reward_s_median"], wait=b["longest_wait_s_median"],
                     rpm=b["rewards_per_min_median"], dead=b["longest_dead_s_median"])
             r.update({"first_level_up_s": 100.0, "first_level_up_gather_s": b["first_level_up_gather_s_median"],
-                      "gather_s": 45.0, "level_ups": 1, "levels_per_10_min": 3.4})
+                      "gather_s": 45.0, "level_ups": 1, "levels_per_10_min": 3.4,
+                      "gather_s_felling": 45.0, "level_gather_s_felling": b["skill_level_gather_s_median"]})
             rows["bot_%d" % i] = r
         self.assertEqual(fun_report.check(fun_report.summarise(rows), base), [])
 
@@ -117,6 +118,46 @@ class FunReport(unittest.TestCase):
         s = fun_report.summarise({"a": row()})
         self.assertEqual(s["bots_levelled"], 0)
         self.assertIsNone(s["first_level_up_gather_s_worst"])
+
+    def test_skill_never_levelled_fails_the_per_skill_limit(self):
+        rows = {
+            "a": dict(row(), gather_s_felling=30.0, level_gather_s_felling=28.0, gather_s_quarrying=70.0, level_gather_s_quarrying=-1),
+            "b": dict(row(), gather_s_felling=40.0, level_gather_s_felling=32.0),
+        }
+        s = fun_report.summarise(rows)
+        self.assertEqual(s["skills_levelled"], 2)
+        self.assertEqual(s["skill_level_gather_s_median"], 30.0)
+        self.assertEqual(s["skill_level_gather_s_worst"], 32.0)
+        self.assertEqual(s["skill_unlevelled_gather_s_max"], 70.0)
+        self.assertEqual(s["skill_unlevelled_at"], "a quarrying")
+        base = {"limits": {"skill_unlevelled_gather_s_worst": 60}}
+        problems = fun_report.check(s, base)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("a quarrying", problems[0])
+        base["limits"]["skill_unlevelled_gather_s_worst"] = 75
+        self.assertEqual(fun_report.check(s, base), [])
+
+    def test_split_skills_under_the_limit_pass(self):
+        # The d9927b3 case: 43.8 s gathered, split over two skills, neither levelled.
+        rows = {"a": dict(row(), first_level_up_s=-1, first_level_up_gather_s=-1, gather_s=43.8,
+                          gather_s_felling=24.0, level_gather_s_felling=-1, gather_s_quarrying=19.8, level_gather_s_quarrying=-1)}
+        s = fun_report.summarise(rows)
+        self.assertEqual(s["skill_unlevelled_gather_s_max"], 24.0)
+        self.assertEqual(fun_report.check(s, {"limits": {"skill_unlevelled_gather_s_worst": 60}}), [])
+
+    def test_skill_level_regression_against_baseline(self):
+        rows = {"a": dict(row(), gather_s_felling=60.0, level_gather_s_felling=55.0)}
+        s = fun_report.summarise(rows)
+        base = {"baseline": {"skill_level_gather_s_median": 30.0}, "slack": {"skill_level_gather_s": 8.0}}
+        self.assertTrue(any("skill_level_gather_s_median" in p for p in fun_report.check(s, base)))
+        rows["a"]["level_gather_s_felling"] = 34.0
+        self.assertEqual(fun_report.check(fun_report.summarise(rows), base), [])
+
+    def test_old_rows_without_skill_keys_still_summarise(self):
+        s = fun_report.summarise({"a": row()})
+        self.assertEqual(s["skills_levelled"], 0)
+        self.assertIsNone(s["skill_level_gather_s_median"])
+        self.assertEqual(s["skill_unlevelled_gather_s_max"], 0.0)
 
     def test_table_prints_every_bot(self):
         rows = {"bot_1": row(), "bot_2": row(first=-1)}

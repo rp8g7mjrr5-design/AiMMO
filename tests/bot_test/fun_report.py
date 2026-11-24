@@ -12,6 +12,11 @@ across bots, prints a table, and checks them against tests/bot_test/fun_baseline
   `first_level_up_gather_s_worst` seconds of gathering, and a bot that gathered longer than
   that without ever levelling up fails too (the roadmap: level 2 inside about a minute).
   `bots_levelled_min` asks for at least that many bots to level up in the run.
+- per skill (gather_s_<skill>, level_gather_s_<skill>): a bot's XP is split between skills by
+  whichever nodes it walks to, so its total can be long while no single skill got enough.
+  `skill_unlevelled_gather_s_worst` fails a bot that gathered that many seconds in one skill
+  and never levelled it; `skill_level_gather_s` (seconds in a skill when it first levelled,
+  median over every bot and skill) is compared with the baseline like the others.
 - baseline: the medians from a good run. A metric that gets worse than its baseline by more
   than `regression` (20%) *and* by more than its `slack` fails. The slack keeps run-to-run
   noise on small numbers (bot names, and so their routes, change every run) from flaking CI.
@@ -32,7 +37,21 @@ COMPARED = {
     "longest_wait_s": ("longest_wait_s_median", False),
     "rewards_per_min": ("rewards_per_min_median", True),
     "first_level_up_gather_s": ("first_level_up_gather_s_median", False),
+    "skill_level_gather_s": ("skill_level_gather_s_median", False),
 }
+
+GATHER_PREFIX = "gather_s_"
+LEVEL_PREFIX = "level_gather_s_"
+
+
+def skill_rows(r: dict) -> dict:
+    """{skill: (seconds gathered in it, seconds in it at its first level-up or -1)} for one bot."""
+    out = {}
+    for k, v in r.items():
+        if k.startswith(GATHER_PREFIX):
+            skill = k[len(GATHER_PREFIX):]
+            out[skill] = (float(v), float(r.get(LEVEL_PREFIX + skill, -1)))
+    return out
 
 
 def summarise(rows: dict) -> dict:
@@ -47,6 +66,14 @@ def summarise(rows: dict) -> dict:
     lpm = [r.get("levels_per_10_min", 0.0) for r in rows.values()]
     # Bots that gathered for longer than any levelled bot needed, and never levelled.
     never = {n: r.get("gather_s", 0.0) for n, r in rows.items() if r.get("first_level_up_s", -1) < 0}
+    # Per skill: seconds in a skill when it first levelled, and the longest one never levelled.
+    sk_level, sk_stuck, sk_stuck_at = [], 0.0, None
+    for n, r in rows.items():
+        for skill, (secs, lvl) in skill_rows(r).items():
+            if lvl >= 0:
+                sk_level.append(lvl)
+            elif secs > sk_stuck:
+                sk_stuck, sk_stuck_at = secs, f"{n} {skill}"
     return {
         "bots": len(rows),
         "bots_without_reward": no_reward,
@@ -65,6 +92,11 @@ def summarise(rows: dict) -> dict:
         "first_level_up_gather_s_worst": round(max(lv_gather), 2) if lv_gather else None,
         "unlevelled_gather_s_max": round(max(never.values()), 2) if never else 0.0,
         "levels_per_10_min_median": round(statistics.median(lpm), 2) if lpm else None,
+        "skills_levelled": len(sk_level),
+        "skill_level_gather_s_median": round(statistics.median(sk_level), 2) if sk_level else None,
+        "skill_level_gather_s_worst": round(max(sk_level), 2) if sk_level else None,
+        "skill_unlevelled_gather_s_max": round(sk_stuck, 2),
+        "skill_unlevelled_at": sk_stuck_at,
     }
 
 
@@ -98,6 +130,11 @@ def check(summary: dict, baseline: dict) -> list:
         stuck = summary.get("unlevelled_gather_s_max") or 0.0
         if stuck > lim:
             out.append(f"a bot gathered for {stuck:g} s and never levelled up, limit {lim:g} s")
+    lim = limits.get("skill_unlevelled_gather_s_worst")
+    if lim is not None:
+        stuck = summary.get("skill_unlevelled_gather_s_max") or 0.0
+        if stuck > lim:
+            out.append(f"{summary.get('skill_unlevelled_at')}: gathered {stuck:g} s in that skill and never levelled it, limit {lim:g} s")
     lim = limits.get("bots_levelled_min")
     if lim is not None and summary.get("bots_levelled", 0) < lim:
         out.append(f"only {summary.get('bots_levelled', 0)} bot(s) levelled up, needs at least {lim:g}")
@@ -150,4 +187,19 @@ def table(rows: dict, summary: dict) -> str:
     lines.append("[bot-test]   %-16s %12s %12s %12s %10s" % (
         "worst", "", f(summary.get("first_level_up_gather_s_worst")), "", ""))
     lines.append(f"[bot-test]   {summary.get('bots_levelled', 0)} of {summary['bots']} bots levelled up")
+    skills = sorted({k for r in rows.values() for k in skill_rows(r)})
+    if skills:
+        lines.append("[bot-test]   per skill: seconds gathered / seconds in it at its first level-up")
+        lines.append("[bot-test]   %-16s" % "bot" + "".join(" %18s" % s for s in skills))
+        for name in sorted(rows):
+            sr = skill_rows(rows[name])
+            cells = []
+            for s in skills:
+                secs, lvl = sr.get(s, (None, -1))
+                cells.append(" %18s" % ("-" if secs is None else f"{secs:g} / {f(lvl)}"))
+            lines.append("[bot-test]   %-16s" % name + "".join(cells))
+        lines.append(f"[bot-test]   {summary.get('skills_levelled', 0)} skill level-ups, median "
+                     f"{f(summary.get('skill_level_gather_s_median'))} s, worst {f(summary.get('skill_level_gather_s_worst'))} s; "
+                     f"longest never levelled {f(summary.get('skill_unlevelled_gather_s_max'))} s "
+                     f"({summary.get('skill_unlevelled_at') or '-'})")
     return "\n".join(lines)

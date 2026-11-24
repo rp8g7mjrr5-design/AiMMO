@@ -1,2 +1,0 @@
-- Your feet make a sound now: a soft, grassy patter in time with every stride, four variations so it never sounds copy-pasted.
-- Hear other players before you see them: their footsteps come from where they walk and fade out about 18 m away.

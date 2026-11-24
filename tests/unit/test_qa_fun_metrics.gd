@@ -145,6 +145,44 @@ func test_gather_stops_at_disconnect_and_never_levelled() -> void:
 	check_eq(r.level_ups, 0)
 
 
+func test_gathering_is_timed_per_skill() -> void:
+	var m := FunMetrics.new()
+	m.start_play(0.0)
+	m.gather_begun(0.0, "felling")
+	m.gather_ended(10.0) # 10 s felling
+	m.gather_begun(12.0, "quarrying")
+	m.gather_begun(15.0, "felling") # restart on another node: 3 s quarrying counted
+	m.level_up(20.0, "felling") # 10 + 5 s of felling when it levelled
+	m.level_up(30.0, "felling") # second felling level: first one is kept
+	m.gather_ended(30.0)
+	m.gather_begun(31.0) # unknown skill: only the total
+	m.stop_play(33.0)
+	var r := m.result()
+	check_near(r.gather_s_felling, 25.0, 0.001, "10 + 15 s of felling")
+	check_near(r.gather_s_quarrying, 3.0, 0.001, "the replaced quarrying gather")
+	check_near(r.level_gather_s_felling, 15.0, 0.001, "seconds in felling at its first level")
+	check_near(r.level_gather_s_quarrying, -1.0, 0.001, "quarrying never levelled")
+	check_near(r.gather_s, 30.0, 0.001, "the total still has every second")
+	check(not r.has("gather_s_"), "no key for an unknown skill")
+
+
+func test_level_up_without_gathering_still_reports_the_skill() -> void:
+	var m := FunMetrics.new()
+	m.start_play(0.0)
+	m.level_up(5.0, "toolcraft") # crafting levels, no gathering
+	m.stop_play(10.0)
+	var r := m.result()
+	check_near(r.gather_s_toolcraft, 0.0, 0.001)
+	check_near(r.level_gather_s_toolcraft, 0.0, 0.001)
+
+
+func test_level_up_skill_from_the_line() -> void:
+	check_eq(FunMetrics.level_up_skill("Felling is now level 2! Your gathers are a little quicker."), "felling")
+	check_eq(FunMetrics.level_up_skill(Skills.level_up_text(Skills.gain({}, "quarrying", 200))), "quarrying")
+	check_eq(FunMetrics.level_up_skill("Dancing is now level 2!"), "", "not a skill")
+	check_eq(FunMetrics.level_up_skill("You gather 2 ash wood."), "")
+
+
 func test_level_up_lines() -> void:
 	check(FunMetrics.is_level_up("Felling is now level 2! Your gathers are a little quicker. Next: Felling 5, Old ember ash."), "the level-up line")
 	check(FunMetrics.is_level_up(Skills.level_up_text(Skills.gain({}, "toolcraft", 200))), "Skills' own text")

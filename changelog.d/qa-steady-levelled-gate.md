@@ -1,2 +1,0 @@
-- Fixed a false alarm in our automatic play test that could hold up updates when two test players happened to split their gathering between trees and rocks and level up a little later.
-- The daily report on how fun the game feels now says straight out whether today beat yesterday: faster first reward, quicker first level-up, more items a minute.

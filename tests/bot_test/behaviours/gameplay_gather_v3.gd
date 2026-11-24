@@ -379,6 +379,12 @@ func _on_ended(peer: int, node_id: int, reason: String) -> void:
 	if reason in ["moved", "far"] and bot.elapsed - float(bot.get_meta("unstuck_at", -INF)) <= 3.0:
 		_step = Step.IDLE
 		return
+	# gameplay_vitals knocks the bot down once (back to spawn). If our start crossed it on
+	# the wire, the "moved" end is the knock-down, not a gathering bug: carry on from spawn.
+	if reason in ["moved", "far"] and bot.elapsed - float(bot.get_meta("knocked_down_at", -INF)) <= 3.0:
+		_step = Step.GOTO # walk back to the same node
+		_since = bot.elapsed
+		return
 	match _step:
 		Step.GATE:
 			var node := ResourceNodes.get_by_id(_gate_node)

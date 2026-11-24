@@ -3,7 +3,7 @@ class_name ChatCommands
 ## answers only the sender with a system message and never broadcasts the line itself.
 ## Pure functions, so they are unit tested without a running server.
 ##
-## Commands: /help, /time, /who, /bag, /gather, /craft. /gather and /craft change the world
+## Commands: /help, /time, /who, /bag, /gather, /craft (and hidden /skills, /hurt, /vitals). /gather and /craft change the world
 ## or a pack, so the server handles them itself (see is_gather, is_craft); everything else
 ## is answered by run(). /craft is a debug and bot command only (owner direction: chat is
 ## for talking): it is never listed in HELP or patch notes. Players craft from a window at
@@ -27,6 +27,12 @@ const NOT_FOR_CHAT := "Chat is for talking. Press F1 for controls."
 const RAILWAY_VARS := ["RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID",
 	"RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID", "RAILWAY_DEPLOYMENT_ID"]
 const WHO_MAX_NAMES := 20 ## cap the /who list so one line stays readable
+## Hidden dev and bot commands for health (Vitals), never listed in HELP: /hurt N hits you
+## for N, /vitals reads your bars. The server runs them (Server.vitals_command).
+const HURT_NAMES := ["hurt"]
+const VITALS_NAMES := ["vitals", "hp", "health"]
+const HURT_MAX := 1000
+const HURT_DEFAULT := 10
 
 
 static func is_command(text: String) -> bool:
@@ -53,6 +59,29 @@ static func is_gather(text: String) -> bool:
 ## True for the retired /channel line (see CHANNEL_NAMES). Nothing runs it any more.
 static func is_channel(text: String) -> bool:
 	return is_command(text) and name_of(text) in CHANNEL_NAMES
+
+
+## True for the hidden /hurt dev command.
+static func is_hurt(text: String) -> bool:
+	return is_command(text) and name_of(text) in HURT_NAMES
+
+
+## True for the hidden /vitals dev command and its aliases.
+static func is_vitals(text: String) -> bool:
+	return is_command(text) and name_of(text) in VITALS_NAMES
+
+
+## The damage a /hurt line asks for: HURT_DEFAULT with no number, 0 for anything that is
+## not a whole number from 1 to HURT_MAX.
+static func hurt_amount(text: String) -> int:
+	var arg := argument(text)
+	if arg == "":
+		return HURT_DEFAULT
+	var word := arg.split(" ", false)[0]
+	if not word.is_valid_int():
+		return 0
+	var n := word.to_int()
+	return n if n >= 1 and n <= HURT_MAX else 0
 
 
 ## True for /craft and its aliases, which the server runs against the sender's pack.

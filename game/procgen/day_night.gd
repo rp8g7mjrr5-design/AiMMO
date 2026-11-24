@@ -65,7 +65,10 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	# The heartbeat runs every frame (one RenderingServer call), so the glow swells smoothly.
-	Emberlight.set_pulse(Emberlight.pulse(now_world_seconds()))
+	var now := now_world_seconds()
+	Emberlight.set_pulse(Emberlight.pulse(now))
+	# Lantern flames flicker every frame too (a few light_energy sets, only while they are lit).
+	Lamps.flicker_lights(get_parent(), now)
 	_timer -= delta
 	if _timer > 0.0:
 		return
@@ -96,6 +99,7 @@ func apply(frac: float) -> void:
 		sun.visible = s.light_energy > 0.01
 	# Lanterns, ember-ash leaves and sap seeps glow from the same clock (siblings under World).
 	Lamps.apply_glow(get_parent(), Lamps.night_glow(frac))
+	Lamps.flicker_lights(get_parent(), now_world_seconds()) # no one-frame steady blip on a repaint
 	# Ember motes rise near the ash and the seeps from dusk until dawn.
 	Motes.apply(get_parent(), Motes.amount(frac))
 

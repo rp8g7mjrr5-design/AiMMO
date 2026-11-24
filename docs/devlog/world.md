@@ -632,3 +632,21 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Tests.** Unit suite with Postgres: 688 pass. 8-bot 180 s websocket bot test passed (276 s). Client smoke test passed (render budget ok; `Grazers` isn't drawn by the client yet, so nothing on screen changed).
 
 **Next run.** If #160 has landed, the client's swap is theirs. Otherwise: noon grass saturation or the mid-distance tree mesh.
+
+## 2026-11-24 (run 3): lantern flames flicker (ws/world/lantern-flicker)
+
+**Picked.** #160 (grazers) has landed. The two top items (milestone level-up burst, gather impact puff) still need a client call. Next on the list was the mid-distance tree mesh, but it adds one draw call per visible chunk and night headroom is 11 (289 of 300); it is a perf item players don't feel, and it needs a careful measuring run of its own. The lantern flicker is world-only, small, and finishable here. **What a player will feel:** coming back to the meadow at night, the eight lanterns and the bench lantern look like real flames: the light pools on the grass breathe, each on its own rhythm, instead of sitting there like electric bulbs.
+
+**Built.**
+- `Lamps.flicker(seconds, index)`: pure maths, three sine waves (7.3, 17.3 and 2.9 rad/s) with a golden-angle offset per lantern. Stays inside 1 +- 0.07 (`FLICKER_DEPTH` 0.14) and averages 1, so a night is exactly as bright as before.
+- `Lamps.flicker_lights(world, seconds)`: sets `light_energy = steady * flicker` on every lit meadow lantern light and the bench light (index `COUNT`). `apply_glow` (both `Lamps` and `Workbench`) now stores the steady level as `steady_energy` meta on each light. Lights that are off, or that no repaint has set yet, are left alone.
+- `DayNight._process` calls it every frame on the same clock as the heartbeat (`now_world_seconds`, so every player sees the same flames), and `apply` calls it right after `apply_glow` so a 0.25 s repaint never shows one steady frame (a ~5% blip four times a second would have read as a tick).
+- Cost: 9 `light_energy` sets a frame at night, none by day. No new nodes, materials or draw calls; no colour literals (art lint unchanged).
+
+**Decisions.** Lights only, not the glass: the lantern glass is one shared material across all nine lanterns, so wobbling `emission_energy` would make them all flicker in lock step, which looks worse than steady glass with the heartbeat. Per-lantern glass flicker needs a phase in instance custom data in the `glow` shader; follow-up added. No colour shift with the flicker, because a second flame colour would be a new literal for the art lint and the energy swing alone reads.
+
+**Tests.** `test_world_lantern_flicker.gd` (5 tests): range and mean over 9 lanterns x 100 s; under 2% change per 60 fps frame (worst is about 1.1%); neighbouring lanterns aren't in step (correlation under 0.8); built world lights follow their own flame and re-flicker around a new steady level after a repaint; nothing changes by day or before the first repaint, nothing is created, safe on null and partial worlds. Mutation check: making `_flicker_one` a no-op fails 10 checks. Unit suite with Postgres: 716 pass. 8-bot 180 s websocket bot test passed (278 s). Client smoke test passed (render budget ok). No bot behaviour: nothing on the network.
+
+**Didn't do.** No screenshot pair: a +-7% light swing doesn't show in two stills, and the smoke shots are stills. Worth a look in a real night playtest; if it reads too subtle, raise `FLICKER_DEPTH` to 0.2 (the strobe test allows it).
+
+**Next run.** Milestone burst and impact puff still wait on the client. Otherwise the noon grass saturation follow-up (qa's noon style baseline exists now) or the mid-distance tree mesh with a draw-call measurement.
