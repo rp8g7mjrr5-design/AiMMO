@@ -53,13 +53,13 @@ func _far_from_all(srv: Node, margin: float) -> Vector3:
 
 
 func test_v6_adds_only_wildlife_on_play_and_v5_is_frozen() -> void:
-	check_eq(GameConfig.PROTOCOL_VERSION, 6)
-	var play := ProtocolCompat.rpc_names("res://shared/net_play.gd")
+	check(GameConfig.PROTOCOL_VERSION >= 6, "v6 or later")
+	var play := ProtocolCompat.rpc_names("res://tests/protocol/net_play_v6.gd") # as v6 shipped
 	var v5_play := ProtocolCompat.rpc_names("res://tests/protocol/net_play_v5.gd")
 	var expected := Array(v5_play) + V6_RPCS
 	expected.sort()
 	check_eq(Array(play), expected, "v6 Play = v5 Play + s2c_wildlife")
-	check_eq(ProtocolCompat.rpc_names("res://shared/net.gd"), ProtocolCompat.rpc_names("res://tests/protocol/net_v5.gd"),
+	check_eq(ProtocolCompat.rpc_names("res://tests/protocol/net_v6.gd"), ProtocolCompat.rpc_names("res://tests/protocol/net_v5.gd"),
 		"Net's own RPCs unchanged since v5")
 	check(FileAccess.file_exists("res://tests/protocol/net_v5.gd"), "net_v5.gd frozen for the bump")
 

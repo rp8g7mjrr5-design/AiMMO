@@ -1,6 +1,6 @@
 extends Node
 ## Net/Play: the RPCs added in protocol v3 (gathering, the pack, crafting), v4 (skills), v5
-## (roster, Return to Spawn Meadow) and v6 (wildlife). A child of Net so
+## (roster, Return to Spawn Meadow), v6 (wildlife) and v7 (health, stamina, the first swing). A child of Net so
 ## Net's own RPC numbering, and with it every old client's login, never changes (see net.gd
 ## and tests/protocol/README.md). No logic: each RPC re-emits the matching signal on Net.
 ## Clients call these as `net.play.c2s_*.rpc_id(1, ...)`; the server's _send finds them here.
@@ -137,3 +137,44 @@ func s2c_unstuck_result(ok: bool, text: String, wait_seconds: float) -> void:
 @rpc("authority", "call_remote", "unreliable_ordered")
 func s2c_wildlife(entries: PackedFloat32Array) -> void:
 	_net().wildlife_changed.emit(entries)
+
+
+# --- protocol v7: health, stamina and the first swing (Milestone 2, "First blood") ---
+
+## Swing (left click: kind "light", hold or right click: "heavy") facing `yaw` (the camera
+## heading, like c2s_input's). The server answers s2c_swing to everyone in view, then
+## s2c_swing_hits when the blow lands, or s2c_attack_refused to you alone.
+@rpc("any_peer", "call_remote", "reliable")
+func c2s_attack(kind: String, yaw: float) -> void:
+	_net().attack_requested.emit(_sender(), kind, yaw)
+
+
+## Your health and stamina bar, whole points: once right after login and whenever a whole
+## point changes (a hit, a swing's stamina, regen). Nothing is sent while it stays put.
+@rpc("authority", "call_remote", "reliable")
+func s2c_vitals(hp: int, max_hp: int, stamina: int, max_stamina: int) -> void:
+	_net().vitals_changed.emit(hp, max_hp, stamina, max_stamina)
+
+
+## Someone in view (maybe you) swings `weapon` (Weapons id, "fists" bare-handed) with a
+## `kind` attack that takes `seconds` in all; the blow lands Weapons.hit_at(weapon, kind)
+## seconds in. Play the windup and the whoosh at once.
+@rpc("authority", "call_remote", "reliable")
+func s2c_swing(peer_id: int, weapon: String, kind: String, seconds: float) -> void:
+	_net().swing_begun.emit(peer_id, weapon, kind, seconds)
+
+
+## The blow of peer_id's swing landed: the grazer ids it struck, nearest first (each one
+## bolts). You always get your own, even an empty one (a whiff); others get it only on a hit.
+@rpc("authority", "call_remote", "reliable")
+func s2c_swing_hits(peer_id: int, kind: String, creature_ids: Array) -> void:
+	_net().swing_landed.emit(peer_id, kind, creature_ids)
+
+
+## Your swing didn't start: reason "busy" (still in the last swing: drop it quietly),
+## "gathering" (send c2s_gather_cancel before c2s_attack to swing out of a gather),
+## "winded" or "tired" (show Weapons.refusal_text and flash the stamina bar), "dead",
+## "unknown" (a bad kind).
+@rpc("authority", "call_remote", "reliable")
+func s2c_attack_refused(kind: String, reason: String) -> void:
+	_net().attack_refused.emit(kind, reason)
