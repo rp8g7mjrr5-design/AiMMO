@@ -3,8 +3,9 @@ extends CanvasLayer
 ## Self-update at startup, so players install the game once and every launch plays the newest build.
 ##
 ## How it works: the release pipeline publishes, next to the zips, one game pack per platform
-## (`AiMMO-<platform>.pck`, everything except the Godot engine) and `update.json`:
-##   {"build": 57, "engine": "4.3-stable", "files": {"windows": {"name": "AiMMO-windows.pck",
+## (`ZombAi-<platform>.pck`, everything except the Godot engine; `AiMMO-` before build 2026-11-24)
+## and `update.json`, whose `name` is the file to fetch, so the pack name can change freely:
+##   {"build": 57, "engine": "4.3-stable", "files": {"windows": {"name": "ZombAi-windows.pck",
 ##    "size": 123, "sha256": "..."}, "linux": {...}, "macos": {...}}}
 ## On launch this screen fetches `update.json` from the latest release. If its build is newer than
 ## the one running, it downloads that platform's pack into `user://updates/` with a progress bar,

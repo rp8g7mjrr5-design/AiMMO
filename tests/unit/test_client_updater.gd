@@ -98,3 +98,13 @@ func test_relaunch_args() -> void:
 func test_disabled_outside_installed_builds() -> void:
 	# Tests, the editor, bots and the server run from source: no build number, no update screen.
 	check(not Updater.enabled({}), "running from source")
+
+
+func test_renamed_pack_reaches_installed_games() -> void:
+	# Release packs went from AiMMO-<os>.pck to ZombAi-<os>.pck. A game that booted from an
+	# AiMMO pack must still fetch the newer build by whatever name update.json gives.
+	var m := Updater.parse_manifest("""{"build": 90, "engine": "4.3-stable", "files": {
+		"linux": {"name": "ZombAi-linux.pck", "size": 260400, "sha256": "abcdef"}}}""")
+	var plan := Updater.decide(57, "4.3-stable", "linux", _cached(80), m)
+	check_eq(plan.action, "download", "an older AiMMO pack on disk is replaced")
+	check_eq(plan.file.name, "ZombAi-linux.pck")
