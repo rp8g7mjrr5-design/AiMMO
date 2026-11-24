@@ -34,10 +34,32 @@ func test_skip_events() -> void:
 
 
 func test_video_is_a_small_theora_stream() -> void:
-	check(ResourceLoader.exists(Intro.VIDEO_PATH), "intro video is in the project")
-	check(load(Intro.VIDEO_PATH) is VideoStreamTheora, "intro loads as Theora")
-	var f := FileAccess.open(Intro.VIDEO_PATH, FileAccess.READ)
-	check(f != null and f.get_length() < 2 * 1024 * 1024, "intro stays under 2 MB for the auto-updater")
+	var total := 0
+	for path in [Intro.VIDEO_PATH, Intro.VIDEO_PATH_720]:
+		check(ResourceLoader.exists(path), "%s is in the project" % path)
+		check(load(path) is VideoStreamTheora, "%s loads as Theora" % path)
+		var f := FileAccess.open(path, FileAccess.READ)
+		check(f != null and f.get_length() < 2 * 1024 * 1024, "%s stays under 2 MB" % path)
+		if f != null:
+			total += f.get_length()
+	check(total < 3 * 1024 * 1024, "both encodes together stay under 3 MB for the auto-updater")
+
+
+func test_picks_the_encode_that_fits_one_to_one() -> void:
+	check_eq(Intro.pick_video(Vector2(1280, 720)), Intro.VIDEO_PATH_720, "default window plays the 720p cut")
+	check_eq(Intro.pick_video(Vector2(1600, 900)), Intro.VIDEO_PATH_720, "a window under 1080p plays the 720p cut")
+	check_eq(Intro.pick_video(Vector2(1920, 1080)), Intro.VIDEO_PATH, "1080p fullscreen plays the 1080p cut")
+	check_eq(Intro.pick_video(Vector2(2560, 1440)), Intro.VIDEO_PATH_720, "1440p plays the 720p cut at a clean 2x")
+	check_eq(Intro.pick_video(Vector2(3840, 2160)), Intro.VIDEO_PATH_720, "4K plays the 720p cut at 3x (exact pixels)")
+	check_eq(Intro.pick_video(Vector2(800, 600)), Intro.VIDEO_PATH_720, "a tiny window shrinks the smaller cut")
+
+
+func test_scale_is_whole_unless_the_window_is_smaller() -> void:
+	check_eq(Intro.video_scale(Vector2(1280, 720), Intro.SIZE_720), 1.0, "720p window: exactly 1:1")
+	check_eq(Intro.video_scale(Vector2(1600, 900), Intro.SIZE_720), 1.0, "between sizes: 1:1, never a blurry 1.25x")
+	check_eq(Intro.video_scale(Vector2(3840, 2160), Intro.SIZE_1080), 2.0, "4K: clean 2x")
+	check_eq(Intro.video_scale(Vector2(2560, 1440), Intro.SIZE_720), 2.0, "1440p with the 720p cut: clean 2x")
+	check(is_equal_approx(Intro.video_scale(Vector2(640, 360), Intro.SIZE_720), 0.5), "smaller than the video: fit")
 
 
 func test_ships_in_clients_not_the_server() -> void:

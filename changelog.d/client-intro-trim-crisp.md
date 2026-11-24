@@ -1,0 +1,1 @@
+- The Budda Games intro now ends cleanly on the logo, plays at 60 fps, and its pixel-art logo is razor sharp in the default window.

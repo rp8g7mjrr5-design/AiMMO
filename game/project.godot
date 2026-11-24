@@ -12,7 +12,7 @@ config/features=PackedStringArray("4.3")
 ; No engine logo at launch: the client opens on the Budda Games intro (client/intro.gd),
 ; and this background is the video's own first-frame colour so there is no flash between them.
 boot_splash/show_image=false
-boot_splash/bg_color=Color(0.114, 0.086, 0.102, 1)
+boot_splash/bg_color=Color(0.118, 0.075, 0.102, 1)
 
 [display]
 
