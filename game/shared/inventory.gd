@@ -34,20 +34,24 @@ const ITEMS := {
 	"ember_lantern": {"label": "ember lantern"},
 }
 const ITEM_ORDER := ["ash_wood", "pine_wood", "stone", "ember_sap", "ember_heartwood", "veinstone", "stone_axe", "stone_pickaxe", "ember_axe", "ember_pickaxe", "torch", "campfire", "ember_lantern"]
-## Items that are drawn (world's ItemIcons has them) but not moved into ITEMS yet. Empty
-## today: the tier-2 materials moved into ITEMS once world drew them (PR #108).
+## Items that are drawn (world's ItemIcons has them) but not moved into ITEMS yet. The
+## tier-2 materials waited here until PR #108. The first hunt's hide and raw meat wait here
+## now (2026-11-24, world drew them in #200): they are real, toasted and saved, and the pack
+## shows them after the ITEM_ORDER stacks. They move into ITEMS and ITEM_ORDER (after
+## veinstone) once client's pack-window test no longer hard-codes how many items exist
+## (request filed with client); moving them is a one-line change with no save impact.
 ## tests/unit/test_world_item_icons checks every id here has its own icon.
-const NEW_ITEMS := {}
+const NEW_ITEMS := {
+	"hide": {"label": "hide"},
+	"raw_meat": {"label": "raw meat"},
+}
 ## Items that are real (crafted, saved, named) before world has drawn their icon. A client
 ## shows them with the fallback bundle until then. When ItemIcons draws one, gameplay moves
 ## it into ITEMS and ITEM_ORDER. Ids are PERMANENT like ITEMS'. Empty today: the ember
 ## tools moved into ITEMS (after the stone tools) once world drew them (#118's run, world's
-## ember tool icons). The first hunt's drops wait here (2026-11-24): a downed grazer gives
-## hide and raw meat (Wildlife.KINDS.grazer.drops); world draws their icons next.
-const UNDRAWN := {
-	"hide": {"label": "hide"},
-	"raw_meat": {"label": "raw meat"},
-}
+## ember tool icons). The first hunt's drops waited here until world drew them (#200); they
+## are in NEW_ITEMS now. Kept as the waiting room for the next undrawn item.
+const UNDRAWN := {}
 
 
 static func is_item(item: String) -> bool:

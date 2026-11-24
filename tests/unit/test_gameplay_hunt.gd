@@ -210,8 +210,49 @@ func test_the_server_hands_the_hunter_hide_and_meat() -> void:
 	check_eq(Inventory.count(srv.sessions[2].character.inventory, "hide"), 0, "the onlooker gets nothing")
 	check_eq(int(srv.sessions[1].hunted), 1)
 	check(bool(srv.sessions[1].inv_dirty), "s2c_inventory goes out this tick")
-	check_eq(_sent(srv, 1, "s2c_gather_result"), [], "no toast until the icons are drawn")
+	check_eq(_sent(srv, 1, "s2c_gather_result"), [["hide", 1], ["raw_meat", 2]], "the hunt toast: one per drop")
 	srv.free()
+
+
+## The hunt toast (2026-11-24): the haul pops like a gather's, only on the blow that downs it,
+## only for the hunter, and only for what fit in the pack.
+func test_the_kill_pops_a_toast_for_the_hunter_only() -> void:
+	var srv := _server({})
+	var spot: Array = _next_to(srv, 0)
+	srv.free()
+	srv = _server({1: spot[0], 2: spot[0] + Vector3(6, 0, 0)})
+	_hit(srv, "heavy")
+	check_eq(_sent(srv, 1, "s2c_gather_result"), [], "a wound pays nothing yet")
+	_hit(srv, "light")
+	check_eq(_sent(srv, 1, "s2c_gather_result"), [["hide", 1], ["raw_meat", 2]], "+1 Hide, +2 Raw meat")
+	check_eq(_sent(srv, 2, "s2c_gather_result"), [], "the onlooker gets no toast")
+	srv.free()
+
+
+func test_a_full_stack_gets_no_toast_for_that_drop() -> void:
+	var srv := _server({})
+	var spot: Array = _next_to(srv, 0)
+	srv.free()
+	srv = _server({1: spot[0]})
+	srv.sessions[1].character.inventory["hide"] = Inventory.MAX_STACK
+	srv.sessions[1].character.inventory["raw_meat"] = Inventory.MAX_STACK - 1
+	_hit(srv, "heavy")
+	_hit(srv, "light")
+	check(Wildlife.is_down(srv.wildlife, 0), "down")
+	check_eq(_sent(srv, 1, "s2c_gather_result"), [["raw_meat", 1]], "only what fit")
+	srv.free()
+
+
+func test_the_drops_are_drawn_items_in_pack_order() -> void:
+	for d in Wildlife.drops("grazer"):
+		var item := str(d[0])
+		check(Inventory.ITEMS.has(item) or Inventory.NEW_ITEMS.has(item), "%s is a drawn item" % item)
+		check(not Inventory.UNDRAWN.has(item), "%s no longer waits for an icon" % item)
+		check_eq(Inventory.label(item), item.replace("_", " "), "%s has its label" % item)
+		check(ItemIcons.has_icon(item), "%s has its own icon for the toast" % item)
+	check(ItemIcons.tint("hide") != ItemIcons.tint("raw_meat"), "the two toasts read apart")
+	var held := Inventory.held({"stone_axe": 1, "raw_meat": 2, "hide": 1, "ash_wood": 3})
+	check_eq(held, ["ash_wood", "stone_axe", "hide", "raw_meat"], "the haul sits after the ordered stacks, hide first")
 
 
 func test_a_downed_grazer_is_gone_from_the_server_wire() -> void:

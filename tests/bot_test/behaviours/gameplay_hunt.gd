@@ -12,7 +12,9 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ##   3. /lure again: the wounded grazer N comes back first;
 ##   4. a jab, c2s_attack("light"): it lands on N and brings it down, so within a second the
 ##      pack (s2c_inventory) holds one more hide and two more raw meat, and no s2c_wildlife
-##      after that lists N.
+##      after that lists N;
+##   5. the hunt toast (2026-11-24): with the kill, s2c_gather_result names each drop and its
+##      count ("+1 Hide", "+2 Raw meat"), and the haymaker before it popped none.
 ## A real night stalk takes a minute and depends on the clock, so the bot test lures instead;
 ## the stalk itself is unit tested (test_gameplay_hunt). A login too short to finish is
 ## counted, not failed.
@@ -39,8 +41,10 @@ var _target := -1
 var _pack: Dictionary = {}
 var _pack_before: Dictionary = {}
 var _down_at := -1.0
+var _toasts: Dictionary = {} ## hunt drop -> count from s2c_gather_result during this hunt
 var hunts := 0
 var downs := 0
+var toasts := 0
 var skipped := 0
 var refusals := {}
 
@@ -51,6 +55,7 @@ func setup(net: Node) -> void:
 	net.attack_refused.connect(_on_refused)
 	net.inventory_changed.connect(_on_pack)
 	net.wildlife_changed.connect(_on_wildlife)
+	net.gather_result.connect(_on_result)
 
 
 func on_login(reconnect: bool, character: Dictionary) -> void:
@@ -103,6 +108,7 @@ func on_play(_delta: float) -> void:
 				bot.set_meta("wildlife_stalking", true)
 				bot.move = Vector2.ZERO
 				_pack_before = _pack.duplicate()
+				_toasts.clear()
 				hunts += 1
 				_send_lure()
 			elif bot.elapsed - _sent_at > ANSWER_TIMEOUT:
@@ -121,11 +127,14 @@ func on_play(_delta: float) -> void:
 			elif _sent_at >= 0.0 and bot.elapsed - _sent_at > ANSWER_TIMEOUT:
 				_retry_or_fail("the %s swing at grazer %d never landed" % [kind, _target])
 		Step.LOOT:
-			if _got_loot():
+			if _got_loot() and _got_toasts():
 				downs += 1
 				_step = Step.GONE
 			elif bot.elapsed - _down_at > LOOT_WITHIN:
-				fail("brought grazer %d down but the pack never got its hide and meat (before %s, now %s)" % [_target, _pack_before, _pack])
+				if not _got_loot():
+					fail("brought grazer %d down but the pack never got its hide and meat (before %s, now %s)" % [_target, _pack_before, _pack])
+				else:
+					fail("brought grazer %d down but the hunt toast said %s" % [_target, _toasts])
 				_release(Step.DONE)
 		Step.GONE:
 			if bot.elapsed - _down_at > LOOT_WITHIN + GONE_CHECK:
@@ -187,6 +196,8 @@ func _on_landed(peer: int, kind: String, ids: Array) -> void:
 			return
 		if Inventory.count(_pack, "hide") != Inventory.count(_pack_before, "hide"):
 			fail("one haymaker already gave hide: a grazer has %.0f hp" % Wildlife.max_hp("grazer"))
+		if not _toasts.is_empty():
+			fail("a haymaker that only wounded popped a hunt toast %s" % _toasts)
 		_step = Step.LURE2
 		_tries = 0
 		_sent_at = -1.0
@@ -228,6 +239,26 @@ func _got_loot() -> bool:
 	return true
 
 
+## Hunt drops toasted while we hunt (we never gather while stalking, so any is ours).
+func _on_result(item: String, count: int) -> void:
+	if _step == Step.WAIT or _step == Step.DONE:
+		return
+	for d in Wildlife.drops("grazer"):
+		if str(d[0]) == item:
+			_toasts[item] = int(_toasts.get(item, 0)) + count
+			toasts += 1
+
+
+## Every drop that fit in the pack was toasted with its count.
+func _got_toasts() -> bool:
+	for d in Wildlife.drops("grazer"):
+		var item := str(d[0])
+		var fit := mini(int(d[1]), Inventory.MAX_STACK - Inventory.count(_pack_before, item))
+		if fit > 0 and int(_toasts.get(item, 0)) != fit:
+			return false
+	return true
+
+
 func _on_wildlife(entries: PackedFloat32Array) -> void:
 	if _step != Step.GONE or entries.size() % Wildlife.WIRE_STRIDE != 0:
 		return
@@ -243,6 +274,7 @@ func _on_wildlife(entries: PackedFloat32Array) -> void:
 func on_finish() -> void:
 	stat("hunts", hunts)
 	stat("downs", downs)
+	stat("toasts", toasts)
 	stat("skipped", skipped)
 	stat("refusals", refusals)
 	if _hunter and hunts > 0 and downs == 0 and skipped == 0:

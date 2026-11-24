@@ -1,0 +1,1 @@
+- Bringing down a grazer now pays out loud: "+1 Hide" and "+2 Raw meat" pop up with their own icons and the haul sound, the same moment the beast drops.
