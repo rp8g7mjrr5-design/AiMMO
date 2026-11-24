@@ -298,8 +298,11 @@ The look is designed so that it is cheap. These rules are as binding as the pale
   instance custom data or instance uniforms, never from a new material. Target: 24 or fewer
   distinct materials in the whole world.
 - **Textures are the exception.** Only UI icons and small lookup images, at most 256 px,
-  generated once on first use and cached for the session (as `ItemIcons` does). None in the
-  world shaders.
+  generated once on first use and cached for the session (as `ItemIcons` does). In the world
+  shaders, only `SurfaceTex`'s painted detail (2026-11-24, owner direction, the test-camp
+  look): 64 px brightness-only images made in code (grass and earth, bark, stone, wood), laid on
+  triplanar in world space with nearest filtering, one shared material per kind. The colour
+  still comes from the vertices.
 - **The low-res look is maths, not textures.** The texel grain hashes the mesh's own position
   in the fragment shader (`texel_size`, `texel_grain` uniforms on the shared materials). If a
   later step wants painted patterns (bark lines, cloth weave) they are generated the same way

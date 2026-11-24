@@ -84,4 +84,5 @@ static func material() -> ShaderMaterial:
 	m.set_shader_parameter("rim_strength", 0.05)
 	m.set_shader_parameter("texel_size", 0.4) # the ground is big: coarser texels, like a tiled low-res ground texture
 	m.set_shader_parameter("texel_grain", 0.07)
+	Emberlight.paint_material(m, "ground") # grass clumps, earth and pebbles underfoot
 	return m

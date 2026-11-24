@@ -6,10 +6,12 @@ class_name WorldBuilder
 ## A DayNight child moves the sun, repaints the sky, and lights the lamps with the time of day.
 
 const HAZE_TOP := 3.0 ## metres: height haze thickens below this (the meadow floor is ~0-1.5 m)
-const HAZE_DENSITY := 0.035 ## extra fog density per metre below HAZE_TOP; gentle, it must not hide the meadow
+const HAZE_DENSITY := 0.02 ## extra fog density per metre below HAZE_TOP; gentle, it must not hide the meadow
 const GRADE_SATURATION := 0.92 ## whole-frame saturation: grounded, never candy
 const GRADE_CONTRAST := 1.10 ## a little more weight in the darks
 const SUN_SCATTER := 0.22 ## how much the haze glows when you look towards the sun
+const SSAO_RADIUS := 1.0 ## m: contact shadow reaches about a hand's breadth to a stride
+const SSAO_INTENSITY := 1.6
 
 
 static func build() -> Node3D:
@@ -63,9 +65,16 @@ static func _environment() -> WorldEnvironment:
 	env.adjustment_enabled = true
 	env.adjustment_saturation = GRADE_SATURATION
 	env.adjustment_contrast = GRADE_CONTRAST
+	# Contact shadow (art bible "Model direction", the test camp): soft darkening where trunks,
+	# rocks, walls and feet meet the ground and each other, so nothing looks pasted on. Medium
+	# and High only, half resolution; Forward+ draws it, Compatibility ignores it.
+	env.ssao_enabled = Quality.ambient_occlusion()
+	env.ssao_radius = SSAO_RADIUS
+	env.ssao_intensity = SSAO_INTENSITY
+	env.ssao_light_affect = 0.15
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.85, 0.78, 0.70)
-	env.fog_density = 0.006
+	env.fog_density = 0.0045 # lighter air than before (the test camp), still about 93% solid at the 600 m draw distance
 	env.fog_sky_affect = 0.3
 	# Height haze (art bible section 5): the valley floors and lake hollows fill with warm HAZE
 	# by day and blue NIGHT_HAZE after dark (DayNight sets the colour); the hills stand clear of it.
@@ -173,6 +182,10 @@ static func scatter_material(layer: String) -> ShaderMaterial:
 			return Lamps.ember_leaf_material() # foliage, plus the leaves' night glow
 		"PineTiers":
 			return Emberlight.material("foliage")
+		"Trunks":
+			return Emberlight.painted("bark")
+		"Rocks":
+			return Emberlight.painted("stone")
 		_:
 			return Emberlight.material("solid")
 

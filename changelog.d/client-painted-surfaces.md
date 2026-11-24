@@ -1,0 +1,2 @@
+- The world got its texture: grass clumps and earth underfoot, furrowed bark on the trees and cracked stone on the rocks.
+- Clearer days: a bluer sky, lighter haze, a stronger sun with crisper shadows, and soft contact shadows where things meet the ground (Medium and High graphics).

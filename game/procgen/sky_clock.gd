@@ -22,10 +22,11 @@ const KEYS := [
 	[-0.06, Color(0.12, 0.14, 0.32), Color(0.66, 0.36, 0.28), Color(0.34, 0.26, 0.30), Color(0.92, 0.52, 0.36)],
 	[0.06, Color(0.24, 0.32, 0.52), Color(0.92, 0.56, 0.34), Color(0.70, 0.52, 0.40), Color(1.00, 0.66, 0.42)],
 	[0.30, Color(0.30, 0.42, 0.62), Color(0.88, 0.70, 0.50), Palette.HAZE, Palette.GOLDEN_LIGHT],
-	[0.65, Color(0.31, 0.44, 0.63), Color(0.82, 0.75, 0.62), Palette.HAZE, Color(1.00, 0.86, 0.68)],
-	[1.00, Color(0.30, 0.44, 0.64), Color(0.78, 0.76, 0.70), Color(0.78, 0.75, 0.68), Color(1.00, 0.92, 0.82)],
+	[0.65, Color(0.27, 0.43, 0.66), Color(0.76, 0.76, 0.70), Palette.HAZE, Color(1.00, 0.88, 0.72)],
+	[1.00, Color(0.25, 0.42, 0.68), Color(0.70, 0.76, 0.80), Color(0.74, 0.77, 0.78), Color(1.00, 0.93, 0.84)],
 ]
 
+const DAY_LIGHT := 1.3 ## sun energy by day: strong enough for crisp shadows and lit faces that read at a glance (owner, 2026-11-24: the test camp)
 const DAY_AMBIENT := 0.36 ## sky fill by day: lower than the key, so shadows keep their shape and the meadow never glows
 const DAY_SKY_SHARE := 0.65 ## by day most of the fill is the sky's own colours
 const NIGHT_SKY_SHARE := 0.25 ## at night most of it is a flat moonlit blue (the sky is nearly black)
@@ -89,7 +90,7 @@ static func sample(frac: float) -> Dictionary:
 	# crosses the horizon so the swap is never visible.
 	var light_dir := sun_direction(frac) if sun_up else moon_direction(frac)
 	var lift := clampf(absf(h) / 0.12, 0.0, 1.0)
-	var energy := lerpf(0.0, 1.0, lift) if sun_up else lerpf(0.0, NIGHT_LIGHT, lift)
+	var energy := lerpf(0.0, DAY_LIGHT, lift) if sun_up else lerpf(0.0, NIGHT_LIGHT, lift)
 	var ambient := lerpf(NIGHT_AMBIENT, DAY_AMBIENT, clampf(inverse_lerp(-0.2, 0.3, h), 0.0, 1.0))
 	return {
 		"frac": frac,

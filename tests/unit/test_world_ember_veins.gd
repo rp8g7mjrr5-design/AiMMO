@@ -74,7 +74,8 @@ func test_nodes_and_flora_use_emberlight() -> void:
 	for l in Flora.LAYERS:
 		check(Emberlight.is_emberlight(Flora.layer_material(l)), "flora layer %s is on Emberlight" % l)
 	check_eq(NodeProps.layer_material(NodeProps.VEIN_LAYER), Emberlight.material("glow"), "veins on the shared glow material")
-	check_eq(NodeProps.layer_material("NodeTrunks"), WorldBuilder.scatter_material("Trunks"), "node bark shares the forest's solid")
+	check_eq(NodeProps.layer_material("NodeTrunks"), WorldBuilder.scatter_material("Trunks"), "node bark shares the forest's painted bark")
+	check_eq(NodeProps.layer_material("NodeStones"), WorldBuilder.scatter_material("Rocks"), "node stones share the forest's painted stone")
 	check_eq(NodeProps.layer_material("NodePineTiers"), WorldBuilder.scatter_material("PineTiers"), "node pines share the forest's foliage")
 	check(NodeProps.layer_material("NodeAshCrowns") != Lamps.ember_leaf_material(), "node leaves glow on their own number")
 	check(NodeProps.layer_material(NodeProps.GLOW_LAYER) != Emberlight.material("glow"), "sap glows whole; veins only where marked")
@@ -83,7 +84,7 @@ func test_nodes_and_flora_use_emberlight() -> void:
 		mats[NodeProps.layer_material(l).get_instance_id()] = true
 	for l in Flora.LAYERS:
 		mats[Flora.layer_material(l).get_instance_id()] = true
-	check(mats.size() <= 6, "eight node layers and seven flora layers on at most six materials (%d)" % mats.size())
+	check(mats.size() <= 8, "eight node layers and seven flora layers on at most eight materials (%d)" % mats.size())
 	check(Emberlight.count() <= 24, "within the art bible's 24-material budget (%d)" % Emberlight.count())
 
 
