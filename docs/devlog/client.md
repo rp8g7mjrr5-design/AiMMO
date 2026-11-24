@@ -1316,3 +1316,41 @@ other in the banner (separate follow-up).
 
 **Next run:** the art checks out of the bot behaviours (director item), or the F3 prediction
 numbers.
+
+## 2026-11-24: Return to Spawn Meadow in the Esc menu (ws/client/return-to-spawn)
+
+**Why this:** the top backlog item (camera heading with input) is still blocked on gameplay's
+facing yaw. The next director item is moving art checks out of four bot behaviours, which is
+plumbing; the Return to Spawn Meadow button answers gameplay's open v5 request and closes a
+real gap players hit today: slash commands are off on public servers (`dev_commands_on`), so a
+player who wanders off or wedges between rocks had no way home at all. What a player will
+feel: lost or stuck, press Esc, click once, and you're standing by the workbench with the
+camera right behind you, with a countdown that tells you when you can do it again.
+
+**Built:**
+- `SpawnReturn` (`game/client/spawn_return.gd`, pure): `ask`/`answered`/`enabled`/`label`.
+  The countdown comes from the server's `wait_seconds` (60 after a trip, the rest on a
+  cooldown refusal, 0 for "already in Spawn Meadow"), "Heading home..." while waiting, a
+  double click sends one ask, and an ask with no answer in 5 s gives the button back.
+- `SettingsMenu`: the button under the settings grid, shown only in game (`set_in_game`
+  on login, off and reset on disconnect), redrawn each frame while the menu is open.
+  `close(quiet)` skips the chime when the trip home plays the arrival sound.
+- `client.gd`: the press sends `net.play.c2s_unstuck`; the answer shows centre screen
+  (refusals red with the nope sound), and on ok the menu closes and `Sfx.arrive` plays.
+  Prediction already snapped past 4 m; now any snap also calls `ActionCamera.jump_to`, so
+  the camera moves with you (pivot jumps; yaw, pitch, zoom and shoulder stay) instead of
+  easing across the whole map. That helps any big correction, not only this button.
+- F1: "Lost? Return to Spawn Meadow (Esc menu)" in Moving.
+
+**Tests:** `test_client_spawn_return.gd` (11 tests: countdown rounding, refusals, NaN wait,
+lost answer, reset, the menu only in game, quiet close, camera jump, wiring by source, F1 row).
+Bot behaviour `client_spawn_return` mirrors gameplay_roster_v5's asks (it reads its
+`unstuck_at` meta, so it adds no traffic and doesn't trip that behaviour's "didn't ask"
+check) and fails if the server takes us home while our button showed a countdown, refuses
+for cooldown while our button showed ready, or the countdown differs from the server's wait.
+
+**Didn't do:** no screenshot hook yet (qa owns the smoke script); the trip home reuses the
+arrival sound rather than its own whoosh. Follow-ups are in the backlog.
+
+**Next run:** the art checks out of the bot behaviours (director item), or the F3 prediction
+numbers.

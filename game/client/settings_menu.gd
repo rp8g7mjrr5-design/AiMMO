@@ -6,6 +6,8 @@ extends PanelContainer
 
 signal changed(settings: ClientSettings)
 signal closed
+## The in-game "Return to Spawn Meadow" button was pressed (and `home` let it through).
+signal home_requested
 
 var settings: ClientSettings
 var _sens: HSlider
@@ -20,6 +22,10 @@ var _draw_value: Label
 var _fov: HSlider
 var _fov_value: Label
 var _shoulder: OptionButton
+## "Return to Spawn Meadow": shown only while playing (`set_in_game`), drawn from `home`.
+var home := SpawnReturn.new()
+var home_button: Button
+var in_game := false
 
 
 func setup(p_settings: ClientSettings, theme_res: Theme) -> void:
@@ -100,6 +106,13 @@ func setup(p_settings: ClientSettings, theme_res: Theme) -> void:
 	_draw_value = grid.get_child(grid.get_child_count() - 1)
 	_draw.value_changed.connect(_on_draw)
 
+	home_button = Button.new()
+	home_button.text = SpawnReturn.LABEL
+	home_button.tooltip_text = SpawnReturn.TOOLTIP
+	home_button.visible = false
+	home_button.pressed.connect(_on_home)
+	box.add_child(home_button)
+
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_END
 	buttons.add_theme_constant_override("separation", 8)
@@ -116,15 +129,48 @@ func setup(p_settings: ClientSettings, theme_res: Theme) -> void:
 
 func open() -> void:
 	_sync_controls()
+	refresh_home(Time.get_ticks_msec())
 	visible = true
 
 
-func close() -> void:
+## Show the "Return to Spawn Meadow" button only while logged in (not on the login screen).
+func set_in_game(on: bool) -> void:
+	in_game = on
+	home_button.visible = on
+	offset_top = -230 if on else -210
+	offset_bottom = 230 if on else 210
+	if not on:
+		home.reset()
+	refresh_home(Time.get_ticks_msec())
+
+
+## Redraws the button's countdown; client.gd calls it every frame while the menu is open.
+func refresh_home(now_ms: int) -> void:
+	if home_button == null:
+		return
+	home_button.text = home.label(now_ms)
+	home_button.disabled = not home.enabled(now_ms)
+
+
+func _on_home() -> void:
+	if in_game and home.ask(Time.get_ticks_msec()):
+		refresh_home(Time.get_ticks_msec())
+		home_requested.emit()
+
+
+## `quiet` skips the `closed` signal's chime when another sound already marks the moment
+## (the trip home plays the arrival sound instead).
+var quiet_close := false
+
+
+func close(quiet := false) -> void:
 	if not visible:
 		return
 	visible = false
 	settings.save_to()
+	quiet_close = quiet
 	closed.emit()
+	quiet_close = false
 
 
 func toggle() -> void:

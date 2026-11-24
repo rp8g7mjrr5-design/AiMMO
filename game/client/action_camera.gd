@@ -213,6 +213,16 @@ func place(feet: Vector3, p_yaw: float) -> void:
 	_placed = true
 
 
+## Moves the camera with a teleported character (Return to Spawn Meadow, a big correction):
+## the pivot jumps to `feet` instead of flying across the map, and the look direction, zoom
+## and shoulder stay as the player left them.
+func jump_to(feet: Vector3) -> void:
+	if not _placed:
+		place(feet, yaw)
+		return
+	pivot = feet
+
+
 ## Advances one frame for a character whose feet are at `feet`. Returns the camera's world
 ## transform. `height` and `props` are as in clear_arm.
 func step(feet: Vector3, delta: float, height: Callable, props: Array = []) -> Transform3D:
