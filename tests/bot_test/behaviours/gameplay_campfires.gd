@@ -1,7 +1,7 @@
 extends "res://tests/bot_test/bot_behaviour.gd"
-## Bot behaviour (gameplay): placed campfires, server side (Phase 2 build-ahead). Fires are not
-## on the wire yet (s2c_campfires waits for a bump), so the bot feels one only through the
-## hidden dev commands.
+## Bot behaviour (gameplay): placed campfires (Phase 2 build-ahead), through the hidden dev
+## commands. The wire side (c2s_place, s2c_campfires, protocol v9) is checked by
+## gameplay_world_v9, which also requires the fire kindled here to reach this bot.
 ##
 ## One bot per run (the one named *_5), once, FIRST_DELAY seconds into its first login, between
 ## two of gameplay_gather_v3's gathers, borrows itself (bot meta "wildlife_stalking", which the

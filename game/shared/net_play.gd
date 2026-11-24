@@ -1,7 +1,7 @@
 extends Node
 ## Net/Play: the RPCs added in protocol v3 (gathering, the pack, crafting), v4 (skills), v5
-## (roster, Return to Spawn Meadow), v6 (wildlife), v7 (health, stamina, the first swing) and v8
-## (character customization). A child of Net so
+## (roster, Return to Spawn Meadow), v6 (wildlife), v7 (health, stamina, the first swing), v8
+## (character customization) and v9 (the world config, placed campfires). A child of Net so
 ## Net's own RPC numbering, and with it every old client's login, never changes (see net.gd
 ## and tests/protocol/README.md). No logic: each RPC re-emits the matching signal on Net.
 ## Clients call these as `net.play.c2s_*.rpc_id(1, ...)`; the server's _send finds them here.
@@ -199,3 +199,39 @@ func c2s_set_look(look: Dictionary) -> void:
 @rpc("authority", "call_remote", "reliable")
 func s2c_look(peer_id: int, look: Dictionary) -> void:
 	_net().look_changed.emit(peer_id, look)
+
+
+# --- protocol v9: which world this is, and campfires you set down ---
+
+## The world this server runs (WorldGen.config(): {seed, size_m, gen_version}). Sent once,
+## right after s2c_login_result and before anything else about the world. Call
+## WorldGen.apply(config) and build terrain, nodes and spawn from it; gen_version 0 is
+## Ashgrove, today's valley, exactly as before.
+@rpc("authority", "call_remote", "reliable")
+func s2c_world(config: Dictionary) -> void:
+	_net().world_config.emit(config)
+
+
+## Set `item` down in front of you (today only "campfire", from the pack). The server places
+## it Campfires.PLACE_DISTANCE ahead of where it has you standing, facing your last yaw, and
+## answers with s2c_place_result; on success everyone also gets s2c_campfires.
+@rpc("any_peer", "call_remote", "reliable")
+func c2s_place(item: String) -> void:
+	_net().place_requested.emit(_sender(), item)
+
+
+## The answer to c2s_place: ok, or why not. reason is "" on success, else a Campfires.REFUSALS
+## key ("no_item", "water", "edge", "crowded", "node", "bench", "too_many", "world_full",
+## "down", "unknown"); text is the line to show as a notice either way.
+@rpc("authority", "call_remote", "reliable")
+func s2c_place_result(item: String, ok: bool, reason: String, text: String) -> void:
+	_net().place_result.emit(item, ok, reason, text)
+
+
+## Every campfire burning in the world, as a PackedFloat32Array of 5 values per fire
+## (Campfires.to_wire): [id, x, y, z, seconds_left] (int() the id). Sent at login when
+## any burn, and to everyone whenever one is lit or burns down. A fire missing from the list
+## has gone out: leave ash, then nothing. An empty list means none burn.
+@rpc("authority", "call_remote", "reliable")
+func s2c_campfires(entries: PackedFloat32Array) -> void:
+	_net().campfires_changed.emit(entries)

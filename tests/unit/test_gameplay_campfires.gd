@@ -1,8 +1,9 @@
 extends TestCase
 ## Placed campfires (Phase 2 build-ahead): a crafted campfire is set down in front of you on
 ## dry ground, clear of nodes, the bench and other fires, burns about four world hours, goes
-## out on its own, and the Gloam walkers keep their distance from it. Server side only for now
-## (/place and /kindle dev commands; s2c_campfires waits for a bump).
+## out on its own, and the Gloam walkers keep their distance from it. Over the wire from
+## protocol v9 (c2s_place, s2c_campfires; see test_gameplay_protocol_v9), plus the /place and
+## /kindle dev commands.
 
 const ServerScript := preload("res://server/server.gd")
 const DT := 0.05
