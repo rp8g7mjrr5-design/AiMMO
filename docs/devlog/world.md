@@ -622,3 +622,13 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 **Looked at.** Noon from 7 m and 22 m and midnight from 5 m, all six states side by side at the first herd's home (`world/grazers-noon.png`, `world/grazers-noon-22m.png`, `world/grazers-night.png` in the project files). Noon: warm fawn reads well against the green hill and the pines. Night: dark silhouettes whose pale rumps catch the moonlight, which is right for animals (no ember on living things).
 
 **Next run.** Nothing shows in game until the client wires the three calls. Then: the dust kick on `flee` and an idle ear flick (follow-ups added), and check the smoke test's draw calls once a herd is in a spawn shot.
+
+## 2026-11-24 (run 2): grazer PR #160 back in line with main
+
+**Why.** #160 went into conflict: the client shipped its own placeholder grazers (#161, `HerdView` + `GrazerFigures`) while #160 waited, and both PRs edited the same request lines in `docs/workstreams/client.md` and `world.md`. Fixed it in this run rather than starting a new item, because a living herd is the biggest fun on the world list and it should land.
+
+**What changed.** Merged `main` in (no rebase). Kept main's request text and marked gameplay's two and the client's one as done/answered. Answered the client's ask directly: `Grazers.part_xforms(pos, yaw, state, gait_phase, gait, size)` has the same signature and `{body, head, legs}` result as `GrazerFigures.part_xforms`, so the client can swap in `Grazers.meshes()` and keep `HerdView`, its dust and its snort. It calls the same `pose_for`/`xforms` maths, with the slope-following ground basis. No pose blending through that path (the client's `HerdView` owns smoothing), so a state change snaps there; `Grazers.feed/tick` still blends if the client prefers it. One test added (`test_part_xforms_is_a_drop_in_for_the_client_placeholder`).
+
+**Tests.** Unit suite with Postgres: 688 pass. 8-bot 180 s websocket bot test passed (276 s). Client smoke test passed (render budget ok; `Grazers` isn't drawn by the client yet, so nothing on screen changed).
+
+**Next run.** If #160 has landed, the client's swap is theirs. Otherwise: noon grass saturation or the mid-distance tree mesh.

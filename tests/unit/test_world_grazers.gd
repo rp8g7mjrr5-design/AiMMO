@@ -205,3 +205,29 @@ func test_slopes_tilt_the_body() -> void:
 	var rise := Terrain.height(best.x, best.z + 0.45) - Terrain.height(best.x, best.z - 0.45)
 	check(signf(fwd.y) == signf(rise) or absf(rise) < 0.01, "nose up a hill, down a slope")
 	check_near((b * Vector3(1, 0, 0)).y, 0.0, 0.001, "no sideways roll from the ground")
+
+
+func test_part_xforms_is_a_drop_in_for_the_client_placeholder() -> void:
+	# Same signature and result keys as GrazerFigures.part_xforms (#161), so the client can
+	# swap its meshes for ours and keep HerdView, the dust and the snort.
+	var p := _home()
+	var x := Grazers.part_xforms(p, 0.7, "graze", 0.0, 0.0, 1.0)
+	check(x.has("body") and x.has("head") and x.has("legs"), "body, head and legs")
+	check_eq((x.legs as Array).size(), 4, "four legs")
+	check(absf(_lowest(x) - p.y) < 0.12, "hooves on the ground (%.2f vs %.2f)" % [_lowest(x), p.y])
+	var alert := Grazers.part_xforms(p, 0.7, "alert", 0.0, 0.0, 1.0)
+	check(_muzzle(alert).y > _muzzle(x).y + 0.4, "alert lifts the head well above grazing")
+	var rest := Grazers.part_xforms(p, 0.7, "rest", 0.0, 0.0, 1.0)
+	check((rest.body as Transform3D).origin.y < (x.body as Transform3D).origin.y - 0.3, "resting lies down")
+	# Legs swing with the gait and stand still without it.
+	var a := Grazers.part_xforms(p, 0.7, "amble", 0.0, 1.0, 1.0)
+	var b := Grazers.part_xforms(p, 0.7, "amble", PI * 0.5, 1.0, 1.0)
+	var c := Grazers.part_xforms(p, 0.7, "amble", PI * 0.5, 0.0, 1.0)
+	var swung: Vector3 = (b.legs[0] as Transform3D).basis.y
+	check(swung.distance_to((a.legs[0] as Transform3D).basis.y) > 0.1, "a quarter gait moves the front leg")
+	check((c.legs[0] as Transform3D).basis.y.distance_to((a.legs[0] as Transform3D).basis.y) < 0.02, "no gait, no swing")
+	# Size scales the whole animal about its feet.
+	var big := Grazers.part_xforms(p, 0.7, "graze", 0.0, 0.0, 1.1)
+	var h1 := (x.head as Transform3D).origin.y - p.y
+	var h2 := (big.head as Transform3D).origin.y - p.y
+	check(absf(h2 / h1 - 1.1) < 0.05, "size 1.1 is 10%% taller (%.3f)" % (h2 / h1))

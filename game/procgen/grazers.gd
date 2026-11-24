@@ -260,6 +260,19 @@ static func xforms(base: Transform3D, pose: Dictionary) -> Dictionary:
 	return {"body": body, "head": head, "legs": legs}
 
 
+## Client's drawing hook (#161 `GrazerFigures.part_xforms`, same signature and result): every
+## part's world transform for one grazer standing at `pos` facing `yaw` in server state
+## `state_name`. `gait_phase` is in radians, `gait` 0 (standing) to 1 (full trot), `size`
+## scales the whole animal. No smoothing or pose blending here: the caller owns that (the
+## client's `HerdView`), so a state change snaps. Uses the slope-following ground basis.
+static func part_xforms(pos: Vector3, yaw: float, state_name: String, gait_phase: float, gait: float, size: float = 1.0) -> Dictionary:
+	var phase := fposmod(gait_phase / TAU, 1.0)
+	var speed := clampf(gait, 0.0, 1.0) # pose_for's legs reach full swing at 1 m/s and up
+	var pose := pose_for(state_name, phase * STRIDE, phase, speed)
+	var basis := ground_basis(pos.x, pos.z, yaw).scaled(Vector3.ONE * size)
+	return xforms(Transform3D(basis, pos), pose)
+
+
 ## The ground under a grazer as a basis: facing `yaw` (forward = (sin yaw, 0, cos yaw)) and
 ## tilted to follow the slope front to back, so a grazer on a hill doesn't float its hooves.
 static func ground_basis(x: float, z: float, yaw: float) -> Basis:

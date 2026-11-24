@@ -8,11 +8,13 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ##   offer a press the server will turn away), and after any answer it counts down exactly
 ##   the server's wait;
 ## - every ask is answered before the button would give the press back (ANSWER_TIMEOUT_MS).
+## The ask is noted the moment it goes out (bot.play_sent), not on our next on_play: the
+## server can answer before then (it did on localhost, qa 2026-11-24), and an answer handled
+## before the ask was noted left the button "asking" forever and failed the bot 5 s later.
 
 const SpawnReturnScript := preload("res://client/spawn_return.gd")
 
 var _ret = SpawnReturnScript.new()
-var _seen_ask := -INF ## gameplay_roster_v5's "unstuck_at" meta when we last saw it
 var _ready_when_asked := true
 var _answers := 0
 var _countdowns := 0
@@ -24,6 +26,16 @@ func _now_ms() -> int:
 
 func setup(net: Node) -> void:
 	net.unstuck_result.connect(_on_unstuck)
+	bot.play_sent.connect(_on_play_sent)
+
+
+func _on_play_sent(method: String, _args: Array) -> void:
+	if method != "c2s_unstuck":
+		return
+	# The button as the player would see it at the moment of the press.
+	_ready_when_asked = _ret.enabled(_now_ms())
+	_ret.asked_at_ms = _now_ms()
+	_ret.asks += 1
 
 
 func on_login(_reconnect: bool, _character: Dictionary) -> void:
@@ -31,13 +43,6 @@ func on_login(_reconnect: bool, _character: Dictionary) -> void:
 
 
 func on_play(_delta: float) -> void:
-	var at := float(bot.get_meta("unstuck_at", -INF))
-	if at != _seen_ask:
-		_seen_ask = at
-		# The button as the player would see it at the moment of the press.
-		_ready_when_asked = _ret.enabled(_now_ms())
-		_ret.asked_at_ms = _now_ms()
-		_ret.asks += 1
 	if _ret.asked_at_ms >= 0 and not _ret.asking(_now_ms()):
 		fail("no answer within %d ms: the button gave the press back" % SpawnReturnScript.ANSWER_TIMEOUT_MS)
 

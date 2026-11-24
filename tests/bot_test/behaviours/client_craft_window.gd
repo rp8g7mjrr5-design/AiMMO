@@ -16,8 +16,17 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## just sent (they change the pack with no gather_begun; a /gather paid between the window's
 ## last s2c_inventory and the press once made the window short one pine wood, qa
 ## 2026-11-23), and not near a disconnect (qa_gather_ledger's reconnect check).
+##
+## --craft-haul (one extra bot after the main run, seeded by seed_crafter.gd at the bench with
+## exactly a campfire's and a torch's inputs, see craft_haul.gd): the main bots almost never
+## carry a recipe's inputs, so this bot proves the ok path live. It holds still at the bench
+## until both are made, presses sooner and more often, and fails unless the campfire and the
+## torches were both made, each paid Toolcraft XP, and the pack ended exactly as CraftHaul says.
 
 const WindowScript := preload("res://client/craft_window.gd")
+const CraftHaul := preload("res://tests/bot_test/craft_haul.gd")
+const HAUL_FIRST_PRESS := 2.0 ## s after login, --craft-haul only
+const HAUL_PRESS_GAP := 2.5
 const FIRST_PRESS := 6.0 ## s after login
 const PRESS_GAP := 12.0 ## s between presses
 const MAX_PRESSES := 4 ## per login
@@ -42,9 +51,12 @@ var predicted := 0
 var pack_checks := 0
 var bench_frames := 0
 var raced_presses := 0
+var _haul := false
+var made: Array = [] ## recipe ids the server said ok to, in order
 
 
 func setup(net: Node) -> void:
+	_haul = haul_mode(bot.args)
 	_w = WindowScript.new()
 	_w.setup(Theme.new())
 	_w.craft_requested.connect(func(id: String):
@@ -73,12 +85,14 @@ func on_login(_reconnect: bool, character: Dictionary) -> void:
 	_sent = ""
 	_gathering = false
 	_presses = 0
-	_next_press = bot.elapsed + FIRST_PRESS + bot.rng.randf_range(0.0, 2.0)
+	_next_press = bot.elapsed + (HAUL_FIRST_PRESS if _haul else FIRST_PRESS + bot.rng.randf_range(0.0, 2.0))
 
 
 func on_play(delta: float) -> void:
 	if not bot.have_pos:
 		return
+	if _haul and made.size() < CraftHaul.RECIPES.size() and bot.phase == "playing_1":
+		bot.move = Vector2.ZERO # stay at the bench until the haul is crafted, then wander
 	var p: Vector3 = bot.my_pos
 	var at: bool = WindowScript.near_bench(p)
 	var d := Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ)
@@ -114,7 +128,7 @@ func _press(p: Vector3) -> void:
 	if WindowScript.row(_w.pack, "campfire", p).reason == "" and Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ) < Crafting.BENCH_RANGE - EDGE:
 		id = "campfire"
 	_presses += 1
-	_next_press = bot.elapsed + PRESS_GAP
+	_next_press = bot.elapsed + (HAUL_PRESS_GAP if _haul else PRESS_GAP)
 	if not _w.craft(id):
 		fail("the window refused a Craft press for %s (pack known %s)" % [id, _w.pack_known])
 		return
@@ -162,9 +176,15 @@ func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
 		fail("window still waiting after the answer")
 	if ok:
 		crafted += 1
+		made.append(recipe_id)
 		if str(shown.crafted) != recipe_id:
 			fail("a successful %s made no toast" % recipe_id)
 	_sent = ""
+
+
+## True when the bot was started with --craft-haul (the seeded crafter, see craft_haul.gd).
+static func haul_mode(args: Dictionary) -> bool:
+	return args.has("craft-haul")
 
 
 ## True for chat lines the server may answer by changing the pack (instant /gather, /craft,
@@ -188,5 +208,12 @@ func on_finish() -> void:
 	# s2c_xp is sent before the craft_result it belongs to.
 	if _toolcraft_xp < crafted:
 		fail("%d crafts but only %d Toolcraft XP gains" % [crafted, _toolcraft_xp])
+	if _haul:
+		var haul := {"made": made, "presses": presses, "toolcraft_xp": _toolcraft_xp,
+			"haul_pack": Inventory.to_wire(_w.pack) if _w else null}
+		stat("made", made)
+		stat("haul_pack", haul.haul_pack)
+		for problem in CraftHaul.verdict(haul):
+			fail("craft haul: " + problem)
 	if _w:
 		_w.free()

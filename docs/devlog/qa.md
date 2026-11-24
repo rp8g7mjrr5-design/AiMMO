@@ -1175,3 +1175,74 @@ raise the primitive gate to a real saving.
 
 **Next run:** the style notes say noon warmth and most night numbers moved toward the art
 bible since the baseline; a `--write-baseline` refresh may be worth its own small PR.
+
+## 2026-11-24 — Three on one node share it fairly (`ws/qa/three-on-a-node`)
+
+**Fun:** three friends on one tree all get paid while it has charges, and nobody is
+turned away early or paid for a charge that doesn't exist; every release now proves it.
+
+**Built:** pair mode in `qa_gather_ledger` takes `--pair-size`; `run_bot_test.py` sends a
+leader and two followers (`gather_report.GROUP_SIZE` 3). Everyone waits until both others are
+in reach, and each must see three gatherers at once. While the group gathers, each bot logs the
+node's empty announcement and every `s2c_gather_end` on that node in arrival order;
+`GatherLedger.share_problem` fails a "depleted" before the announcement (refused while a charge
+was left) and any "done" after it other than the one straight after (the emptier's). Then the
+leader presses once more: an emptied node must answer "depleted", one with a charge left must
+begin (the leader lets go at once). `check_pair` adds: paid <= the node's charges, and "every
+charge paid" means someone was told the node is empty.
+
+**Decision:** the bots can't see how many charges a node has left, so I check the order of
+events rather than "three paid". This works because the server sends `s2c_node_state` right
+before the emptier's `s2c_gather_end`, both reliable on one channel, so every client sees one
+order. The ideal case (full node: three paid, extra press "depleted") happened in my run, but
+by luck; follow-up in the backlog to pick a node that is certainly full.
+
+Also did world's request: `world_level_up_fx.gd` dropped from `art_free_behaviours`.
+
+**Tests:** unit 651/651 (Postgres), `test_gather_report.py` 18/18, bot test 8 bots / 180 s /
+WebSocket / Postgres PASSED (twice, see PR). Group in run 1: node 5, all three "done", node
+emptied, the extra press "depleted". Run 2: node 2 had one charge left: one "done", two
+"depleted" (after the announcement), the extra press "depleted". Both paths seen live.
+
+**Next run:** the group follow-up in the backlog, or the fun trend `--since` item.
+## 2026-11-24 — crafting proven live in the bot test (`ws/qa/craft-haul`)
+
+Budget 20/40 (week from Wed 2026-11-18), claim taken, playtest inbox empty. Open qa PR #159
+(three on a node) had CI running with auto-merge on, nothing to fix. Took the craft-window
+follow-up (the items above it are blocked on world/client or already in #159). One-sentence
+fun: the moment a player cashes in a haul at the bench (the toast, the "+N Toolcraft") is
+now checked on a live server every release, so it can't quietly break.
+
+**Baseline on `main`:** 8 x 180 s run, `client_craft_window` crafted 0 of 64 presses again
+(every bot pressed torch, every press refused "missing"). Bots never carry ember sap (night
+only, one charge, 10 min respawn), and steering a main bot to the bench fights the
+gathering behaviours that set `bot.move` after it.
+
+**Built:** `tests/bot_test/craft_haul.gd` (spot, pack, expected pack after, verdict),
+`seed_crafter.gd` (like `seed_veteran.gd`: a character 2 m from the bench with exactly a
+campfire's + a torch's inputs, through the real save path), and a `--craft-haul` mode in
+`client_craft_window.gd`: presses 2 s after login and every 2.5 s, holds still until both
+are made, then wanders (every bot must walk 5 m). `run_bot_test.py` seeds it before the
+server starts and runs it next to the pair/gate bots for 40 s; the verify step also checks
+its saved pack. Result: made campfire then torch, pack {campfire 1, torch 3}, 7 presses all
+predicted (the later torch presses refused "missing", correctly), saved pack verified.
+`--no-craft-haul` skips it. Unit tests `test_qa_craft_haul.gd` (5).
+
+**Decision:** a seeded crafter instead of making main bots haul: deterministic, no fight
+over `bot.move`, and it is still the real client window, the real protocol and the real
+save. The main bots keep covering the refusal path.
+
+**Flake fixed (tests only, qa-owned):** my first full run failed on a main bot:
+`[client_spawn_return] no answer within 5000 ms` although its stats said both asks were
+answered. The behaviour noticed gameplay_roster_v5's ask on its own next `on_play` (via a
+meta), but `client_` behaviours run before `gameplay_` ones, so the server's answer could be
+handled before the ask was noted; the button then "waited" forever. It now notes the ask
+from `bot.play_sent`, which fires synchronously as the request goes out. Unit test
+`test_qa_spawn_return_race.gd` (3). This came in with #158 and could turn `main` red at random.
+
+**Tests:** unit 660/660 (Postgres), Python ops + bot_test OK, bot test 8 x 180 s WebSocket +
+Postgres PASSED in 275 s (14/14 saves verified, fun: dead median 30.4, rewards/min 10.3,
+8/8 levelled). Client smoke not run: nothing the client loads changed.
+
+**Next run:** check #159 and this PR landed. Then the fun-trend `--since` / vs-yesterday item,
+or the bot `c2s_input` rate perf follow-up.

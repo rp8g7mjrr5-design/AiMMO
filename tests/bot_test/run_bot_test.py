@@ -11,9 +11,11 @@ Fails on: any bot failure, any server/bot crash, any ERROR line in a log, a desy
 Long runs (>= 120 s) also check real gathering as a whole (tests/bot_test/gather_report.py)
 and then run the respawn probe: one fresh bot, only the qa_gather_ledger behaviour, logs in
 while a node the bots emptied is still empty, waits for it to come back and gathers it.
-Alongside the probe, two more fresh bots gather one node together on purpose (the pair
-check, qa_gather_ledger's pair mode), so "two players on one node" never depends on where
-the 8 bots happen to walk. Every saved character must hold exactly the pack the server last
+Alongside the probe, three more fresh bots gather one node together on purpose (the group
+check, qa_gather_ledger's pair mode with --pair-size=3), so "several players on one node"
+never depends on where the 8 bots happen to walk, and the node's charges must be shared
+fairly (nobody turned away while one is left, nobody paid after the last, and a press after
+the group's gathers matches what's left). Every saved character must hold exactly the pack the server last
 sent its bot.
 
 Long runs also run the level-gate check (behaviour qa_level_gate, tests/bot_test/level_gate.gd)
@@ -23,6 +25,12 @@ node and must be refused ("level", the "Needs <Skill> 5" line, nothing paid); th
 works it until it is empty (every charge pays, so the refusal took none); both reconnect, the
 veteran keeps its level and XP (checked in the save too) and the fresh bot is still refused.
 Skip it with --no-level-gate.
+
+Long runs also run the craft-haul check (behaviour client_craft_window with --craft-haul,
+tests/bot_test/craft_haul.gd): seed_crafter.gd saves a character at the workbench holding
+exactly a campfire's and a torch's inputs; it presses Craft on the real client window and must
+make both, earn Toolcraft XP for each, and end with the goods and none of the inputs (also
+checked in the save). Skip it with --no-craft-haul.
 
 Every run also prints the fun metrics (tests/bot_test/fun_report.py) and writes
 fun_metrics.json into the work directory, which is kept for the CI artifact. With
@@ -73,6 +81,8 @@ PAIR_PLAY = 50.0
 # Level-gate bots' run length (cut short by qa_level_gate once both checks are done): walk
 # ~50 m, refuse, hold, reconnect / walk 10 m, wait for the refusal, empty a 4-charge node, reconnect.
 LEVEL_GATE_PLAY = 90.0
+# Craft-haul bot's run length: two crafts at the bench in ~6 s, wander, reconnect, a refused press.
+CRAFT_HAUL_PLAY = 40.0
 # Chat-gate bots' run length: three commands per login, a reconnect, a couple of talk lines.
 GATE_PLAY = 30.0
 
@@ -154,6 +164,20 @@ class PerfSampler(threading.Thread):
         self._stop_event.set()
         self.join(timeout=10)
         return self.samples
+
+
+def seed_crafter(env: dict, work: Path, name: str) -> list:
+    """Saves the craft-haul bot (at the workbench, a campfire's and a torch's inputs) before the server starts."""
+    log = work / "seed_crafter.log"
+    r = subprocess.run([GODOT, "--headless", "--path", str(GAME), "-s", "tests/bot_test/seed_crafter.gd", "--",
+                        f"--name={name}", f"--password=pw-{name}"],
+                       stdout=open(log, "w"), stderr=subprocess.STDOUT, env=env, timeout=120)
+    text = log.read_text(errors="replace")
+    seeded = [l for l in text.splitlines() if l.startswith("seed: crafter")]
+    if r.returncode != 0 or not seeded:
+        return [f"craft haul: could not seed the crafter:\n{text}"]
+    print("[bot-test] " + seeded[0])
+    return scan_log(log, "seed_crafter")
 
 
 def seed_veteran(env: dict, work: Path, name: str):
@@ -238,6 +262,7 @@ def main() -> int:
                     help="fail when server CPU, tick rate, memory or bandwidth break perf_budget.json")
     ap.add_argument("--perf-budget", default=str(perf_report.BUDGET), help="budget JSON for --perf-check")
     ap.add_argument("--no-level-gate", action="store_true", help="skip the tier-2 level-gate check")
+    ap.add_argument("--no-craft-haul", action="store_true", help="skip the craft-haul check (crafting at the bench)")
     ap.add_argument("--no-chat-gate", action="store_true", help="skip the chat-gate phase (dev commands off)")
     a = ap.parse_args()
 
@@ -260,6 +285,9 @@ def main() -> int:
         # Seeded while nothing else has storage open (the JSON store keeps the file in memory).
         gate_node, seed_problems = seed_veteran(env, work, f"bot{run_tag}_vet")
         problems += seed_problems
+    craft_haul = a.duration >= gather_report.LONG_RUN and not a.no_craft_haul
+    if craft_haul:
+        problems += seed_crafter(env, work, f"bot{run_tag}_crafter")
     # Behaviours type slash commands (dev tools); the public server runs without the flag.
     server = start_server(env, server_log, "--dev-commands")
     if server is None:
@@ -310,8 +338,11 @@ def main() -> int:
         # The pair goes first and never touches the probe's node; it plays while the probe waits.
         avoid = [f"--pair-avoid={pick[0]}"] if pick else []
         lead = f"bot{run_tag}_pairA"
-        for name, extra in ((lead, ["--gather-pair=lead", *avoid]),
-                            (f"bot{run_tag}_pairB", ["--gather-pair=follow", f"--pair-leader={lead}"])):
+        size = f"--pair-size={gather_report.GROUP_SIZE}"
+        group = [(lead, ["--gather-pair=lead", size, *avoid])]
+        group += [(f"bot{run_tag}_pair{c}", ["--gather-pair=follow", size, f"--pair-leader={lead}"])
+                  for c in "BCDEFG"[:gather_report.GROUP_SIZE - 1]]
+        for name, extra in group:
             result = work / f"{name}.json"
             log = work / f"{name}.log"
             cmd = bot_cmd(name, port, a.transport, PAIR_PLAY, result, "--expect-peers=0",
@@ -329,6 +360,14 @@ def main() -> int:
                               "--only-behaviour=qa_level_gate", f"--gate-node={gate_node}", *extra)
                 gate_bots.append((name, subprocess.Popen(cmd, stdout=open(log, "w"), stderr=subprocess.STDOUT, env=env), result, log))
                 time.sleep(0.5)
+        haul_bots = []
+        if craft_haul:
+            name = f"bot{run_tag}_crafter"
+            result = work / f"{name}.json"
+            log = work / f"{name}.log"
+            cmd = bot_cmd(name, port, a.transport, CRAFT_HAUL_PLAY, result, "--expect-peers=0",
+                          "--only-behaviour=client_craft_window", "--craft-haul")
+            haul_bots.append((name, subprocess.Popen(cmd, stdout=open(log, "w"), stderr=subprocess.STDOUT, env=env), result, log))
         if pick is None:
             if any(_ledger(s).get("depleted") for s in rows.values()):
                 problems.append("gathering: every emptied node came back during the run, none left for the respawn probe")
@@ -378,6 +417,18 @@ def main() -> int:
                 print(f"[bot-test] level gate (node {gate_node}): {name} {g}")
             except (OSError, ValueError, KeyError):
                 pass
+        for name, p, result, log in haul_bots:
+            try:
+                p.wait(timeout=CRAFT_HAUL_PLAY + 90)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                problems.append(f"{name}: hung and was killed")
+            bots.append((name, p, result, log))
+            try:
+                h = json.loads(result.read_text())["stats"]["behaviours"]["client_craft_window"]
+                print(f"[bot-test] craft haul: {name} made={h.get('made')} pack={h.get('haul_pack')}")
+            except (OSError, ValueError, KeyError):
+                pass
         print("[bot-test] pair: " + ", ".join(f"{n} {_ledger(s).get('pair')}" for n, s in sorted(pair_rows.items())))
 
     problems += stop_server(server, server_log, stop_file, "server")
@@ -411,6 +462,9 @@ def main() -> int:
             if "final_pack" in ledger:
                 expected[name].update({"pack": ledger["final_pack"], "running_node": ledger.get("running_node", -1),
                                        "running_amount": ledger.get("running_amount", 0)})
+            haul = s.get("behaviours", {}).get("client_craft_window", {}) or {}
+            if "haul_pack" in haul and "pack" not in expected[name]:
+                expected[name]["pack"] = haul["haul_pack"]  # the crafted goods must be saved too
             if "skills_floor" in ledger:
                 expected[name]["skills_floor"] = ledger["skills_floor"]
             gate = s.get("behaviours", {}).get("qa_level_gate", {}) or {}
