@@ -15,6 +15,13 @@ const ASH_LEAF := Color(0.62, 0.31, 0.17) ## the ember-leaved ash trees Ashgrove
 const ASH_LEAF_DRY := Color(0.66, 0.46, 0.25) ## the paler, drier end of an ash crown's range (scatter variety)
 const PINE := Color(0.15, 0.27, 0.21) ## dark spruce: pines are the shadows of the forest
 
+# Ground cover (art bible section 11, "Uniform flat terrain facets"): gentle seeded patches
+# laid over the grass, meadow and forest floor so the valley reads as real ground, not one
+# flat olive. Each stays a muted natural under 0.45 saturation.
+const MOSS := Color(0.24, 0.33, 0.20) ## damp cushion moss: hollows, shade and lake margins
+const DRY_GRASS := Color(0.50, 0.47, 0.31) ## sun-bleached straw grass on open, sunny ground
+const BARE_EARTH := Color(0.38, 0.31, 0.23) ## worn brown earth where the turf has thinned
+
 # Emberlight tokens (docs/art_bible.md, section 2). sRGB, like the rest of this file.
 const EMBER := Color("#F2A541") ## the signature glow: anything you can use. Never on plain decoration
 const EMBER_CORE := Color("#FFD27A") ## the hot centre of a glow, sparks, the brightest pixel of a vein
@@ -122,3 +129,64 @@ static func ground(h: float, slope: float, jitter: float) -> Color:
 	else:
 		c = GRASS
 	return c.lightened(jitter) if jitter > 0.0 else c.darkened(-jitter)
+
+
+const COVER_SCALE := 38.0 ## metres: rough width of a moss or dry-grass patch
+const EARTH_SCALE := 22.0 ## metres: bare-earth scuffs are smaller
+const COVER_MAX := 0.65 ## a patch never fully replaces the ground under it: gentle, not a quilt
+const EARTH_MAX := 0.60
+static var _cover_noise: FastNoiseLite
+static var _earth_noise: FastNoiseLite
+
+
+## Ground colour at a world point: `ground()` plus ground cover. On grass, meadow and forest
+## floor, low-frequency seeded noise lays patches of moss (more in the forest and by water),
+## dry straw grass (more on the open valley floor) and small scuffs of bare earth (more on
+## slopes). Same world, same patches, on every machine.
+static func ground_at(x: float, z: float, h: float, slope: float, jitter: float) -> Color:
+	var c := ground(h, slope, jitter)
+	var w := cover_weights(x, z, h, slope)
+	if w.is_empty():
+		return c
+	c = c.lerp(_jittered(MOSS, jitter), w.moss)
+	c = c.lerp(_jittered(DRY_GRASS, jitter), w.dry)
+	return c.lerp(_jittered(BARE_EARTH, jitter), w.earth)
+
+
+## How much moss, dry grass and bare earth cover a point ({moss, dry, earth}, each 0..max),
+## or an empty Dictionary where ground cover doesn't grow (shore, rock, snow).
+static func cover_weights(x: float, z: float, h: float, slope: float) -> Dictionary:
+	if h < Terrain.water_level() + 1.2 or h > 13.0 or slope > 0.55:
+		return {}
+	_ensure_cover()
+	var n := _cover_noise.get_noise_2d(x, z) # -1..1, patches about COVER_SCALE across
+	var forest := smoothstep(5.0, 7.0, h) # 0 on the open valley, 1 under the pines
+	var shore := 1.0 - smoothstep(Terrain.water_level() + 1.2, Terrain.water_level() + 4.0, h)
+	# The forest floor and the lake margins are damp: moss comes easier, straw harder.
+	var moss_bias := 0.18 * forest + 0.15 * shore
+	var dry_bias := 0.12 * (1.0 - forest) - 0.25 * forest - 0.15 * shore
+	var moss := smoothstep(0.05, 0.70, n + moss_bias) * COVER_MAX
+	var dry := smoothstep(0.05, 0.70, -n + dry_bias) * COVER_MAX
+	var e := _earth_noise.get_noise_2d(x, z) + clampf((slope - 0.15) * 1.2, 0.0, 0.3)
+	var earth := smoothstep(0.30, 0.85, e) * EARTH_MAX
+	return {"moss": moss, "dry": dry, "earth": earth}
+
+
+static func _jittered(c: Color, jitter: float) -> Color:
+	return c.lightened(jitter) if jitter > 0.0 else c.darkened(-jitter)
+
+
+static func _ensure_cover() -> void:
+	if _cover_noise != null:
+		return
+	_cover_noise = FastNoiseLite.new()
+	_cover_noise.seed = GameConfig.WORLD_SEED + 7121
+	_cover_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_cover_noise.frequency = 1.0 / COVER_SCALE
+	_cover_noise.fractal_type = FastNoiseLite.FRACTAL_FBM
+	_cover_noise.fractal_octaves = 2
+	_earth_noise = FastNoiseLite.new()
+	_earth_noise.seed = GameConfig.WORLD_SEED + 9343
+	_earth_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_earth_noise.frequency = 1.0 / EARTH_SCALE
+	_earth_noise.fractal_type = FastNoiseLite.FRACTAL_NONE
