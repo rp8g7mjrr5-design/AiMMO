@@ -1096,3 +1096,9 @@ bandwidth check this time. Client smoke test passed. Could not run the image tes
 
 **Next run:** if #164 is still red, read the image test log first (`IMAGE TEST FAILED`
 lines are at the end of the Test job). Then the weapons follow-up: server attack wiring.
+
+**No second PR this run.** The next items worth building (server attack wiring for the
+weapons, the first hunt, `s2c_vitals` in a bump) all need #164's `Server.vitals_of` /
+`hurt` on `main`, and the rest of the open list is "watch the numbers" or waits on world or
+client. Branching new work on top of #164 is against the procedure, so this run spent its
+room getting #164 green instead.
