@@ -15,7 +15,7 @@ writes a few lines in its devlog on which game does that feature best, what play
 hate about it, and how ours improves on it. Everything on screen follows the art bible
 (`docs/art_bible.md`) and stays inside its render budget.
 
-## Milestone 0: Foundations (finishing now)
+## Milestone 0: Foundations (done 2026-11-24)
 Shared world, accounts, movement, chat, persistence, day and night, gathering, crafting at
 the workbench, the self-updating client. Real gathering (v3), the
 action camera and the F1 controls card are done. Left as of 2026-11-23, first in every
@@ -25,7 +25,7 @@ client).
 **Done when:** a new player can gather and craft with keys and windows only, no chat command
 anywhere, through the over-the-shoulder camera.
 
-## Milestone 1: The long road begins (skills and XP) (finishing now)
+## Milestone 1: The long road begins (skills and XP) (done 2026-11-24)
 **Goal:** every gather and craft visibly moves you toward a level, every level gives you
 something, and there is always a next unlock in view.
 - Four skills to start, with our own names: **Felling** (ash and pine), **Quarrying**
@@ -130,17 +130,20 @@ Boats (rowboat, then a small sail boat for the coast), great hordes, wounds and 
 farming, fishing, more kinds of Gloam and ruins, weather,
 proximity voice, a spectator camera.
 
-## The next six weeks (director forecast, 2026-11-24)
+## The next six weeks (director forecast, redrawn 2026-11-24 morning)
 A forecast, not a promise: it is redrawn every morning from what actually landed.
 
 | Week | Dates | Focus |
 |------|-------|-------|
-| 00 | to Thu 26 Nov | Close Milestones 0 and 1; Phase 1 groundwork (world config, generator v1 land and roads). |
-| 01 | 27 Nov to 3 Dec | Phase 1: ruin sites, chunked building, the first two ruins. |
-| 02 | 4 to 10 Dec | Phase 2: needs, fire and cooking, the first the Gloam, death and loot. |
-| 03 | 11 to 17 Dec | Phase 3: claimed land, building, the ember hearth, the first Tolling. |
-| 04 | 18 to 24 Dec | Phase 4: grade 3 and 4 ruins, keys, smithing, bows. |
-| 05 | 25 to 31 Dec | Phase 5: host button, invites, saved worlds. |
+| 00 | to Thu 26 Nov | Milestones 0 and 1 closed. The first hunt becomes playable (attack key). Phase 1 groundwork: the 8-player cap on Railway, the world config on the wire, generator v1. |
+| 01 | 27 Nov to 3 Dec | Phase 1: chunks, the ruin kit, the burned farmstead and abandoned village, the map (M); the Railway world moves to a generated map in one announced step. Build-ahead: campfires, hunger and cooking, the first walker behind a flag. |
+| 02 | 4 to 10 Dec | Phase 2: thirst, warmth and rest, bandages, the walker and the hound live, night rounds, death drops a pack, days survived. |
+| 03 | 11 to 17 Dec | Phase 3: the claim marker, snap-grid timber building, doors and gates, chests, the ember hearth, the bedroll. |
+| 04 | 18 to 24 Dec | Phase 3: threat, night rounds at your walls, the first Tolling, barricades, braziers and the bell, runes as wards. |
+| 05 | 25 to 31 Dec | Phase 4: grade 3 ruins (the mine, the drowned village), signet keys, smithing and iron, bows. |
+| 06 | 1 to 7 Jan | Phase 4: the fallen castle and its crypt, wights and soldiers, horses and carts. |
+
+Phase 5 (hosting your own world) moved after Phase 4 in the forecast: friends already play on the always-on world (owner, 2026-11-24), so the heart of the game (building, invasions, ruins) pays more than a Host button does right now.
 
 ## Week history
 | Week | Release | Notes |
@@ -173,7 +176,20 @@ low-value follow-ups ahead of milestone work.
 ZombAi, a post-apocalyptic medieval fantasy (a fallen kingdom), third person, a one-time buy,
 and a map that works like Rust's (generated land, roads and risk-graded ruins), with the Gloam
 as our own undead. The owner then chose 2 to 8 player co-op hosted by a friend; public servers are a "later, maybe". For now co-op is today's always-on Railway world, capped at 8, so friends can drop in any time; hosting from the client comes in Phase 5. The goal is pure survival (no story endgame); the heart of it is base building, getting invaded and looting toward upgrades and vehicles (horses, carts, boats). The owner then asked the director to pick the rest, with the reference "Project Zomboid + 7 Days to Die in a medieval fantasy setting, with a round survive element at night and base defence": nights come in rounds, the big horde night is **the Tolling** (threat-triggered, a bell the evening before), and magic is a light touch from loot (runes as wards, relics, scrolls). The undead are **the Gloam**. Phase 1 is seeded in every backlog. See `docs/vision.md`.
-Backlogs are not reseeded until the owner confirms.
+Backlogs are not reseeded until the owner confirms. *(Superseded the same day: the owner confirmed the direction and Phase 1 was seeded.)*
+
+**Director note (2026-11-24, morning run):** Milestones 0 and 1 are closed: chat commands are
+off for players, the workbench, pack, skills and players windows all work from keys, and 8 of
+8 bots reach their first level in about 35 s of gathering in every CI run. Phase 1 is current.
+Two cross-stream gaps set today's order: the first hunt, the swing and the health bar are on the
+server but not playable until client sends `c2s_attack` (client's first job after its budget
+resets at midnight), and gameplay, client and qa's Phase 1 items all wait on world's generator,
+so the generator is world's first item, ahead of the remaining Ashgrove art polish. While
+gameplay waits on the generator it builds ahead on Phase 2's first loop (placed campfire,
+hunger, cooking) and the first walker behind a flag that keeps it off the live world.
+Owner-thread PRs (#192 animation, #196 fuller bodies on hold, #197 customization on protocol
+v8) are left to their threads; the streams were told not to redo them and that protocol
+numbers go in merge order.
 
 ## Backlog (unscheduled)
 - Zone or proximity chat, private messages
