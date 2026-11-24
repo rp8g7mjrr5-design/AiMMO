@@ -26,8 +26,11 @@ const FLAME := Color(1.0, 0.56, 0.24) ## lantern light: warmer than the moon, so
 const EMBER := Color(1.0, 0.42, 0.14) ## the ash leaves' own warmth
 
 ## How bright each night-lit thing gets at full night (glow = 1). By day glow is 0.
-const LIGHT_ENERGY := 1.6
-const LIGHT_RANGE := 11.0
+const LIGHT_ENERGY := 2.6 ## bright under the lantern...
+const LIGHT_RANGE := 9.0
+## ...and gone a few metres out: near inverse-square falloff, so each lantern throws its own
+## warm pool on the grass with moonlit blue between them, instead of one flat wash.
+const LIGHT_ATTENUATION := 2.0
 const GLASS_DAY := 0.15 ## unlit glass still catches a little light
 const GLASS_NIGHT := 1.3
 const GLASS_PULSE := 0.12 ## how much the heartbeat swells lantern glass (a flame breathing, not a strobe)
@@ -116,6 +119,7 @@ static func glow_values(glow: float) -> Dictionary:
 		"ash": ASH_GLOW * g,
 		"node_ash": NODE_ASH_GLOW * g,
 		"sap": lerpf(SAP_DAY, SAP_NIGHT, g),
+		"seep_light": NodeProps.SEEP_LIGHT_ENERGY * g,
 	}
 
 
@@ -139,7 +143,7 @@ static func build(lamps: Array = []) -> Node3D:
 		omni.light_color = FLAME
 		omni.light_energy = 0.0
 		omni.omni_range = LIGHT_RANGE
-		omni.omni_attenuation = 1.4
+		omni.omni_attenuation = LIGHT_ATTENUATION
 		omni.shadow_enabled = false # 8 shadowed omni lights is too much for a low-end laptop
 		omni.visible = false
 		lights.add_child(omni)
@@ -162,6 +166,12 @@ static func apply_glow(world: Node, glow: float) -> void:
 	_set_emission(world.get_node_or_null("AshCrowns"), v.ash)
 	_set_emission(world.get_node_or_null("ResourceNodes/NodeAshCrowns"), v.node_ash)
 	_set_emission(world.get_node_or_null("ResourceNodes/" + NodeProps.GLOW_LAYER), v.sap)
+	var seeps := world.get_node_or_null("ResourceNodes/" + NodeProps.SEEP_LIGHTS)
+	if seeps:
+		for omni in seeps.get_children():
+			omni.set_meta("steady_energy", v.seep_light)
+			(omni as OmniLight3D).light_energy = v.seep_light
+			(omni as OmniLight3D).visible = v.lights_on and not omni.get_meta("dry", false)
 	Workbench.apply_glow(world.get_node_or_null("Workbench"), glow)
 
 
@@ -177,7 +187,7 @@ static func flicker(seconds: float, index: int) -> float:
 	return 1.0 + FLICKER_DEPTH * 0.5 * w
 
 
-## Let every lit lantern flame flicker (the meadow ring and the bench). DayNight calls this
+## Let every lit lantern flame flicker (the meadow ring, the bench and the sap seeps). DayNight calls this
 ## every frame; it only sets light_energy on lights that are on, nothing is created. Lights
 ## that apply_glow has not set yet (no "steady_energy") are left alone. Safe on null.
 static func flicker_lights(world: Node, seconds: float) -> void:
@@ -190,6 +200,13 @@ static func flicker_lights(world: Node, seconds: float) -> void:
 			_flicker_one(omni as OmniLight3D, seconds, i)
 			i += 1
 	_flicker_one(world.get_node_or_null("Workbench/Light") as OmniLight3D, seconds, COUNT)
+	# Seeps burn like banked fires: the same breathing, each on its own offset.
+	var seeps := world.get_node_or_null("ResourceNodes/" + NodeProps.SEEP_LIGHTS)
+	if seeps:
+		var j := COUNT + 1
+		for omni in seeps.get_children():
+			_flicker_one(omni as OmniLight3D, seconds, j)
+			j += 1
 
 
 static func _flicker_one(omni: OmniLight3D, seconds: float, index: int) -> void:

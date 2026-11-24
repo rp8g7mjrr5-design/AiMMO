@@ -70,7 +70,7 @@ static func _tri(st: SurfaceTool, a: Array, b: Array, c: Array) -> void:
 	var slope := 1.0 - absf(n.y)
 	var center := (pa + pb + pc) / 3.0
 	var j := (fposmod(sin(center.x * 12.9898 + center.z * 78.233) * 43758.5453, 1.0) - 0.5) * 0.08
-	var base := Palette.ground(center.y, slope, j).srgb_to_linear() # palette is sRGB; vertex colours are linear
+	var base := Palette.ground_at(center.x, center.z, center.y, slope, j).srgb_to_linear() # palette is sRGB; vertex colours are linear
 	for v in [a, b, c]:
 		var k: float = v[1]
 		st.set_color(Color(base.r * k, base.g * k, base.b * k, 1.0))

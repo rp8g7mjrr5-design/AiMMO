@@ -12,7 +12,9 @@ class_name Wildlife
 ## Pure rules over plain data, like Gathering and Vitals: the server owns one state from
 ## new_state() and calls step() every tick with the players' positions. Since protocol v6 the
 ## server sends each player to_wire_near(state, their position) about 5 times a second
-## (s2c_wildlife on Net/Play).
+## (s2c_wildlife on Net/Play). Since the first hunt (2026-11-24) a grazer has health: blows
+## wear it down (strike), a wounded one limps off slower than you walk, a downed one gives its
+## hunter hide and meat and is gone from the hills until it gets up at home a few minutes on.
 ##
 ## Facing: `yaw` is the angle whose forward is Vector3(sin(yaw), 0, cos(yaw)), so yaw 0 looks
 ## along +z. Ids are permanent and append only, like resource node ids.
@@ -52,7 +54,27 @@ const REST_SCALE := 0.45 ## at night, resting: alert distance shrinks to this sh
 const EDGE_MARGIN := 6.0
 
 const STATES := ["graze", "amble", "alert", "flee", "return", "rest"]
-const KINDS := {"grazer": {"label": "grazer"}}
+## Per kind: label, hp (whole blows: two bare-handed hits, a haymaker and a jab), and what a
+## downed one gives the hunter who brought it down, in toast order ([item, count], items in
+## Inventory). Since the first hunt (2026-11-24).
+const KINDS := {"grazer": {"label": "grazer", "hp": 12.0, "drops": [["hide", 1], ["raw_meat", 2]]}}
+
+## --- The first hunt (2026-11-24) ---
+## At night a resting herd is drowsy: it bolts only when you are this close (by day
+## BOLT_RADIUS). Bare hands reach 1.4 m to a grazer's edge (2.0 m to its centre), so a stalker
+## who creeps in, freezing whenever a head comes up, gets one swing at a sleeping grazer.
+const NIGHT_BOLT_RADIUS := 1.0
+## A wounded grazer (below full hp) runs slower than a walking player (GameConfig.WALK_SPEED
+## 6), so a hit one can be chased down and finished.
+const WOUNDED_FLEE_SPEED := 5.0
+## A wounded grazer that is left alone this long is whole again.
+const HEAL_SECONDS := 60.0
+## A downed grazer is gone (off the wire, no target) for this long, then gets up at home.
+const RESPAWN_SECONDS := 180.0
+## The hidden /lure dev command (bot test): the lured grazer stands this far in front of
+## you, drowsy and blind to you for LURE_SECONDS (or until struck).
+const LURE_DISTANCE := 1.6
+const LURE_SECONDS := 5.0
 
 
 ## A fresh world's wildlife: {creatures: Array, rng: RandomNumberGenerator}. Each creature is
@@ -66,6 +88,7 @@ static func new_state(seed_extra: int = 0) -> Dictionary:
 			"home": spawn.home, "pos": spawn.pos, "yaw": float(spawn.yaw),
 			"state": "graze", "until": 0.0, "target": spawn.pos, "threat": Vector3.ZERO,
 			"tolerated": ALERT_RADIUS, "alert_dist": 0.0, "min_until": 0.0,
+			"hp": max_hp(str(spawn.kind)), "struck_at": -INF, "down_until": 0.0, "downs": 0, "lured_until": 0.0,
 		}
 		creatures.append(c)
 	var rng := RandomNumberGenerator.new()
@@ -154,18 +177,27 @@ static func step(state: Dictionary, players: Array, now: float, dt: float, night
 	var bolted: Array = []
 	var rng: RandomNumberGenerator = state.rng
 	for c in state.creatures:
+		if is_down_c(c):
+			if now >= float(c.down_until):
+				_rise(c, now)
+			continue
+		if float(c.get("hp", 0.0)) < max_hp(str(c.kind)) and now - float(c.get("struck_at", -INF)) >= HEAL_SECONDS:
+			c.hp = max_hp(str(c.kind))
+		if now < float(c.get("lured_until", 0.0)):
+			continue
 		_think(c, players, now, night, rng, bolted)
 	# The herd follows whoever bolted: herd-mates nearby that are not already running.
 	for id in bolted.duplicate():
 		var lead: Dictionary = state.creatures[id]
 		for c in state.creatures:
-			if c.herd != lead.herd or c.state == "flee":
+			if c.herd != lead.herd or c.state == "flee" or is_down_c(c):
 				continue
 			if _flat(c.pos).distance_to(_flat(lead.pos)) <= HERD_RADIUS:
 				_bolt(c, lead.threat, now, rng)
 				bolted.append(c.id)
 	for c in state.creatures:
-		_move(c, dt)
+		if not is_down_c(c):
+			_move(c, dt)
 	return bolted
 
 
@@ -190,7 +222,13 @@ static func alert_distance(c: Dictionary) -> float:
 	return r
 
 
+## How close a player may come before a grazer bolts at once: drowsy at night.
+static func bolt_distance(night: bool) -> float:
+	return NIGHT_BOLT_RADIUS if night else BOLT_RADIUS
+
+
 static func _think(c: Dictionary, players: Array, now: float, night: bool, rng: RandomNumberGenerator, bolted: Array) -> void:
+	var bolt_r := bolt_distance(night)
 	var near := _nearest(c.pos, players, CALM_RADIUS)
 	var d: float = near[0]
 	var who: Vector3 = near[1]
@@ -207,7 +245,7 @@ static func _think(c: Dictionary, players: Array, now: float, night: bool, rng: 
 				c.threat = who # keep running from whoever is closest
 			return
 		"alert":
-			if d <= BOLT_RADIUS:
+			if d <= bolt_r:
 				_bolt(c, who, now, rng)
 				bolted.append(c.id)
 			elif now >= float(c.until):
@@ -218,7 +256,7 @@ static func _think(c: Dictionary, players: Array, now: float, night: bool, rng: 
 					c.tolerated = minf(ALERT_RADIUS, d - SETTLE_STEP) # you froze: it settles, but now watches that line
 					_enter(c, "rest" if night else "graze", now, rng.randf_range(GRAZE_MIN, GRAZE_MAX))
 			return
-	if d <= BOLT_RADIUS:
+	if d <= bolt_r:
 		_bolt(c, who, now, rng)
 		bolted.append(c.id)
 		return
@@ -286,7 +324,7 @@ static func _move(c: Dictionary, dt: float) -> void:
 			speed = RETURN_SPEED
 			dir = _flat(c.target) - _flat(c.pos)
 		"flee":
-			speed = FLEE_SPEED
+			speed = WOUNDED_FLEE_SPEED if float(c.get("hp", 1.0)) < max_hp(str(c.get("kind", "grazer"))) else FLEE_SPEED
 			dir = _flat(c.pos) - _flat(c.threat)
 			if dir.length() < 0.01:
 				dir = Vector2(sin(float(c.yaw)), cos(float(c.yaw)))
@@ -330,30 +368,100 @@ const BODY_RADIUS := 0.6
 static func targets(state: Dictionary) -> Array:
 	var out: Array = []
 	for c in state.creatures:
-		out.append({"id": int(c.id), "pos": c.pos, "radius": BODY_RADIUS})
+		if not is_down_c(c):
+			out.append({"id": int(c.id), "pos": c.pos, "radius": BODY_RADIUS})
 	return out
 
 
-## A swing from `from` landed on creature `id`: it bolts away from the blow, and every
-## herd-mate within HERD_RADIUS that isn't already running bolts with it (like a sighting,
-## but at once, whatever it was doing, resting or not). No health yet: the gentle first
-## hunt (hide and meat) comes with drops. Returns the ids that bolted, the struck one first,
-## or [] for an unknown id.
-static func strike(state: Dictionary, id: int, from: Vector3, now: float) -> Array:
+## A swing from `from` landed on creature `id` for `damage`: it loses that much hp, and bolts
+## away from the blow (a wounded one runs at WOUNDED_FLEE_SPEED, so it can be chased down);
+## every herd-mate within HERD_RADIUS that isn't already running bolts with it (like a
+## sighting, but at once, whatever it was doing, resting or not). At 0 hp it is down: off the
+## wire and no target until RESPAWN_SECONDS later, when it gets up at home whole (the server
+## hands its hunter drops(kind)). Returns the ids that bolted, the struck one
+## first, or [] for an unknown or downed id.
+static func strike(state: Dictionary, id: int, from: Vector3, now: float, damage: float = 0.0) -> Array:
 	var c := get_by_id(state, id)
-	if c.is_empty():
+	if c.is_empty() or is_down_c(c):
 		return []
 	var rng: RandomNumberGenerator = state.rng
 	c.struck = int(c.get("struck", 0)) + 1
-	_bolt(c, from, now, rng)
+	c.struck_at = now
+	c.lured_until = 0.0
+	if damage > 0.0:
+		c.hp = maxf(float(c.get("hp", max_hp(str(c.kind)))) - damage, 0.0)
+	if damage > 0.0 and float(c.hp) <= 0.0:
+		c.down_until = now + RESPAWN_SECONDS
+		c.downs = int(c.get("downs", 0)) + 1
+		_enter(c, "rest", now, 0.0)
+	else:
+		_bolt(c, from, now, rng)
 	var bolted: Array = [id]
 	for o in state.creatures:
-		if o.id == id or o.herd != c.herd or o.state == "flee":
+		if o.id == id or o.herd != c.herd or o.state == "flee" or is_down_c(o):
 			continue
 		if _flat(o.pos).distance_to(_flat(c.pos)) <= HERD_RADIUS:
 			_bolt(o, from, now, rng)
 			bolted.append(int(o.id))
 	return bolted
+
+
+## A kind's full health (grazer 12).
+static func max_hp(kind: String) -> float:
+	return float(KINDS.get(kind, KINDS.grazer).hp)
+
+
+## What a downed creature of `kind` gives its hunter: [[item, count], ...].
+static func drops(kind: String) -> Array:
+	return KINDS.get(kind, KINDS.grazer).drops
+
+
+static func is_down(state: Dictionary, id: int) -> bool:
+	var c := get_by_id(state, id)
+	return not c.is_empty() and is_down_c(c)
+
+
+static func is_down_c(c: Dictionary) -> bool:
+	return float(c.get("down_until", 0.0)) > 0.0
+
+
+## Back on its feet at home, whole and calm.
+static func _rise(c: Dictionary, now: float) -> void:
+	c.down_until = 0.0
+	c.hp = max_hp(str(c.kind))
+	c.struck_at = -INF
+	c.pos = c.home
+	c.target = c.home
+	c.threat = Vector3.ZERO
+	c.tolerated = ALERT_RADIUS
+	_enter(c, "graze", now, GRAZE_MIN)
+
+
+## The hidden /lure dev command (bot test only): the nearest standing grazer to `pos` (a
+## wounded one first) stands LURE_DISTANCE in front of you along `yaw`, lying drowsy and blind
+## to you for LURE_SECONDS or until struck. Returns its id, or -1 if none is standing.
+static func lure(state: Dictionary, pos: Vector3, yaw: float, now: float) -> int:
+	var best: Dictionary = {}
+	var best_key := INF
+	for c in state.creatures:
+		if is_down_c(c):
+			continue
+		var key := _flat(c.pos).distance_to(_flat(pos))
+		if float(c.get("hp", 0.0)) < max_hp(str(c.kind)):
+			key -= 100000.0
+		if key < best_key:
+			best_key = key
+			best = c
+	if best.is_empty():
+		return -1
+	var x := pos.x + sin(yaw) * LURE_DISTANCE
+	var z := pos.z + cos(yaw) * LURE_DISTANCE
+	best.pos = Vector3(x, Terrain.height(x, z), z)
+	best.target = best.pos
+	best.yaw = yaw
+	best.lured_until = now + LURE_SECONDS
+	_enter(best, "rest", now, 0.0)
+	return int(best.id)
 
 
 ## The wire form (s2c_wildlife, protocol v6): a PackedFloat32Array of
@@ -364,7 +472,8 @@ static func strike(state: Dictionary, id: int, from: Vector3, now: float) -> Arr
 static func to_wire(state: Dictionary) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	for c in state.creatures:
-		_wire_one(out, c)
+		if not is_down_c(c):
+			_wire_one(out, c)
 	return out
 
 
@@ -378,7 +487,7 @@ static func to_wire_near(state: Dictionary, pos: Vector3, radius: float) -> Pack
 	var out := PackedFloat32Array()
 	var here := _flat(pos)
 	for c in state.creatures:
-		if _flat(c.pos).distance_to(here) <= radius:
+		if not is_down_c(c) and _flat(c.pos).distance_to(here) <= radius:
 			_wire_one(out, c)
 	return out
 

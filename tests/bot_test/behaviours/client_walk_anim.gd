@@ -2,7 +2,7 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## Client: runs the client's walk animation on the real snapshot stream, the way the client
 ## does for every avatar it sees. Other bots walk around, so at least one avatar must break
 ## into a walk, and no pose may ever be out of range or NaN, however the server's positions
-## jump (spawns, reconnects, corrections).
+## jump (spawns, reconnects, corrections), and the legs and roll stay inside the adult stride.
 
 const WalkAnimScript := preload("res://client/walk_anim.gd")
 
@@ -38,6 +38,11 @@ func on_snapshot(_tick: int, entries: Array) -> void:
 				if is_nan(v) or is_inf(v) or absf(v) > 1.0:
 					fail("bad walk pose %s=%s for peer %d" % [k, str(v), id])
 					return
+			# Adult stride (art bible section 3): however the server's positions jump, a walk
+			# never goes past the tuned leg swing or roll (no goose-step, no waddle).
+			if absf(p.leg) > WalkAnimScript.LEG_SWING + 0.0001 or absf(p.roll) > WalkAnimScript.SWAY_ROLL + 0.0001:
+				fail("walk pose past the adult limits for peer %d: leg %.3f roll %.3f" % [id, p.leg, p.roll])
+				return
 		i += 5
 
 

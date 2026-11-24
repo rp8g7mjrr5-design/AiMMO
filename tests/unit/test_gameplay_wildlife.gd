@@ -190,6 +190,9 @@ func test_wire_form() -> void:
 func test_the_server_steps_them_every_tick() -> void:
 	var srv: Node = ServerScript.new()
 	srv.test_now = 100.0
+	# By day: at night a drowsy herd lets you much closer (Wildlife.bolt_distance), and the
+	# server reads the wall clock, so pin it to noon.
+	srv.clock_offset = WorldClock.DAY_SECONDS * 0.25 - fposmod(WorldClock.now_seconds(), WorldClock.DAY_SECONDS)
 	var c: Dictionary = srv.wildlife.creatures[0]
 	var p := _beside(c, Wildlife.BOLT_RADIUS - 1.0)
 	var ch := CharacterData.normalize({"name": "Stalker"})

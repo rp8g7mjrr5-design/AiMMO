@@ -40,6 +40,7 @@ var time_dial: TimeDial
 var compass: CompassStrip
 var gather_prompt: GatherPrompt
 var xp_meter: XpMeter
+var vitals_bar: VitalsBar ## health and stamina, under the XP bar (protocol v7 s2c_vitals)
 var level_up_banner: LevelUpBanner
 var sfx_level_up: AudioStreamPlayer
 var gather_watch := GatherWatch.new() ## everyone's gathers -> node hits and empty looks
@@ -49,6 +50,7 @@ var sfx_craft: AudioStreamPlayer
 var notice_line: NoticeLine ## centre-screen system notices (chat is for talking)
 var sfx_nope: AudioStreamPlayer
 var sfx_miss: AudioStreamPlayer ## a left-click that did nothing (GatherPrompt.click_missed)
+var sfx_hurt: AudioStreamPlayer ## you lost health (VitalsBar thump)
 var footsteps: Footsteps ## turf steps in time with every avatar's walk cycle
 var reticle: Reticle
 ## Left-click gathering: a press the game itself took (cursor captured, no window or button
@@ -119,6 +121,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.roster_changed.connect(_on_roster)
 	net.unstuck_result.connect(_on_unstuck)
 	net.wildlife_changed.connect(_on_wildlife)
+	net.vitals_changed.connect(_on_vitals)
+	net.attack_refused.connect(_on_attack_refused)
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _set_status("Could not reach the server.", true))
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -250,6 +254,17 @@ func _screenshot_later(path: String, wait: float) -> void:
 		var words = _args["show-notice"]
 		notice_line.show_notice(words if words is String and words != "" else "This ember ash is spent; it comes back in about 3 minutes. The nearest ember ash is 23 m to the north-east.")
 		await get_tree().create_timer(0.4).timeout
+	elif _args.has("show-vitals"):
+		# Test hook (--show-vitals=hp:stamina, default 34:20): the health and stamina bar just
+		# after a hit from full, caught with the chip still showing.
+		await get_tree().create_timer(maxf(0.0, wait - 0.3)).timeout
+		var parts := str(_args["show-vitals"]).split(":")
+		var hp := int(parts[0]) if parts.size() > 0 and parts[0].is_valid_int() else 34
+		var st := int(parts[1]) if parts.size() > 1 and parts[1].is_valid_int() else 20
+		vitals_bar.visible = true
+		vitals_bar.on_vitals(100, 100, 100, 100)
+		_on_vitals(hp, 100, st, 100)
+		await get_tree().create_timer(0.3).timeout
 	elif _args.has("show-toast"):
 		# Test hook (--show-toast=ash_wood): a "+2 Ash wood" toast with its icon, just before the shot.
 		await get_tree().create_timer(maxf(0.0, wait - 0.4)).timeout
@@ -423,6 +438,7 @@ func _move_vector() -> Vector2:
 func _process(delta: float) -> void:
 	perf_overlay.step(delta)
 	xp_meter.step(delta)
+	vitals_bar.step(delta)
 	level_up_banner.step(delta)
 	notice_line.step(delta)
 	if settings_menu.visible and settings_menu.in_game:
@@ -625,6 +641,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	compass.visible = true
 	gather_prompt.visible = true
 	xp_meter.visible = true
+	vitals_bar.visible = true
 	hud_label.visible = true
 	help_label.visible = true
 	controls_button.visible = true
@@ -661,6 +678,8 @@ func _on_server_disconnected() -> void:
 	gather_prompt.hide_all()
 	xp_meter.visible = false
 	xp_meter.hide_all()
+	vitals_bar.visible = false
+	vitals_bar.hide_all()
 	level_up_banner.hide_all()
 	notice_line.hide_all()
 	gather_watch.reset()
@@ -1116,6 +1135,19 @@ func _build_ui() -> void:
 	xp_meter.visible = false
 	ui.add_child(xp_meter)
 	xp_meter.setup(theme)
+	# Health and stamina, bottom centre under the XP bar: where an action MMO keeps them.
+	vitals_bar = VitalsBar.new()
+	vitals_bar.anchor_left = 0.5
+	vitals_bar.anchor_right = 0.5
+	vitals_bar.anchor_top = 1.0
+	vitals_bar.anchor_bottom = 1.0
+	vitals_bar.offset_left = -VitalsBar.WIDTH * 0.5 + 30.0 # the bars centre; the number hangs right
+	vitals_bar.offset_right = VitalsBar.WIDTH * 0.5 + 30.0
+	vitals_bar.offset_top = -44
+	vitals_bar.offset_bottom = -44 + VitalsBar.HEIGHT
+	vitals_bar.visible = false
+	ui.add_child(vitals_bar)
+	vitals_bar.setup(theme)
 	# System notices and refusals, centre screen just above the reticle (chat is for talking).
 	notice_line = NoticeLine.new()
 	notice_line.anchor_left = 0.5
@@ -1314,6 +1346,10 @@ func _build_audio() -> void:
 	sfx_miss.stream = Sfx.miss()
 	sfx_miss.volume_db = -12.0
 	add_child(sfx_miss)
+	sfx_hurt = AudioStreamPlayer.new()
+	sfx_hurt.stream = Sfx.hurt()
+	sfx_hurt.volume_db = -8.0
+	add_child(sfx_hurt)
 	sfx_level_up = AudioStreamPlayer.new()
 	sfx_level_up.stream = Sfx.level_up()
 	sfx_level_up.volume_db = -3.0
@@ -1328,3 +1364,19 @@ func _build_audio() -> void:
 
 func _exit_tree() -> void:
 	icon_shelf.finish() # join the icon thread so quitting never leaves it running
+
+
+## s2c_vitals (protocol v7): once at login, then on every whole-point change.
+func _on_vitals(hp: int, max_hp: int, stamina: int, max_stamina: int) -> void:
+	var c := vitals_bar.on_vitals(hp, max_hp, stamina, max_stamina)
+	if c.thump:
+		sfx_hurt.play()
+
+
+## s2c_attack_refused: "busy" is dropped quietly (a mashed button); being winded or tired
+## reddens the stamina bar and says why centre screen, so the "no" points at the bar.
+func _on_attack_refused(_kind: String, reason: String) -> void:
+	if reason == "winded" or reason == "tired":
+		vitals_bar.flash_stamina()
+		notice_line.show_notice(Weapons.refusal_text(reason), true)
+		sfx_nope.play()

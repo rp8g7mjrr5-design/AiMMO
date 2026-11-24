@@ -69,3 +69,49 @@ func test_glow_values() -> void:
 	check(night.glass > day.glass, "lantern glass lights up")
 	check_near(Lamps.glow_values(5.0).light_energy, Lamps.LIGHT_ENERGY, 0.0001, "glow is clamped")
 	Lamps.apply_glow(null, 1.0) # a missing world is a no-op, not an error
+
+
+## Owner playtest 2026-11-24: at night the meadow had a pale, blocky, stair-stepped pool. In
+## Forward+ a local light's light() runs over whole light-cluster tiles, so only the sun/moon
+## may paint the cool SHADE tint; lanterns only add their own light, faded by ATTENUATION.
+func test_only_the_moon_paints_shade() -> void:
+	for variant in Emberlight.VARIANTS:
+		var src := Emberlight.source(variant)
+		var guard := src.find("if (LIGHT_IS_DIRECTIONAL)")
+		var shade := src.find("DIFFUSE_LIGHT += vec3(", guard)
+		check(guard > 0 and shade > guard, "%s: the SHADE tint is inside the directional-only branch" % variant)
+		check(src.count("DIFFUSE_LIGHT += vec3(") == 1, "%s: SHADE is added in one place" % variant)
+
+
+func test_lantern_pools_fall_off() -> void:
+	# Near inverse-square falloff: separate warm pools, not one flat wash across the meadow.
+	check(Lamps.LIGHT_ATTENUATION >= 1.8, "lantern light falls off steeply")
+	check(Lamps.LIGHT_RANGE <= 10.0, "a lantern's reach stays near its post")
+	var lamps := Lamps.build()
+	var omni := lamps.get_node("Lights").get_child(0) as OmniLight3D
+	check_near(omni.omni_attenuation, Lamps.LIGHT_ATTENUATION, 0.0001, "built lights use it")
+	check(not omni.shadow_enabled, "no shadow (draw-call budget)")
+	lamps.free()
+
+
+func test_seeps_light_the_dark() -> void:
+	check(Lamps.glow_values(1.0).seep_light > 0.0 and Lamps.glow_values(0.0).seep_light == 0.0, "seeps light up only at night")
+	var seeps: Array = ResourceNodes.all().filter(func(n): return n.kind == "ember_sap")
+	var root := NodeProps.build()
+	var world := Node3D.new()
+	world.add_child(root)
+	check_eq(root.get_node(NodeProps.SEEP_LIGHTS).get_child_count(), seeps.size(), "one light per seep")
+	var id: int = seeps[0].id
+	var omni := NodeProps.seep_light(root, id)
+	check(omni != null and not omni.shadow_enabled, "seep light exists and casts no shadow")
+	Lamps.apply_glow(world, 1.0)
+	check(omni.visible and omni.light_energy > 0.0, "lit at night")
+	NodeProps.set_depleted(root, id, true)
+	check(not omni.visible, "a dried-out seep goes dark")
+	Lamps.apply_glow(world, 1.0)
+	check(not omni.visible, "and stays dark through a repaint")
+	NodeProps.set_depleted(root, id, false)
+	check(omni.visible, "refilled, it glows again")
+	Lamps.apply_glow(world, 0.0)
+	check(not omni.visible, "off by day")
+	world.free()

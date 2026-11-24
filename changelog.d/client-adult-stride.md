@@ -1,0 +1,1 @@
+- Travellers walk like grown-ups now: a narrower, easier stride, arms swinging close to the body and the side-to-side waddle gone, with a touch more spring in each step to carry the weight.

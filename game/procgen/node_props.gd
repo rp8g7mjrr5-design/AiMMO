@@ -36,6 +36,18 @@ const VEIN := Color(0.95, 0.65, 0.26, 0.0) ## alpha 0: all vein (Emberlight glow
 const VEIN_CRACKS := {"ash": 3, "pine": 2, "stone": 2, "ember_sap": 3} ## at tier 1
 const MAX_VEIN_PARTS := 10 ## NodeFx's glow shell holds 10 parts per layer
 
+## Seep light: each live ember-sap seep throws a small warm pool on its rim stones and the
+## ground round it at night, like a banked fire, so it reads as a light in the dark and not
+## only a glowing sticker. One shadowless OmniLight per seep (no draw call in Forward+);
+## `Lamps.apply_glow` sets its energy from the night glow and `Lamps.flicker_lights` swells it
+## with the heartbeat. Far seeps fade out (distance fade) so they cost nothing off in the hills.
+const SEEP_LIGHTS := "SeepLights"
+const SEEP_LIGHT_HEIGHT := 0.7 ## m above the seep's ground: just over the shards
+const SEEP_LIGHT_RANGE := 6.0
+const SEEP_LIGHT_ENERGY := 1.6 ## at full night
+const SEEP_LIGHT_FADE := 45.0 ## m from the camera where a seep's light starts fading out
+const SEEP_LIGHT_COLOR := SAP_GLOW ## the sap's own hot orange: redder than a lantern flame
+
 ## Colours. Live nodes are lifted above the decoration palette so they stand out.
 const ASH_NODE_LEAF := Color(0.70, 0.36, 0.18) ## a touch hotter than the scatter ash, so a gatherable reads
 const PINE_NODE := Color(0.17, 0.31, 0.23)
@@ -497,7 +509,36 @@ static func build(nodes: Array = []) -> Node3D:
 	var fx := NodeFx.new()
 	root.add_child(fx)
 	fx.setup(root, meshes)
+	root.add_child(_seep_lights(nodes))
 	return root
+
+
+## One unlit OmniLight per ember-sap seep, named "Seep<id>", for `Lamps.apply_glow` to light.
+static func _seep_lights(nodes: Array) -> Node3D:
+	var lights := Node3D.new()
+	lights.name = SEEP_LIGHTS
+	for n in nodes:
+		if n.kind != "ember_sap":
+			continue
+		var omni := OmniLight3D.new()
+		omni.name = "Seep%d" % n.id
+		omni.position = (n.pos as Vector3) + Vector3.UP * SEEP_LIGHT_HEIGHT
+		omni.light_color = SEEP_LIGHT_COLOR
+		omni.light_energy = 0.0
+		omni.omni_range = SEEP_LIGHT_RANGE
+		omni.omni_attenuation = 1.8
+		omni.shadow_enabled = false
+		omni.distance_fade_enabled = true
+		omni.distance_fade_begin = SEEP_LIGHT_FADE
+		omni.distance_fade_length = 15.0
+		omni.visible = false
+		lights.add_child(omni)
+	return lights
+
+
+## The light over seep `id`, or null (not a seep, or a world built without lights).
+static func seep_light(root: Node, id: int) -> OmniLight3D:
+	return root.get_node_or_null("%s/Seep%d" % [SEEP_LIGHTS, id]) as OmniLight3D if root else null
 
 
 ## The chunk key of a world position for `layer`: Chunks' grid shifted by half a chunk, so
@@ -613,6 +654,11 @@ static func set_depleted(root: Node3D, id: int, depleted: bool) -> bool:
 		fx.refresh(id)
 	# A felled ash or dry seep stops breathing sparks (if it glows ember, you can use it).
 	Motes.set_dark(root.get_parent(), id, depleted)
+	# ...and a dried-out seep goes dark: no light without the glow.
+	var omni := seep_light(root, id)
+	if omni:
+		omni.set_meta("dry", depleted)
+		omni.visible = not depleted and float(omni.get_meta("steady_energy", 0.0)) > 0.0
 	return true
 
 

@@ -173,6 +173,7 @@ uniform float night_shade = 1.4; // extra SHADE blue in the shadows at full nigh
 uniform vec3 emission_color : source_color = vec3(1.0, 0.42, 0.14);
 uniform float emission_energy = 0.0; // a whole-surface glow (the ash leaves at night)
 uniform float pulse_depth = 0.25; // how much emission_energy swells with the heartbeat
+uniform float night_rim = 1.5; // extra moonlit rim at full night (x rim_strength), so figures, trunks and crowns keep a readable edge against the dark
 #ifdef FOLIAGE
 uniform float sway = 0.06; // metres of sway per metre of height up the mesh
 uniform float sway_base = -1.3; // local height where the sway starts
@@ -254,11 +255,21 @@ void light() {
 	float lit = ramp * ATTENUATION;
 	vec3 key = LIGHT_COLOR * mix(vec3(1.0), vec3(1.0, 0.86, 0.66), warmth);
 	DIFFUSE_LIGHT += key * lit / PI;
-	// Cool shadow: what the light doesn't reach leans blue-violet, never grey.
-	float strength = dot(LIGHT_COLOR, vec3(0.299, 0.587, 0.114));
-	DIFFUSE_LIGHT += $SHADE * (1.0 - lit) * (shade_strength + night_shade * ember_night) * strength / PI;
+	// Cool shadow: what the sun or moon doesn't reach leans blue-violet, never grey. Only the
+	// directional key paints it. A lantern's light() also runs on every pixel of every Forward+
+	// light cluster its range touches (screen tiles x depth slices), including pixels far past
+	// its range where ATTENUATION is 0, so a lantern adding SHADE here tinted whole cluster
+	// cells pale blue: the blocky, stair-stepped pool round Spawn Meadow at night. A local
+	// light only ever adds its own warm light, fading smoothly with ATTENUATION.
+	if (LIGHT_IS_DIRECTIONAL) {
+		float strength = dot(LIGHT_COLOR, vec3(0.299, 0.587, 0.114));
+		DIFFUSE_LIGHT += $SHADE * (1.0 - lit) * (shade_strength + night_shade * ember_night) * strength / PI;
+	}
 	// Rim: silhouettes catch the light from behind.
+	// At night the moon's rim is stronger: the moonlit edge is what makes a silhouette read
+	// (art bible, night). Lanterns keep the plain rim, faded by their own falloff.
 	float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 4.0) * clamp(dot(LIGHT, -VIEW) * 0.5 + 0.5, 0.0, 1.0);
-	DIFFUSE_LIGHT += LIGHT_COLOR * rim * rim_strength * ATTENUATION / PI;
+	float rim_gain = LIGHT_IS_DIRECTIONAL ? 1.0 + night_rim * ember_night : 1.0;
+	DIFFUSE_LIGHT += LIGHT_COLOR * rim * rim_strength * rim_gain * ATTENUATION / PI;
 }
 """
