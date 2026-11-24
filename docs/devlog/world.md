@@ -699,3 +699,33 @@ Newest entries at the bottom. Each run appends what it built, what didn't work, 
 - First loft pass had inverted winding (back faces drawn, faces looked like masks). The avatar test now checks winding and outward normals.
 - The light ramp is now two soft steps instead of one hard band, so rounded shapes read as rounded.
 - Next: animation thread builds on `AvatarBuilder.parts()/merged()/rig()`; upper arm/forearm and thigh/shin are separate parts ready for elbow and knee pivots.
+
+## 2026-11-23 — night-lighting-fix
+
+## Night lighting fix (owner playtest 2026-11-24, PR #181)
+- Bug: a pale cyan, stair-stepped pool over Spawn Meadow at night on real GPUs. Emberlight's light() added SHADE for every light. In Forward+ a local light's light() runs over whole cluster tiles, including where ATTENUATION is 0, so lanterns tinted whole cluster cells. CI (opengl3, no clusters) only showed a general cyan wash. Now only directional lights paint SHADE. #169's night_shade 1.4 would have made the bug 4x worse.
+- To see Forward+ locally: run the client with `--rendering-driver vulkan` and `VK_ICD_FILENAMES=/opt/lavapipe/lvp_icd.json` (lavapipe). The CI smoke can't show cluster artefacts.
+- Lanterns: attenuation 2.0, range 9, energy 2.6, so they make separate pools. Seeps: one shadowless, distance-faded OmniLight each (NodeProps.SEEP_LIGHTS), lit by Lamps.apply_glow, flickering, dark when depleted. Moon rim x2.5 at full night (`night_rim`). Draw calls unchanged (night 292).
+- Next: the style baseline's night numbers are stale (luma 0.18 recorded, about 0.11 now). Re-baseline once the grounded look settles.
+- After #169 merged: CI's night style check failed (sat_mean 0.68 -> 0.93). The old night baseline was measured with the lantern SHADE wash, which on the Compatibility renderer showed as a cyan-green cast that propped up the night. I rewrote the night baseline on purpose (see style_baseline.json _doc). In Compatibility the night is now near black for pines and figures. I tried weighting the lanterns' SHADE by ATTENUATION instead of dropping it, and that didn't change the Compatibility shot. I also turned every lantern off, and it was just as dark. So the moon and ambient are what's weak there (pines and avatars get no directional light() at all in a +3 red test), not light limits. Forward+ looks right.
+
+## 2026-11-24 — ground-cover
+
+## Ground cover patches (ws/world/ground-cover)
+
+**Picked.** Top backlog item, owner direction 2026-11-24 (grounded art), step (1): ground cover. Steps (2) lanterns and (3) level-up sparks are next. **What a player will feel:** walking out of Spawn Meadow, the ground has a story (a damp mossy hollow, a sunny straw-coloured rise, a scuffed patch of earth), so the valley reads as a real, old place instead of a flat green carpet.
+
+**Built.**
+- `Palette.MOSS`, `DRY_GRASS`, `BARE_EARTH` (all under 0.45 saturation) and `Palette.ground_at(x, z, h, slope, jitter)`: `ground()` plus seeded cover. `Palette.ground()` is unchanged for its other callers.
+- `Palette.cover_weights(x, z, h, slope)`: two FastNoiseLite fields seeded from `WORLD_SEED` (cover ~38 m, earth ~22 m). Moss and dry grass are the two ends of one field so they never fight; moss is biased up in the forest band (h 5 to 7 blend) and near the lake shore, dry grass up on the open valley. Bare earth is its own field with a small slope bonus. Each blend capped (`COVER_MAX` 0.65, `EARTH_MAX` 0.6) so the base grass always shows through. Shore, rock (slope > 0.55 or h > 13) and snow get nothing.
+- `TerrainMesh._tri` calls `ground_at` with the face centre. Still flat-shaded per face, still one material; build time unchanged within noise (1.84 s).
+
+**Tried.** First pass used narrow smoothstep bands (0.10 to 0.55) and a 14 m earth field: a 1 m step changed a weight by up to 0.43, which reads as hard-edged blotches. Wider bands and a 22 m earth field bring it under 0.2 per metre. `COVER_MAX` 0.55 was almost invisible at the spawn camera; 0.65 reads without turning into a quilt.
+
+**Measured.** Over a +-300 m grid of grassland: moss on ~22%, dry on ~14%, earth ~11%, plain base grass ~25%. Smoke style: noon sat_mean 0.296 -> 0.286, warmth 0.113 -> 0.106, luma 0.536 -> 0.521 (a touch flatter and earthier, as intended; well inside the baseline, so not rewritten). Render budget unchanged (vertex colours only).
+
+**Looked at.** Noon, golden hour (0.29) and midnight from the spawn camera, before and after (project files `world/ground-cover/`). The spawn view is subtle: a straw rise and an earth patch to the right of the bench. Honest note: from the low action camera the patches read most on the mid-ground; a higher shot over the valley would show them better.
+
+**Tests.** `test_world_ground_cover.gd` (6 tests): tokens are muted earthy naturals; the meadow has moss, dry and earth patches in sensible shares with plenty of plain grass; under 0.2 change per metre and never full cover; forest mossier, open valley drier; shore, rock, cliff and snow untouched; deterministic and a built chunk shows several tones on one material. No bot behaviour: nothing on the network, and the art lint keeps procgen out of bots. Unit suite with Postgres: 780 pass. 8-bot 180 s websocket bot test passed (276 s). Client smoke passed (style and render budget ok).
+
+**Next run.** Wilderness lanterns (timber posts, iron and horn lanterns), then rounder level-up sparks.

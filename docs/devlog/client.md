@@ -1585,3 +1585,97 @@ q5, 114 KB, 6.91 s). Its video lines up frame for frame with the 4K one, so the 
 Comparison image: `/mnt/project-files/client/budda-intro-audio-first-vs-4k-export.png`.
 816 unit tests pass. **Next time** the owner sends an intro export, check its audio for
 clicks (spectrogram) before using it.
+
+## 2026-11-23 — animation-groundwork
+
+# Character animation groundwork (2026-11-23)
+
+The owner asked for real animations. Today's avatar swings four limb pivots (`WalkAnim`, `GatherSwing`): no knees, elbows, spine or head. This PR adds the parts of the new system that don't depend on the new character mesh (#171). Nothing in the game uses them yet.
+
+- `game/procgen/avatar_skeleton.gd`: an 18-bone `Skeleton3D` using Godot's humanoid bone names, with #171's proportions (shoulders 1.42 m, hip joints 0.92 m, limbs 0.31/0.27/0.46/0.40 m). Every rest rotation is the identity, so clips are plain Euler angles. `skinned_mesh(groups)` merges every body segment into **one** skinned mesh, each vertex bound rigidly to its bone, on the shared Emberlight material. That is 1 draw call per avatar instead of #171's 5.
+- `game/client/avatar_clips.gd`: every clip as a pure function of time. Walk and run use two-bone leg IK on a foot path, so a planted foot moves back exactly as fast as the body goes forward (unit tested at 1.5, 3.5 and 6 m/s). The stride is cut to what the legs can reach and the foot stays down for exactly that long. A heel lifts only at the back of a stride. Keyframed moves (knock-down, get-up, sit) use `timeline()` with per-segment easing, so blows "snap" and recoveries ease out.
+- `game/client/avatar_animator.gd`: the state machine. A body layer (move, takeoff, air, land, down, getup, sit, stand) cross-fades on every change. An upper-body action layer (gather, craft, swing) has its own weight, and its stance takes the legs only when you're standing still. It keeps WalkAnim's footstep interface, so `Footsteps` carries on.
+- `tests/client_smoke/anim_strips.gd`: renders every clip from the real animator on a skinned mannequin, as PNG frames and 8-frame strips, over a striped floor that shows any foot sliding.
+
+What didn't work at first: hips at standing height with a natural stride. A 0.86 m leg can't reach ±0.45 m from 0.88 m up, so every contact was a tip-toe slide. Dropping the hips (7 cm walking, 16 cm running) and sizing the stride to what the leg can reach fixed it. A reused `Skeleton3D` can return stale global poses from `get_bone_global_pose` after a new pose, so the tests build a fresh one per pose.
+
+Notes to next time: 6 m/s is a run, so in today's game every move is the run cycle, and the walk only shows while easing to a stop. The run's flight phase is short (stance floor `MIN_STANCE` 0.2), so a run slides about 10 cm per step. That isn't visible at speed, but raise the cadence before you raise the stride.
+
+## 2026-11-23 — vitals-bar
+
+**Why this item:** requests from other streams come first, and gameplay's top request
+(ws/gameplay/first-swing-v7, protocol v7 on `main` as #180) says the health and stamina bar
+can go in now. The swing itself (keys, windup, whoosh) is bigger and needs left-click shared
+with gathering, so this run took the bar alone. Fun line: a hit now *lands* on screen (flash,
+the fill drops, a pale chip of what you lost hangs and drains, a low thump), and low health
+is felt as a pulse, the read every action fight needs before it can be fun.
+
+**Built:**
+- `VitalsBar` (`game/client/vitals_bar.gd`), bottom centre at -44 px, under `XpMeter`: a 200 px
+  ember-red health bar with a "34/100" number to its right, a 5 px sage-green stamina bar
+  under it (gold stays XP's). Pure statics: `fraction`, `chip_value` (hold `CHIP_HOLD` 0.45 s,
+  drain `CHIP_RATE` 0.9/s), `bars_alpha` (full: hold 2.5 s then fade 0.6 s; anything not full
+  stays), `low_pulse` (<= 30%, deeper the lower), `flash_amount`, `change` (hurt / lost /
+  knocked / emptied; the first message after login is never a hit).
+- Losses snap the fill and keep the chip; gains (regen comes in 1-point messages) glide.
+  Two quick hits make one longer chip. Full at login never pops the bars up.
+- `Sfx.hurt()`: 0.2 s falling 110->60 Hz thump plus low-passed noise, -8 dB, at most one per
+  `HURT_GAP` 0.15 s.
+- `net.attack_refused`: "winded"/"tired" redden the stamina track for 0.45 s, show
+  `Weapons.refusal_text` centre screen with the nope; "busy" is dropped. Nothing sends
+  `c2s_attack` yet, so this is ready for the swing item. Running stamina to 0 also reddens it.
+- Smoke hook `--show-vitals=hp:stamina` (default 34:20): a hit from full, caught with the chip
+  showing. Shots taken by hand: `/mnt/project-files/client/vitals-bar-noon.png`, `-night.png`.
+
+**Tests:** `test_client_vitals_bar.gd` (13 tests: helpers, login stays hidden, hit/chip/flash,
+two hits, regen glide and fade, stamina warning, hide_all, the sound, client wiring). Bot
+behaviour `client_vitals_bar` runs the real bar on the server's `s2c_vitals` (gameplay_vitals'
+/hurt and knock-down, first_swing's stamina): numbers never drift, hits drop the fill at once,
+not-full is always shown, full fades in time. Each bot saw 53 messages, 1 hit, 3 fades. 767
+unit tests, the 8-bot 180 s WebSocket bot test and the client smoke test pass.
+
+**Didn't do / notes to next run:** only one hit per bot in the bot test: the knock-down
+(`/hurt 1000`) comes back as a full bar in the same tick, so there is no 0-health message to
+see; a "you come to" fade on `Vitals.KNOCKED_DOWN_TEXT` is a follow-up. The swing (left/right
+click, windup, whoosh, `swing_begun`/`swing_landed`) is the next big item. Not heard by hand
+(no audio device); tune `sfx_hurt.volume_db` if it's loud next to footsteps.
+
+## 2026-11-24 — adult-stride
+
+**Why this item:** top of the client backlog, an owner-direction item (character overhaul,
+art bible section 3): the new lean 1.78 m travellers were still walking on angles tuned for
+the old stubby figure. Fun line: the person you're walking with stops goose-stepping and
+waddling across the meadow and moves like someone who lives outdoors, so the valley reads as
+grounded instead of silly at a glance.
+
+**Built:** retuned `WalkAnim`'s constants only (no new code paths, so footsteps, prediction and
+the gather swing are untouched):
+- `LEG_SWING` 0.5 -> 0.34 rad: each foot now reaches 0.31 m fore and aft instead of 0.44 m
+  on the 0.92 m legs.
+- `ARM_SWING` 0.65 -> 0.4 rad: hands swing 0.25 m instead of 0.38 m; still a little wider
+  than the legs, as people swing.
+- `SWAY_ROLL` 0.06 -> 0.018 rad: head sway 3 cm instead of 11 cm. This was the waddle.
+- `BOB_HEIGHT` 0.07 -> 0.08 m: "a little more bob" per the item, so the weight still reads.
+- Cadence (`STRIDE_CYCLES_PER_SEC` 1.55, about 186 steps a minute) and `LEAN` kept: at
+  `WALK_SPEED` 6 m/s that is a jog cadence and it already looked right.
+
+**Gather swing checked:** worked out where the hand lands at the bottom of each stroke with
+the new arms (shoulder 1.42 m, 0.63 m arm, plus the stroke's lean): chop about 0.88 m high and
+0.58 m forward, mine 0.78 m / 0.53 m, collect 0.84 m / 0.59 m; chop and mine wind up to about
+2 m, over the head. No change needed. A new unit test pins those bands
+(`test_strokes_land_with_adult_arms`), so a later rig change that breaks it fails.
+
+**Before/after:** `/mnt/project-files/animation/walk-stride-before-after.png` (side and front,
+six frames through one step at full speed), rendered with a scratch SceneTree script that
+builds `AvatarBuilder` figures and stops a `WalkAnim` at even phases (not committed).
+
+**Tests:** `test_client_walk_anim.gd` +2 (adult limits from `AvatarBuilder`'s lengths; the pose
+never passes them even faster than walk speed), `test_client_gather_swing.gd` +1. Bot behaviour
+`client_walk_anim` now also fails if any pose on the real snapshot stream goes past the leg
+swing or roll. 795 unit tests, the 8-bot 180 s WebSocket bot test and the client smoke test pass.
+
+**Notes to next run:** the legs are still rigid pivots, so at 6 m/s the feet cannot keep up
+with the ground (about 1.9 m covered per step against 0.6 m of foot travel); at a jog that
+reads as flight, but a knee bend (world split thigh and shin into separate pieces for exactly
+this) would make it read properly. That needs a knee pivot in `AvatarBuilder` (world owns it),
+so a request went to world. Not judged in motion by a human yet; tune by eye from the clip.

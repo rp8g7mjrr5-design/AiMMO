@@ -1,2 +1,0 @@
-- **Health and stamina bars**, bottom centre under your XP: take a hit and the bar flashes, drops, and leaves a pale chip of what you just lost before it drains, with a soft thump. Below 30% health the bar pulses, so you know to back off.
-- When you're full and out of trouble, the bars fade away so gathering keeps a clean screen. Too tired to swing? The stamina bar flushes red and tells you why.

@@ -1,1 +1,0 @@
-- The valley floor is no longer one flat olive: patches of damp moss, sun-bleached straw grass and worn bare earth now break up the meadows and forest floor, mossier under the pines and by the lakes, drier out in the open.
