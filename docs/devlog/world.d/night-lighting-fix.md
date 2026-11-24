@@ -1,0 +1,5 @@
+## Night lighting fix (owner playtest 2026-11-24, PR #181)
+- Bug: a pale cyan, stair-stepped pool over Spawn Meadow at night on real GPUs. Emberlight's light() added SHADE for every light. In Forward+ a local light's light() runs over whole cluster tiles, including where ATTENUATION is 0, so lanterns tinted whole cluster cells. CI (opengl3, no clusters) only showed a general cyan wash. Now only directional lights paint SHADE. #169's night_shade 1.4 would have made the bug 4x worse.
+- To see Forward+ locally: run the client with `--rendering-driver vulkan` and `VK_ICD_FILENAMES=/opt/lavapipe/lvp_icd.json` (lavapipe). The CI smoke can't show cluster artefacts.
+- Lanterns: attenuation 2.0, range 9, energy 2.6, so they make separate pools. Seeps: one shadowless, distance-faded OmniLight each (NodeProps.SEEP_LIGHTS), lit by Lamps.apply_glow, flickering, dark when depleted. Moon rim x2.5 at full night (`night_rim`). Draw calls unchanged (night 292).
+- Next: the style baseline's night numbers are stale (luma 0.18 recorded, about 0.11 now). Re-baseline once the grounded look settles.
