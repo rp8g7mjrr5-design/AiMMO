@@ -53,7 +53,8 @@ REQUIRED_FILES = (
     "/app/CHANGELOG.md",
 )
 REQUIRED_ENV = {"AIMMO_TRANSPORT": "websocket", "AIMMO_PORT": "7777",
-                "AIMMO_MIGRATIONS_DIR": "/app/db/migrations", "AIMMO_DATA_DIR": "/app/data"}
+                "AIMMO_MIGRATIONS_DIR": "/app/db/migrations", "AIMMO_DATA_DIR": "/app/data",
+                "MAX_PLAYERS": "8"}
 
 FAST_WATCHDOG = {
     "AIMMO_WATCHDOG_STARTUP": "120",
@@ -196,6 +197,8 @@ def scenario_boots_plays_stops(image: str, work: Path) -> list:
             problems.append(f"boots: the server did not report {want} storage ready")
         if "[server] dev commands: on (AIMMO_DEV_COMMANDS)" not in c.log():
             problems.append("boots: AIMMO_DEV_COMMANDS=1 did not switch the server's dev commands on")
+        if f"[server] player cap: {REQUIRED_ENV['MAX_PLAYERS']}" not in c.log():
+            problems.append("boots: the server did not pick up the image's MAX_PLAYERS cap")
 
         # plays: real bots from the bot test, run on the host against the container. Two, because
         # several behaviours (compass, avatars) need to see another player.

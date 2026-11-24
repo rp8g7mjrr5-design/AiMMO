@@ -22,10 +22,14 @@ COPY docker/entrypoint.sh docker/probe.sh /app/
 RUN godot --headless --path /app/game --import >/dev/null 2>&1 || true \
  && test -f /app/game/.godot/global_script_class_cache.cfg
 
+# MAX_PLAYERS: the always-on world is for 2 to 8 friends (owner direction 8). A ninth login is
+# turned away politely ("The world is full (8 / 8)") and nobody inside is kicked. The bot test's
+# player-cap phase plays exactly this cap (tests/bot_test/run_bot_test.py, CAP_PLAYERS).
 ENV AIMMO_TRANSPORT=websocket \
     AIMMO_PORT=7777 \
     AIMMO_MIGRATIONS_DIR=/app/db/migrations \
-    AIMMO_DATA_DIR=/app/data
+    AIMMO_DATA_DIR=/app/data \
+    MAX_PLAYERS=8
 
 EXPOSE 7777
 # The entrypoint also runs a watchdog that restarts a frozen server (see docker/entrypoint.sh).

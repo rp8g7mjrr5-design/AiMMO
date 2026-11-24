@@ -6,12 +6,20 @@ extends Node
 ##
 ## Args: --bot --name=bot_1 --password=... --address=127.0.0.1:7777 --transport=enet
 ##       --duration=180 --result=/path/result.json --expect-peers=7
+## Player-cap phase (run_bot_test.run_player_cap): --single-login plays once with no
+## disconnect/reconnect cycle (one login expected); --retry-when-full treats "The world is
+## full" as a wait, not a failure: it reconnects every FULL_RETRY seconds until let in, then
+## plays at least FULL_MIN_PLAY seconds.
 
 const BotBehaviour := preload("res://tests/bot_test/bot_behaviour.gd")
 ## Slash commands go out one at a time, at least this far apart, so behaviours never trip the
 ## server's shared per-player command cooldown (GameConfig.CHAT_COOLDOWN) on each other.
 const COMMAND_GAP := GameConfig.CHAT_COOLDOWN + 0.15
 const MAX_QUEUED_COMMANDS := 16
+## --retry-when-full: seconds between login attempts while the world is full.
+const FULL_RETRY := 2.0
+## --retry-when-full: once let in, play at least this long (walk, chat, see the others).
+const FULL_MIN_PLAY := 15.0
 
 ## Emitted the moment a queued command goes out (qa_fun_metrics times answers from here).
 signal command_sent(text: String)
@@ -34,6 +42,10 @@ var expect_peers := 0
 var args := {}
 ## --only-behaviour=a,b loads just those behaviours (by file name, without .gd).
 var only_behaviours := PackedStringArray()
+## --single-login: one login, no disconnect/reconnect cycle.
+var single_login := false
+## --retry-when-full: a "world is full" refusal means wait and try again.
+var retry_when_full := false
 
 var phase := "connecting"
 var elapsed := 0.0
@@ -56,6 +68,7 @@ var stats := {
 	"max_peers_seen": 0, "distance_walked": 0.0, "position_restored": false,
 	"spawn_before_disconnect": [], "spawn_after_reconnect": [],
 	"commands_sent": 0, "max_command_wait": 0.0, "play_sent": 0,
+	"full_refusals": 0,
 }
 var _pos_at_disconnect := Vector3.ZERO
 var _others := {}
@@ -78,8 +91,10 @@ func start(p_net: Node, p_args: Dictionary) -> void:
 	expect_peers = int(args.get("expect-peers", "0"))
 	if str(args.get("only-behaviour", "")) != "":
 		only_behaviours = str(args["only-behaviour"]).split(",", false)
+	single_login = args.has("single-login")
+	retry_when_full = args.has("retry-when-full")
 	rng.seed = hash(bot_name)
-	disconnect_at = duration * rng.randf_range(0.35, 0.55)
+	disconnect_at = INF if single_login else duration * rng.randf_range(0.35, 0.55)
 	next_chat = rng.randf_range(3.0, 8.0)
 
 	net.login_result.connect(_on_login_result)
@@ -122,12 +137,25 @@ func _on_connected() -> void:
 
 
 func _on_login_result(ok: bool, message: String, id: int, character: Dictionary) -> void:
+	if not ok and retry_when_full and stats.logins == 0 and message.begins_with("The world is full"):
+		stats.full_refusals += 1
+		if not stats.has("full_text"):
+			stats.full_text = message
+		multiplayer.multiplayer_peer.close()
+		multiplayer.multiplayer_peer = null
+		phase = "full_wait"
+		_phase_started = elapsed
+		reconnect_at = elapsed + FULL_RETRY
+		return
 	if not ok:
 		_fail("login rejected: " + message)
 		_finish()
 		return
 	stats.logins += 1
 	my_id = id
+	if retry_when_full and stats.logins == 1:
+		stats.admitted_at = snappedf(elapsed, 0.1)
+		duration = maxf(duration, elapsed + FULL_MIN_PLAY)
 	var p := Vector3(character.x, character.y, character.z)
 	if phase == "reconnecting":
 		stats.spawn_after_reconnect = [p.x, p.y, p.z]
@@ -199,7 +227,9 @@ func _process(delta: float) -> void:
 	match phase:
 		"playing_1":
 			_play(delta)
-			if elapsed >= disconnect_at:
+			if single_login and elapsed >= duration:
+				_stop_and("pausing_2")
+			elif elapsed >= disconnect_at:
 				_stop_and("pausing_1")
 		"pausing_1":
 			_send_input()
@@ -214,6 +244,10 @@ func _process(delta: float) -> void:
 		"offline":
 			if elapsed >= reconnect_at:
 				phase = "reconnecting"
+				_connect()
+		"full_wait":
+			if elapsed >= reconnect_at:
+				phase = "connecting"
 				_connect()
 		"playing_2":
 			_play(delta)
@@ -321,8 +355,9 @@ func _finish() -> void:
 		b.on_finish()
 		behaviour_stats[b.name] = b.stats
 	stats.behaviours = behaviour_stats
-	if stats.logins < 2:
-		_fail("expected 2 logins (initial + reconnect), got %d (ended in phase %s)" % [stats.logins, final_phase])
+	var want_logins := 1 if single_login else 2
+	if stats.logins < want_logins:
+		_fail("expected %d login(s)%s, got %d (ended in phase %s)" % [want_logins, "" if single_login else " (initial + reconnect)", stats.logins, final_phase])
 	if stats.snapshots < 10:
 		_fail("received only %d snapshots" % stats.snapshots)
 	if stats.distance_walked < 5.0:

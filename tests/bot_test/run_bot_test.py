@@ -43,6 +43,14 @@ runs, and two bots (behaviour qa_chat_gate) type /gather, /bag and /who: each li
 the "Chat is for talking" hint, change nothing, never be broadcast, and plain talk must still
 reach the other bot. Skip it with --no-chat-gate.
 
+Long runs also run the player-cap phase (owner direction 8: a world for 2 to 8 friends): a
+third server boots with `--max-players=8`, the cap the Railway image sets (Dockerfile
+`ENV MAX_PLAYERS=8`), eight bots fill it and a ninth tries to join. The ninth must be turned
+away with "The world is full (8 / 8). Try again soon." and keep trying; one of the eight then
+leaves for good, and the ninth must get in after that, never before, while the seven others
+play on undisturbed (nobody inside is kicked, nobody sees a ninth player). Skip it with
+--no-player-cap.
+
 Every run also samples the server process while the bots play (tests/bot_test/perf_report.py):
 CPU milliseconds per tick, ticks per second the bots saw, peak memory and its growth, and on
 WebSocket runs the bytes per second to and from each player, measured on the wire with `ss`.
@@ -85,6 +93,13 @@ LEVEL_GATE_PLAY = 90.0
 CRAFT_HAUL_PLAY = 40.0
 # Chat-gate bots' run length: three commands per login, a reconnect, a couple of talk lines.
 GATE_PLAY = 30.0
+# Player-cap phase: the cap (keep equal to the Dockerfile's MAX_PLAYERS; a unit test checks),
+# how long the bot that leaves plays, how long the others stay, and the waiter's time budget
+# (it plays at least bot.gd's FULL_MIN_PLAY once let in).
+CAP_PLAYERS = 8
+CAP_LEAVER_PLAY = 22.0
+CAP_INSIDE_PLAY = 55.0
+CAP_WAITER_PLAY = 30.0
 
 REPO = Path(__file__).resolve().parents[2]
 GAME = REPO / "game"
@@ -249,6 +264,103 @@ def run_chat_gate(base_env: dict, transport: str, work: Path, run_tag: str) -> l
     return [f"chat gate: {p}" for p in problems]
 
 
+def cap_log_problems(text: str, cap: int, leaver: str, waiter: str, stayers: list) -> list:
+    """What the player-cap server's log must show: the cap was on, a login was turned away with
+    the full count, the extra player got in only after one left, and nobody else left early."""
+    problems = []
+    lines = text.splitlines()
+    if f"[server] player cap: {cap}" not in text:
+        problems.append(f"the player-cap server did not start with a cap of {cap}")
+    away = [i for i, l in enumerate(lines) if f"turned a login away: the world is full ({cap} / {cap})" in l]
+    if not away:
+        problems.append(f"no login was turned away with the world full ({cap} / {cap})")
+
+    def first(pattern: str) -> int:
+        return next((i for i, l in enumerate(lines) if re.search(pattern, l)), -1)
+
+    left = first(rf"\[server\] {re.escape(leaver)} \(peer \d+\) left")
+    joined = first(rf"\[server\] {re.escape(waiter)} logged in as peer")
+    if left < 0:
+        problems.append(f"{leaver} never left, so nobody made room")
+    if joined < 0:
+        problems.append(f"{waiter} never got in after a place opened")
+    if left >= 0 and joined >= 0 and joined < left:
+        problems.append(f"{waiter} got in before {leaver} left: the cap let one too many in")
+    if away and left >= 0 and away[0] > left:
+        problems.append(f"{waiter} was only turned away after {leaver} left: it never met a full world")
+    if joined >= 0:
+        for name in stayers:
+            gone = first(rf"\[server\] {re.escape(name)} \(peer \d+\) left")
+            if 0 <= gone < joined:
+                problems.append(f"{name} left before {waiter} got in: a player inside was dropped")
+    return problems
+
+
+def run_player_cap(base_env: dict, transport: str, work: Path, run_tag: str) -> list:
+    """The player-cap phase: a server capped at CAP_PLAYERS, filled, then one more bot."""
+    cap_dir = work / "player_cap"
+    cap_dir.mkdir()
+    port = free_port()
+    stop_file = cap_dir / "stop"
+    env = dict(base_env)
+    env.update({"AIMMO_PORT": str(port), "AIMMO_STOP_FILE": str(stop_file), "AIMMO_DATA_DIR": str(cap_dir / "data")})
+    env.pop("MAX_PLAYERS", None)
+    log = cap_dir / "server.log"
+    server = start_server(env, log, f"--max-players={CAP_PLAYERS}", "--dev-commands=0")
+    if server is None:
+        return ["player cap: server did not start"]
+    common = ["--only-behaviour=qa_player_cap", f"--player-cap={CAP_PLAYERS}", f"--expect-peers={CAP_PLAYERS - 1}"]
+    procs = []
+
+    def launch(name: str, play: float, *extra: str):
+        result, blog = cap_dir / f"{name}.json", cap_dir / f"{name}.log"
+        cmd = bot_cmd(name, port, transport, play, result, *common, *extra)
+        procs.append((name, play, subprocess.Popen(cmd, stdout=open(blog, "w"), stderr=subprocess.STDOUT, env=env), result, blog))
+
+    names = [f"bot{run_tag}_cap{i + 1}" for i in range(CAP_PLAYERS)]
+    leaver, stayers, waiter = names[0], names[1:], f"bot{run_tag}_capwait"
+    for i, name in enumerate(names):
+        launch(name, CAP_LEAVER_PLAY if i == 0 else CAP_INSIDE_PLAY, "--single-login")
+        time.sleep(0.3)
+    problems = []
+    # The waiter only knocks once the world is really full.
+    deadline = time.time() + 60
+    while log.read_text(errors="replace").count(" logged in as peer ") < CAP_PLAYERS:
+        if time.time() > deadline or server.poll() is not None:
+            problems.append(f"the {CAP_PLAYERS} bots never all logged in")
+            break
+        time.sleep(0.2)
+    full_at = time.time()
+    launch(waiter, CAP_WAITER_PLAY, "--single-login", "--retry-when-full")
+    for name, play, p, _, _ in procs:
+        try:
+            p.wait(timeout=max(1.0, play + 120 - (time.time() - full_at)))
+        except subprocess.TimeoutExpired:
+            p.kill()
+            problems.append(f"{name}: hung and was killed")
+    problems += stop_server(server, log, stop_file, "player-cap server")
+    problems += cap_log_problems(log.read_text(errors="replace"), CAP_PLAYERS, leaver, waiter, stayers)
+    for name, _, _, result, blog in procs:
+        problems += scan_log(blog, name)
+        try:
+            r = json.loads(result.read_text())
+        except (OSError, ValueError):
+            problems.append(f"{name}: no result file")
+            continue
+        problems += [f"{name}: {f}" for f in r["failures"]]
+        s = r["stats"]
+        c = s.get("behaviours", {}).get("qa_player_cap", {})
+        if name == waiter:
+            if s.get("full_refusals", 0) < 1:
+                problems.append(f"{waiter}: was never turned away by the full world")
+            print(f"[bot-test] player cap {waiter}: refused={s.get('full_refusals')} text={s.get('full_text')!r} "
+                  f"admitted_after={s.get('admitted_at')}s peers_seen={s.get('max_peers_seen')} "
+                  f"most_players={c.get('max_players_seen')}")
+        elif s.get("full_refusals", 0) or c.get("refusals", 0):
+            problems.append(f"{name}: was turned away although it was one of the first {CAP_PLAYERS}")
+    return [f"player cap: {p}" for p in problems]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--bots", type=int, default=8)
@@ -264,6 +376,7 @@ def main() -> int:
     ap.add_argument("--no-level-gate", action="store_true", help="skip the tier-2 level-gate check")
     ap.add_argument("--no-craft-haul", action="store_true", help="skip the craft-haul check (crafting at the bench)")
     ap.add_argument("--no-chat-gate", action="store_true", help="skip the chat-gate phase (dev commands off)")
+    ap.add_argument("--no-player-cap", action="store_true", help="skip the player-cap phase (a full world of 8)")
     a = ap.parse_args()
 
     work = Path(tempfile.mkdtemp(prefix="aimmo-bot-test-"))
@@ -485,6 +598,8 @@ def main() -> int:
 
     if not a.no_chat_gate:
         problems += run_chat_gate(env, a.transport, work, run_tag)
+    if a.duration >= gather_report.LONG_RUN and not a.no_player_cap:
+        problems += run_player_cap(env, a.transport, work, run_tag)
 
     if fun_rows:
         summary = fun_report.summarise(fun_rows)
