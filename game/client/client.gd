@@ -989,8 +989,7 @@ func _set_status(text: String, is_error: bool) -> void:
 func _build_ui() -> void:
 	ui = CanvasLayer.new()
 	add_child(ui)
-	var theme := Theme.new()
-	theme.default_font_size = 16
+	var theme := HudStyle.theme() # one quiet look for every window and button (art bible section 9)
 
 	login_panel = PanelContainer.new()
 	login_panel.theme = theme
@@ -1053,6 +1052,10 @@ func _build_ui() -> void:
 	chat_panel.offset_bottom = -16
 	chat_panel.visible = false
 	chat_panel.modulate = Color(1, 1, 1, ChatFeed.FULL_ALPHA)
+	# Chat sits over the world all the time, so it is the quietest panel: lighter, no edge.
+	var chat_bg := HudStyle.panel(0.5)
+	chat_bg.border_color = Color(0, 0, 0, 0)
+	chat_panel.add_theme_stylebox_override("panel", chat_bg)
 	ui.add_child(chat_panel)
 	var chat_box := VBoxContainer.new()
 	chat_panel.add_child(chat_box)
@@ -1101,10 +1104,7 @@ func _build_ui() -> void:
 	goal_label.offset_top = 76
 	goal_label.offset_bottom = 96
 	goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	goal_label.add_theme_font_size_override("font_size", 14)
-	goal_label.add_theme_color_override("font_color", SkillsWindow.goal_colour(0.0))
-	goal_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-	goal_label.add_theme_constant_override("outline_size", 5)
+	HudStyle.quiet_label(goal_label, 13, SkillsWindow.goal_colour(0.0))
 	goal_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	goal_label.visible = false
 	ui.add_child(goal_label)
@@ -1181,8 +1181,7 @@ func _build_ui() -> void:
 	hud_label = Label.new()
 	hud_label.theme = theme
 	hud_label.position = Vector2(16, 12)
-	hud_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-	hud_label.add_theme_constant_override("outline_size", 6)
+	HudStyle.quiet_label(hud_label, 15, HudStyle.TEXT)
 	hud_label.visible = false
 	ui.add_child(hud_label)
 
@@ -1195,8 +1194,7 @@ func _build_ui() -> void:
 	help_label.offset_right = -270
 	help_label.offset_top = 12
 	help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	help_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-	help_label.add_theme_constant_override("outline_size", 6)
+	HudStyle.quiet_label(help_label, 15, HudStyle.TEXT)
 	help_label.visible = false
 	ui.add_child(help_label)
 

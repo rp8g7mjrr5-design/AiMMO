@@ -1,7 +1,7 @@
 class_name LevelUpBanner
 extends Control
 ## The level-up moment (roadmap Milestone 1, part 2). On s2c_level_up a banner pops in near
-## the top of the screen: the skill's badge, "Felling 5" in big gold letters, what the level
+## the top of the screen: the skill's badge, "Felling 5" in calm ember type, what the level
 ## gave you ("Old ember ash: work the old ember ashes past the meadow", or "Your gathers are a
 ## little quicker"), and the next goal ("Next: Felling 10, Clean cuts"). It pops with a small
 ## overshoot, holds, and fades, all inside DURATION (under 2 s), and never takes the mouse or
@@ -13,14 +13,16 @@ extends Control
 ## Pure static helpers (texts, pop scale, alpha) are unit tested; the node only draws them.
 
 const WIDTH := 520.0
-const HEIGHT := 112.0
-const ICON := 56 ## badge size, px
+const HEIGHT := 92.0
+const ICON := 40 ## badge size, px
 const DURATION := 1.9 ## seconds from pop to gone
-const POP_SECONDS := 0.22 ## scale 0.6 -> 1.08 -> 1.0 over this
+const POP_SECONDS := 0.28 ## scale POP_FROM -> 1.0 over this, easing out, no overshoot
+const POP_FROM := 0.92 ## proud, not loud (art bible section 9): a settle, not a bounce
+const TITLE_SIZE := 24 ## calm type; the badge and the ember colour carry the moment
 const FADE_SECONDS := 0.45 ## the last part of DURATION
-const GOLD := Color(1.0, 0.84, 0.42) ## XpMeter.GOLD: a level is the XP bar paying out
-const LABEL := Color(1.0, 0.95, 0.86)
-const DIM := Color(1.0, 0.95, 0.86, 0.72)
+const GOLD := HudStyle.EMBER ## the one accent: a level is the XP bar paying out
+const LABEL := HudStyle.TEXT
+const DIM := HudStyle.TEXT_DIM
 
 var icon: TextureRect
 var title_label: Label
@@ -71,17 +73,15 @@ static func announcement(skill: String, level: int, unlocks: Array) -> String:
 	return Skills.level_up_text({"skill": skill, "level": level, "unlocks": unlocks})
 
 
-## The banner's scale `age` seconds in: pops from 0.6 past full and settles at 1.
+## The banner's scale `age` seconds in: grows from POP_FROM and settles at 1 without
+## overshooting (the old 0.6 -> 1.08 bounce read as a mobile game).
 static func pop_scale(age: float) -> float:
 	if age <= 0.0:
-		return 0.6
+		return POP_FROM
 	if age >= POP_SECONDS:
 		return 1.0
 	var t := age / POP_SECONDS
-	# ease-out-back: overshoots to about 1.08 and comes back
-	var c := 1.70158
-	var e := 1.0 + (c + 1.0) * pow(t - 1.0, 3.0) + c * pow(t - 1.0, 2.0)
-	return lerpf(0.6, 1.0, e)
+	return lerpf(POP_FROM, 1.0, 1.0 - pow(1.0 - t, 3.0)) # ease-out cubic
 
 
 ## The banner's alpha `age` seconds in: in fast, holds, fades over the last FADE_SECONDS.
@@ -109,9 +109,9 @@ func setup(theme: Theme) -> void:
 	icon.size = Vector2(ICON, ICON)
 	icon.position = Vector2(0, 0)
 	add_child(icon)
-	title_label = _make_label(34, GOLD, 0.0, 44.0)
-	unlock_label = _make_label(16, LABEL, 58.0, 22.0)
-	next_label = _make_label(13, DIM, 82.0, 20.0)
+	title_label = _make_label(TITLE_SIZE, GOLD, 4.0, 34.0)
+	unlock_label = _make_label(14, LABEL, 46.0, 20.0)
+	next_label = _make_label(12, DIM, 68.0, 18.0)
 	_apply()
 
 
@@ -121,10 +121,7 @@ func _make_label(font_size: int, color: Color, y: float, h: float) -> Label:
 	l.size = Vector2(WIDTH, h)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.add_theme_font_size_override("font_size", font_size)
-	l.add_theme_color_override("font_color", color)
-	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	l.add_theme_constant_override("outline_size", 8 if font_size > 20 else 6)
+	HudStyle.quiet_label(l, font_size, color)
 	add_child(l)
 	return l
 
@@ -139,8 +136,8 @@ func on_level_up(skill: String, level: int, unlocks: Array) -> void:
 	next_label.text = next_text(skill, level)
 	icon.texture = SkillIcons.texture(skill, ICON) if Skills.is_skill(skill) else null
 	# Sit the badge just left of the title, whatever its width.
-	var title_w := title_label.get_theme_font("font").get_string_size(title_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 34).x
-	icon.position = Vector2((WIDTH - title_w) * 0.5 - ICON - 10.0, -6.0)
+	var title_w := title_label.get_theme_font("font").get_string_size(title_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_SIZE).x
+	icon.position = Vector2((WIDTH - title_w) * 0.5 - ICON - 10.0, 1.0)
 	_expect_line = announcement(skill, level, unlocks)
 	_apply()
 

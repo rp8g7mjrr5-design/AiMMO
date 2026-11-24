@@ -23,10 +23,10 @@ const ST_H := 5.0
 const GAP := 4.0
 const HEALTH := Color(0.86, 0.29, 0.2) ## ember red: warm like the valley, not alarm red
 const CHIP := Color(1.0, 0.86, 0.66) ## the just-lost part, pale ember
-const STAMINA := Color(0.64, 0.8, 0.5) ## sage green; gold is XP's
-const TRACK := Color(0, 0, 0, 0.5)
+const STAMINA := HudStyle.OK ## sage green; ember is XP's
+const TRACK := HudStyle.TRACK
 const TRACK_WARN := Color(0.62, 0.12, 0.08, 0.85) ## the stamina track when a swing is refused
-const LABEL := Color(1.0, 0.95, 0.86)
+const LABEL := HudStyle.TEXT
 const CHIP_HOLD := 0.45 ## the lost chip waits this long...
 const CHIP_RATE := 0.9 ## ...then drains at this share of the bar per second
 const FLASH_SECONDS := 0.22 ## a hit brightens the health fill for this long
@@ -132,10 +132,7 @@ func setup(p_theme: Theme) -> void:
 	health_label.position = Vector2(bar_w + 8.0, -6.0)
 	health_label.size = Vector2(52, 20)
 	health_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	health_label.add_theme_font_size_override("font_size", 13)
-	health_label.add_theme_color_override("font_color", LABEL)
-	health_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	health_label.add_theme_constant_override("outline_size", 5)
+	HudStyle.quiet_label(health_label, 13, LABEL)
 	add_child(health_label)
 	_draw_bars()
 

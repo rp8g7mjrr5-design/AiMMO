@@ -15,8 +15,8 @@ extends Control
 
 const WIDTH := 300.0
 const HEIGHT := 46.0
-const GOLD := Color(1.0, 0.84, 0.42) ## XP gold: warmer and paler than the ember haul toast
-const LABEL := Color(1.0, 0.95, 0.86)
+const GOLD := HudStyle.XP ## XP: the ember accent a step calmer, so it sits beside the haul toast
+const LABEL := HudStyle.TEXT
 const FLOAT_SECONDS := 1.6 ## the "+12 Felling" rises and fades over this
 const FLOAT_RISE := 22.0 ## px it rises
 const FILL_SECONDS := 0.55 ## the bar slides from old to new progress over this
@@ -24,7 +24,7 @@ const HOLD_SECONDS := 3.0 ## the bar stays this long after the last gain...
 const FADE_SECONDS := 0.8 ## ...then fades out over this
 const LEVEL_HOLD := 0.6 ## a gain that crosses a level holds the bar full this long...
 const WRAP_SECONDS := 0.35 ## ...then slides from empty into the new level over this
-const FULL_GLOW := Color(1.45, 1.35, 1.15) ## the bar's brightening while it holds full
+const FULL_GLOW := Color(1.25, 1.18, 1.08) ## the bar's brightening while it holds full
 const BAR_W := 200.0
 const BAR_H := 5.0
 
@@ -114,9 +114,9 @@ func setup(theme: Theme) -> void:
 	self.theme = theme
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(WIDTH, HEIGHT)
-	gain_label = _make_label(16, GOLD)
+	gain_label = _make_label(14, GOLD)
 	gain_label.position = Vector2(0, 0)
-	level_label = _make_label(13, LABEL)
+	level_label = _make_label(12, LABEL)
 	level_label.position = Vector2(0, 20)
 	bar = ProgressBar.new()
 	bar.show_percentage = false
@@ -131,7 +131,7 @@ func setup(theme: Theme) -> void:
 	fill.set_corner_radius_all(2)
 	bar.add_theme_stylebox_override("fill", fill)
 	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0, 0, 0, 0.5)
+	bg.bg_color = HudStyle.TRACK
 	bg.set_corner_radius_all(2)
 	bar.add_theme_stylebox_override("background", bg)
 	add_child(bar)
@@ -143,10 +143,7 @@ func _make_label(font_size: int, color: Color) -> Label:
 	l.size = Vector2(WIDTH, 20)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.add_theme_font_size_override("font_size", font_size)
-	l.add_theme_color_override("font_color", color)
-	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	l.add_theme_constant_override("outline_size", 6)
+	HudStyle.quiet_label(l, font_size, color)
 	add_child(l)
 	return l
 

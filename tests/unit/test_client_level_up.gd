@@ -23,11 +23,16 @@ func test_texts() -> void:
 
 
 func test_pop_and_fade() -> void:
-	check_near(LevelUpBanner.pop_scale(0.0), 0.6, 0.0001)
+	check_near(LevelUpBanner.pop_scale(0.0), LevelUpBanner.POP_FROM, 0.0001)
+	check(LevelUpBanner.POP_FROM >= 0.85, "settles in, doesn't spring from nothing (art bible section 9)")
 	var peak := 0.0
-	for i in 40:
-		peak = maxf(peak, LevelUpBanner.pop_scale(LevelUpBanner.POP_SECONDS * i / 40.0))
-	check(peak > 1.03 and peak < 1.15, "overshoots a little (%.3f)" % peak)
+	var last := 0.0
+	for i in 41:
+		var s := LevelUpBanner.pop_scale(LevelUpBanner.POP_SECONDS * i / 40.0)
+		check(s >= last - 0.0001, "only grows")
+		last = s
+		peak = maxf(peak, s)
+	check(peak <= 1.0001, "no bounce past full (%.3f): proud, not loud" % peak)
 	check_near(LevelUpBanner.pop_scale(LevelUpBanner.POP_SECONDS), 1.0, 0.0001, "settles")
 	check_near(LevelUpBanner.alpha(0.0), 0.0, 0.0001)
 	check_near(LevelUpBanner.alpha(0.5), 1.0, 0.0001, "holds")

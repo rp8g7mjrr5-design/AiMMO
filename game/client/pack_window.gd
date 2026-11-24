@@ -20,10 +20,10 @@ const MIN_SLOTS := 10 ## two rows of slots even when the pack is nearly empty, s
 const SLOT := 68.0 ## slot size in px
 const ICON := IconShelf.SLOT_SIZE
 const WIDTH := COLUMNS * SLOT + (COLUMNS - 1) * 8.0 + 36.0
-const ACCENT := Color(1.0, 0.56, 0.24) ## ember orange, as the workbench and skills windows
-const GOLD := Color(1.0, 0.84, 0.42) ## the "you just got this" glow, the XP meter's gold
-const FULL_COLOR := Color(1.0, 0.45, 0.35) ## a stack at MAX_STACK: more of it won't fit
-const DIM := Color(1, 1, 1, 0.6)
+const ACCENT := HudStyle.EMBER ## ember orange, as the workbench and skills windows
+const GOLD := HudStyle.XP ## the "you just got this" glow, the XP meter's gold
+const FULL_COLOR := HudStyle.SHORT ## a stack at MAX_STACK: more of it won't fit
+const DIM := HudStyle.TEXT_DIM
 const FLASH_SECONDS := 1.4 ## how long a slot that grew glows
 
 var pack := {} ## item id -> count, as the server last sent it
@@ -114,12 +114,7 @@ func setup(theme_res: Theme) -> void:
 	offset_top = -150
 	offset_bottom = 150
 	grow_vertical = Control.GROW_DIRECTION_BOTH
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.09, 0.08, 0.07, 0.9)
-	bg.border_color = Color(ACCENT, 0.6)
-	bg.set_border_width_all(1)
-	bg.set_corner_radius_all(6)
-	add_theme_stylebox_override("panel", bg)
+	add_theme_stylebox_override("panel", HudStyle.panel(0.9)) # muted warm grey, no ember frame (art bible section 9)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 18)
@@ -131,7 +126,7 @@ func setup(theme_res: Theme) -> void:
 	box.add_child(head)
 	var title := Label.new()
 	title.text = "Pack"
-	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_font_size_override("font_size", 21)
 	title.add_theme_color_override("font_color", ACCENT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
@@ -181,18 +176,13 @@ func _make_slot() -> Dictionary:
 	var count := Label.new()
 	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	count.add_theme_font_size_override("font_size", 15)
-	count.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-	count.add_theme_constant_override("outline_size", 5)
+	HudStyle.quiet_label(count, 14, HudStyle.TEXT)
 	count.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(count)
 	var plus := Label.new()
 	plus.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	plus.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	plus.add_theme_font_size_override("font_size", 13)
-	plus.add_theme_color_override("font_color", GOLD)
-	plus.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-	plus.add_theme_constant_override("outline_size", 4)
+	HudStyle.quiet_label(plus, 13, GOLD)
 	plus.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(plus)
 	_grid.add_child(panel)

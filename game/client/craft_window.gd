@@ -23,10 +23,10 @@ const HEIGHT := 600.0 ## fits a 720p screen with the HUD around it
 const LIST_HEIGHT := 410.0
 const REPLY_TIMEOUT := 3.0 ## seconds to wait for craft_result before the buttons light again
 const CLOSE_SLACK := 1.0 ## m past BENCH_RANGE before walking away closes the window
-const OK_COLOR := Color(0.62, 0.92, 0.55)
-const SHORT_COLOR := Color(1.0, 0.55, 0.45)
+const OK_COLOR := HudStyle.OK
+const SHORT_COLOR := HudStyle.SHORT
 const ACCENT := GatherPrompt.ACCENT
-const DIM := Color(0.85, 0.85, 0.85, 0.7)
+const DIM := HudStyle.TEXT_DIM
 const WORKING := "Crafting..."
 const NO_ANSWER := "The bench didn't answer. Try again."
 
@@ -54,7 +54,7 @@ static func near_bench(p: Vector3) -> bool:
 
 ## True once you have walked far enough from the bench that the open window closes.
 static func walked_away(p: Vector3) -> bool:
-	return Vector2(p.x, p.z).distance_to(Crafting.WORKBENCH_XZ) > Crafting.BENCH_RANGE + CLOSE_SLACK
+	return Vector2(p.x, p.z).distance_to(Crafting.workbench_xz()) > Crafting.BENCH_RANGE + CLOSE_SLACK
 
 
 ## One recipe as the window shows it, for a pack, a position and (when known) your skills:
@@ -138,12 +138,7 @@ func setup(theme_res: Theme) -> void:
 	offset_top = -HEIGHT * 0.5
 	offset_bottom = HEIGHT * 0.5
 	grow_vertical = Control.GROW_DIRECTION_BOTH
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.09, 0.08, 0.07, 0.88)
-	bg.border_color = Color(ACCENT, 0.6)
-	bg.set_border_width_all(1)
-	bg.set_corner_radius_all(6)
-	add_theme_stylebox_override("panel", bg)
+	add_theme_stylebox_override("panel", HudStyle.panel(0.9)) # muted warm grey, no ember frame (art bible section 9)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 18)
@@ -153,7 +148,7 @@ func setup(theme_res: Theme) -> void:
 	margin.add_child(box)
 	var title := Label.new()
 	title.text = "Workbench"
-	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_font_size_override("font_size", 21)
 	title.add_theme_color_override("font_color", ACCENT)
 	box.add_child(title)
 	var sub := Label.new()

@@ -37,6 +37,11 @@ func _on_vitals(hp: int, max_hp: int, stamina: int, max_stamina: int) -> void:
 	if _bar == null:
 		return
 	_messages += 1
+	if hp != _bar.hp or max_hp != _bar.max_hp or stamina != _bar.stamina or max_stamina != _bar.max_stamina:
+		# The bar's own hold restarts on every change, so the "full too long" clock does too,
+		# even when two messages (a knock-down to 0 and the respawn's full) land in one frame
+		# and on_play never runs between them (gameplay's request, 2026-11-24).
+		_full_for = 0.0
 	var c: Dictionary = _bar.on_vitals(hp, max_hp, stamina, max_stamina)
 	if _first_pending:
 		_first_pending = false

@@ -31,11 +31,12 @@ const SAID_BY_TOAST := ["full", "day", "busy", "cooldown", "level", "far", "unkn
 const HOLD_MIN := 2.4
 const HOLD_MAX := 6.0
 const HOLD_PER_CHAR := 0.04 ## seconds of reading per character
-const POP_SECONDS := 0.14 ## scale 1.12 -> 1.0
+const POP_SECONDS := 0.14 ## scale POP_FROM -> 1.0
+const POP_FROM := 1.04 ## a small settle, not a shout (art bible section 9)
 const FADE_SECONDS := 0.6 ## the last part of the hold
-const REFUSAL := Color(1.0, 0.82, 0.62) ## GatherPrompt.NOTICE: warm, not alarming
-const INFO := Color(1.0, 0.92, 0.72) ## a welcome: a touch brighter and golder
-const DETAIL := Color(0.94, 0.92, 0.88, 0.85)
+const REFUSAL := HudStyle.NOTE ## GatherPrompt.NOTICE: warm, not alarming
+const INFO := Color(0.95, 0.90, 0.78) ## a welcome: a touch brighter than a refusal
+const DETAIL := Color(HudStyle.TEXT, 0.85)
 
 var headline_label: Label
 var detail_label: Label
@@ -102,7 +103,7 @@ static func pop_scale(age: float) -> float:
 	if age >= POP_SECONDS or age < 0.0:
 		return 1.0
 	var t := age / POP_SECONDS
-	return lerpf(1.12, 1.0, 1.0 - (1.0 - t) * (1.0 - t))
+	return lerpf(POP_FROM, 1.0, 1.0 - (1.0 - t) * (1.0 - t))
 
 
 func setup(theme: Theme) -> void:
@@ -110,8 +111,8 @@ func setup(theme: Theme) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(WIDTH, HEIGHT)
 	pivot_offset = Vector2(WIDTH * 0.5, 14.0)
-	headline_label = _make_label(20, REFUSAL, 0.0)
-	detail_label = _make_label(15, DETAIL, 30.0)
+	headline_label = _make_label(17, REFUSAL, 0.0)
+	detail_label = _make_label(14, DETAIL, 27.0)
 	hide_all()
 
 
@@ -122,10 +123,7 @@ func _make_label(font_size: int, color: Color, y: float) -> Label:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.add_theme_font_size_override("font_size", font_size)
-	l.add_theme_color_override("font_color", color)
-	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	l.add_theme_constant_override("outline_size", 6)
+	HudStyle.quiet_label(l, font_size, color)
 	add_child(l)
 	return l
 

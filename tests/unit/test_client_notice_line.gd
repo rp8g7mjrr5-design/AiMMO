@@ -49,7 +49,8 @@ func test_hold_and_fade() -> void:
 	check(mid > 0.0 and mid < 1.0, "fading: %f" % mid)
 	check_eq(NoticeLine.alpha(3.0, 3.0), 0.0, "gone at the end")
 	check_eq(NoticeLine.alpha(INF, 3.0), 0.0, "nothing shown")
-	check_near(NoticeLine.pop_scale(0.0), 1.12, 0.001, "pops")
+	check_near(NoticeLine.pop_scale(0.0), NoticeLine.POP_FROM, 0.001, "pops")
+	check(NoticeLine.POP_FROM <= 1.06, "a small settle, not a shout (art bible section 9)")
 	check_eq(NoticeLine.pop_scale(NoticeLine.POP_SECONDS), 1.0, "settles")
 	var last := 2.0
 	for i in 15:

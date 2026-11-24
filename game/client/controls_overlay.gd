@@ -8,8 +8,8 @@ extends PanelContainer
 signal closed
 
 const WIDTH := 460.0
-const ACCENT := Color(1.0, 0.56, 0.24) ## ember orange, as the workbench window
-const DIM := Color(1, 1, 1, 0.6)
+const ACCENT := HudStyle.EMBER ## ember orange, as the workbench window
+const DIM := HudStyle.TEXT_DIM
 
 ## The game's default key for every rebindable action. `install_input()` puts them in the
 ## InputMap; the overlay (and later the rebinding window) read the InputMap, never this table.
@@ -153,12 +153,7 @@ func setup(theme_res: Theme) -> void:
 	offset_top = -230
 	offset_bottom = 230
 	grow_vertical = Control.GROW_DIRECTION_BOTH
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.09, 0.08, 0.07, 0.9)
-	bg.border_color = Color(ACCENT, 0.6)
-	bg.set_border_width_all(1)
-	bg.set_corner_radius_all(6)
-	add_theme_stylebox_override("panel", bg)
+	add_theme_stylebox_override("panel", HudStyle.panel(0.9)) # muted warm grey, no ember frame (art bible section 9)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 18)
@@ -168,7 +163,7 @@ func setup(theme_res: Theme) -> void:
 	margin.add_child(box)
 	var title := Label.new()
 	title.text = "Controls"
-	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_font_size_override("font_size", 21)
 	title.add_theme_color_override("font_color", ACCENT)
 	box.add_child(title)
 	_keys_box = VBoxContainer.new()
@@ -216,8 +211,8 @@ func _fill() -> void:
 func _keycap(text: String) -> PanelContainer:
 	var cap := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.2, 0.18, 0.16, 0.95)
-	sb.border_color = Color(1, 0.95, 0.88, 0.35)
+	sb.bg_color = HudStyle.CONTROL
+	sb.border_color = HudStyle.PANEL_EDGE
 	sb.set_border_width_all(1)
 	sb.border_width_bottom = 3
 	sb.set_corner_radius_all(4)

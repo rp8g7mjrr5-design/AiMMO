@@ -76,7 +76,7 @@ func test_window_follows_the_server() -> void:
 		many[item] = 1
 	many["zz_new"] = 1
 	w.seed_pack(many)
-	check_eq(w.shown().size(), 15, "eleven stacks take three rows")
+	check_eq(w.shown().size(), PackWindow.slot_count(Inventory.ITEM_ORDER.size() + 1), "every stack plus the unknown one, in full rows")
 	w.open()
 	check(w.visible, "opens")
 	var closes := [0]
@@ -109,7 +109,7 @@ func test_a_three_digit_stack_fits_its_slot() -> void:
 	# Gameplay is raising Inventory.MAX_STACK to 999: the count in a slot's corner must still
 	# fit inside the slot, with room to spare for the icon.
 	var font := ThemeDB.fallback_font
-	var w := font.get_string_size("999", HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	var w := font.get_string_size("999", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	check(w + 10.0 < PackWindow.SLOT * 0.6, "\"999\" is %.0f px in a %.0f px slot" % [w, PackWindow.SLOT])
-	var big := font.get_string_size(str(maxi(Inventory.MAX_STACK, 999)), HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	var big := font.get_string_size(str(maxi(Inventory.MAX_STACK, 999)), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	check(big < PackWindow.SLOT - 8.0, "the full stack's count fits too")

@@ -22,12 +22,12 @@ const EDGE_FADE := 28.0 ## px over which letters and ticks fade at the strip's e
 const UPDATE_INTERVAL := 0.05 ## s between redraws (20 Hz is plenty for a strip)
 
 const CARDINALS := [["N", 0.0], ["E", PI / 2.0], ["S", PI], ["W", PI * 1.5]]
-const BG_COLOR := Color(0, 0, 0, 0.45)
-const TICK_COLOR := Color(1, 1, 1, 0.45)
-const LETTER_COLOR := Color(1, 1, 1, 0.9)
-const NORTH_COLOR := Color(1.0, 0.62, 0.38) ## ember orange, so north stands out
+const BG_COLOR := Color(HudStyle.PANEL, 0.55) ## warm grey, as the windows
+const TICK_COLOR := Color(HudStyle.TEXT, 0.45)
+const LETTER_COLOR := Color(HudStyle.TEXT, 0.9)
+const NORTH_COLOR := HudStyle.EMBER ## the one accent, so north stands out
 const PLAYER_COLOR := Color(0.98, 0.95, 0.86)
-const HOME_COLOR := Color(1.0, 0.5, 0.25)
+const HOME_COLOR := HudStyle.EMBER
 
 var font: Font
 ## Set by the client each frame.

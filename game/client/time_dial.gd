@@ -123,8 +123,7 @@ func setup(theme: Theme) -> void:
 	label = Label.new()
 	label.theme = theme
 	label.position = Vector2(RADIUS * 2.0 + 14.0, RADIUS - 14.0)
-	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-	label.add_theme_constant_override("outline_size", 6)
+	HudStyle.quiet_label(label, 15, HudStyle.TEXT)
 	add_child(label)
 	refresh()
 
@@ -146,11 +145,11 @@ func _has_point(point: Vector2) -> bool:
 	return label != null and Rect2(label.position, label.size).has_point(point)
 
 
-## The tooltip as a dark panel with the HUD's outlined text, not the engine's grey box.
+## The tooltip as a dark panel with the HUD's quiet text, not the engine's grey box.
 func _make_custom_tooltip(for_text: String) -> Object:
 	var panel := PanelContainer.new()
 	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.06, 0.05, 0.05, 0.88)
+	box.bg_color = Color(HudStyle.PANEL, 0.92)
 	box.border_color = Color(SKY_COLORS.get(_state.get("phase", "day"), SKY_COLORS.day), 0.9)
 	box.set_border_width_all(1)
 	box.set_corner_radius_all(4)
@@ -160,8 +159,7 @@ func _make_custom_tooltip(for_text: String) -> Object:
 	text.text = for_text
 	if label:
 		text.theme = label.theme
-	text.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-	text.add_theme_constant_override("outline_size", 4)
+	HudStyle.quiet_label(text, 14, HudStyle.TEXT)
 	panel.add_child(text)
 	return panel
 

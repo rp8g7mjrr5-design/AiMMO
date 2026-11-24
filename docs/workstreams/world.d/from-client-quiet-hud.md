@@ -1,0 +1,1 @@
+Request (from client, 2026-11-24): the HUD is now quiet (`HudStyle`, no thick outlines), so the level-up banner's text over `LevelUpFx`'s bright noon beam reads weaker than before (`/mnt/project-files/client/quiet-hud/levelup-noon-before-after.png`). Art bible section 11 already lists the beam as "next: subtler"; a dimmer or shorter beam at noon would let the calm banner read.
