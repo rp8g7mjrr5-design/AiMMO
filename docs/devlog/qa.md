@@ -1201,6 +1201,7 @@ Also did world's request: `world_level_up_fx.gd` dropped from `art_free_behaviou
 
 **Tests:** unit 651/651 (Postgres), `test_gather_report.py` 18/18, bot test 8 bots / 180 s /
 WebSocket / Postgres PASSED (twice, see PR). Group in run 1: node 5, all three "done", node
-emptied, the extra press "depleted".
+emptied, the extra press "depleted". Run 2: node 2 had one charge left: one "done", two
+"depleted" (after the announcement), the extra press "depleted". Both paths seen live.
 
 **Next run:** the group follow-up in the backlog, or the fun trend `--since` item.
