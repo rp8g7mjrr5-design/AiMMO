@@ -81,6 +81,20 @@ const CLOTH := [
 ]
 
 
+## The painted map of a generated kingdom (WorldMap): an old surveyor's sheet, not a satellite.
+## Ground colours reuse the terrain tokens above; these are only the marks drawn on top.
+const MAP_ROAD := Color(0.62, 0.54, 0.40) ## the king's roads: pale worn track, lighter than BARE_EARTH
+const MAP_HEATH := Color(0.42, 0.36, 0.32) ## moor heather and bracken, a dull brown-violet
+const MAP_INK := Color(0.17, 0.14, 0.12) ## outlines and the spawn mark: old iron-gall ink
+## Ruin marks by grade (1 Quiet to 4 Deadly): pale stone warming to deep ember red.
+const MAP_GRADE := [
+	Color(0.85, 0.80, 0.68), ## 1 Quiet
+	Color(0.80, 0.62, 0.36), ## 2 Uneasy
+	Color(0.71, 0.36, 0.22), ## 3 Grim
+	Color(0.52, 0.16, 0.14), ## 4 Deadly
+]
+
+
 ## Travelling gear (characters): what is worn over the dyed cloth.
 const LEATHER := Color(0.40, 0.29, 0.20) ## packs, pouches, bracers: oiled brown leather
 const LEATHER_DARK := Color(0.22, 0.17, 0.14) ## belts, straps, boots: old, dark leather
