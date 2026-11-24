@@ -7,8 +7,8 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## --fun-check holds them to tests/bot_test/fun_baseline.json.
 ##
 ## Every bot-test account is new, so every bot is a fresh player. Numbers come from the
-## protocol v3/v4 messages (gather bar, haul, craft result, XP, level-up) and from the text
-## answers to dev commands; see fun_metrics.gd for how the two are kept from double counting.
+## protocol v3/v4/v7 messages (gather bar, haul, craft result, XP, level-up, swings, kills)
+## and from the text answers to dev commands; see fun_metrics.gd for how the two are kept from double counting.
 
 const FunMetrics := preload("res://tests/bot_test/fun_metrics.gd")
 
@@ -41,6 +41,15 @@ func setup(net: Node) -> void:
 	net.level_up.connect(func(skill: String, _level: int, _unlocks: Array):
 		m.level_up(bot.elapsed, skill)
 		m.expect_echo("level", bot.elapsed))
+	# Combat (protocol v7): a swing beginning, refused, or its blow landing (the swinger
+	# always hears back, hit or miss) answers the press; a kill is counted from its drops.
+	net.swing_begun.connect(func(peer: int, _weapon: String, _kind: String, _secs: float):
+		if peer == bot.my_id:
+			m.swing(bot.elapsed))
+	net.attack_refused.connect(func(_kind: String, _reason: String): m.swing_refused(bot.elapsed))
+	net.swing_landed.connect(func(peer: int, _kind: String, ids: Array):
+		if peer == bot.my_id:
+			m.swing_landed(bot.elapsed, not ids.is_empty()))
 
 
 func on_login(_reconnect: bool, _character: Dictionary) -> void:
@@ -54,7 +63,9 @@ func on_play(_delta: float) -> void:
 	_last_play = bot.elapsed
 
 
-func _on_gather_result(_item: String, count: int) -> void:
+func _on_gather_result(item: String, count: int) -> void:
+	if FunMetrics.is_kill_drop(item):
+		m.kill(bot.elapsed)
 	m.reward(bot.elapsed, count)
 	m.expect_echo("gather", bot.elapsed, count)
 

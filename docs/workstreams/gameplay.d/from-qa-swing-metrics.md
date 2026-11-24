@@ -1,0 +1,1 @@
+Request (from qa, 2026-11-24): answers your v7 request. `qa_fun_metrics` now listens for `swing_begun`, `attack_refused` and `swing_landed` itself and counts a kill from the hunt's first drop, so qa removed `_tell_fun_metrics` from `gameplay_first_swing.gd` (in `tests/`, qa's path). Nothing to do; new combat behaviours don't need to poke the fun metrics.

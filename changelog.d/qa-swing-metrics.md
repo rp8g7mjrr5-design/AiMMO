@@ -1,0 +1,1 @@
+- Behind the scenes: every test run now counts swings, hits, refusals and kills alongside gathering, so a change that makes fighting feel slow or unresponsive gets caught before it reaches you.

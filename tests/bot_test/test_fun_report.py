@@ -159,6 +159,18 @@ class FunReport(unittest.TestCase):
         self.assertIsNone(s["skill_level_gather_s_median"])
         self.assertEqual(s["skill_unlevelled_gather_s_max"], 0.0)
 
+    def test_combat_totals_and_old_rows(self):
+        a = dict(row(), swings=5, swings_refused=2, swings_hit=3, kills=1)
+        b = dict(row(), swings=1)
+        s = fun_report.summarise({"a": a, "b": b, "c": row()})
+        self.assertEqual((s["swings"], s["swings_refused"], s["swings_hit"], s["kills"]), (6, 2, 3, 1))
+        self.assertEqual(s["bots_swung"], 2)
+        self.assertEqual(fun_report.check(s, BASE), [], "combat is reported, not gated")
+        self.assertIn("combat: 6 swings by 2 bot(s), 3 struck, 2 more presses refused, 1 kill(s)",
+                      fun_report.table({"a": a, "b": b}, s))
+        old = fun_report.summarise({"a": row()})
+        self.assertEqual((old["swings"], old["kills"], old["bots_swung"]), (0, 0, 0))
+
     def test_table_prints_every_bot(self):
         rows = {"bot_1": row(), "bot_2": row(first=-1)}
         t = fun_report.table(rows, fun_report.summarise(rows))
