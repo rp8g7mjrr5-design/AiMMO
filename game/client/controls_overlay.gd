@@ -43,6 +43,7 @@ const SECTIONS := [
 		["Free look (camera only)", ["free_look"]],
 		["Swap shoulder", ["swap_shoulder"]],
 		["Zoom the camera", ["=Wheel"]],
+		["Lost? Return to Spawn Meadow (Esc menu)", ["=Esc"]],
 	]],
 	["Doing", [
 		["Gather what you look at", ["interact", "click_use"]],

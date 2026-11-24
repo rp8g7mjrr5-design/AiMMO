@@ -1,0 +1,1 @@
+- At night the ember sparks rising over the valley now only float above trees and seeps you can actually gather: fell an ember ash or drain a seep and its sparks go out, and they come back when it grows again.

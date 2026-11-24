@@ -14,8 +14,13 @@ class_name Motes
 ## every anchor evenly (mote k of anchor a sits at index k * anchors + a). The quality setting
 ## then only changes `visible_instance_count`, live, with nothing rebuilt.
 ##
-## Pure data (`anchors`, `per_anchor`, `layout`, `amount`, `visible_count`) is tested
+## Pure data (`anchors`, `per_anchor`, `layout`, `amount`, `visible_count`, `slots`) is tested
 ## headless; `build()` makes the node and `apply()` is called by DayNight on every repaint.
+##
+## A felled ash or a dry seep breathes no sparks: `NodeProps.set_depleted()` calls `set_dark()`,
+## which shrinks that anchor's motes to nothing (size 0 in their custom data, still one draw
+## call, nothing rebuilt) and gives them back when the node grows again. So at night the
+## sparks over the valley point only at things you can gather right now.
 
 const NODE_NAME := "Motes"
 const PER_ANCHOR := 6 ## motes per ash crown or seep on Medium (Quality.motes_scale() = 1)
@@ -128,8 +133,63 @@ static func build(anchor_list: Array = []) -> MultiMeshInstance3D:
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mmi.extra_cull_margin = CULL_MARGIN
 	mmi.set_meta("anchors", anchor_list.size())
+	var ids := {}
+	for a in anchor_list.size():
+		ids[int(anchor_list[a].id)] = a
+	mmi.set_meta("ids", ids) # node id -> anchor index, for set_dark()
+	var customs := PackedColorArray()
+	customs.resize(pool.size())
+	for i in pool.size():
+		customs[i] = pool[i].custom
+	mmi.set_meta("customs", customs) # the live look, to give a regrown node its sparks back
+	mmi.set_meta("dark", {})
 	mmi.visible = false
 	return mmi
+
+
+## The pool indices of anchor `a`'s motes (all of them, at High's size), given `count` anchors.
+static func slots(a: int, count: int) -> Array:
+	var out: Array = []
+	for m in per_anchor(MAX_SCALE):
+		out.append(m * count + a)
+	return out
+
+
+## Put out (dark = true) or relight the motes over resource node `id` in `world`. Returns false
+## when the world has no motes or the node breathes none (a pine, an outcrop). Cheap: it touches
+## only that anchor's few instances, and the same state again is a no-op.
+static func set_dark(world: Node, id: int, dark: bool) -> bool:
+	if world == null:
+		return false
+	var mmi := world.get_node_or_null(NODE_NAME) as MultiMeshInstance3D
+	if mmi == null:
+		return false
+	var ids: Dictionary = mmi.get_meta("ids", {})
+	if not ids.has(id):
+		return false
+	var off: Dictionary = mmi.get_meta("dark", {})
+	if off.has(id) == dark:
+		return true
+	var customs: PackedColorArray = mmi.get_meta("customs")
+	for i in slots(int(ids[id]), int(mmi.get_meta("anchors", 0))):
+		var c: Color = customs[i]
+		if dark:
+			c.a = 0.0 # a zero-size quad: no pixels, same draw call
+		mmi.multimesh.set_instance_custom_data(i, c)
+	if dark:
+		off[id] = true
+	else:
+		off.erase(id)
+	mmi.set_meta("dark", off)
+	return true
+
+
+## Is node `id`'s plume out? (For tests and callers; the dummy renderer drops custom data.)
+static func is_dark(world: Node, id: int) -> bool:
+	if world == null:
+		return false
+	var mmi := world.get_node_or_null(NODE_NAME) as MultiMeshInstance3D
+	return mmi != null and (mmi.get_meta("dark", {}) as Dictionary).has(id)
 
 
 ## Show the motes at `value` (0..1; DayNight passes `amount(frac)`), and follow the quality
