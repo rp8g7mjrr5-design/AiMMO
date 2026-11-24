@@ -1354,3 +1354,53 @@ arrival sound rather than its own whoosh. Follow-ups are in the backlog.
 
 **Next run:** the art checks out of the bot behaviours (director item), or the F3 prediction
 numbers.
+
+## 2026-11-24 — ws/client/grazers-on-screen: the herds show up
+
+**Picked:** gameplay's request (protocol v6 is on `main`, #158): draw the grazers. Requests
+from other streams come first, and the top backlog item (camera heading) is still blocked on
+gameplay's facing-yaw input. World's critter model isn't built yet ("Milestone 2 build-ahead,
+only once nothing above is unblocked"), and gameplay's request said to draw a placeholder
+until it lands, so this run draws one rather than wait: the herds are already moving on the
+server and nobody can see them. **What a player feels that they didn't:** walk out of the
+meadow and the hills are alive; rush a herd and it snorts, kicks up dust and bolts.
+
+**Built:**
+- `HerdView` (`game/client/herd_view.gd`, pure, no art, so the bot uses it as is): each
+  s2c_wildlife starts a 0.24 s smoothstep blend from where a grazer is drawn now to where the
+  server has it (a touch longer than the 0.2 s send interval, so motion never stalls); first
+  sighting or a >12 m jump places it at once; empty list or missing id drops it. `feed()`
+  returns moments: appear, leave, alert, bolt (only a flip into flee on a grazer already in
+  view; one that comes into view already running isn't a bolt you saw). `POSES` per state.
+- `GrazerFigures` (`game/client/grazer_figures.gd`): placeholder low-poly grazer (6-sided
+  capsule body, tapered 5-sided snout, four 5-sided legs) on the shared Emberlight "solid"
+  material, colours lerped from palette tokens. Four MultiMeshes for the whole system
+  (bodies, heads, legs, dust), slot = creature id, all made at setup: 4 draw calls however
+  many grazers, nothing created while playing. Graze head down, alert head up, rest lies
+  down with legs folded, legs swing in diagonal pairs with the smoothed speed, size varies
+  ±12% by id. A bolt: 6 dust clods from a 48-clod pool kick out behind, and a positional
+  `Sfx.snort()` (4 voices; at most 2 snorts per update because a whole herd bolts on one
+  tick).
+- `Sfx.snort()`: two breathy filtered-noise bursts with a low rasp, then two hoof thuds, 0.5 s.
+- `client.gd`: `net.wildlife_changed` -> `herd.feed` -> `grazers.play_events`; `grazers.sync`
+  every frame; herd cleared on login and disconnect.
+
+**Tests:** `test_client_grazers.gd` (11): placement, blend without jumps or overshoot, snap,
+bolt/alert moments, leaving view, poses (head down/up, lying, facing matches the wire's yaw),
+leg swing only when moving and in diagonal pairs, sizes, dust life, the figures node (four
+MultiMeshes on Emberlight, slots hidden when out of view, dust settles), the snort's length
+and level. Bot behaviour `client_grazers` keeps a HerdView per bot and fails if the herd it
+would draw differs from what the server sent, a grazer jumps on an update, doesn't land on
+the server's spot after the blend, or the bolt moments differ from the server's flips to flee.
+
+**Budget:** the client smoke night shot went 286 -> 298 draw calls of 300 with the first version (sun shadows on three herd layers through two cascades, plus empty layers still drawn). Now no grazer casts a sun shadow and an empty layer is hidden: 292 night / 275 noon. The ceiling is close; a blob shadow or real shadows for grazers needs world to free draw calls first.
+
+**Didn't work at first:** checked the MultiMesh instance transforms in the unit test, but the
+headless dummy renderer keeps no MultiMesh data (reads back identity), so `GrazerFigures`
+keeps `bodies` (id -> last body transform) for tests. And `AudioStreamPlayer3D.play()` off
+the tree logs an error, so the snort only plays in the tree.
+
+**Notes to next run:** the placeholder goes when world's critter model lands (request in
+world's backlog asks for a static `part_xforms` like ours so the swap is a few lines). The
+alert moment has no sound yet (follow-up). No smoke hook for a herd shot yet (qa owns the
+script); taken by hand.

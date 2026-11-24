@@ -153,6 +153,43 @@ static func haul(kind: String) -> AudioStreamWAV:
 	return wav
 
 
+## A grazer bolting: a short breathy snort through the nose (two quick bursts of dark, filtered
+## noise with a low rasp under them), then two soft hoof thuds as it pushes off. About 0.5 s.
+const SNORT_LENGTH := 0.5
+
+
+static func snort() -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var data := PackedByteArray()
+	var lp := 0.0
+	var lp2 := 0.0
+	for i in int(RATE * SNORT_LENGTH):
+		var t := float(i) / RATE
+		var noise := rng.randf_range(-1.0, 1.0)
+		lp += (noise - lp) * 0.22
+		lp2 += (lp - lp2) * 0.35
+		var v := 0.0
+		for b in [[0.0, 0.09], [0.1, 0.16]]: # two bursts, the second longer
+			var d: float = t - float(b[0])
+			if d >= 0.0 and d < float(b[1]):
+				var env := sin(PI * d / float(b[1]))
+				v += lp2 * env * 2.6 + sin(TAU * 95.0 * d) * env * 0.25 * signf(sin(TAU * 31.0 * d))
+		for h in [0.3, 0.38]: # hooves on turf
+			var dh: float = t - h
+			if dh >= 0.0:
+				v += sin(TAU * 70.0 * dh) * exp(-dh * 45.0) * 0.7
+		var s16 := int(clampf(v * 0.4, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = RATE
+	wav.stereo = false
+	wav.data = data
+	return wav
+
+
 static func _tones(notes: Array, volume: float) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	for n in notes:

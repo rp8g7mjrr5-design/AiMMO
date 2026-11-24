@@ -67,6 +67,8 @@ var controls_button: Button
 var perf_overlay: PerfOverlay
 ## Item icons, drawn on a background thread from the moment the game starts.
 var icon_shelf := IconShelf.new()
+var herd := HerdView.new() ## the grazers in view (protocol v6), smoothed
+var grazers: GrazerFigures ## draws them, in the world
 var _args := {} ## command-line test hooks
 
 
@@ -83,6 +85,9 @@ func start(p_net: Node, args: Dictionary) -> void:
 	_build_audio()
 	world = WorldBuilder.build()
 	add_child(world)
+	grazers = GrazerFigures.new()
+	grazers.setup()
+	world.add_child(grazers)
 	camera = Camera3D.new()
 	camera.far = 600.0
 	camera.fov = 65.0
@@ -111,6 +116,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.level_up_seen.connect(_on_level_up_seen)
 	net.roster_changed.connect(_on_roster)
 	net.unstuck_result.connect(_on_unstuck)
+	net.wildlife_changed.connect(_on_wildlife)
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _set_status("Could not reach the server.", true))
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -422,6 +428,7 @@ func _process(delta: float) -> void:
 	pack_window.step(delta)
 	players_panel.step(delta)
 	_step_goal(delta)
+	grazers.sync(herd, _now(), delta)
 	var move := _move_vector() if logged_in else Vector2.ZERO
 	if logged_in and prediction.has_position:
 		# seq + 1 is the input that will carry this frame's walk to the server.
@@ -624,6 +631,8 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	settings_menu.set_in_game(true)
 	goal_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw)
+	herd.clear()
+	grazers.clear()
 	prediction.reset()
 	prediction.place(Terrain.clamp_to_world(Vector3(character.x, character.y, character.z)))
 	cam.place(Vector3(character.x, character.y, character.z), character.yaw + PI)
@@ -651,6 +660,8 @@ func _on_server_disconnected() -> void:
 	level_up_banner.hide_all()
 	notice_line.hide_all()
 	gather_watch.reset()
+	herd.clear()
+	grazers.clear()
 	craft_window.reset()
 	_highlight_target(-1)
 	hud_label.visible = false
@@ -707,6 +718,19 @@ func _on_snapshot(_tick: int, entries: Array) -> void:
 			if a.node.position.y < -50.0:
 				a.node.position = a.target # first sighting: no slide-in from nowhere
 		i += 5
+
+
+## The grazers in view (protocol v6, about 5 a second): smoothed by HerdView, drawn by
+## GrazerFigures; a bolt kicks up dust and snorts where it happens.
+func _on_wildlife(entries: PackedFloat32Array) -> void:
+	if not logged_in:
+		return
+	var now := _now()
+	grazers.play_events(herd.feed(entries, now), herd, now)
+
+
+static func _now() -> float:
+	return Time.get_ticks_msec() / 1000.0
 
 
 ## The server's clock (at login and every WORLD_TIME_SYNC_SECONDS). DayNight keeps it and
