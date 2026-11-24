@@ -18,15 +18,25 @@ Where the numbers come from, best first:
      fun_report.summarise CI uses.
 Only the bot-test step run with --fun-check counts (the 45 s ENet run prints metrics too).
 
-Usage:  tools/fun_trend.sh [--runs 10] [--branch main] [--json]
+After the table comes one "vs yesterday" line: the median of each metric over the newest
+day's runs against the day before (days in America/Chicago, like the budget week), so the
+digest can say "first level-up got 4 s faster" without arithmetic:
+
+  vs yesterday: 2026-11-24 (6 runs) vs 2026-11-23 (9 runs): 1st reward 7.7 s (-0.3, better), ...
+
+Usage:  tools/fun_trend.sh [--runs 10] [--since 2026-11-23] [--branch main] [--json]
+        --since takes every run created on or after that date (up to --runs, default 100 then).
 Needs:  gh (authenticated). Tested by tests/ops/test_fun_trend.py.
 """
 import argparse
 import json
 import re
 import subprocess
+import statistics
 import sys
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "tests" / "bot_test"))
@@ -122,6 +132,64 @@ def format_row(run: dict, s) -> str:
     )
 
 
+DAY_TZ = ZoneInfo("America/Chicago")
+
+# (summary key, label, unit, digits, True if higher is better) for the "vs yesterday" line.
+DELTAS = [
+    ("first_reward_s_median", "1st reward", " s", 1, False),
+    ("first_level_up_gather_s_median", "1st level-up", " s of gathering", 1, False),
+    ("rewards_per_min_median", "items/min", "", 1, True),
+    ("longest_dead_s_median", "dead max", " s", 0, False),
+    ("bots_levelled", "levelled", " bots", 1, True),
+]
+
+
+def day_of(created_at: str) -> str:
+    """The America/Chicago date of a run's created_at (GitHub's UTC 'Z' timestamp)."""
+    t = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    return t.astimezone(DAY_TZ).strftime("%Y-%m-%d")
+
+
+def day_medians(runs: list) -> dict:
+    """runs: [(created_at, summary or None)] -> {day: {"runs": n, key: median}} over runs with metrics."""
+    by_day = {}
+    for created_at, s in runs:
+        if s and created_at:
+            by_day.setdefault(day_of(created_at), []).append(s)
+    out = {}
+    for day, sums in by_day.items():
+        row = {"runs": len(sums)}
+        for key, *_ in DELTAS:
+            vals = [x[key] for x in sums if isinstance(x.get(key), (int, float))]
+            row[key] = statistics.median(vals) if vals else None
+        out[day] = row
+    return out
+
+
+def vs_yesterday(runs: list):
+    """One line comparing the newest day's medians with the day before, or None with < 2 days."""
+    days = day_medians(runs)
+    if len(days) < 2:
+        return None
+    today, before = sorted(days)[-1], sorted(days)[-2]
+    t, b = days[today], days[before]
+    parts = []
+    for key, label, unit, digits, higher_better in DELTAS:
+        if t[key] is None or b[key] is None:
+            continue
+        d = t[key] - b[key]
+        if round(d, digits) == 0:
+            change = "same"
+        else:
+            word = "better" if (d > 0) == higher_better else "worse"
+            change = f"{'+' if d > 0 else ''}{_f(d, digits)}, {word}"
+        parts.append(f"{label} {_f(t[key], digits)}{unit} ({change})")
+
+    def n(day):
+        return f"{day} ({days[day]['runs']} run{'' if days[day]['runs'] == 1 else 's'})"
+    return f"vs yesterday: {n(today)} vs {n(before)}: " + ", ".join(parts)
+
+
 def gh_api(path: str, raw=False) -> str:
     out = subprocess.run(["gh", "api", path], capture_output=True, text=True)
     if out.returncode != 0:
@@ -131,14 +199,22 @@ def gh_api(path: str, raw=False) -> str:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--runs", type=int, default=10, help="how many recent runs (default 10)")
+    ap.add_argument("--runs", type=int, default=None, help="how many recent runs (default 10, or 100 with --since)")
+    ap.add_argument("--since", help="only runs created on or after this date (YYYY-MM-DD, UTC)")
     ap.add_argument("--branch", default="main")
     ap.add_argument("--repo", default=REPO)
     ap.add_argument("--json", action="store_true", help="print one JSON object per run instead of the table")
     a = ap.parse_args(argv)
 
-    runs = gh_api(f"repos/{a.repo}/actions/runs?branch={a.branch}&event=push&status=completed&per_page={a.runs}")
-    runs = runs.get("workflow_runs", [])[: a.runs]
+    if a.since:
+        datetime.strptime(a.since, "%Y-%m-%d")  # fail early on a bad date
+    limit = a.runs or (100 if a.since else 10)
+    query = f"branch={a.branch}&event=push&status=completed&per_page={min(limit, 100)}"
+    if a.since:
+        query += f"&created=%3E%3D{a.since}"
+    runs = gh_api(f"repos/{a.repo}/actions/runs?{query}")
+    runs = runs.get("workflow_runs", [])[:limit]
+    seen = []
     if not a.json:
         print(HEADER)
     for run in runs:
@@ -150,11 +226,15 @@ def main(argv=None) -> int:
                 summary = summary_from_log(gh_api(f"repos/{a.repo}/actions/jobs/{test['id']}/logs", raw=True))
         except RuntimeError as e:
             print(f"[fun-trend] {run.get('head_sha', '')[:7]}: {e}", file=sys.stderr)
+        seen.append((run.get("created_at", ""), summary))
         if a.json:
             print(json.dumps({"created_at": run.get("created_at"), "sha": run.get("head_sha"),
                               "conclusion": run.get("conclusion"), "summary": summary}))
         else:
             print(format_row(run, summary))
+    line = vs_yesterday(seen)
+    if line and not a.json:
+        print(line)
     return 0
 
 
