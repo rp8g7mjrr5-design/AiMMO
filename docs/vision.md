@@ -233,9 +233,11 @@ and must not be renamed**, because friends already have the game installed:
 - `config/name="AiMMO"` in `game/project.godot`. Godot names the user data folder after it
   (`app_userdata/AiMMO`), which holds every player's settings and the self-updater's downloaded
   builds. Renaming it would strand both. The window title is set to ZombAi in code instead.
-- The build file names (`AiMMO.exe`, `AiMMO.x86_64`, `AiMMO-<platform>.pck`, the release zips).
-  An installed game loads the `.pck` named after its own executable, and `update.json` names
-  the files to fetch.
+- The executable names inside the downloads (`AiMMO.exe`, `AiMMO.x86_64`, the macOS app). An
+  installed game loads the `.pck` named after its own executable.
+  The release downloads themselves are named `ZombAi-<platform>.zip` and `ZombAi-<platform>.pck`
+  (owner asked, 2026-11-24). That is safe because installed games download whatever pack name
+  `update.json` gives them; CI deletes the old `AiMMO-*` downloads from a week's release.
 - The macOS bundle identifier (`io.github.aimmo.client`), so macOS keeps treating it as the
   same app.
 - Every `AIMMO_*` environment variable and repository variable, because the live Railway server

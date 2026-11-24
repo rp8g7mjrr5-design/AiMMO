@@ -224,20 +224,23 @@ jobs:
             if grep -q "ERROR" "build/$p.log"; then echo "export $p failed"; exit 1; fi
           done
           mkdir -p dist
-          (cd build/client-linux && zip -q -r ../../dist/AiMMO-linux.zip .)
-          (cd build/client-windows && zip -q -r ../../dist/AiMMO-windows.zip .)
-          cp build/client-macos/AiMMO.zip dist/AiMMO-macos.zip
+          # Release downloads are named ZombAi-*. The files inside keep their AiMMO names
+          # (AiMMO.exe, AiMMO.x86_64): an installed game looks for the pack named after its own exe.
+          (cd build/client-linux && zip -q -r ../../dist/ZombAi-linux.zip .)
+          (cd build/client-windows && zip -q -r ../../dist/ZombAi-windows.zip .)
+          cp build/client-macos/AiMMO.zip dist/ZombAi-macos.zip
           # Self-update packs: the whole game minus the engine, one per platform.
           for os in linux windows macos; do
-            godot --headless --path game --export-pack "client-$os" "$PWD/dist/AiMMO-$os.pck" 2>&1 | tee "build/pack-$os.log"
-            if grep -q "ERROR" "build/pack-$os.log" || [ ! -s "dist/AiMMO-$os.pck" ]; then echo "pack $os failed"; exit 1; fi
+            godot --headless --path game --export-pack "client-$os" "$PWD/dist/ZombAi-$os.pck" 2>&1 | tee "build/pack-$os.log"
+            if grep -q "ERROR" "build/pack-$os.log" || [ ! -s "dist/ZombAi-$os.pck" ]; then echo "pack $os failed"; exit 1; fi
           done
           mkdir -p manifest
           python3 - <<'PY'
           import hashlib, json, os
           files = {}
           for o in ("linux", "windows", "macos"):
-              name = f"AiMMO-{o}.pck"
+              # Installed games download whatever name update.json gives, so renaming is safe.
+              name = f"ZombAi-{o}.pck"
               data = open(f"dist/{name}", "rb").read()
               files[o] = {"name": name, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
           manifest = {"build": int(os.environ["GITHUB_RUN_NUMBER"]), "engine": os.environ["GODOT_VERSION"], "files": files}
@@ -265,6 +268,11 @@ jobs:
             # A fix pushed later in the same week updates that week's release.
             gh release edit "$TAG" --title "$TITLE" --notes-file release-notes.md
             gh release upload "$TAG" dist/* --clobber
+            # Drop downloads left over from the old AiMMO-* names, so this week's release
+            # doesn't offer two copies of the game. update.json no longer points at them.
+            for old in AiMMO-linux.zip AiMMO-windows.zip AiMMO-macos.zip AiMMO-linux.pck AiMMO-windows.pck AiMMO-macos.pck; do
+              gh release delete-asset "$TAG" "$old" --yes 2>/dev/null || true
+            done
           else
             gh release create "$TAG" dist/* --title "$TITLE" --notes-file release-notes.md --target "$GITHUB_SHA" --latest
           fi

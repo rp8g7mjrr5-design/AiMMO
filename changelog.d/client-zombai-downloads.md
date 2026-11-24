@@ -1,0 +1,1 @@
+- The downloads on the release page are now called ZombAi (ZombAi-windows.zip and friends). Already installed? Nothing to do: your game updates itself as usual.
