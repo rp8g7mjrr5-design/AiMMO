@@ -1,6 +1,6 @@
 extends Node
-## Net/Play: the RPCs added in protocol v3 (gathering, the pack, crafting), v4 (skills) and v5
-## (roster, Return to Spawn Meadow). A child of Net so
+## Net/Play: the RPCs added in protocol v3 (gathering, the pack, crafting), v4 (skills), v5
+## (roster, Return to Spawn Meadow) and v6 (wildlife). A child of Net so
 ## Net's own RPC numbering, and with it every old client's login, never changes (see net.gd
 ## and tests/protocol/README.md). No logic: each RPC re-emits the matching signal on Net.
 ## Clients call these as `net.play.c2s_*.rpc_id(1, ...)`; the server's _send finds them here.
@@ -123,3 +123,17 @@ func s2c_roster(entries: Array) -> void:
 @rpc("authority", "call_remote", "reliable")
 func s2c_unstuck_result(ok: bool, text: String, wait_seconds: float) -> void:
 	_net().unstuck_result.emit(ok, text, wait_seconds)
+
+
+# --- protocol v6: the wildlife outside the meadow ---
+
+## The grazers within GameConfig.VIEW_RANGE of you, sent about 5 times a second (every
+## Server.WILDLIFE_SEND_TICKS ticks; interpolate between them). A PackedFloat32Array, 5 values
+## per creature (Wildlife.WIRE_STRIDE): [id, x, z, yaw, state_index] (Wildlife.to_wire; int()
+## the id and state; y from Terrain.height, yaw 0 looks along +z, state names in
+## Wildlife.STATES). A state flipping to "flee" is the bolt: play the
+## snort and the dust kick then. Sent only while any are in view, plus one empty Array when the
+## last one leaves it (drop them all); one missing from a non-empty list has left your view. Unreliable: a lost one is replaced 0.2 s later.
+@rpc("authority", "call_remote", "unreliable_ordered")
+func s2c_wildlife(entries: PackedFloat32Array) -> void:
+	_net().wildlife_changed.emit(entries)

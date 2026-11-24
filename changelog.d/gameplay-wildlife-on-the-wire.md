@@ -1,0 +1,2 @@
+- **The hills are waking up:** the herds of grazers that roam just outside Spawn Meadow now reach your game, a few times a second, with every look-up, bolt and lazy walk home. Their bodies arrive with an upcoming update; rush one and the whole herd will scatter over the rise.
+- **Game update (protocol 6):** your game updates itself the next time you launch it.

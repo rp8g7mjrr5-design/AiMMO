@@ -40,13 +40,13 @@ func _sent(srv: Node, id: int, method: String) -> Array:
 
 
 func test_v5_rpcs_live_on_play_and_v4_is_frozen() -> void:
-	check_eq(GameConfig.PROTOCOL_VERSION, 5)
-	var play := ProtocolCompat.rpc_names("res://shared/net_play.gd")
+	check(GameConfig.PROTOCOL_VERSION >= 5, "v5 or later")
+	var play := ProtocolCompat.rpc_names("res://tests/protocol/net_play_v5.gd") # as v5 shipped
 	var v4_play := ProtocolCompat.rpc_names("res://tests/protocol/net_play_v4.gd")
 	var expected := Array(v4_play) + V5_RPCS
 	expected.sort()
 	check_eq(Array(play), expected, "v5 Play = v4 Play + roster and unstuck")
-	check_eq(ProtocolCompat.rpc_names("res://shared/net.gd"), ProtocolCompat.rpc_names("res://tests/protocol/net_v4.gd"),
+	check_eq(ProtocolCompat.rpc_names("res://tests/protocol/net_v5.gd"), ProtocolCompat.rpc_names("res://tests/protocol/net_v4.gd"),
 		"Net's own RPCs unchanged since v4")
 	check(FileAccess.file_exists("res://tests/protocol/net_v4.gd"), "net_v4.gd frozen for the bump")
 

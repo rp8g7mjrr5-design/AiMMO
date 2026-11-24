@@ -65,6 +65,12 @@ signal unstuck_requested(peer_id: int)
 ## The answer: ok (you are at spawn now) or why not, and the seconds until you can ask again.
 signal unstuck_result(ok: bool, text: String, wait_seconds: float)
 
+# --- protocol v6, carried by Net/Play: the wildlife outside the meadow ---
+## The grazers within GameConfig.VIEW_RANGE of you, about 5 times a second: a PackedFloat32Array
+## of [id, x, z, yaw, state_index] per creature (Wildlife.to_wire; y from Terrain.height, state
+## names in Wildlife.STATES). An empty one means the last one just left your view.
+signal wildlife_changed(entries: PackedFloat32Array)
+
 var last_ack_seq := -1
 var play: Node
 

@@ -183,8 +183,8 @@ func test_wire_form() -> void:
 	var w := Wildlife.new_state()
 	var wire := Wildlife.to_wire(w)
 	check_eq(wire.size(), Wildlife.count(w) * 5)
-	check_eq(wire[0], 0)
-	check_eq(wire[4], Wildlife.STATES.find("graze"))
+	check_eq(int(wire[0]), 0)
+	check_eq(int(wire[4]), Wildlife.STATES.find("graze"))
 
 
 func test_the_server_steps_them_every_tick() -> void:
@@ -204,8 +204,10 @@ func test_the_server_steps_them_every_tick() -> void:
 	for i in 10:
 		srv._tick()
 	check(_flat_dist(c.pos, start) > 1.0, "and ran")
-	var sends := {}
+	var sends := 0
 	for m in srv.test_outbox:
-		sends[m[1]] = true
-	check(not sends.has("s2c_wildlife"), "nothing sent before the protocol has it")
+		if m[1] == "s2c_wildlife":
+			sends += 1
+			check(m[2][0].has(float(c.id)), "the stalker is sent the grazer it spooked")
+	check_eq(sends, 2, "11 ticks, sent on ticks 4 and 8 (protocol v6)")
 	srv.free()
