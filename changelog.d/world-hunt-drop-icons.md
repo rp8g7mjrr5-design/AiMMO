@@ -1,1 +1,0 @@
-- Hunting's spoils now look the part in your pack: a folded grazer hide with its pale side turned back, and a dark raw cut with its fat rim and bone. No more anonymous cloth bundles after a kill.
