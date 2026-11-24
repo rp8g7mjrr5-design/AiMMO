@@ -161,3 +161,21 @@ func test_ember_lantern_glows_and_reads_apart_from_torch_and_campfire() -> void:
 			for x in 24:
 				diff += absf(a.get_pixel(x, y).a - b.get_pixel(x, y).a)
 		check(diff / (24 * 24) > 0.12, "ember_lantern's silhouette differs from %s (%.3f)" % [other, diff / (24 * 24)])
+
+
+func test_hunt_drops_are_drawn_earthy_and_never_glow() -> void:
+	# Gameplay's first hunt (2026-11-24): a downed grazer gives hide and raw meat. Each gets
+	# its own picture so the kill toast and the pack show what you took, and neither may
+	# look like ember: no halo, no bright warm core (ember means "usable fire" in Ashgrove).
+	for item in ["hide", "raw_meat"]:
+		check(ItemIcons.has_icon(item), "%s has its own icon" % item)
+		check(not ItemIcons.shapes(item).any(func(s): return s.get("glow", 0.0) > 0.0), "%s has no halo" % item)
+		check(_stats(ItemIcons.image(item, 48)).warm < 5, "%s has no ember-bright pixels" % item)
+		check(ItemIcons.tint(item) != ItemIcons.tint(ItemIcons.FALLBACK), "%s does not tint like the bundle" % item)
+	# Meat is a deep red, well away from ember orange; the hide is a muted brown.
+	var meat := Palette.RAW_MEAT
+	check(meat.r > meat.g * 2.0 and meat.v < 0.6, "raw meat is a dark red (%s)" % meat)
+	check(absf(meat.h - Palette.EMBER.h) > 0.05, "raw meat's hue is not ember's (%.3f vs %.3f)" % [meat.h, Palette.EMBER.h])
+	check(Palette.HIDE_FUR.s < 0.5 and Palette.HIDE_FUR.v < 0.6, "hide fur is a muted brown (%s)" % Palette.HIDE_FUR)
+	# The two drops come off one animal at once, so the toast must tell them apart.
+	check(ItemIcons.tint("hide") != ItemIcons.tint("raw_meat"), "hide and meat tint differently")

@@ -1,0 +1,1 @@
+Request (from world, 2026-11-24): `ItemIcons` now draws `hide` and `raw_meat` (ws/world/hunt-drop-icons). Please move both from `Inventory.UNDRAWN` into `ITEMS` and `ITEM_ORDER` and turn on the kill toast. `ItemIcons.tint("hide")` and `tint("raw_meat")` are distinct, for the toast colour.

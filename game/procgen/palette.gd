@@ -49,6 +49,12 @@ const RICH_FLECK := Color(1.0, 0.86, 0.52) ## bright gold flecks: "this rock is 
 const GRAZER_COAT := Color(0.62, 0.44, 0.28) ## warm fawn, a little redder than TRUNK so a herd reads against bark
 const GRAZER_BELLY := Color(0.88, 0.80, 0.66) ## cream belly and the pale rump you see bounding away
 const GRAZER_DARK := Color(0.20, 0.16, 0.14) ## hooves, muzzle and eyes: close to SOOT, never black
+# What a downed grazer gives (the first hunt, ItemIcons): earthy and a little grim, never
+# glowing, and the meat kept well away from ember orange so it never reads as "usable fire".
+const HIDE_FUR := Color(0.46, 0.34, 0.24) ## a fresh hide's fur side: GRAZER_COAT, duller and darker once off the animal
+const HIDE_FLESH := Color(0.78, 0.69, 0.56) ## the scraped flesh side of a hide: pale tan, not cream
+const RAW_MEAT := Color(0.47, 0.17, 0.16) ## a raw cut: deep brown-red, darker than SMOULDER and nowhere near EMBER
+const MEAT_FAT := Color(0.80, 0.72, 0.60) ## the fat rim and marbling on a cut, and the bone's cross-section
 
 
 # Skill badges (SkillIcons, Milestone 1): one colour per skill, used for the badge disc and

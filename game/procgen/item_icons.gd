@@ -8,7 +8,8 @@ class_name ItemIcons
 ## veins with gold flecks), drawn like the old ember ash and the rich seam, and the two
 ## ember tools (the stone tools' shapes with coal-dark heads and an ember-hot edge), and the
 ## ember lantern (a stone-footed pine lantern with an ember burning behind its glass, the
-## meadow lamps' look in your hand; drawn ahead of gameplay's "Bench sense" recipe). They match what the world draws (the outcrop's pale seam, the
+## meadow lamps' look in your hand; drawn ahead of gameplay's "Bench sense" recipe), and the first hunt's drops: a folded grazer
+## hide (fur up, a pale corner turned back) and a dark raw cut with its fat rim and bone. They match what the world draws (the outcrop's pale seam, the
 ## seep's ember glow, the ash's warm leaves), so a "+2 ash wood" toast looks like the tree
 ## you just hit.
 ##
@@ -117,6 +118,10 @@ static func tint(item: String) -> Color:
 			return STONE.lightened(0.2)
 		"ember_axe", "ember_pickaxe":
 			return Palette.EMBER
+		"hide":
+			return Palette.HIDE_FUR.lightened(0.15)
+		"raw_meat":
+			return Palette.RAW_MEAT.lightened(0.2)
 	return CLOTH
 
 
@@ -460,6 +465,44 @@ static func _recipe(item: String) -> Array:
 			a.append(_capsule(Vector2(0.74, 0.76), Vector2(0.31, 0.53), 0.05, ASH_BARK))
 			a.append_array(_flame(Vector2(0.50, 0.63), 0.44, 0.40))
 			return a
+		"hide":
+			# A grazer's hide, folded once: the fur side lies uppermost with a ragged edge
+			# and two leg flaps, and the top corner is turned back to show the pale scraped
+			# flesh side, tied with a strip of the same hide. Muted, flat, no glow: a raw
+			# material, not a finished good.
+			return [
+				_poly([Vector2(0.14, 0.40), Vector2(0.24, 0.24), Vector2(0.44, 0.20), Vector2(0.62, 0.22), Vector2(0.80, 0.16), Vector2(0.86, 0.30),
+					Vector2(0.82, 0.46), Vector2(0.90, 0.62), Vector2(0.80, 0.78), Vector2(0.62, 0.74), Vector2(0.50, 0.86), Vector2(0.34, 0.78),
+					Vector2(0.16, 0.84), Vector2(0.18, 0.64), Vector2(0.10, 0.54)], Palette.HIDE_FUR, {"shade": 0.26}),
+				# Fur lay: a few darker strokes running down the back.
+				_capsule(Vector2(0.40, 0.40), Vector2(0.62, 0.60), 0.012, Palette.HIDE_FUR.darkened(0.3), {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.34, 0.54), Vector2(0.50, 0.70), 0.011, Palette.HIDE_FUR.darkened(0.3), {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.56, 0.36), Vector2(0.74, 0.52), 0.011, Palette.HIDE_FUR.darkened(0.3), {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.22, 0.62), Vector2(0.30, 0.72), 0.010, Palette.HIDE_FUR.darkened(0.3), {"outline": false, "shade": 0.0}),
+				# The turned-back corner: flesh side up, with a shadow line along the fold.
+				_poly([Vector2(0.14, 0.40), Vector2(0.24, 0.24), Vector2(0.44, 0.20), Vector2(0.46, 0.30), Vector2(0.26, 0.50)], Palette.HIDE_FLESH, {"shade": 0.2}),
+				_capsule(Vector2(0.24, 0.32), Vector2(0.36, 0.30), 0.008, Palette.HIDE_FLESH.darkened(0.15), {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.45, 0.25), Vector2(0.26, 0.49), 0.014, Palette.HIDE_FUR.darkened(0.45), {"outline": false, "shade": 0.0}),
+				# A tie of hide strip across the middle.
+				_box(Vector2(0.62, 0.48), Vector2(0.20, 0.028), -0.55, Palette.LEATHER_DARK, {"round": 0.012}),
+			]
+		"raw_meat":
+			# A thick raw cut, side on: a deep brown-red slab with its fat rim along the top,
+			# a few lines of marbling and the round of a bone. Dark and heavy on purpose, so
+			# it never reads as ember (the glow means "use this fire", meat means "cook me").
+			return [
+				_poly([Vector2(0.16, 0.50), Vector2(0.26, 0.30), Vector2(0.48, 0.20), Vector2(0.72, 0.24), Vector2(0.88, 0.40), Vector2(0.86, 0.62),
+					Vector2(0.70, 0.78), Vector2(0.44, 0.82), Vector2(0.24, 0.72)], Palette.MEAT_FAT, {"shade": 0.22}),
+				_poly([Vector2(0.21, 0.52), Vector2(0.30, 0.36), Vector2(0.49, 0.28), Vector2(0.70, 0.31), Vector2(0.82, 0.43), Vector2(0.80, 0.60),
+					Vector2(0.67, 0.73), Vector2(0.45, 0.76), Vector2(0.28, 0.68)], Palette.RAW_MEAT, {"outline": false, "shade": 0.24}),
+				# Marbling: thin streaks running with the grain, all one way.
+				_capsule(Vector2(0.28, 0.58), Vector2(0.46, 0.44), 0.010, Palette.MEAT_FAT.darkened(0.12), {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.40, 0.70), Vector2(0.60, 0.54), 0.009, Palette.MEAT_FAT.darkened(0.12), {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.54, 0.40), Vector2(0.66, 0.33), 0.008, Palette.MEAT_FAT.darkened(0.12), {"outline": false, "shade": 0.0}),
+				# The bone, cut through near one edge: a pale ring with darker marrow.
+				_circle(Vector2(0.70, 0.56), 0.085, Palette.MEAT_FAT, {"outline": false, "shade": 0.15}),
+				_circle(Vector2(0.70, 0.56), 0.045, Palette.MEAT_FAT.darkened(0.35), {"outline": false, "shade": 0.0}),
+			]
 		FALLBACK:
 			return [
 				_circle(Vector2(0.50, 0.60), 0.27, CLOTH),
