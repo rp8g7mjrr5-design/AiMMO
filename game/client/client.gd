@@ -683,8 +683,10 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	settings_menu.set_in_game(true)
 	goal_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw, Appearance.normalize(character.get("look", {})))
-	if not Appearance.is_chosen(character.get("look", {})):
-		_open_look.call_deferred(true) # first time here (or never chose): make your traveller
+	# First time here (or never chose): make your traveller. Not for the automated test
+	# clients (--autoconnect), which must start playing at once; --open-look shows it to them.
+	if not Appearance.is_chosen(character.get("look", {})) and not _args.has("autoconnect"):
+		_open_look.call_deferred(true)
 	herd.clear()
 	grazers.clear()
 	prediction.reset()
