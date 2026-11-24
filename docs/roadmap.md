@@ -74,23 +74,29 @@ budget; the world builds in under 3 s.
 Hollows; fun metrics report time to first fire and nights survived; bots fight, die, loot and
 respawn in the bot test.
 
-## Phase 3: A roof and a wall
-**Goal:** a shelter that keeps the night out, built with friends.
+## Phase 3: A roof, a wall, and the first invasion
+**Goal:** the heart of the game (owner, 2026-11-24): build a base with friends and hold it when
+the Hollows come for it.
 - Snap-grid timber and stone building, doors, palisades and gates, chests, an ember hearth that
   stops Hollows rising inside, a bedroll respawn. Saved and restored through every restart.
-- Night sieges: on the darkest nights the Hollows gather on the loudest, brightest holds.
-**Done when:** a group builds a hold that Hollows can't get into, a night siege can be held or
-lost, the hold survives a server restart in the bot test, and a walled hold fits the render
-budget.
+- Base **threat** (size, noise, light, stored wealth) and **invasions** that grow with it,
+  announced a minute ahead; Hollows that break doors and weak walls.
+- The first defences: spiked barricades, braziers, a warning bell.
+**Done when:** a group builds a base, an invasion comes for it and can be held or lost, a bigger
+base draws bigger invasions, the base survives a server restart in the bot test, and a walled
+base fits the render budget.
 
 ## Phase 4: Into the ruins
 **Goal:** the map's risk ladder: go further, risk more, come back stronger.
 - All four ruin grades (the mine, the drowned village, the abbey, the fallen castle and its
   crypt), each with its own Hollows (soldiers, the Bell-wight) and loot tables.
 - Signet keys and vaults; smithing, iron and the first armour; bows and crossbows; ember
-  weapons.
-**Done when:** a geared group can clear each grade, grade 4 needs keys from grade 3, and loot
-from each grade is clearly better than the one below.
+  weapons; base upgrades from ruin loot (iron-bound walls, a gatehouse, traps, arrow slits).
+- **Horses and carts:** wild horses and ruined stables, taming, feeding, stabling, riding; a cart
+  to haul a ruin's loot home.
+**Done when:** a geared group can clear each grade, grade 4 needs keys from grade 3, loot from
+each grade is clearly better than the one below and upgrades the base, and a group can ride out
+and haul a cart of loot home.
 
 ## Phase 5: Host your own world
 **Goal:** beyond the always-on world, any player can host, the others join, and it just works.
@@ -111,7 +117,8 @@ under a minute from the main menu.
 the build passes the perf budget on Low and Medium.
 
 ## Phase 7: Depth (ongoing)
-Wounds and illness, farming, fishing, carts and horses, more Hollow kinds and ruins, weather,
+Boats (rowboat, then a small sail boat for the coast), great hordes, wounds and illness,
+farming, fishing, more Hollow kinds and ruins, weather,
 proximity voice, a spectator camera.
 
 ## The next six weeks (director forecast, draft)
@@ -156,7 +163,7 @@ low-value follow-ups ahead of milestone work.
 **Director note (2026-11-24, ZombAi, draft):** the owner is reshaping the game: renamed
 ZombAi, a post-apocalyptic medieval fantasy (a fallen kingdom), third person, a one-time buy,
 and a map that works like Rust's (generated land, roads and risk-graded ruins), with the Hollows
-as our own undead. The owner then chose 2 to 8 player co-op hosted by a friend; public servers are a "later, maybe". For now co-op is today's always-on Railway world, capped at 8, so friends can drop in any time; hosting from the client comes in Phase 5. Magic, undead behaviour and the long-term goal are still being asked. See `docs/vision.md`.
+as our own undead. The owner then chose 2 to 8 player co-op hosted by a friend; public servers are a "later, maybe". For now co-op is today's always-on Railway world, capped at 8, so friends can drop in any time; hosting from the client comes in Phase 5. The goal is pure survival (no story endgame); the heart of it is base building, getting invaded and looting toward upgrades and vehicles (horses, carts, boats). Magic and undead details are still being asked. See `docs/vision.md`.
 Backlogs are not reseeded until the owner confirms.
 
 ## Backlog (unscheduled)

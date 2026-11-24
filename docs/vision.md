@@ -20,8 +20,24 @@ is graded by how much it can kill you and how much it pays. You arrive with noth
 drink, keep warm, bandage what bleeds, and learn that noise brings the Hollows and **ember-fire
 burns them**. With your friends you build a shelter, then walls, then a hold, and you push into
 richer and deadlier ruins for the gear to push further. On the darkest nights the Hollows come in
-numbers for the loudest, brightest holds. It's played with **2 to 8 friends** in a shared world:
+numbers for the loudest, brightest holds. There is no ending: the goal is to survive, build and
+grow stronger for as long as you like. It's played with **2 to 8 friends** in a shared world:
 for now the always-on server, later one a friend hosts.
+
+## The heart of it (owner, 2026-11-24)
+**The goal is survival.** No story ending, no final boss to beat: a world is a sandbox you keep
+alive in for as long as you like. What the owner loves most, and what every phase serves:
+1. **Base building.** A hold that grows from a lean-to to a walled keep, with real choices about
+   where to build, what to wall and what to upgrade.
+2. **Getting invaded.** The Hollows come for your base, and the bigger, louder and richer it gets,
+   the bigger the invasions: a few stragglers at first, then night sieges, then rare great hordes
+   with soldiers and wights that test every wall and gate. Holding the walls with friends is the
+   game's signature moment.
+3. **Looting toward upgrades.** Every ruin trip brings back parts for something better: stronger
+   walls and gates, better tools and weapons, armour, workshops, traps and defences.
+4. **Vehicles, medieval style.** Earned through looting and building: a **horse** (found wild or
+   in ruined stables, tamed, fed and stabled), a **cart** to haul big loads, and **boats** for
+   rivers, lakes and the coast. Each opens more of the map and bigger ruin runs.
 
 ## Settled (owner, 2026-11-24)
 - **Name: ZombAi.** The repo, app and builds are renamed later (section "Rename plan"). The
@@ -103,7 +119,17 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
   stamina), extended with bows and crossbows, against Hollows and wildlife. No PvP in the core
   game (friendly fire is a host setting, off by default).
 - **Building:** snap-grid timber and stone (foundations, walls, doors, roofs, palisades, gates),
-  chests, an ember hearth, a bedroll. Tiers: wood, stone, iron-bound.
+  chests, an ember hearth, a bedroll. Tiers: wood, stone, iron-bound. Defences you loot and
+  craft toward: spiked barricades, pit traps, arrow slits, a gatehouse, braziers that burn
+  Hollows, a bell to warn the others.
+- **Invasions:** each base has a **threat** that rises with its size, noise, light and stored
+  wealth. Threat decides how big the next invasion is and how often they come, shown on a quiet
+  gauge so you always know what's coming. Hollows break doors and weak walls (never stone
+  without siege-type Hollows), so upgrades matter. Never instant: an invasion is announced by a
+  sound and a sight a minute before it hits.
+- **Vehicles:** horses (tame, feed, stable, ride; a horse can be hurt and must be looked after),
+  carts (hitched to a horse, hauling a ruin's worth of loot), and boats (rowboat first, then a
+  small sail boat for the coast). Vehicles are saved with the world.
 - **Skills, the long road kept:** our skills and XP carry over and grow (Felling, Quarrying,
   Toolcraft, plus foraging, cooking, mending, carpentry, masonry, smithing and the weapon
   masteries). Skills belong to the character in that world.
@@ -142,8 +168,6 @@ end in a fresh map). Nothing is designed or built for it until the owner asks.
   small, costly school of ember magic).
 - **How the undead behave** beyond the basics above (how hordes form, whether they break walls,
   how fast they are at night, whether the dead you leave behind rise).
-- **The long-term goal:** what a world builds toward (for example, relighting the kingdom's
-  ember beacons one by one to push the Dimming back, ending in the castle).
 Until answered, workers build only what this file already settles.
 
 ## What carries over from today's build

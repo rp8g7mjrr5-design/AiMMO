@@ -15,7 +15,7 @@ noise brings the Hollows and ember-fire burns them; you build a hold together an
 the darkest nights; and you push into deadlier ruins for the gear to push further. In your hands
 it is an action game (the over-the-shoulder camera, aimed swings, dodge, block) with gathering
 and crafting as real skills that level by doing. The full design is `docs/vision.md`. The core
-loop: **gather → craft → build → survive the night → raid the ruins → get stronger**.
+loop: **gather → build → get invaded → loot the ruins → upgrade (walls, gear, horses, carts, boats) → survive bigger invasions**. There is no ending: the goal is survival.
 
 ## Pillars
 1. **A world that feels lived in.** Friends come back to their world to see whose walls held, what the night broke and which ruin is next, never to tick a daily chore. A long road of skills and gear, tedium never (see "The long road").
@@ -222,6 +222,8 @@ fantasy setting, a third-person camera, a one-time buy, the name **ZombAi**, and
 - **Accessible and action-heavy, not brutal:** quick to learn, good in a 30-minute session,
   visible and explained dangers, moments worth clipping.
 - **A one-time buy.** Never sell power, safety or progress.
+- **The goal is survival.** No story endgame. The heart of it is base building, getting invaded at
+  your base, and looting toward upgrades and vehicles (horses, carts, boats).
 
 ### Studio intro (owner direction, 2026-11-23)
 The owner supplied the **Budda Games** intro video and asked for it to replace Godot's boot
@@ -293,8 +295,9 @@ foundations (gathering, crafting, skills and XP, the action camera and combat ba
 5. Play with friends: hosting, invites, saved worlds
 6. Launch-ready: the first hour, settings, the rename, a store build
 7. Depth, ongoing
-The ember mystery becomes the fallen kingdom's: why the Dimming rose, and what the ember can
-still do (the long-term goal is still being asked).
+The goal is survival, with no story endgame (owner, 2026-11-24). The fallen kingdom's lore (why
+the Dimming rose, what the ember can still do) is told through the ruins, never as a quest line
+you must finish.
 
 ## Technical principles
 - The server is authoritative for everything that matters. Clients render and request.
@@ -302,7 +305,7 @@ still do (the long-term goal is still being asked).
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
-- **Week 00 (2026-11-24, ZombAi, draft):** The owner said they weren't sure an MMO was the right call. Over the evening they moved to a survival game in the spirit of Project Zomboid, with a map that works like Rust's (generated land, roads and risk-graded ruins), a post-apocalyptic medieval fantasy setting (a fallen kingdom), a third-person camera, a one-time buy, the name ZombAi, and 2 to 8 player co-op hosted by a friend; an intermediate draft with 48-player servers, faction land claims and seasons was dropped to "later, maybe". Rewrote the North star, the vision paragraph and pillars 1 and 4 (co-op PvE, not opt-in PvP between strangers), added owner direction 8, replaced the planned order with phases, and made seeds per world. Kept everything that carries over: fun first, chat is for talking, the action camera, gathering, the long road of skills, take the best and beat it, the grounded art direction and its budgets, and "Inspired by, never copied". Ashgrove's ember lore becomes the fallen kingdom's. Still being asked: magic, how the undead behave in detail, and the long-term goal.
+- **Week 00 (2026-11-24, ZombAi, draft):** The owner said they weren't sure an MMO was the right call. Over the evening they moved to a survival game in the spirit of Project Zomboid, with a map that works like Rust's (generated land, roads and risk-graded ruins), a post-apocalyptic medieval fantasy setting (a fallen kingdom), a third-person camera, a one-time buy, the name ZombAi, and 2 to 8 player co-op hosted by a friend; an intermediate draft with 48-player servers, faction land claims and seasons was dropped to "later, maybe". Rewrote the North star, the vision paragraph and pillars 1 and 4 (co-op PvE, not opt-in PvP between strangers), added owner direction 8, replaced the planned order with phases, and made seeds per world. Kept everything that carries over: fun first, chat is for talking, the action camera, gathering, the long road of skills, take the best and beat it, the grounded art direction and its budgets, and "Inspired by, never copied". Ashgrove's ember lore becomes the fallen kingdom's. The goal is pure survival; the heart of it is base building, getting invaded, and looting toward upgrades and medieval vehicles (horses, carts, boats). Still being asked: magic and how the undead behave in detail.
 - **Week 01 (2026-11-24, less blocky, low-res look):** The owner asked for characters "less blocky and more low res actual", and for animations. The art bible now adds **low-res paint** to Emberlight: organic low-poly shapes (smooth lofted bodies, never boxes) and a procedural texel grain in the shared shader that makes every surface read like a low-resolution painted texture with nearest-neighbour filtering, without any texture files. The light bands were widened so rounded shapes shade smoothly. Characters were rebuilt from smooth lofts, with separate upper and lower limb pieces ready for a skeleton. Animation (a skinned skeleton and a full set of weighty moves) is its own piece of work and builds on this.
 - **Week 01 (2026-11-24, character overhaul):** The owner said "our dudes look fat and silly". The art bible's "Characters" section now sets lean, grounded adult proportions (about 7 heads, 1.78 m, shoulders wider than hips, long legs, hands to mid-thigh), a back-first silhouette of layered survival gear (hood or hair, wool mantle, framed pack and bedroll, belt with pouch and knife, chest strap, bracers, tall boots), gear colours in the palette, and a per-character cost (5 merged meshes, 5 draw calls). `AvatarBuilder` was rebuilt to match. This replaces the earlier plan of 6 heads with gear in Milestone 3: characters are adult-proportioned now, and gear grows from these layers.
 - **Week 01 (2026-11-24, grounded art direction):** The owner said the current style "is cheesy and looks silly" and asked for the game to feel heavily inspired by the genre of their favourite MMO (New World): a grounded, moody survival-and-crafting MMO, done as low poly, with a style clearly our own and without legal trouble. Direction 7 now says Emberlight is **grounded first**, and `docs/art_bible.md` was rewritten around that: five pillars (grounded before cute, mood from light, earth first and ember rare, weathered, restraint), palette saturation and value rules, light by time of day, character proportions (toward 6 heads, never chibi, no wizard hats), materials, UI tone, effects restraint, a sharper legal "inspired by, never copied" list, and a named list of what read as cheesy with its status. A first pass fixed the worst of it: olive and straw grass instead of lime, rust two-lobed ash crowns on thicker trunks instead of candy lollipops, earthy cloth, hoods and hair instead of cyan tunics and wizard hats, a smaller head, a dusty sky and a whole-frame grade, moonlit-blue night fill, and a translucent level-up column. The performance rules and CI budgets are unchanged.
