@@ -1,0 +1,1 @@
+- Travellers no longer stand at attention: idle characters rest their weight on one leg, keep their elbows loose and shift their weight every few seconds, each at their own rhythm.
