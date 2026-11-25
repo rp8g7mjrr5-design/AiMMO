@@ -227,6 +227,20 @@ fantasy setting, a third-person camera, a one-time buy, the name **ZombAi**, and
 - **The goal is survival.** No story endgame. The heart of it is base building, getting invaded at
   your base, and looting toward upgrades and vehicles (horses, carts, boats).
 
+### 9. The basics first (owner direction, 2026-11-25)
+The owner, tuning each worker one at a time: "we need to start with the basics: character
+customization and zombie survival, with a randomly generated map and landmarks and stuff for loot."
+Until those four work end to end in a real session, they come before any polish, in every stream:
+1. **Character customization** on the sculpted body (art bible section 3): every saved
+   Appearance choice shows on the new body, and a new player picks a look before they play.
+2. **Zombie survival:** the Gloam walker on screen and in the fight, hunger and the first night.
+3. **A generated map:** every world from a seed (Phase 1), big enough to explore and fast to load.
+4. **Landmarks with loot:** ruins you can see from a distance, walk to, and search for loot
+   that is worth the walk (crates, chests, bodies, graded by the ruin).
+Polish of something that already works (extra effects, follow-up tuning, the old Ashgrove map)
+waits until these four are playable. A worker with nothing left on the basics in its own area
+fixes bugs or builds tests for the basics before it polishes.
+
 ### Studio intro (owner direction, 2026-11-23)
 The owner supplied the **Budda Games** intro video and asked for it to replace Godot's boot
 splash. It is the studio's own logo, so it is the one owner-supplied asset in the client and an
@@ -307,6 +321,7 @@ you must finish.
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 01 (2026-11-25, the basics first):** The owner asked to start with the basics: character customization, zombie survival, a randomly generated map, and landmarks with loot. Added owner direction 9: those four come before polish in every stream, and each worker's backlog was cut down to them (world first, 2026-11-25).
 - **Week 01 (2026-11-24, model direction):** The owner saw the sculpted test-camp characters ("this is a way better start", "needs polishing") and asked to fine-tune the models and give them direction. The art bible's "Characters" section is now the model direction: one continuous sculpted body on the same 18-bone skeleton instead of segment meshes, build as a single `bulk` number, readable faces (full jaw, painted eyes and brows, real beards, clean hairline), clothing as proud layers with straight hems at set heights, four reference archetypes (woodcutter, scout, elder, smith), and a new per-character cost of 1 draw call and at most 5,000 triangles, cached at build. The old per-character limit (6 draw calls, 3,000 triangles) is replaced because one skinned mesh costs far fewer draw calls. The in-game body follows as its own PR.
 - **Week 00 (2026-11-24, ZombAi):** The owner said they weren't sure an MMO was the right call. Over the evening they moved to a survival game in the spirit of Project Zomboid, with a map that works like Rust's (generated land, roads and risk-graded ruins), a post-apocalyptic medieval fantasy setting (a fallen kingdom), a third-person camera, a one-time buy, the name ZombAi, and 2 to 8 player co-op hosted by a friend; an intermediate draft with 48-player servers, faction land claims and seasons was dropped to "later, maybe". Rewrote the North star, the vision paragraph and pillars 1 and 4 (co-op PvE, not opt-in PvP between strangers), added owner direction 8, replaced the planned order with phases, and made seeds per world. Kept everything that carries over: fun first, chat is for talking, the action camera, gathering, the long road of skills, take the best and beat it, the grounded art direction and its budgets, and "Inspired by, never copied". Ashgrove's ember lore becomes the fallen kingdom's. The goal is pure survival; the heart of it is base building, getting invaded, and looting toward upgrades and medieval vehicles (horses, carts, boats). Later the same evening: a days-survived counter, horde nights of our own (not a fixed-calendar blood moon), the name "Hollows" dropped (the undead are now **the Gloam**, the owner's pick), and the core loop of looting and gathering to build up claimed land. Finally the owner gave the reference (Project Zomboid + 7 Days to Die in a medieval fantasy setting, with rounds of survival at night and base defence) and asked the director to pick the rest: nights are fought in rounds, the big horde night is the Tolling (threat-triggered, never on a calendar), and magic is a light touch from loot (runes as wall wards, relics, single-use scrolls).
 - **Week 01 (2026-11-24, less blocky, low-res look):** The owner asked for characters "less blocky and more low res actual", and for animations. The art bible now adds **low-res paint** to Emberlight: organic low-poly shapes (smooth lofted bodies, never boxes) and a procedural texel grain in the shared shader that makes every surface read like a low-resolution painted texture with nearest-neighbour filtering, without any texture files. The light bands were widened so rounded shapes shade smoothly. Characters were rebuilt from smooth lofts, with separate upper and lower limb pieces ready for a skeleton. Animation (a skinned skeleton and a full set of weighty moves) is its own piece of work and builds on this.
