@@ -7,7 +7,7 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## gameplay_vitals and gameplay_first_swing are finished with this login and between two of
 ## gameplay_gather_v3's gathers, borrows itself (bot meta "wildlife_stalking", which the
 ## gather, swing and vitals behaviours already respect), stands still and:
-##   1. /gloam: a walker bound to us rises 7 m in front ("A Gloam walker rises ...");
+##   1. /gloam: a walker bound to us rises 7 m in front ("A Zombai rises ...");
 ##   2. waits for it: it shambles up and grabs, and s2c_vitals drops by exactly one grab
 ##      (Gloam.grab_damage) within GRAB_WITHIN seconds;
 ##   3. fights back with bare-handed haymakers, c2s_attack("heavy"), facing it, and asks
@@ -166,7 +166,7 @@ func _on_system(text: String) -> void:
 	if _sent_at < 0.0 or _sent_at > bot.elapsed:
 		return
 	if _step == Step.SUMMON:
-		if not text.begins_with("A Gloam walker rises"):
+		if not text.begins_with("A Zombai rises"):
 			return
 		var at := text.rfind("walker ")
 		_walker = int(text.substr(at + 7).trim_suffix(")."))
@@ -179,7 +179,7 @@ func _on_system(text: String) -> void:
 			downs += 1
 			_down_at = bot.elapsed
 			_release(Step.DONE)
-		elif text.begins_with("Gloam walker %d:" % _walker):
+		elif text.begins_with("Zombai %d:" % _walker):
 			_sent_at = -1.0
 			if swings >= MAX_SWINGS:
 				fail("walker %d still standing after %d haymakers: %s" % [_walker, swings, text])

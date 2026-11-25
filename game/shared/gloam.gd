@@ -23,14 +23,15 @@ class_name Gloam
 ##   Meadow's SAFE_RADIUS, a few per player (more at night, more for a crowd), and crumble
 ##   once nobody is near (`docs/vision.md`: nothing attacks what nobody is there to defend).
 ##
-## Off by default: the server spawns walkers only with `--gloam` / AIMMO_GLOAM (the live world
-## is untouched until client and world can draw them), and the hidden /gloam dev command
-## raises one walker bound to its caller for the bot test. Not saved: a restart clears them.
+## Players call them the Zombai (owner's name, `docs/vision.md`); the code kept "Gloam".
+## On by default since the client draws them (2026-11-25); `--gloam=0` / AIMMO_GLOAM=0 turns
+## rising off, and the hidden /gloam dev command raises one walker bound to its caller for the
+## bot test. Not saved: a restart clears them.
 ##
 ## Facing like Wildlife: yaw's forward is Vector3(sin(yaw), 0, cos(yaw)). Distances are flat.
 
 ## Per kind: label, hp, body radius (Weapons.targets_hit), grab damage.
-const KINDS := {"walker": {"label": "Gloam walker", "hp": 30.0, "radius": 0.45, "grab_damage": 15.0}}
+const KINDS := {"walker": {"label": "Zombai", "hp": 30.0, "radius": 0.45, "grab_damage": 15.0}}
 
 ## Movement, m/s. GameConfig.WALK_SPEED is 6.
 const DAY_SPEED := 1.8
@@ -486,7 +487,7 @@ static func from_wire(entries: PackedFloat32Array) -> Array:
 	return out
 
 
-## "Gloam walker 3: 22/30 health, 1.4 m from you, grab." for the /gloam dev command.
+## "Zombai 3: 22/30 health, 1.4 m from you, grab." for the /gloam dev command.
 static func describe_walker(w: Dictionary, from: Vector3) -> String:
 	return "%s %d: %d/%d health, %.1f m from you, %s." % [KINDS.get(str(w.kind), KINDS.walker).label, int(w.id),
 		roundi(float(w.hp)), roundi(max_hp(str(w.kind))), _flat(w.pos).distance_to(_flat(from)), str(w.state)]

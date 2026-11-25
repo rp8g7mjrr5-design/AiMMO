@@ -51,10 +51,10 @@ var _roster_dirty := false
 ## (8 main bots plus the extra ones) are never turned away. A login past the cap is refused
 ## with world_full_text() and never kicks anyone already in.
 var max_players := 0
-## The Gloam walkers (Phase 2 build-ahead, Gloam): stepped every tick. Walkers rise near
-## players on their own only when gloam_on (--gloam / AIMMO_GLOAM, off by default, so the
-## live world is untouched until client and world can draw them); the hidden /gloam dev
-## command raises one bound to its caller either way. Not on the wire yet, not saved.
+## The Zombai walkers (Gloam in the code): stepped every tick. Walkers rise near players on
+## their own when gloam_on: on by default since the client draws them (owner, 2026-11-25:
+## "we just need the Zombai"); `--gloam=0` / AIMMO_GLOAM=0 turns them off. The hidden /gloam
+## dev command raises one bound to its caller either way. On the wire since v10, not saved.
 var gloam := Gloam.new_state()
 var gloam_on := false
 ## Placed campfires (Phase 2 build-ahead, Campfires): set down from the pack (place_request,
@@ -139,13 +139,14 @@ func use_world(cfg: Dictionary) -> void:
 
 
 ## Whether walkers rise on their own: `--gloam` (or `--gloam=0/1`) wins, then AIMMO_GLOAM
-## (1/true/on). Unset is off. `env` is a name -> value lookup, for tests.
+## (0/false/off turns them off). Unset is on (the Zombai are in the game, 2026-11-25). `env`
+## is a name -> value lookup, for tests.
 static func parse_gloam(args: Dictionary, env: Callable = Callable(OS, "get_environment")) -> bool:
 	if args.has("gloam"):
 		var v = args["gloam"]
 		return true if typeof(v) == TYPE_BOOL else ChatCommands._truthy(str(v))
 	var e := str(env.call("AIMMO_GLOAM")).strip_edges()
-	return e != "" and ChatCommands._truthy(e)
+	return e == "" or ChatCommands._truthy(e)
 
 
 ## A character saved somewhere this world has no dry land for (out past its border, in a
@@ -382,7 +383,7 @@ func _tick_gloam(now: float) -> Dictionary:
 
 ## s2c_gloam to every logged-in player (protocol v10): the walkers within GameConfig.VIEW_RANGE
 ## of them, with the grab's windup, on the same 5 Hz beat and goodbye rule as s2c_wildlife.
-## Nothing goes out while nobody has a walker in view, so the live world (no --gloam) sends none.
+## Nothing goes out while nobody has a walker in view.
 func _send_gloam() -> void:
 	var now := now_seconds()
 	for id in sessions:
@@ -1487,7 +1488,7 @@ func gloam_command(id: int, arg: String) -> String:
 		return "No walker of yours is standing."
 	var w := Gloam.summon(gloam, id, pos, float(s.get("yaw", 0.0)), now_seconds())
 	s.gloam_summoned = int(w.id)
-	return "A Gloam walker rises %d m in front of you (walker %d)." % [roundi(Gloam.SUMMON_DISTANCE), int(w.id)]
+	return "A Zombai rises %d m in front of you (walker %d)." % [roundi(Gloam.SUMMON_DISTANCE), int(w.id)]
 
 
 ## The hidden dev commands /hurt N (1 to 1000 damage, default 10) and /vitals. Returns the
