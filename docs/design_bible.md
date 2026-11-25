@@ -1,34 +1,39 @@
-# AiMMO Design Bible
+# ZombAi Design Bible
 
-This is the AI-owned vision for AiMMO. It may evolve, but every change is logged in the
-Revision history at the bottom with its reason, so the game does not flip-flop.
+This is the AI-owned design for ZombAi (the repository was AiMMO until 2026-11-24). It may
+evolve, but every change is logged in the Revision history at the bottom with its reason, so the
+game does not flip-flop.
 
 ## North star
-**Make the survival game friends pick for their evenings, and that people love to watch.** Owner direction, 2026-11-24: the game is **ZombAi**, a third-person survival game in a fallen medieval kingdom, played in co-op by 2 to 8 friends, sold as a one-time buy, and made for mass appeal (`docs/vision.md`). The number one way there is still to make it **fun**: if it isn't fun, it isn't worth shipping (see "Fun comes first"). When two options compete, pick the one that is quicker to learn, better in a 30-minute session with friends and more worth sharing, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5). (Until 2026-11-24 this was "the Greatest MMO of all time"; the skills, camera, combat and art built for it all carry over.)
+**Make the survival sandbox people keep coming back to: a server you live on, a base you hold, a story you tell your friends.** Owner direction, 2026-11-25: ZombAi is **not an MMO**. It is a third-person open-world zombie survival sandbox in a fallen medieval kingdom, played on **servers of up to about 100 players**, sold as a one-time buy (`docs/vision.md`). The feel references are open-world zombie survival sandboxes (the owner named 7 Days to Die and Project Zomboid); we take their feel, never their content ("Inspired by, never copied"). The number one way there is still to make it **fun**: if it isn't fun, it isn't worth shipping (see "Fun comes first"). When two options compete, pick the one that is quicker to learn, better in a 30-minute session, makes a better story to tell, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5). (This was "the Greatest MMO of all time" until 2026-11-24 and "2 to 8 friends in co-op" until 2026-11-25; the skills, camera, combat and art built for both carry over.)
 
-### The vision in one paragraph (owner direction, 2026-11-24)
-A kingdom fell when the Dimming rose, and its dead got back up as **the Gloam**. Each world is
+### The vision in one paragraph (owner direction, 2026-11-25)
+A kingdom fell when the Dimming rose, and its dead got back up as **the Gloam**. Each server runs
 a freshly generated stretch of that kingdom (forests, moors, rivers, the old king's roads, and
-ruins graded by how much they can kill you and how much they pay) that one player hosts for 2 to
-8 friends. You arrive with nothing; you eat, drink, keep warm and tend wounds; you learn that
-noise brings the Gloam and ember-fire burns them; you build a hold together and hold it through
-horde nights; and you push into deadlier ruins for the gear to push further. In your hands
-it is an action game (the over-the-shoulder camera, aimed swings, dodge, block) with gathering
-and crafting as real skills that level by doing. The full design is `docs/vision.md`. The core
-loop (owner): **loot the ruins and gather resources to build up the land you've claimed**, then hold it through invasions and horde nights. There is no ending: the goal is survival, and **days survived** is the score.
+ruins graded by how much they can kill you and how much they pay) for **up to about 100
+players**. You make your character, arrive with nothing, eat, drink, keep warm and tend wounds;
+you learn that noise brings the Gloam and ember-fire burns them; you find a few people worth
+trusting, claim land, build a hold together and keep it through horde nights; and you push into
+deadlier ruins for the gear to push further. Other survivors are everywhere: neighbours to trade
+with, strangers to help on the road, and, only where the server's rules allow it, a threat of
+their own. In your hands it is an action game (the over-the-shoulder camera, aimed swings, dodge,
+block) with gathering and crafting as real skills that level by doing. The core loop (owner):
+**loot the ruins and gather resources to build up the land you've claimed**, then hold it
+through invasions and horde nights. There is no ending: the goal is survival, and **days
+survived** is the score.
 
 ## Pillars
-1. **A world that feels lived in.** Friends come back to their world to see whose walls held, what the night broke and which ruin is next, never to tick a daily chore. A long road of skills and gear, tedium never (see "The long road").
+1. **A world that feels lived in.** People come back to their server to see whose walls held, what the night broke, what the neighbours built and which ruin is next, never to tick a daily chore. A long road of skills and gear, tedium never (see "The long road").
 2. **Small, honest systems that stack.** Each week adds one system that works with the others. No feature ships half-built.
 3. **Everything is grown, not imported.** Terrain, creatures, items, music, and sound come from code and seeds. The look is a consequence of that: **Emberlight**, painted low-poly with colour in the vertices and one shared shader, cheap enough for any laptop (see `docs/art_bible.md`).
-4. **Together first.** Surviving is better with friends: shared fires, a hold you build together, ruins you clear as a group, a friend dragged back from a Gloam pack. The game is co-op PvE; friendly fire is a host setting, off by default.
+4. **Survivors, together.** A server is a community of survivors, not a crowd. Surviving is better in a group: shared fires, a hold you build together, ruins you clear as a band, a friend dragged back from a Gloam pack. Strangers are a resource and a story before they are a threat. The Gloam and the land are the main enemy; how much players can hurt each other is a **server rule** (see "Server rules" in `docs/vision.md`), PvE by default.
 
 ## Owner directions (standing rules)
 The owner plays and tests; the AI designs everything else. The owner has given the
 directions below, and these are standing rules: they win over any other design choice, and
 the weekly review and director may refine them but never reverse them. Everything not
 covered here (systems, lore, balance, roadmap) stays the AI's call. Fun comes first and sits
-above the numbered directions: when two choices both respect directions 1 to 8, pick the
+above the numbered directions: when two choices both respect directions 1 to 9, pick the
 more fun one. Direction 7 (a look of our own, cheap to draw) binds every visual change.
 
 ### Fun comes first (the first rule)
@@ -41,8 +46,8 @@ What that means in practice:
   the client shows that the input landed at once and confirms or corrects it.
 - **Short loops that pay off.** A new player gets a first reward (an item, a craft, a
   discovery) within about 60 seconds of spawning, and something new to want within about
-  5 minutes. Every loop (gather, craft, explore, fight) ends in a payoff the player can see,
-  hear and use, and the payoff feeds the next loop.
+  5 minutes. Every loop (gather, craft, explore, loot, fight, build) ends in a payoff the player
+  can see, hear and use, and the payoff feeds the next loop.
 - **Juice.** Hits, pickups and crafts get layered feedback: a hit reaction, particles, a
   pitch-varied procedural sound, a toast, the item flying into the pack. Make small things
   feel good before adding more things.
@@ -51,9 +56,10 @@ What that means in practice:
 - **Clear goals, always.** The player should always know one thing they could do next and
   why it would be good.
 - **Surprise and discovery.** Reward curiosity: a rare drop, a hidden spot, a creature doing
-  something odd, the world changing at night.
+  something odd, the world changing at night, another survivor's camp in the woods.
 - **Better together.** Doing something near another player should be more fun than doing it
-  alone (shared node bonuses, group moments, seeing each other's effects).
+  alone (shared node bonuses, group moments, seeing each other's effects). On a big server,
+  meeting someone should be an event, not noise.
 - **Fair and readable.** Never punish players for things they couldn't see coming. Lose
   little on failure; never lose a whole session's progress.
 - **Long road, never tedium.** A long progression is wanted (direction 5, "The long
@@ -65,14 +71,14 @@ What that means in practice:
 
 How each stream applies it:
 - **gameplay:** tune timings and rewards for pace (gather and craft times, drop rates,
-  respawns) and add the server events the client needs for feedback (hit, crit, rare drop,
-  level-up). Prefer a rewarding loop over a deep but slow one.
+  respawns, loot refills) and add the server events the client needs for feedback (hit, crit,
+  rare drop, level-up). Prefer a rewarding loop over a deep but slow one.
 - **world:** make places worth walking to: landmarks in view, something to find along every
   path, visible reactions (nodes shake, leaves fall, sparks fly), and a world that changes.
 - **client:** responsiveness and juice: instant input feedback, animation, sound, camera
   feel, toasts and clear goals on screen. Never leave the player staring at nothing.
 - **qa:** measure fun, not only correctness (see "Fun checks" below), and file "this feels
-  slow or boring" as a bug with numbers.
+  slow or boring" as a bug with numbers. Measure the server at the size it is meant to hold.
 - **integrator and director:** a PR that makes nothing more fun, or makes the game slower or
   duller, is sent back or reprioritised. Backlogs are ordered by player fun first.
 
@@ -93,12 +99,17 @@ Chat exists only so players can talk to each other. **No gameplay goes through c
   `--dev-commands` (the bot test and local runs). They are never listed in `/help`, the UI or
   patch notes. On a normal server a line starting with "/" is refused with a short system
   hint ("Chat is for talking. Press F1 for controls.") and is never broadcast.
-- New systems (crafting, combat, trade, quests) are built UI-first. No "start with a chat
+- Server administration (kicks, bans, rule changes) is done through the server's own config
+  and admin tools, never through player chat commands.
+- New systems (crafting, combat, trade, building) are built UI-first. No "start with a chat
   command" shortcuts.
+- On a server of up to 100, chat needs reach: nearby chat by default, with group and
+  server-wide channels (see `docs/vision.md`, "Talking").
 
-### 2. The camera feels like a modern action MMO
-The reference feel is the over-the-shoulder action camera of today's action-combat MMOs (the
-owner's favourite is New World). We copy the *feel*, not anyone's code or presentation:
+### 2. The camera feels like a modern third-person action game
+The reference feel is the over-the-shoulder action camera of today's third-person action
+games (the owner first pointed at New World's). We copy the *feel*, not anyone's code or
+presentation:
 - Third person, **over the right shoulder**: the character sits a little left of centre and
   low in frame, with the world ahead of them readable. Default distance about 3.5 m, pivot at
   about head height, shoulder offset about 0.6 m.
@@ -111,119 +122,140 @@ owner's favourite is New World). We copy the *feel*, not anyone's code or presen
   lets you look around without turning.
 - **Smooth, weighty follow**: the camera eases after the character (no jitter, no snapping),
   with a short zoom range (about 1.5 m to 6 m) on the wheel and a shoulder-swap key.
-- **Never through the ground**: the camera pulls in when terrain, trees or rocks are in the
-  way and eases back out.
+- **Never through the ground**: the camera pulls in when terrain, trees, rocks or walls are in
+  the way and eases back out. Indoors (ruins, your own hold) it pulls in tighter.
 - **Look to interact**: the thing you interact with is what the reticle is on (within reach),
-  falling back to the nearest one in reach. This is how gathering picks its node.
+  falling back to the nearest one in reach. This is how gathering, looting and building pick
+  their target.
 - Settings: sensitivity, invert Y, field of view and shoulder side.
 
-### 3. Gathering feels like a modern MMO
-See "How gathering feels" below. The node you gather is the one under the reticle (direction
-2). Nodes visibly empty and regrow, the gather bar and motion are server-timed, and every
-gather ends with satisfying feedback: a hit reaction on the node, a sound, a toast, and the
-item landing in your pack.
+### 3. Gathering and looting feel like a modern action game
+See "How gathering feels" below. The node you gather or the container you search is the one
+under the reticle (direction 2). Nodes visibly empty and regrow, the gather and search bars and
+motions are server-timed, and every gather or search ends with satisfying feedback: a hit
+reaction or a lid that opens, a sound, a toast, and the item landing in your pack.
 
-### 4. The whole game feels like a modern action MMO
-Directions 2 and 3 give the camera and gathering that feel; the owner wants the *whole game*
-to have it, with New World as the reference feel. That means, in our own design and our own
-names:
+### 4. The whole game feels like a modern action game
+Directions 2 and 3 give the camera, gathering and looting that feel; the owner wants the
+*whole game* to have it. In our own design and our own names:
 - **Action combat, not tab-target.** You aim with the reticle and swing; hits land where you
-  aim. Light and heavy attacks, a block, and a dodge roll on a stamina bar. Enemies telegraph
-  their attacks so a good player can read and avoid them (fair and readable). No auto-attack,
-  no target lock required.
-- **Weapons you made.** Weapons come from crafting, not from vendors. Each weapon type plays
-  differently and has its own mastery that levels by using it, with choices to make as it
-  levels.
+  aim. Light and heavy attacks, a block, and a dodge roll on a stamina bar. The Gloam and
+  wildlife telegraph their attacks so a good player can read and avoid them (fair and
+  readable). No auto-attack, no target lock required.
+- **Weapons you made or found.** Weapons come from crafting and from ruins, never from a shop
+  that sells power. Each weapon type plays differently and has its own mastery that levels by
+  using it.
 - **Trade skills are real skills.** Gathering, refining (wood to planks, stone and ore to
   bars) and crafting are each skills with levels, and high-level crafters make gear nobody
-  else can. Crafting is a reason to play, not a menu between fights.
-- **Gear worth chasing.** Gear comes in tiers tied to material tiers and zones, with some
+  else can. On a big server that makes crafters worth knowing and trading with.
+- **Gear worth chasing.** Gear comes in tiers tied to material tiers and ruin grades, with some
   rolled variation so two crafts of the same item can differ. Better gear changes your
-  silhouette (art direction: "later, gear changes silhouettes").
-- **A world with places that matter.** Zones get harder as you go out from the Spawn Meadow
-  and hold better materials. Towns are where you trade, craft at better stations and meet
-  people. Territory is bands and claims (`docs/vision.md`, pillar 4).
+  silhouette (art bible section 3).
+- **A world with places that matter.** Danger and reward rise with the ruin grades and with
+  distance from the spawn coast (`docs/vision.md`, the map). There are no NPC towns; the
+  places people meet are the ones players build.
 - **Physical and grounded.** Weighty movement, readable animations, sound on every action,
   day and night that change what is out there.
 
 ### 5. The long road: skills that grind well
-The owner loves the long skill grind of the classic skill MMOs (RuneScape is the owner's
-reference) and wants it here, made fun by the rules above. In our own design:
+The owner loves a long skill grind (RuneScape is the owner's reference) and wants it here,
+made fun by the rules above. In our own design:
 - **Many skills.** Every activity is a skill: each kind of gathering, each refining craft,
-  each crafting discipline, each weapon, and later things like cooking. Start small (four in
-  Milestone 1) and add skills as systems arrive; never retire one.
+  each crafting discipline, each weapon, and survival skills like cooking, mending, carpentry
+  and masonry. Start small (four in Milestone 1) and add skills as systems arrive; never retire
+  one.
 - **A high cap, levelled over months.** Each skill runs to **level 100**. The XP curve is ours
   (do not reuse another game's table or formula): the first levels come in a minute or two,
   level 10 inside a first session, level 50 after weeks of regular play, 100 is a long-term
-  badge of honour. Keep the curve's numbers in one data file so they can be tuned.
+  badge of honour. Keep the curve's numbers in one data file so they can be tuned. A server
+  may scale XP as a server rule; the curve itself stays one table.
 - **Every level unlocks something.** No empty levels. Each level gives a small visible gain
   (a bit faster, a bit more yield, a better chance at a rare find). Every few levels gives a
   named unlock: a new node tier you can now work, a recipe, a perk, an ability, a cosmetic
   (tool glow, a title). The skills window always shows the next unlock and how far away it is.
-- **Level-ups are moments.** A level-up is the loudest bit of juice in the game: a sound, a
-  burst of light around the character that others nearby see, a banner naming what you just
+- **Level-ups are moments.** A level-up is the loudest bit of juice outside a fight: a sound,
+  a burst of light around the character that others nearby see, a banner naming what you just
   unlocked.
-- **Your levels gate content, softly.** Higher-tier nodes, recipes and zones ask for levels,
+- **Your levels gate content, softly.** Higher-tier nodes, recipes and ruins ask for levels,
   so the grind opens the world. Nothing is gated behind payment, luck alone or a daily timer.
 - **No anti-fun limits.** No daily XP caps, no XP that shrinks the longer you play, no
   chores you must do every day to keep up. Being near other players should *add* XP
   (better together), never take it away.
 - **A total across skills.** The character panel shows a combined total of every skill's
   level, so an all-rounder has something to show too. (Pick our own name for it.)
+- **What death costs is a server rule.** By default skills are kept through death (fair
+  failure); a harder server may set skills to drop a little on death (see `docs/vision.md`).
 
 ### 6. Take the best, then beat it
-The owner's words: take other MMOs' best features and improve on them, making them better
-than their makers imagined. So before designing any system, ask: *which MMO does this best
-today, what exactly makes it great, what do its players complain about, and how do we keep
-the good part and fix the rest?* Write the answer in a few lines in the PR or devlog. Then
-build **our own improved version**: our design, our numbers, our names, our look. The aim is
-never "as good as" a reference; it is the version players of that game would wish theirs
-had. Examples of the habit: action combat with clearer telegraphs and less input lag than
-anyone's; a skill grind where no level is empty; crafting where a master's work is visibly
-better; a market that is easy to use and hard to exploit. This sits inside "Inspired by,
-never copied": study the feature, never copy its expression.
+The owner's words: take other games' best features and improve on them, making them better
+than their makers imagined. So before designing any system, ask: *which game does this best
+today (survival sandboxes first, then any genre), what exactly makes it great, what do its
+players complain about, and how do we keep the good part and fix the rest?* Write the answer
+in a few lines in the PR or devlog. Then build **our own improved version**: our design, our
+numbers, our names, our look. The aim is never "as good as" a reference; it is the version
+players of that game would wish theirs had. Examples of the habit: action combat with clearer
+telegraphs and less input lag than anyone's; a skill grind where no level is empty; looting
+that is quick and readable instead of a spreadsheet; base defence where you always know what's
+coming; a server browser and rules screen that tells you exactly what kind of server you are
+joining. This sits inside "Inspired by, never copied": study the feature, never copy its
+expression.
 
 ### 7. A look of our own, cheap to draw
-The owner asked for a unique art style in the stylized, painterly-realism family of their
-favourite modern MMO (moody golden light, a dark supernatural layer), made our own, and
-built in the most efficient way possible for the server, the system and the bots. That is
-**Emberlight**, written up in full in `docs/art_bible.md`. On 2026-11-24 the owner played it
-and called the look "cheesy" and "silly", and asked for it to feel heavily inspired by the
-grounded survival-and-crafting MMO genre (New World is their reference), as low poly, clearly
-our own, and legally safe. So Emberlight is **grounded first**: read the art bible's
-section 0 (pillars) and section 11 (what reads as cheesy) before any visual change. In short:
+The owner asked for a unique art style in the stylized, painterly-realism family, made our
+own, and built in the most efficient way possible for the server, the system and the bots.
+That is **Emberlight**, written up in full in `docs/art_bible.md`. On 2026-11-24 the owner
+played it and called the look "cheesy" and "silly", and asked for it to feel heavily inspired by
+grounded survival-and-crafting games, as low poly, clearly our own, and legally safe. So
+Emberlight is **grounded first**: read the art bible's section 0 (pillars) and section 11
+(what reads as cheesy) before any visual change. In short:
 - **Grounded painted low-poly:** real proportions (never chibi), muted earthy naturals (no
   lime, no candy colours), weathered materials, big confident facets; colour painted into
-  vertices and gradients by one shared shader, never photographic textures. Warm light, cool
-  blue shadows, a moody day that spends most of its time in low golden light.
+  vertices and gradients by one shared shader, never photographic textures.
+- **Clear, sunny days and moody nights** (owner, 2026-11-25, approving the test-camp look): a
+  clean blue sky and a strong sun with real shadows by day, no haze over the land; the mood
+  comes from dawn, dusk and real night, and from the ruins and the Dimming.
 - **Restraint:** effects, UI and colour stay quiet so the world carries the mood; level-ups
-  are the one loud moment and even they stay translucent.
-- **Ember is the signature and the signal:** ember veins, a valley-wide heartbeat pulse,
+  are the one loud moment outside a fight and even they stay translucent.
+- **Ember is the signature and the signal:** ember veins, a world-wide heartbeat pulse,
   leaves that never fall, rising motes. *If it glows ember, you can use it.* The dark layer
-  is ours too: the Dimming, cold grey ash where the warmth has drained.
+  is ours too: the Dimming, cold grey ash where the warmth has drained, and the Gloam who
+  carry it.
 - **Art costs the server and bots nothing:** they never build meshes, materials or
-  textures, and art never changes the protocol.
+  textures, and art never changes the protocol. That matters more at 100 players per server.
 - **Art has a budget in CI:** draw calls, triangles, materials and texture memory have
-  ceilings and a 20% ratchet, and a screenshot style check flags drift.
+  ceilings and a 20% ratchet, and a screenshot style check flags drift. A crowd of players
+  and a horde of the Gloam must fit the budget too.
 Every world and client PR that changes what's on screen follows the art bible and keeps
 inside the budget.
 
-### 8. ZombAi: survive a fallen kingdom with friends (owner direction, 2026-11-24)
-The owner changed the game's direction, in steps on one evening: not an MMO but a survival game
-in the spirit of Project Zomboid, then a map that works like Rust's, a post-apocalyptic medieval
-fantasy setting, a third-person camera, a one-time buy, the name **ZombAi**, and finally **2 to
-8 player co-op** hosted by a friend. The full design is `docs/vision.md`. Standing rules:
-- **Co-op first.** 2 to 8 friends; PvE against the Gloam and the land. For now that is today's always-on Railway world, capped at 8, which must never break; hosting from the client comes later. Public
-  servers, raiding and seasons are a "later, maybe" only.
-- **A generated kingdom with graded ruins.** Every world from a seed; hand-designed ruins placed
-  by the generator, each graded by danger and loot.
+### 8. ZombAi: an open-world survival sandbox on servers of up to 100 (owner direction, 2026-11-25)
+The owner set the direction in steps: not an MMO but a survival game in a post-apocalyptic
+medieval fantasy setting (a fallen kingdom), a third-person camera, a one-time buy, the name
+**ZombAi**, a generated map with risk-graded ruins, and, on 2026-11-25, "we are no longer making
+a MMO, it will at most have maybe 100 player servers, like 7 Days or Project Zomboid". The full
+design is `docs/vision.md`. Standing rules:
+- **Servers, not a shard.** Each server is its own world for **up to about 100 players**
+  (`MAX_PLAYERS`, 100 at most). Nothing is designed for more than one server's players at once:
+  no global economy, no cross-server anything, no "thousands on one world".
+- **Anyone can run a server.** The same authoritative headless server we run on Railway ships
+  as a dedicated server anyone can host; the official always-on world is one of them and
+  **must never break**. A Host button for a small group comes later on the same build.
+- **Server rules decide the kind of server.** PvP, friendly fire, claim protection, loot
+  refills, day length, Gloam difficulty, what death costs, and the map's seed and size are
+  server rules, shown to a player before they join. The defaults are PvE and forgiving.
+- **A generated kingdom with graded ruins.** Every server's world from a seed; hand-designed
+  ruins placed by the generator, each graded by danger and loot; the map's size scales with the
+  player cap.
 - **Our own undead.** The Gloam are original (kinds, behaviour, the chill, ember burns them),
   never another game's zombies.
 - **Accessible and action-heavy, not brutal:** quick to learn, good in a 30-minute session,
-  visible and explained dangers, moments worth clipping.
-- **A one-time buy.** Never sell power, safety or progress.
+  visible and explained dangers, moments worth clipping. Harder is a server rule, never the
+  default.
+- **A one-time buy.** Never sell power, safety or progress. Running a server costs nothing
+  extra.
 - **Nights come in rounds,** and the big horde night is **the Tolling**, triggered by a base's
-  threat, never by a calendar. Magic is a light touch from loot.
+  threat, never by a calendar, and aimed at a base, never at the whole server. Magic is a light
+  touch from loot.
 - **The goal is survival.** No story endgame. The heart of it is base building, getting invaded at
   your base, and looting toward upgrades and vehicles (horses, carts, boats).
 
@@ -253,74 +285,91 @@ it, automated runs skip it, and the engine splash is off with the video's backgr
 We borrow genre mechanics and feel only. Mechanics and feel are free for anyone to use; the
 expression of another game is not. So, always:
 - **No names** from any existing game: no place, faction, character, creature, item, skill,
-  resource or system names, and no near-misses or puns on them.
+  resource or system names, and no near-misses or puns on them. That includes the survival
+  games we take feel from: no "blood moon", no named zombie types, no named traits or
+  occupations from them.
 - **No lore, story, quests, dialogue or text** taken from or closely retelling another game.
 - **No art, models, icons, UI layouts or HUD look, fonts, music or sounds** from another game,
   and none made to look like them. Ours are procedural (CLAUDE.md hard rule 3) and use our
-  own palette, so they will look like Ashgrove.
-- **No logos, trademarks or marketing lines**, and never say AiMMO is related to, approved by,
-  or "the new version of" another game. Patch notes and in-game text name no other game.
+  own palette, so they look like the fallen kingdom and nothing else.
+- **No exact systems.** We may want "a big horde night" or "a map with risky monuments"; we
+  never copy another game's numbers, tables, calendars, skill lists, trait systems or menu flow.
+- **No logos, trademarks or marketing lines**, and never say ZombAi is related to, approved by,
+  or "the new version of" another game. Patch notes, in-game text and the store page name no
+  other game.
 - Inside design docs it is fine to say which game's *feel* inspired a direction; player-facing
   text never does.
-When unsure whether something is too close, make it more Ashgrove: ember ash, the sleeping
-thing under the valley, the warm late-afternoon palette.
+When unsure whether something is too close, make it more ours: ember and ash, the Dimming, the
+Gloam, a medieval kingdom gone quiet.
 
-## The world: Ashgrove
-Ashgrove is a valley at the edge of a much larger, unmapped continent. Its ash trees have orange-red leaves that never fall, and they are warm to the touch. The first settlers (the players) arrive with no memory of where they came from, only the sense that the valley was waiting for them.
+## The world: a fallen kingdom
+The kingdom died when the Dimming rose: a twilight that drained the warmth out of the land and
+got into its dead. They rose as **the Gloam**. What still holds the Dimming back is the
+**ember**: the warm, glowing sap of the ember ash trees, and the fire it makes. The kingdom's
+lore (why the Dimming rose, what lies under the old castle, what the ember can still do) is
+told through the ruins, never as a quest line you must finish.
 
-The central mystery, revealed slowly over many weeks: the ember ash trees are the roots of something enormous and asleep under the valley, and their warmth is its heartbeat. What players build, plant, and burn in Ashgrove changes how that thing wakes up.
-
-### Geography (current)
-- A 512 m × 512 m playable square centred on the **Spawn Meadow**, a flat, calm clearing.
-- Rolling grass hills, ash groves in the lowlands, pine forests on higher ground, bare rock on the ridges, snow on the highest peaks, and lakes in the hollows.
-- The world is generated from `WORLD_SEED = 20261127` in `game/shared/terrain.gd` and `game/procgen/`. This seed stays permanent for today's live test world (generator version 0). Under ZombAi every world gets its own seed from the host (`docs/vision.md`); a saved character always loads into its own world.
+**Ashgrove**, the 512 m valley the game started in, is the live test world (generator version 0,
+`WORLD_SEED = 20261127` in `game/shared/terrain.gd`). Its ember ash trees, the heartbeat pulse
+and the sleeping warmth under the valley become the kingdom's: the ember is that warmth, and
+the Dimming is what drains it. The live world moves to a generated map in one announced step
+(`docs/vision.md`); after that every server's world gets its own seed, and a saved character
+always loads into its own world.
 
 ### Tone
-Warm, curious, slightly melancholy. Patch notes and in-game text are friendly and a bit wry. Nothing grimdark, nothing sugary.
+Quiet, weathered, a little dangerous, with warmth in the people. Patch notes and in-game text
+are friendly and a bit wry. Grim where the ruins are, never grimdark for its own sake, never
+sugary.
 
 ## Art direction
 The full art bible is `docs/art_bible.md` (**Emberlight**, owner direction 7). The essentials:
-- **Painted low-poly.** Terrain cells are 4 m. Props use 5 to 8 radial segments, flat-shaded with gradients across the faces. Colour comes from vertex colours and one shared shader, not textures.
-- **Golden late-afternoon palette.** Warm light, cool blue shadows, orange ash leaves, and `EMBER` gold reserved for what you can use. The palette lives in `game/procgen/palette.gd`; new content picks from it or extends it there.
-- **Characters** are rounded wanderers today, growing toward grounded proportions when gear arrives. Their look comes from an appearance seed: tunic hue, skin tone, headwear. Later: gear changes silhouettes.
-- **Sound** is synthesised: soft sine chimes for UI and chat now; later, procedural ambient music keyed to time of day and biome.
+- **Painted low-poly.** Terrain cells are 4 m. Props use 5 to 8 radial segments, flat-shaded with gradients across the faces. Colour comes from vertex colours and one shared shader, with only the small `SurfaceTex` brightness detail as images made in code.
+- **Clear sunny days, moody nights.** A clean blue sky and a strong warm sun with real shadows by day, no haze over the land; rose dawns and dusks; navy, moonlit nights where ember carries the colour. `EMBER` gold is reserved for what you can use. The palette lives in `game/procgen/palette.gd`; new content picks from it or extends it there.
+- **Characters** are one sculpted body, grounded adults with real proportions; their look comes from the character creator (body, skin, hair, face, cloth). Gear changes silhouettes. The Gloam use the same body in the ash-cold palette.
+- **Sound** is synthesised: soft sine chimes for UI and chat now; later, procedural ambient music keyed to time of day, biome and danger.
 
 ## Core systems (current)
-- **Accounts and characters:** one character per account for now, named after the account. Passwords are salted PBKDF2-SHA256.
+- **Accounts and characters:** one character per account per world for now, named after the account, with a saved appearance. Passwords are salted PBKDF2-SHA256.
 - **Movement:** server-authoritative walking at 6 m/s on the shared height field. Clients send input direction only.
-- **Chat:** one global channel, 200 characters, 0.5 s cooldown. Talking only (owner direction 1).
+- **Chat:** one global channel, 200 characters, 0.5 s cooldown. Talking only (owner direction 1). Nearby, group and server channels come before the live cap goes past the low tens.
 - **Persistence:** position and facing saved on logout, every 30 s, and on shutdown.
+- **Player cap:** `MAX_PLAYERS` (8 on the live world today); a full server says so politely and never kicks anyone.
 
 ### How gathering feels (owner direction, 2026-11-22)
-Gathering works the way players already know from mainstream MMOs, never through chat commands:
+Gathering works the way players already know from today's action and survival games, never through chat commands:
 1. Walk up to a tree, rock or seep and look at it. When one is in reach and under the reticle (or, failing that, the nearest in reach) it is softly highlighted and a prompt shows its action and key, e.g. "[E] Chop Ember Ash".
 2. Press the interact key (E) or click the node. Your character turns to it and plays a looping gathering motion (chop, strike, scoop), with matching procedural sound.
 3. A short gather bar fills (about 2 s, set by the server). Moving, jumping or pressing E again cancels it; nothing is lost.
 4. When it fills, the item pops into your pack: a "+1 Ash wood" toast, a small chime, and the pack updates at once.
 5. Each node gives a few gathers, then visibly empties (stump, rubble, dry seep) for everyone nearby and grows back later.
 6. Other players see you gathering. Several players can work the same node; each gather takes one charge.
-The server times the bar and decides the result; the client only shows it. `/gather` stays as a hidden debug and bot command, not listed in `/help` or patch notes. We borrow the genre's mechanics only: no names, art, UI or sounds from any existing game.
+Searching a crate, chest or body in a ruin works the same way (look, E, a short search bar, the loot lands in your pack). The server times the bar and decides the result; the client only shows it. `/gather` stays as a hidden debug and bot command, not listed in `/help` or patch notes. We borrow the genre's mechanics only: no names, art, UI or sounds from any existing game.
 
 ## Core systems (planned order)
 The phases and what "done" means for each are in `docs/roadmap.md`. In short, after the
-foundations (gathering, crafting, skills and XP, the action camera and combat basics):
+foundations (gathering, crafting, skills and XP, the action camera and combat basics), and with
+the basics first (direction 9):
 1. A kingdom from a seed: the generator, roads, ruin sites, chunked building
 2. Survive the first night: needs, fire and cooking, the Gloam, death and loot
 3. A roof and a wall: claimed land, building, the ember hearth, invasions and horde nights
 4. Into the ruins: all four grades, signet keys, smithing, bows, ember weapons
-5. Play with friends: hosting, invites, saved worlds
-6. Launch-ready: the first hour, settings, the rename, a store build
+5. Servers for up to 100: interest management, chat channels, server rules, the dedicated
+   server download, a server list
+6. Launch-ready: the first hour, settings, a store build
 7. Depth, ongoing
-The goal is survival, with no story endgame (owner, 2026-11-24). The fallen kingdom's lore (why
-the Dimming rose, what the ember can still do) is told through the ruins, never as a quest line
-you must finish.
+The goal is survival, with no story endgame (owner, 2026-11-24).
 
 ## Technical principles
 - The server is authoritative for everything that matters. Clients render and request.
 - The world is deterministic from the seed, so the server never streams terrain; it sends the world's seed.
+- **Built for 100 on one server.** A client only hears about what is near it (interest
+  management by distance, about a 150 to 200 m bubble), the Gloam are simulated in full only near
+  players, and anything per-player-per-tick is budgeted for 100. The live cap only goes up after
+  a load test at that number passes (`docs/vision.md`, "Getting to 100").
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 01 (2026-11-25, survival servers, not an MMO):** The owner, after reviewing the art bible: "We need the bible redone. We are no longer making a MMO, it will at most have maybe 100 player servers. Like 7 days or project zomboid." Rewrote the North star, the vision paragraph and pillar 4 (survivors together; PvE by default, PvP a server rule), and replaced direction 8's "2 to 8 friends in co-op" with servers of up to about 100 players that anyone can run, shaped by server rules shown before you join. Directions 2 to 6 keep their meaning but drop the MMO framing (the reference is now modern third-person action games and survival sandboxes); direction 3 adds looting to gathering; direction 5 makes what death costs and XP rate server rules. Direction 7 now says clear sunny days with no haze (the owner approved the test-camp look on 2026-11-25), and the art bible's lighting follows. "The world" is now the fallen kingdom, with Ashgrove as the live test world. Phase 5 becomes "Servers for up to 100", and the technical principles add interest management and a load test before the live cap rises. Direction 9 (the basics first, PR #220) is unchanged. `docs/vision.md`, the art bible's framing, the roadmap and CLAUDE.md follow. The design forks this opened (PvP, the cap path, map size, claims, loot refills, wipes) are settled with a recommendation in `docs/vision.md`, "Server rules", until the owner says otherwise.
 - **Week 01 (2026-11-25, the basics first):** The owner asked to start with the basics: character customization, zombie survival, a randomly generated map, and landmarks with loot. Added owner direction 9: those four come before polish in every stream, and each worker's backlog was cut down to them (world first, 2026-11-25).
 - **Week 01 (2026-11-24, model direction):** The owner saw the sculpted test-camp characters ("this is a way better start", "needs polishing") and asked to fine-tune the models and give them direction. The art bible's "Characters" section is now the model direction: one continuous sculpted body on the same 18-bone skeleton instead of segment meshes, build as a single `bulk` number, readable faces (full jaw, painted eyes and brows, real beards, clean hairline), clothing as proud layers with straight hems at set heights, four reference archetypes (woodcutter, scout, elder, smith), and a new per-character cost of 1 draw call and at most 5,000 triangles, cached at build. The old per-character limit (6 draw calls, 3,000 triangles) is replaced because one skinned mesh costs far fewer draw calls. The in-game body follows as its own PR.
 - **Week 00 (2026-11-24, ZombAi):** The owner said they weren't sure an MMO was the right call. Over the evening they moved to a survival game in the spirit of Project Zomboid, with a map that works like Rust's (generated land, roads and risk-graded ruins), a post-apocalyptic medieval fantasy setting (a fallen kingdom), a third-person camera, a one-time buy, the name ZombAi, and 2 to 8 player co-op hosted by a friend; an intermediate draft with 48-player servers, faction land claims and seasons was dropped to "later, maybe". Rewrote the North star, the vision paragraph and pillars 1 and 4 (co-op PvE, not opt-in PvP between strangers), added owner direction 8, replaced the planned order with phases, and made seeds per world. Kept everything that carries over: fun first, chat is for talking, the action camera, gathering, the long road of skills, take the best and beat it, the grounded art direction and its budgets, and "Inspired by, never copied". Ashgrove's ember lore becomes the fallen kingdom's. The goal is pure survival; the heart of it is base building, getting invaded, and looting toward upgrades and medieval vehicles (horses, carts, boats). Later the same evening: a days-survived counter, horde nights of our own (not a fixed-calendar blood moon), the name "Hollows" dropped (the undead are now **the Gloam**, the owner's pick), and the core loop of looting and gathering to build up claimed land. Finally the owner gave the reference (Project Zomboid + 7 Days to Die in a medieval fantasy setting, with rounds of survival at night and base defence) and asked the director to pick the rest: nights are fought in rounds, the big horde night is the Tolling (threat-triggered, never on a calendar), and magic is a light touch from loot (runes as wall wards, relics, single-use scrolls).

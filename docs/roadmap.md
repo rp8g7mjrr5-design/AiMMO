@@ -1,4 +1,4 @@
-# AiMMO Roadmap
+# ZombAi Roadmap
 
 The road from today to **ZombAi** in `docs/vision.md` (owner direction, 2026-11-24):
 a third-person survival game in a fallen medieval kingdom, on generated maps full of
@@ -7,7 +7,8 @@ Each has a goal a player can feel and a "done when" list. Streams work on the **
 first; they may build ahead on the next one only when nothing in the current one is unblocked
 for them. A broken system or a serious bug always goes first. Milestones 0 and 1 below are the
 foundations already built; anything still open in them stays first in its backlog. The game is
-**2 to 8 player co-op**, hosted by a friend (owner, 2026-11-24).
+an open-world survival sandbox on **servers of up to about 100 players**, not an MMO (owner,
+2026-11-25).
 
 Every phase follows the owner directions in `docs/design_bible.md` (fun comes first, the lean in
 `docs/vision.md`, take the best and beat it): before a phase's first system PR, its stream
@@ -56,7 +57,9 @@ first level-up.
 **Goal:** every world is a new, generated stretch of the fallen kingdom, and what we already
 built (gathering, crafting, skills, combat basics) works in it.
 - The live Railway world stays up the whole time (owner, 2026-11-24: friends drop in any time),
-  capped at 8 players (`MAX_PLAYERS`).
+  capped at 8 players (`MAX_PLAYERS`) until the load test proves more (Phase 5).
+- The generator takes a map size (small, medium, large: about 1.5, 3 and 4 km) so it is ready
+  for bigger servers; medium is the default.
 - A world config (seed, size, generator version) the server sends at login; today's 512 m
   Ashgrove stays as version 0 until the Railway world moves to a generated map, in one announced
   step where characters keep skills, items and pack and arrive at the new spawn.
@@ -95,7 +98,7 @@ the Gloam come for it.
 - Base **threat** (size, noise, light, stored wealth); night rounds hit your walls; **the Tolling** (our horde night: triggered by threat, a bell the evening before, more rounds, soldiers and wights) grows with it,
   announced a minute ahead; the Gloam that break doors and weak walls.
 - The first defences: spiked barricades, braziers, a warning bell; the first **runes** as wall wards.
-- On the always-on world a base is only attacked while one of its owners is online.
+- On every server a base is only attacked while one of its owners is online.
 **Done when:** a group builds a base, an invasion comes for it and can be held or lost, a bigger
 base draws bigger invasions, the base survives a server restart in the bot test, and a walled
 base fits the render budget.
@@ -113,15 +116,26 @@ base fits the render budget.
 each grade is clearly better than the one below and upgrades the base, and a group can ride out
 and haul a cart of loot home.
 
-## Phase 5: Host your own world
-**Goal:** beyond the always-on world, any player can host, the others join, and it just works.
-- A Host button that starts the server build on the player's machine with a chosen world; join
-  by invite code or address; several saved worlds per host; seed and size choice; friendly fire
-  and difficulty as host settings.
-- Joining a world in progress, leaving and coming back, the host closing the world safely.
-**Done when:** a host on a home connection runs a world for 8 players (the bot test runs 8 bots
-against a host-started server), worlds survive closing and reopening, and a friend can join in
-under a minute from the main menu.
+## Phase 5: Servers for up to 100
+**Goal:** a server holds up to about 100 players and still feels good, and anyone can run one
+(owner, 2026-11-25: "at most maybe 100 player servers"). See `docs/vision.md`, "Servers".
+- **Interest management** (a client hears only what is within its bubble) and the Gloam
+  simulated in full only near players. Pulled forward: this lands before the live cap passes 24,
+  whatever phase is current.
+- A **load test** in CI at each cap step (24, 50, 100 bots, at least 3 minutes, scattered over
+  the map), and the official world's cap stepping 8 → 24 → 50 → 100 as each passes.
+- **Server rules** as one data file sent at login and shown in a Rules panel: PvP, friendly
+  fire, claim protection, loot refills, day length, Gloam difficulty, what death costs, XP rate,
+  map size, world reset.
+- **Bands** (shared claim, chests, doors, band chat, map markers) and **nearby, band and server
+  chat**.
+- The **dedicated server download** (Linux, Windows, Docker image) with a plain config file;
+  a **server list** in the client with player count, ping and rules in one line; join by address.
+- Later on the same build: a Host button in the client for a small group.
+**Done when:** the load test passes at 100 bots on a large map with no errors, desync or lost
+saves and the server tick inside budget; a player can find a server in the list, read its rules
+and join in under a minute; a server run from the download keeps its world through restarts;
+the official world runs at its new cap for a week with no regressions.
 
 ## Phase 6: Launch-ready
 **Goal:** a stranger buys it, starts it and has a good first hour.
@@ -149,7 +163,7 @@ A forecast, not a promise: it is redrawn every morning from what actually landed
 | 05 | 25 to 31 Dec | Phase 4: grade 3 ruins (the mine, the drowned village), signet keys, smithing and iron, bows. |
 | 06 | 1 to 7 Jan | Phase 4: the fallen castle and its crypt, wights and soldiers, horses and carts. |
 
-Phase 5 (hosting your own world) moved after Phase 4 in the forecast: friends already play on the always-on world (owner, 2026-11-24), so the heart of the game (building, invasions, ruins) pays more than a Host button does right now.
+Phase 5 (servers for up to 100) stays after Phase 4 in the forecast: friends already play on the always-on world, so the heart of the game (building, invasions, ruins) pays more first. Its interest-management and load-test items are pulled forward as soon as the live cap needs to pass 24.
 
 ## Week history
 | Week | Release | Notes |
@@ -197,10 +211,17 @@ Owner-thread PRs (#192 animation, #196 fuller bodies on hold, #197 customization
 v8) are left to their threads; the streams were told not to redo them and that protocol
 numbers go in merge order.
 
+**Director note (2026-11-25, survival servers):** the owner: "We are no longer making a MMO, it
+will at most have maybe 100 player servers. Like 7 days or project zomboid." The bibles were
+redone: servers of up to about 100 that anyone can run, shaped by server rules (PvE and
+forgiving by default), bands for groups, claims that protect on a server of strangers, map size
+scaled to the cap, and Phase 5 is now "Servers for up to 100". Nothing already in the backlogs
+changes order: the basics first (direction 9) still lead. The live cap stays 8 until the load
+test proves more.
+
 ## Backlog (unscheduled)
 - Zone or proximity chat, private messages
 - Emotes
-- Interest management (only send nearby players) once the population needs it
 - Procedural ambient music
 - Moving database calls off the server's main thread
 - Steam integration (blocked until the owner sets it up)
