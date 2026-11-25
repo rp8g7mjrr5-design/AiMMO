@@ -298,7 +298,7 @@ func test_gloam_command_grab_hurts_and_blows_put_it_down() -> void:
 	check_near(hp0 - float(srv.vitals_of(1).hp), Gloam.grab_damage("walker"), 0.01, "one grab's worth of health")
 	check(not _sent(srv, 1, "s2c_vitals").is_empty(), "the health bar hears of it")
 	check(Vitals.in_combat(srv.vitals_of(1), srv.test_now), "you're in combat")
-	# Swing haymakers at it until it is down; the wire's s2c_swing_hits never names it.
+	# Swing haymakers at it until it is down; s2c_swing_hits never names it (walkers go out in s2c_gloam_hits, v10).
 	var yaw := atan2(w.pos.x - at.x, w.pos.z - at.z)
 	var swings := 0
 	while Gloam.count(srv.gloam) > 0 and swings < 12:

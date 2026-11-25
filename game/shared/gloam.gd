@@ -448,6 +448,44 @@ static func summon(state: Dictionary, id: int, pos: Vector3, yaw: float, now: fl
 	return w
 
 
+## --- On the wire (protocol v10) ---
+
+## Values per walker in to_wire / s2c_gloam: [id, x, z, yaw, state_index, windup_left].
+const WIRE_STRIDE := 6
+
+
+## Every walker within `radius` of `pos` (flat distance), in id order, as s2c_gloam carries
+## them: [id, x, z, yaw, STATES index, windup_left]. windup_left is the seconds until a raised
+## grab closes (state "grab"), else 0, so the client can draw the telegraph in time.
+static func to_wire_near(state: Dictionary, pos: Vector3, radius: float, now: float) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	var here := _flat(pos)
+	for w in state.walkers:
+		if float(w.hp) > 0.0 and _flat(w.pos).distance_to(here) <= radius:
+			out.append_array(PackedFloat32Array([float(w.id), w.pos.x, w.pos.z, float(w.yaw),
+				float(STATES.find(str(w.state))), windup_left(w, now)]))
+	return out
+
+
+## Seconds until walker `w`'s raised grab closes, or 0 when it isn't winding up.
+static func windup_left(w: Dictionary, now: float) -> float:
+	if str(w.state) != "grab":
+		return 0.0
+	return maxf(0.0, float(w.get("grab_at", now)) - now)
+
+
+## to_wire's flat array back into [{id, x, z, yaw, state, windup_left}] (client and bots).
+static func from_wire(entries: PackedFloat32Array) -> Array:
+	var out: Array = []
+	var i := 0
+	while i + WIRE_STRIDE <= entries.size():
+		var si := int(entries[i + 4])
+		out.append({"id": int(entries[i]), "x": entries[i + 1], "z": entries[i + 2], "yaw": entries[i + 3],
+			"state": STATES[si] if si >= 0 and si < STATES.size() else "wander", "windup_left": entries[i + 5]})
+		i += WIRE_STRIDE
+	return out
+
+
 ## "Gloam walker 3: 22/30 health, 1.4 m from you, grab." for the /gloam dev command.
 static func describe_walker(w: Dictionary, from: Vector3) -> String:
 	return "%s %d: %d/%d health, %.1f m from you, %s." % [KINDS.get(str(w.kind), KINDS.walker).label, int(w.id),

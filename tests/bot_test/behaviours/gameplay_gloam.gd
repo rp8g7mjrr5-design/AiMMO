@@ -1,7 +1,7 @@
 extends "res://tests/bot_test/bot_behaviour.gd"
-## Bot behaviour (gameplay): the Gloam walker, server side (Phase 2 build-ahead). Walkers are
-## not on the wire yet, so the bot feels one only through its health bar and the hidden
-## /gloam dev command.
+## Bot behaviour (gameplay): the Gloam walker. The bot raises one with the hidden /gloam dev
+## command, feels it through its health bar, and since protocol v10 sees it on the wire:
+## s2c_gloam (the walkers in view, with the grab's windup) and s2c_gloam_hits (our blows).
 ##
 ## One bot per run (the one named *_3, in long runs only), once, after the reconnect, when
 ## gameplay_vitals and gameplay_first_swing are finished with this login and between two of
@@ -13,6 +13,10 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ##   3. fights back with bare-handed haymakers, c2s_attack("heavy"), facing it, and asks
 ##      /gloam status every few swings until the answer is "Your walker N is down."
 ##      within MAX_SWINGS haymakers.
+## On the wire (v10): our walker shows in s2c_gloam while it stands, its arms-up "grab" state
+## with time left shows before the grab lands, every haymaker that connects comes back in
+## s2c_gloam_hits naming it, the one that puts it down lists it as downed, and it drops out
+## of s2c_gloam after that.
 ## A login too short to finish is counted, not failed.
 
 const MY_SUFFIX := "_3"
@@ -44,6 +48,11 @@ var swings := 0
 var downs := 0
 var skipped := 0
 var refusals := {}
+var wire_seen := 0 ## s2c_gloam sends naming our walker
+var windup_seen := false ## our walker's "grab" state with time left, before the grab landed
+var wire_hits := 0 ## s2c_gloam_hits naming our walker for our blows
+var wire_downed := false
+var _down_at := -1.0
 
 
 func setup(net: Node) -> void:
@@ -51,6 +60,8 @@ func setup(net: Node) -> void:
 	net.vitals_changed.connect(_on_vitals)
 	net.swing_landed.connect(_on_landed)
 	net.attack_refused.connect(_on_refused)
+	net.gloam_changed.connect(_on_gloam)
+	net.gloam_struck.connect(_on_gloam_struck)
 
 
 func on_login(reconnect: bool, _character: Dictionary) -> void:
@@ -166,6 +177,7 @@ func _on_system(text: String) -> void:
 	elif _step == Step.STATUS:
 		if text == "Your walker %d is down." % _walker:
 			downs += 1
+			_down_at = bot.elapsed
 			_release(Step.DONE)
 		elif text.begins_with("Gloam walker %d:" % _walker):
 			_sent_at = -1.0
@@ -216,6 +228,28 @@ func _on_refused(kind: String, reason: String) -> void:
 		_release(Step.DONE)
 
 
+func _on_gloam(entries: PackedFloat32Array) -> void:
+	if _walker < 0:
+		return
+	for w in Gloam.from_wire(entries):
+		if int(w.id) != _walker:
+			continue
+		wire_seen += 1
+		if _down_at >= 0.0 and bot.elapsed - _down_at > 1.0:
+			fail("walker %d is still in s2c_gloam after it went down" % _walker)
+			_down_at = -1.0
+		if str(w.state) == "grab" and float(w.windup_left) > 0.0 and _step == Step.GRAB:
+			windup_seen = true
+
+
+func _on_gloam_struck(peer: int, _kind: String, ids: Array, downed: Array) -> void:
+	if peer != bot.my_id or _walker < 0 or not (_walker in ids):
+		return
+	wire_hits += 1
+	if _walker in downed:
+		wire_downed = true
+
+
 func on_finish() -> void:
 	stat("summoned", summoned)
 	stat("grabs", grabs)
@@ -223,5 +257,15 @@ func on_finish() -> void:
 	stat("downs", downs)
 	stat("skipped", skipped)
 	stat("refusals", refusals)
+	stat("wire_seen", wire_seen)
+	stat("windup_seen", windup_seen)
+	stat("wire_hits", wire_hits)
+	stat("wire_downed", wire_downed)
+	if summoned > 0 and wire_seen == 0:
+		fail("walker %d never showed in s2c_gloam" % _walker)
+	if grabs > 0 and summoned > 0 and not windup_seen:
+		fail("walker %d grabbed us without its windup ever showing in s2c_gloam" % _walker)
+	if downs > 0 and (wire_hits == 0 or not wire_downed):
+		fail("walker %d went down but s2c_gloam_hits said hits=%d downed=%s" % [_walker, wire_hits, wire_downed])
 	if _me and summoned > 0 and downs == 0 and skipped == 0:
 		fail("summoned a walker and never put it down")
