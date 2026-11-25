@@ -383,3 +383,76 @@ static func _tones(notes: Array, volume: float) -> AudioStreamWAV:
 	wav.stereo = false
 	wav.data = data
 	return wav
+
+
+## A Zombai's groan: a low, wet throat moan that sags in pitch, breathy noise riding a rough
+## voiced buzz (about 70 Hz falling to 55), swelling in and dying away. Each variant has its
+## own pitch and length, so a pack never moans in unison. Quiet on purpose: you hear the
+## nearest one before you see it, never a wall of noise (art bible: restrained).
+const GROAN_VARIANTS := 3
+const GROAN_LENGTH := 1.3
+
+
+static func groan(variant: int) -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7100 + variant
+	var f0 := 72.0 - 6.0 * float(variant)
+	var length := GROAN_LENGTH - 0.15 * float(variant)
+	var data := PackedByteArray()
+	var lp := 0.0
+	var lp2 := 0.0
+	var ph := 0.0
+	for i in int(RATE * length):
+		var t := float(i) / RATE
+		var k := t / length
+		var env := sin(PI * pow(k, 0.7)) * (0.85 + 0.15 * sin(TAU * 5.0 * t))
+		var f := f0 * (1.0 - 0.25 * k) * (1.0 + 0.03 * sin(TAU * 3.1 * t))
+		ph += f / RATE
+		var buzz := fposmod(ph, 1.0) * 2.0 - 1.0 # a sawtooth: the rasp of a dry throat
+		var noise := rng.randf_range(-1.0, 1.0)
+		lp += (noise - lp) * 0.12
+		lp2 += (buzz * 0.6 + lp * 1.8 - lp2) * 0.18
+		var v := lp2 * env
+		var s16 := int(clampf(v * 0.55, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	return _wav(data)
+
+
+## The arms-up rasp before a grab: a short, rising hiss of breath through the teeth with a
+## catch of voice under it. It is the grab's sound cue (the telegraph you hear), so it starts
+## with the windup and is done well before the grab closes.
+const RASP_LENGTH := 0.45
+
+
+static func rasp() -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7200
+	var data := PackedByteArray()
+	var lp := 0.0
+	var hp_prev := 0.0
+	var ph := 0.0
+	for i in int(RATE * RASP_LENGTH):
+		var t := float(i) / RATE
+		var k := t / RASP_LENGTH
+		var env := smoothstep(0.0, 0.12, k) * (1.0 - smoothstep(0.7, 1.0, k))
+		var noise := rng.randf_range(-1.0, 1.0)
+		lp += (noise - lp) * 0.45
+		var hiss := lp - hp_prev # a little brighter than the groan: breath, not voice
+		hp_prev = lp
+		ph += (90.0 + 60.0 * k) / RATE
+		var voice := (fposmod(ph, 1.0) * 2.0 - 1.0) * 0.25
+		var v := (hiss * 1.6 + voice) * env
+		var s16 := int(clampf(v * 0.5, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	return _wav(data)
+
+
+static func _wav(data: PackedByteArray) -> AudioStreamWAV:
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = RATE
+	wav.stereo = false
+	wav.data = data
+	return wav

@@ -82,6 +82,11 @@ var perf_overlay: PerfOverlay
 var icon_shelf := IconShelf.new()
 var herd := HerdView.new() ## the grazers in view (protocol v6), smoothed
 var grazers: GrazerFigures ## draws them, in the world
+var zombai := ZombaiView.new() ## the Zombai walkers in view (protocol v10), smoothed
+var zombai_figures: ZombaiFigures ## draws them and gives them voices, in the world
+var _zombai_told := false ## the first grab's hint has been shown this session
+const ZOMBAI_WARN_RANGE := 3.0
+const ZOMBAI_GRAB_HINT := "Its arms are up: step back, or hit it first."
 var _args := {} ## command-line test hooks
 
 
@@ -101,6 +106,9 @@ func start(p_net: Node, args: Dictionary) -> void:
 	grazers = GrazerFigures.new()
 	grazers.setup()
 	world.add_child(grazers)
+	zombai_figures = ZombaiFigures.new()
+	zombai_figures.setup()
+	world.add_child(zombai_figures)
 	camera = Camera3D.new()
 	camera.far = 600.0
 	camera.fov = 65.0
@@ -130,6 +138,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.roster_changed.connect(_on_roster)
 	net.unstuck_result.connect(_on_unstuck)
 	net.wildlife_changed.connect(_on_wildlife)
+	net.gloam_changed.connect(_on_zombai)
+	net.gloam_struck.connect(_on_zombai_struck)
 	net.vitals_changed.connect(_on_vitals)
 	net.attack_refused.connect(_on_attack_refused)
 	net.swing_begun.connect(_on_swing_begun)
@@ -485,6 +495,7 @@ func _process(delta: float) -> void:
 	players_panel.step(delta)
 	_step_goal(delta)
 	grazers.sync(herd, _now(), delta)
+	zombai_figures.sync(zombai, _now(), delta)
 	var move := _move_vector() if logged_in else Vector2.ZERO
 	if logged_in and prediction.has_position:
 		# seq + 1 is the input that will carry this frame's walk to the server.
@@ -712,6 +723,8 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 		_open_look.call_deferred(true)
 	herd.clear()
 	grazers.clear()
+	zombai.clear()
+	zombai_figures.clear()
 	prediction.reset()
 	prediction.place(Terrain.clamp_to_world(Vector3(character.x, character.y, character.z)))
 	cam.place(Vector3(character.x, character.y, character.z), character.yaw + PI)
@@ -743,6 +756,8 @@ func _on_server_disconnected() -> void:
 	gather_watch.reset()
 	herd.clear()
 	grazers.clear()
+	zombai.clear()
+	zombai_figures.clear()
 	craft_window.reset()
 	_highlight_target(-1)
 	hud_label.visible = false
@@ -810,6 +825,36 @@ func _on_wildlife(entries: PackedFloat32Array) -> void:
 		return
 	var now := _now()
 	grazers.play_events(herd.feed(entries, now), herd, now)
+
+
+## The Zombai walkers in view (protocol v10, about 5 a second): smoothed by ZombaiView, drawn
+## and voiced by ZombaiFigures; arms coming up rasp where they happen.
+func _on_zombai(entries: PackedFloat32Array) -> void:
+	if not logged_in:
+		return
+	var now := _now()
+	var events := zombai.feed(entries, now)
+	zombai_figures.play_events(events, zombai, now)
+	# The first raised grab that comes for you is explained once (vision: every danger is
+	# visible and explained the first time).
+	if not _zombai_told and prediction.has_position:
+		for e in events:
+			if str(e.event) == "windup" and zombai.position(int(e.id), now).distance_to(prediction.position) < ZOMBAI_WARN_RANGE:
+				_zombai_told = true
+				notice_line.show_notice(ZOMBAI_GRAB_HINT, true)
+				break
+
+
+## s2c_gloam_hits: a blow landed on walkers. Each one struck jerks (a heavy blow rocks it
+## back) and the ones put down go over where they stood; your own connecting blow smacks.
+func _on_zombai_struck(peer_id: int, kind: String, walker_ids: Array, downed: Array) -> void:
+	if not logged_in:
+		return
+	var events := zombai.struck(kind, walker_ids, downed, _now())
+	if peer_id == my_id and not events.is_empty():
+		sfx_thwack.play()
+		if not downed.is_empty():
+			notice_line.show_notice("Zombai down.", false)
 
 
 static func _now() -> float:

@@ -37,7 +37,11 @@ fun_metrics.json into the work directory, which is kept for the CI artifact. Wit
 --fun-check the run also fails when they break the limits or got worse than
 tests/bot_test/fun_baseline.json allows.
 
-The main server runs with `--dev-commands`, so behaviours may type slash commands. Afterwards
+The main server runs with `--dev-commands`, so behaviours may type slash commands, and with
+`--gloam=0`: the Zombai rise on their own by default since 2026-11-25, and a walker knocking a
+gathering bot back to Spawn Meadow would fail the gather, pair and persistence checks that
+assume a quiet world. The walkers are still tested here: gameplay_gloam raises one bound to its
+bot with /gloam and fights it, and client_zombai checks every bot's view of it. Afterwards
 the chat-gate phase boots a second server with `--dev-commands=0`, the way the public server
 runs, and two bots (behaviour qa_chat_gate) type /gather, /bag and /who: each line must get
 the "Chat is for talking" hint, change nothing, never be broadcast, and plain talk must still
@@ -230,7 +234,7 @@ def run_chat_gate(base_env: dict, transport: str, work: Path, run_tag: str) -> l
     env = dict(base_env)
     env.update({"AIMMO_PORT": str(port), "AIMMO_STOP_FILE": str(stop_file), "AIMMO_DATA_DIR": str(gate / "data")})
     log = gate / "server.log"
-    server = start_server(env, log, "--dev-commands=0")
+    server = start_server(env, log, "--dev-commands=0", "--gloam=0")
     if server is None:
         return ["chat gate: server did not start"]
     procs = []
@@ -306,7 +310,7 @@ def run_player_cap(base_env: dict, transport: str, work: Path, run_tag: str) -> 
     env.update({"AIMMO_PORT": str(port), "AIMMO_STOP_FILE": str(stop_file), "AIMMO_DATA_DIR": str(cap_dir / "data")})
     env.pop("MAX_PLAYERS", None)
     log = cap_dir / "server.log"
-    server = start_server(env, log, f"--max-players={CAP_PLAYERS}", "--dev-commands=0")
+    server = start_server(env, log, f"--max-players={CAP_PLAYERS}", "--dev-commands=0", "--gloam=0")
     if server is None:
         return ["player cap: server did not start"]
     common = ["--only-behaviour=qa_player_cap", f"--player-cap={CAP_PLAYERS}", f"--expect-peers={CAP_PLAYERS - 1}"]
@@ -402,7 +406,7 @@ def main() -> int:
     if craft_haul:
         problems += seed_crafter(env, work, f"bot{run_tag}_crafter")
     # Behaviours type slash commands (dev tools); the public server runs without the flag.
-    server = start_server(env, server_log, "--dev-commands")
+    server = start_server(env, server_log, "--dev-commands", "--gloam=0")
     if server is None:
         print("[bot-test] FAIL: server did not start")
         return 1

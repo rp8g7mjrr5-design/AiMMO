@@ -2,7 +2,7 @@ extends TestCase
 ## The Gloam walker, server side (Phase 2 build-ahead): it shambles by day and is quicker at
 ## night, is drawn by noise, grabs with a windup you can step out of or break with a heavy
 ## blow, goes down to a few blows, keeps away from fire, rises only near players and outside
-## the meadow, and crumbles when nobody is near. Off on the live world unless --gloam.
+## the meadow, and crumbles when nobody is near. On by default; --gloam=0 turns rising off.
 
 const ServerScript := preload("res://server/server.gd")
 const DT := 0.05
@@ -261,8 +261,9 @@ func test_target_keys_round_trip() -> void:
 
 ## --- On the server ---
 
-func test_off_by_default_nothing_rises() -> void:
-	check_eq(ServerScript.parse_gloam({}, func(_n): return ""), false, "unset is off")
+func test_on_by_default_and_off_switch() -> void:
+	check_eq(ServerScript.parse_gloam({}, func(_n): return ""), true, "unset is on: the Zombai are in the game")
+	check_eq(ServerScript.parse_gloam({}, func(n): return "0" if n == "AIMMO_GLOAM" else ""), false, "AIMMO_GLOAM=0 turns them off")
 	check_eq(ServerScript.parse_gloam({"gloam": true}, func(_n): return ""), true, "--gloam")
 	check_eq(ServerScript.parse_gloam({"gloam": "0"}, func(_n): return "1"), false, "--gloam=0 wins")
 	check_eq(ServerScript.parse_gloam({}, func(n): return "on" if n == "AIMMO_GLOAM" else ""), true, "AIMMO_GLOAM=on")
@@ -270,7 +271,7 @@ func test_off_by_default_nothing_rises() -> void:
 	for i in 2000:
 		srv.test_now += DT
 		srv._tick_gloam(srv.test_now)
-	check_eq(Gloam.count(srv.gloam), 0, "no walker rises on a server without --gloam")
+	check_eq(Gloam.count(srv.gloam), 0, "no walker rises while gloam_on is false")
 	srv.gloam_on = true
 	for i in 3000:
 		srv.test_now += 1.0
@@ -284,7 +285,7 @@ func test_gloam_command_grab_hurts_and_blows_put_it_down() -> void:
 	var srv := _server({1: at})
 	srv._on_chat(1, "/gloam")
 	var lines := _sent(srv, 1, "s2c_system")
-	check(lines.size() == 1 and str(lines[0][0]).begins_with("A Gloam walker rises"), "the walker rises: %s" % [lines])
+	check(lines.size() == 1 and str(lines[0][0]).begins_with("A Zombai rises"), "the walker rises: %s" % [lines])
 	check_eq(Gloam.count(srv.gloam), 1)
 	var w: Dictionary = srv.gloam.walkers[0]
 	check_eq(int(w.bound), 1)
