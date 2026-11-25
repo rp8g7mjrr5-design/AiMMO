@@ -581,8 +581,9 @@ func _on_input(id: int, seq: int, move: Vector2, yaw: float) -> void:
 	s.seq = seq
 	if not is_finite(move.x) or not is_finite(move.y):
 		move = Vector2.ZERO
-	s.move = move.limit_length(1.0)
 	s.yaw = wrapf(yaw, -PI, PI) if is_finite(yaw) else s.yaw
+	# Full speed only where you face: a backpedal is a walk (Movement.limit_for_facing).
+	s.move = Movement.limit_for_facing(move, float(s.yaw))
 
 
 func _on_chat(id: int, text: String) -> void:

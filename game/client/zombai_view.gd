@@ -21,6 +21,10 @@ const LIE_SECONDS := 6.0 ## a body stays down this long ...
 const SINK_SECONDS := 2.0 ## ... then sinks into the ground over this long
 const SINK_DEPTH := 0.6 ## metres it sinks
 const FLINCH_SECONDS := 0.25 ## a struck walker jerks for this long
+## A heavy blow staggers a walker on the frame it lands (s2c_gloam_hits is reliable, s2c_gloam
+## is not, so an update sent just before the blow can arrive after it): for this long an
+## update that still says it is walking doesn't cancel the stagger and restart it.
+const STAGGER_HOLD := 0.35
 
 ## id -> {from, to, from_yaw, to_yaw, since, state, windup_left, windup_at, flinch_at, stagger_at}
 var walkers := {}
@@ -65,6 +69,8 @@ func feed(entries: PackedFloat32Array, now: float) -> Array:
 		c.to = target
 		c.to_yaw = yaw
 		c.since = now
+		if str(c.state) == "stagger" and st != "stagger" and now - float(c.stagger_at) < STAGGER_HOLD:
+			st = "stagger" # a late update from before the blow: keep reeling
 		if st != str(c.state):
 			if st == "grab":
 				windups += 1
@@ -128,11 +134,19 @@ func has(id: int) -> bool:
 	return walkers.has(id)
 
 
+## How far from the drawn spot to the server's a walker has come at `now`, 0..1. Even pace
+## (not eased in and out): an eased blend slowed and sped up five times a second, which made
+## the shamble stutter; a straight one keeps its feet at a steady walk between updates.
 func blend(id: int, now: float) -> float:
 	var c: Dictionary = walkers.get(id, {})
 	if c.is_empty():
 		return 1.0
-	var t := clampf((now - float(c.since)) / BLEND, 0.0, 1.0)
+	return clampf((now - float(c.since)) / BLEND, 0.0, 1.0)
+
+
+## The turn's blend: eased, so a walker swings round instead of snapping.
+func turn_blend(id: int, now: float) -> float:
+	var t := blend(id, now)
 	return t * t * (3.0 - 2.0 * t)
 
 
@@ -165,7 +179,7 @@ func facing(id: int, now: float) -> float:
 	var c: Dictionary = walkers.get(id, {})
 	if c.is_empty():
 		return 0.0
-	return lerp_angle(float(c.from_yaw), float(c.to_yaw), blend(id, now))
+	return lerp_angle(float(c.from_yaw), float(c.to_yaw), turn_blend(id, now))
 
 
 func state(id: int) -> String:

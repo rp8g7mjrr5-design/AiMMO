@@ -41,6 +41,15 @@ const TURN_RATE := 9.0 ## 1/s, the body turning to face the node being gathered
 const MIN_FACE_DIST := 0.15
 const XFADE := {"move": 0.25, "takeoff": 0.08, "air": 0.12, "land": 0.06, "down": 0.08, "getup": 0.15, "sit": 0.2, "stand": 0.1}
 const CRAFT_SECONDS := 1.9 ## a craft plays two beats at the bench
+## Moving any way but ahead: the legs turn to the line of travel (up to STRIDE_TURN_MAX rad)
+## and the chest turns back against them, so a strafe is a sidestep, not a forward stride
+## sliding sideways; moving back, the stride runs backwards (a backpedal, never a moonwalk).
+const STRIDE_TURN_MAX := 1.2
+const STRIDE_TURN_RATE := 8.0 ## 1/s
+const CHEST_KEEP := 0.75 ## share of the legs' turn the spine and chest undo
+const BACK_FROM := 1.9 ## rad off your facing past which a move is a backpedal (about 110 deg)
+const GETUP_BREAK := 1.2 ## m/s: walking off while getting up cuts it short (after GETUP_MIN)
+const GETUP_MIN := 0.45
 
 # Footsteps (WalkAnim's interface)
 var footsteps := 0
@@ -61,6 +70,10 @@ var turn := 0.0 ## the body's yaw relative to the avatar root
 var vy := 0.0 ## vertical speed while airborne, m/s
 var height := 0.0
 var land_hard := 0.0
+var travel := 0.0 ## the line of travel against the facing, rad (0 ahead, +-PI straight back)
+var backward := false ## the stride runs backwards (a backpedal)
+var stride_turn := 0.0 ## the legs' current turn towards the line of travel, rad
+var _vel := Vector2.ZERO ## smoothed ground velocity (x, z), m/s
 
 var _last := Vector3.ZERO
 var _has_last := false
@@ -90,6 +103,16 @@ func knock_down() -> void:
 func get_up() -> void:
 	if body == "down":
 		_go("getup")
+
+
+## Straight to lying on the ground, no fall (you come to after a knock-down: the screen was
+## dark while you fell). Then get_up().
+func lie_down() -> void:
+	action = ""
+	action_weight = 0.0
+	_go("down")
+	body_t = AvatarClips.KNOCKDOWN
+	_xfade = 0.0
 
 
 func sit() -> void:
@@ -131,15 +154,22 @@ func step(delta: float, ctx: Dictionary) -> void:
 	clock += delta
 	body_t += delta
 	_measure(ctx.get("pos", Vector3.ZERO), delta)
+	_travel(float(ctx.get("yaw", 0.0)), delta)
 	_air(float(ctx.get("height", 0.0)), delta)
 	_body_transitions()
 	_actions(delta, ctx)
 	# Stride phase: advance with cadence, and only count footsteps while really moving.
 	var before := phase
 	var f := AvatarClips.cadence(speed) if speed > 0.05 else 0.0
-	phase = fposmod(phase + delta * f, 1.0)
+	phase = fposmod(phase + delta * f * (-1.0 if backward else 1.0), 1.0)
 	if body == "move" and speed >= FOOTSTEP_MIN:
-		if phase < before:
+		if backward:
+			# Backwards the cycle runs 1 -> 0: the left foot lands where the phase wraps up.
+			if phase > before:
+				_step_foot(0)
+			elif before >= 0.5 and phase < 0.5:
+				_step_foot(1)
+		elif phase < before:
 			_step_foot(0)
 		elif before < 0.5 and phase >= 0.5:
 			_step_foot(1)
@@ -159,11 +189,33 @@ func _measure(pos: Vector3, delta: float) -> void:
 	if _has_last:
 		var d := Vector2(pos.x - _last.x, pos.z - _last.z).length()
 		measured = 0.0 if d > TELEPORT_DIST else d / delta
+	var v := Vector2.ZERO
+	if _has_last and measured > 0.0:
+		v = Vector2(pos.x - _last.x, pos.z - _last.z) / delta
 	_last = pos
 	_has_last = true
 	speed = lerpf(speed, minf(measured, MAX_SPEED), 1.0 - exp(-SPEED_EASE * delta))
+	_vel = _vel.lerp(v.limit_length(MAX_SPEED), 1.0 - exp(-SPEED_EASE * delta))
 	if speed < 0.05:
 		speed = 0.0
+
+
+## Which way the body is travelling against where it faces (`yaw`: facing (sin, cos)), and
+## from that the stride's direction and the legs' turn. Hysteresis on BACK_FROM so a move
+## near the line doesn't flip the stride back and forth.
+func _travel(yaw: float, delta: float) -> void:
+	var want := 0.0
+	if _vel.length() > 0.6 and body == "move":
+		var dir := atan2(_vel.x, _vel.y)
+		travel = wrapf(dir - yaw, -PI, PI)
+		var back_line := BACK_FROM - (0.15 if backward else -0.15)
+		backward = absf(travel) > back_line
+		# Ahead the legs turn towards the travel; backing off they turn towards its reverse.
+		var leg := wrapf(travel - PI, -PI, PI) if backward else travel
+		want = clampf(leg, -STRIDE_TURN_MAX, STRIDE_TURN_MAX)
+	elif speed < 0.3:
+		backward = false
+	stride_turn = lerp_angle(stride_turn, want, 1.0 - exp(-STRIDE_TURN_RATE * delta))
 
 
 func _air(h: float, delta: float) -> void:
@@ -187,7 +239,9 @@ func _body_transitions() -> void:
 			if body_t >= AvatarClips.LAND:
 				_go("move")
 		"getup":
-			if body_t >= AvatarClips.GETUP:
+			# Walking off cuts getting up short (the cross-fade carries it), so you never
+			# glide across the grass half-crouched.
+			if body_t >= AvatarClips.GETUP or (speed > GETUP_BREAK and body_t >= GETUP_MIN):
 				_go("move")
 		"stand":
 			if body_t >= AvatarClips.STAND:
@@ -305,6 +359,14 @@ func _compose() -> Dictionary:
 	if _xfade > 0.0 and not _from.is_empty():
 		var k := smoothstep(0.0, 1.0, 1.0 - _xfade / maxf(_xfade_len, 0.0001))
 		p = AvatarClips.blend(_from, p, k)
+	if absf(stride_turn) > 0.001:
+		# The hips (and legs) turn to the line of travel; the spine and chest turn back so the
+		# shoulders stay square to where you face.
+		var stride := clampf(speed / 1.0, 0.0, 1.0)
+		var yaw := stride_turn * stride
+		p["Hips"] = (p.get("Hips", Vector3.ZERO) as Vector3) + Vector3(0.0, yaw, 0.0)
+		p["Spine"] = (p.get("Spine", Vector3.ZERO) as Vector3) - Vector3(0.0, yaw * CHEST_KEEP * 0.6, 0.0)
+		p["Chest"] = (p.get("Chest", Vector3.ZERO) as Vector3) - Vector3(0.0, yaw * CHEST_KEEP * 0.4, 0.0)
 	p["Root"] = Vector3(0.0, turn, 0.0)
 	return p
 

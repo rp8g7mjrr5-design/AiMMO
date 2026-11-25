@@ -289,6 +289,19 @@ Polish of something that already works (extra effects, follow-up tuning, the old
 waits until these four are playable. A worker with nothing left on the basics in its own area
 fixes bugs or builds tests for the basics before it polishes.
 
+### 10. A clean fight: no words, no backwards sprint (owner direction, 2026-11-25)
+The owner, after playtesting the first Zombai: "We don't need any of that silly text that comes
+up when a zombie chases you and you knock it down. We need cleaner animations all around. I
+shouldn't be able to run backwards." So:
+- **No text on screen in a fight.** A threat, a blow, a kill and a knock-down are told by motion
+  and sound (raised arms and a rasp, a flinch, a fall and a thud, the screen dropping dark), never
+  by a centre notice or a floating word. This overrides "explain every danger the first time" for
+  combat: the telegraph itself must be the explanation.
+- **Full speed only forward.** Backing off is a walk (Movement.BACK_SPEED), sideways a jog, and
+  the server enforces it. Escaping means turning and running.
+- **Clean motion:** feet hold the ground, strides run the way you travel, every state change
+  blends, and nothing plays twice or snaps.
+
 ### Studio intro (owner direction, 2026-11-23)
 The owner supplied the **Budda Games** intro video and asked for it to replace Godot's boot
 splash. It is the studio's own logo, so it is the one owner-supplied asset in the client and an
@@ -385,6 +398,7 @@ The goal is survival, with no story endgame (owner, 2026-11-24).
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 01 (2026-11-25, a clean fight):** After playtesting the Zombai the owner asked for no text when a zombie chases you or you knock it down, cleaner animations, and no running backwards. Added owner direction 10: no words in a fight (motion and sound tell it), full speed only forward (server-capped backpedal), and clean motion.
 - **Week 01 (2026-11-25, factions):** The owner renamed player groups from bands to **factions** (shared claim, chests, doors, faction chat, map markers; a solo player is a faction of one). Server rules and claims use the new name. Entries below keep "band" as history.
 - **Week 01 (2026-11-25, types confirmed, no traders):** The owner accepted the third round as proposed: the Zombai types list (walker, sprinter, brute, soldier, hound, dragger, Bell-wight, rotbelly, your risen body) is confirmed; no computer-run traders at launch, players trade through a trade window; groups stay **bands**; nights in rounds and the Tolling stay as written.
 - **Week 01 (2026-11-25, the Zombai, their types, your risen body, the coast):** The owner's second round of answers. The undead are renamed from the Gloam to **the Zombai** (player-facing everywhere; code names such as `gloam.gd` may stay until a worker renames them safely). Zombai are few in the open by day, thick around ruins and in packs at night. There are **types** (a draft list in `docs/vision.md`: walker, sprinter, brute, soldier, hound, dragger, Bell-wight, rotbelly, your own risen body), with sprinters one of them. When you die **your body rises** as a Zombai carrying the items you dropped. The map has one coast where everyone lands by boat, and mountains and the Dimming's grey wall on the other sides, with danger rising inland. Older entries below keep the old name as history.

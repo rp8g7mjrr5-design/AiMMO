@@ -87,8 +87,9 @@ func sync(view: ZombaiView, now: float, delta: float) -> void:
 			moved = 0.0
 		var measured := moved / delta if delta > 0.0 else 0.0
 		f.speed = lerpf(float(f.speed), measured, 1.0 - exp(-SPEED_RATE * delta))
-		# Short dragging steps: about 1.1 m a stride, so the feet keep up with the ground.
-		f.phase = fposmod(float(f.phase) + moved / 1.1, 1.0)
+		# Short dragging steps, as many a metre as the legs' gait needs for a planted foot to
+		# hold still on the ground (no skating, at a day shuffle or a night hunt).
+		f.phase = fposmod(float(f.phase) + moved * ZombaiBody.strides_per_metre(float(f.speed)), 1.0)
 		f.t = float(f.t) + delta
 		f.last = pos
 		var sd := ZombaiBody.lean_side(id)
