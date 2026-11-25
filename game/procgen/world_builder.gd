@@ -33,6 +33,7 @@ static func build() -> Node3D:
 	for n in _props():
 		root.add_child(n)
 	root.add_child(Flora.build())
+	root.add_child(Grass.build()) # tufts near the camera only, one draw call
 	root.add_child(NodeProps.build())
 	root.add_child(Lamps.build())
 	root.add_child(Workbench.build())
@@ -68,7 +69,7 @@ static func _environment() -> WorldEnvironment:
 	# Contact shadow (art bible "Model direction", the test camp): soft darkening where trunks,
 	# rocks, walls and feet meet the ground and each other, so nothing looks pasted on. Medium
 	# and High only, half resolution; Forward+ draws it, Compatibility ignores it.
-	env.ssao_enabled = Quality.ambient_occlusion()
+	env.ssao_enabled = _quality_ao()
 	env.ssao_radius = SSAO_RADIUS
 	env.ssao_intensity = SSAO_INTENSITY
 	env.ssao_light_affect = 0.15
@@ -243,3 +244,12 @@ static func _props() -> Array:
 	for l in SCATTER_LAYERS:
 		out.append(Chunks.build(l, meshes[l], layers[l], scatter_material(l)))
 	return out
+
+
+## The client's `Quality.ambient_occlusion()`, loaded by path like `Flora.quality_density()`
+## (the server export leaves `client/` out); off where the client code isn't there.
+static func _quality_ao() -> bool:
+	if not ResourceLoader.exists(Flora.QUALITY_SCRIPT):
+		return false
+	var q: Script = load(Flora.QUALITY_SCRIPT)
+	return bool(q.call("ambient_occlusion"))
