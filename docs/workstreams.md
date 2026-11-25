@@ -114,10 +114,11 @@ is how protocol v3 was built twice on 2026-11-23). If some session does run stre
 outside the schedule, it takes that stream's claim first like any worker run.
 
 **Older scheduled prompts.** The scheduled tasks that start the workers and the integrator
-can't be edited, and some still say "keep at most one open PR", "squash-merge", "one hourly
-run", or "write down why in docs/devlog/<stream>.md". The owner replaced those rules on
-2026-11-23 and 2026-11-24: this file wins. "Write it in your devlog" now means a devlog
-note in `docs/devlog/<stream>.d/`.
+can't be edited from a session, and some still say "keep at most one open PR", "squash-merge",
+"you are the only session that merges", "hourly run", or "write down why in
+docs/devlog/<stream>.md". The owner replaced those rules on 2026-11-23, 2026-11-24 and
+2026-11-25: this file wins. "Write it in your devlog" now means a devlog note in
+`docs/devlog/<stream>.d/`; nobody calls merge (auto-merge does); read lean (worker step 1).
 
 ## Schedule
 
