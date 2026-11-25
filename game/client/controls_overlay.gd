@@ -28,9 +28,11 @@ const DEFAULT_BINDS := {
 	"toggle_perf": [KEY_F3],
 }
 ## The game's default mouse button for every rebindable mouse action (same rules as above).
-## Left-click gathers the node under the reticle (action camera: "E or left-click").
+## Left-click gathers the node under the reticle (action camera: "E or left-click") and swings
+## light anywhere else; right-click swings heavy (AttackInput).
 const DEFAULT_MOUSE := {
 	"click_use": [MOUSE_BUTTON_LEFT],
+	"click_heavy": [MOUSE_BUTTON_RIGHT],
 }
 
 ## What the overlay lists, in order: [section title, [[what it does, keys], ...]].
@@ -47,6 +49,7 @@ const SECTIONS := [
 	]],
 	["Doing", [
 		["Gather what you look at", ["interact", "click_use"]],
+		["Swing (light, heavy)", ["click_use", "click_heavy"]],
 		["Use the workbench", ["interact"]],
 	]],
 	["Talking and menus", [
