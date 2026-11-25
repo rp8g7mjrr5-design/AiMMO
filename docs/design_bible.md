@@ -8,11 +8,11 @@ game does not flip-flop.
 **Make the survival sandbox people keep coming back to: a server you live on, a base you hold, a story you tell your friends.** Owner direction, 2026-11-25: ZombAi is **not an MMO**. It is a third-person open-world zombie survival sandbox in a fallen medieval kingdom, played on **servers of up to about 100 players**, sold as a one-time buy (`docs/vision.md`). The feel references are open-world zombie survival sandboxes (the owner named 7 Days to Die and Project Zomboid); we take their feel, never their content ("Inspired by, never copied"). The number one way there is still to make it **fun**: if it isn't fun, it isn't worth shipping (see "Fun comes first"). When two options compete, pick the one that is quicker to learn, better in a 30-minute session, makes a better story to tell, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5). (This was "the Greatest MMO of all time" until 2026-11-24 and "2 to 8 friends in co-op" until 2026-11-25; the skills, camera, combat and art built for both carry over.)
 
 ### The vision in one paragraph (owner direction, 2026-11-25)
-A kingdom fell when the Dimming rose, and its dead got back up as **the Gloam**. Each server runs
+A kingdom fell when the Dimming rose, and its dead got back up as **the Zombai**. Each server runs
 a freshly generated stretch of that kingdom (forests, moors, rivers, the old king's roads, and
 ruins graded by how much they can kill you and how much they pay) for **up to about 100
 players**. You make your character, arrive with nothing, eat, drink, keep warm and tend wounds;
-you learn that noise brings the Gloam and ember-fire burns them; you find a few people worth
+you learn that noise brings the Zombai and ember-fire burns them; you find a few people worth
 trusting, claim land, build a hold together and keep it through horde nights; and you push into
 deadlier ruins for the gear to push further. Other survivors are everywhere: neighbours to trade
 with, strangers to help on the road, and, only where the server's rules allow it, a threat of
@@ -26,7 +26,7 @@ survived** is the score.
 1. **A world that feels lived in.** People come back to their server to see whose walls held, what the night broke, what the neighbours built and which ruin is next, never to tick a daily chore. A long road of skills and gear, tedium never (see "The long road").
 2. **Small, honest systems that stack.** Each week adds one system that works with the others. No feature ships half-built.
 3. **Everything is grown, not imported.** Terrain, creatures, items, music, and sound come from code and seeds. The look is a consequence of that: **Emberlight**, painted low-poly with colour in the vertices and one shared shader, cheap enough for any laptop (see `docs/art_bible.md`).
-4. **Survivors, together.** A server is a community of survivors, not a crowd. Surviving is better in a group: shared fires, a hold you build together, ruins you clear as a band, a friend dragged back from a Gloam pack. Strangers are a resource and a story before they are a threat. The Gloam and the land are the main enemy; how much players can hurt each other is a **server rule** (see "Server rules" in `docs/vision.md`), PvE by default.
+4. **Survivors, together.** A server is a community of survivors, not a crowd. Surviving is better in a group: shared fires, a hold you build together, ruins you clear as a band, a friend dragged back from a Zombai pack. Strangers are a resource and a story before they are a threat. The Zombai and the land are the main enemy; how much players can hurt each other is a **server rule** (see "Server rules" in `docs/vision.md`), PvE by default.
 
 ## Owner directions (standing rules)
 The owner plays and tests; the AI designs everything else. The owner has given the
@@ -139,7 +139,7 @@ reaction or a lid that opens, a sound, a toast, and the item landing in your pac
 Directions 2 and 3 give the camera, gathering and looting that feel; the owner wants the
 *whole game* to have it. In our own design and our own names:
 - **Action combat, not tab-target.** You aim with the reticle and swing; hits land where you
-  aim. Light and heavy attacks, a block, and a dodge roll on a stamina bar. The Gloam and
+  aim. Light and heavy attacks, a block, and a dodge roll on a stamina bar. The Zombai and
   wildlife telegraph their attacks so a good player can read and avoid them (fair and
   readable). No auto-attack, no target lock required.
 - **Weapons you made or found.** Weapons come from crafting and from ruins, never from a shop
@@ -171,7 +171,7 @@ separately levelled skills. In our own design:
   - **Survival:** needs drain slower, wounds heal faster, foraging and cooking yield more, the
     chill wears off sooner.
   - **Fighting:** stronger swings and blocks, more stamina, cheaper dodges, bows and crossbows,
-    finishing moves on downed Gloam.
+    finishing moves on downed Zombai.
   - **Building:** stronger timber and stone, faster building and repairs, gates, traps and
     defences you can only build down this branch.
   - **Scavenging:** faster searches, better finds in ruins, quieter footsteps, more carry
@@ -234,13 +234,13 @@ Emberlight is **grounded first**: read the art bible's section 0 (pillars) and s
   are the one loud moment outside a fight and even they stay translucent.
 - **Ember is the signature and the signal:** ember veins, a world-wide heartbeat pulse,
   leaves that never fall, rising motes. *If it glows ember, you can use it.* The dark layer
-  is ours too: the Dimming, cold grey ash where the warmth has drained, and the Gloam who
+  is ours too: the Dimming, cold grey ash where the warmth has drained, and the Zombai who
   carry it.
 - **Art costs the server and bots nothing:** they never build meshes, materials or
   textures, and art never changes the protocol. That matters more at 100 players per server.
 - **Art has a budget in CI:** draw calls, triangles, materials and texture memory have
   ceilings and a 20% ratchet, and a screenshot style check flags drift. A crowd of players
-  and a horde of the Gloam must fit the budget too.
+  and a horde of the Zombai must fit the budget too.
 Every world and client PR that changes what's on screen follows the art bible and keeps
 inside the budget.
 
@@ -257,12 +257,12 @@ design is `docs/vision.md`. Standing rules:
   as a dedicated server anyone can host; the official always-on world is one of them and
   **must never break**. A Host button for a small group comes later on the same build.
 - **Server rules decide the kind of server.** PvP, friendly fire, claim protection, loot
-  refills, day length, Gloam difficulty, what death costs, and the map's seed and size are
+  refills, day length, Zombai difficulty, what death costs, and the map's seed and size are
   server rules, shown to a player before they join. The defaults are PvE and forgiving.
 - **A generated kingdom with graded ruins.** Every server's world from a seed; hand-designed
   ruins placed by the generator, each graded by danger and loot; the map's size scales with the
   player cap.
-- **Our own undead.** The Gloam are original (kinds, behaviour, the chill, ember burns them),
+- **Our own undead.** The Zombai are original (kinds, behaviour, the chill, ember burns them),
   never another game's zombies.
 - **Accessible and action-heavy, not brutal:** quick to learn, good in a 30-minute session,
   visible and explained dangers, moments worth clipping. Harder is a server rule, never the
@@ -281,7 +281,7 @@ customization and zombie survival, with a randomly generated map and landmarks a
 Until those four work end to end in a real session, they come before any polish, in every stream:
 1. **Character customization** on the sculpted body (art bible section 3): every saved
    Appearance choice shows on the new body, and a new player picks a look before they play.
-2. **Zombie survival:** the Gloam walker on screen and in the fight, hunger and the first night.
+2. **Zombie survival:** the Zombai walker on screen and in the fight, hunger and the first night.
 3. **A generated map:** every world from a seed (Phase 1), big enough to explore and fast to load.
 4. **Landmarks with loot:** ruins you can see from a distance, walk to, and search for loot
    that is worth the walk (crates, chests, bodies, graded by the ruin).
@@ -316,11 +316,11 @@ expression of another game is not. So, always:
 - Inside design docs it is fine to say which game's *feel* inspired a direction; player-facing
   text never does.
 When unsure whether something is too close, make it more ours: ember and ash, the Dimming, the
-Gloam, a medieval kingdom gone quiet.
+Zombai, a medieval kingdom gone quiet.
 
 ## The world: a fallen kingdom
 The kingdom died when the Dimming rose: a twilight that drained the warmth out of the land and
-got into its dead. They rose as **the Gloam**. What still holds the Dimming back is the
+got into its dead. They rose as **the Zombai**. What still holds the Dimming back is the
 **ember**: the warm, glowing sap of the ember ash trees, and the fire it makes. The kingdom's
 lore (why the Dimming rose, what lies under the old castle, what the ember can still do) is
 told through the ruins, never as a quest line you must finish.
@@ -341,7 +341,7 @@ sugary.
 The full art bible is `docs/art_bible.md` (**Emberlight**, owner direction 7). The essentials:
 - **Painted low-poly.** Terrain cells are 4 m. Props use 5 to 8 radial segments, flat-shaded with gradients across the faces. Colour comes from vertex colours and one shared shader, with only the small `SurfaceTex` brightness detail as images made in code.
 - **Clear sunny days, moody nights.** A clean blue sky and a strong warm sun with real shadows by day, no haze over the land; rose dawns and dusks; navy, moonlit nights where ember carries the colour. `EMBER` gold is reserved for what you can use. The palette lives in `game/procgen/palette.gd`; new content picks from it or extends it there.
-- **Characters** are one sculpted body, grounded adults with real proportions; their look comes from the character creator (body, skin, hair, face, cloth). Gear changes silhouettes. The Gloam use the same body in the ash-cold palette.
+- **Characters** are one sculpted body, grounded adults with real proportions; their look comes from the character creator (body, skin, hair, face, cloth). Gear changes silhouettes. The Zombai use the same body in the ash-cold palette.
 - **Sound** is synthesised: soft sine chimes for UI and chat now; later, procedural ambient music keyed to time of day, biome and danger.
 
 ## Core systems (current)
@@ -366,7 +366,7 @@ The phases and what "done" means for each are in `docs/roadmap.md`. In short, af
 foundations (gathering, crafting, skills and XP, the action camera and combat basics), and with
 the basics first (direction 9):
 1. A kingdom from a seed: the generator, roads, ruin sites, chunked building
-2. Survive the first night: needs, fire and cooking, the Gloam, death and loot
+2. Survive the first night: needs, fire and cooking, the Zombai, death and loot
 3. A roof and a wall: claimed land, building, the ember hearth, invasions and horde nights
 4. Into the ruins: all four grades, signet keys, smithing, bows, ember weapons
 5. Servers for up to 100: interest management, chat channels, server rules, the dedicated
@@ -379,12 +379,13 @@ The goal is survival, with no story endgame (owner, 2026-11-24).
 - The server is authoritative for everything that matters. Clients render and request.
 - The world is deterministic from the seed, so the server never streams terrain; it sends the world's seed.
 - **Built for 100 on one server.** A client only hears about what is near it (interest
-  management by distance, about a 150 to 200 m bubble), the Gloam are simulated in full only near
+  management by distance, about a 150 to 200 m bubble), the Zombai are simulated in full only near
   players, and anything per-player-per-tick is budgeted for 100. The live cap only goes up after
   a load test at that number passes (`docs/vision.md`, "Getting to 100").
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 01 (2026-11-25, the Zombai, their types, your risen body, the coast):** The owner's second round of answers. The undead are renamed from the Gloam to **the Zombai** (player-facing everywhere; code names such as `gloam.gd` may stay until a worker renames them safely). Zombai are few in the open by day, thick around ruins and in packs at night. There are **types** (a draft list in `docs/vision.md`: walker, sprinter, brute, soldier, hound, dragger, Bell-wight, rotbelly, your own risen body), with sprinters one of them. When you die **your body rises** as a Zombai carrying the items you dropped. The map has one coast where everyone lands by boat, and mountains and the Dimming's grey wall on the other sides, with danger rising inland. Older entries below keep the old name as history.
 - **Week 01 (2026-11-25, one skill tree, light deaths, potions):** The owner answered the first round of questions on fitting the docs to the survival game: "just one skill tree for your character and branches to go down", "you should just lose a couple items in your bag on death", "magic like health potions and stamina potions and one-use scrolls", and no backgrounds. Direction 5 is now one character level (cap 50 to start) and one skill tree with five branches (Survival, Fighting, Building, Scavenging, Crafting), more nodes than points so characters specialise, a rare scroll to reset; today's four skills fold into character XP through an add-only migration. Death drops two or three random stacks in a sack where you fell and keeps the rest and the tree (the "What death costs" server rule now offers that, the whole pack, or hardcore). Magic is health and stamina potions and one-use scrolls; runes in walls and enchanting relics are dropped. Character creation is looks only.
 - **Week 01 (2026-11-25, survival servers, not an MMO):** The owner, after reviewing the art bible: "We need the bible redone. We are no longer making a MMO, it will at most have maybe 100 player servers. Like 7 days or project zomboid." Rewrote the North star, the vision paragraph and pillar 4 (survivors together; PvE by default, PvP a server rule), and replaced direction 8's "2 to 8 friends in co-op" with servers of up to about 100 players that anyone can run, shaped by server rules shown before you join. Directions 2 to 6 keep their meaning but drop the MMO framing (the reference is now modern third-person action games and survival sandboxes); direction 3 adds looting to gathering; direction 5 makes what death costs and XP rate server rules. Direction 7 now says clear sunny days with no haze (the owner approved the test-camp look on 2026-11-25), and the art bible's lighting follows. "The world" is now the fallen kingdom, with Ashgrove as the live test world. Phase 5 becomes "Servers for up to 100", and the technical principles add interest management and a load test before the live cap rises. Direction 9 (the basics first, PR #220) is unchanged. `docs/vision.md`, the art bible's framing, the roadmap and CLAUDE.md follow. The design forks this opened (PvP, the cap path, map size, claims, loot refills, wipes) are settled with a recommendation in `docs/vision.md`, "Server rules", until the owner says otherwise; the owner then chose PvP's: PvE by default, PvP a server option.
 - **Week 01 (2026-11-25, the basics first):** The owner asked to start with the basics: character customization, zombie survival, a randomly generated map, and landmarks with loot. Added owner direction 9: those four come before polish in every stream, and each worker's backlog was cut down to them (world first, 2026-11-25).

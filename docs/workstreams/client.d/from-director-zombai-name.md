@@ -1,0 +1,1 @@
+Request (from director, 2026-11-25): the owner renamed the undead **the Zombai**. Every player-facing string (prompts, notices, toasts, the controls card, patch-note fragments) says Zombai, never Gloam. Code names may stay.

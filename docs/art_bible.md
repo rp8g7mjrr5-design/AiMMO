@@ -182,7 +182,7 @@ group, so a hand hanging by the belt never melts into the hip. The test camp's s
   plus a fine texel grain (about 1.8 cm) so cloth never looks like bare plastic.
 - Muted, earthy and slightly dirty: no bright primaries, no pure colours, no glow. Ember on a
   character is reserved for gear that does something, later.
-- The Gloam use this same body with the art bible's ash-cold palette and torn layers, so the
+- The Zombai use this same body with the art bible's ash-cold palette and torn layers, so the
   living read warm and the dead read cold at a glance (`docs/vision.md`).
 
 **Silhouette, read from the back first** (the action camera sees the back all game): head
@@ -238,7 +238,7 @@ the targets.
 | Dawn | Deep blue top, ember-rose horizon | Low, red-orange, weak | Long blue shadows, clear air | Cold and quiet, the land waking |
 | Morning | Clear blue, paler at the horizon | Warm gold (`GOLDEN_LIGHT`) rising to white | Long shadows shortening, warm faces | Fresh and bright; the day opens up |
 | Noon and afternoon | Clean, deep sky blue, never flat postcard cyan | Strong warm white sun | Olive and rust in full colour, crisp shadow shapes (sky fill kept low) | Sunny and clear for most of the day; bright but never washed out or lime |
-| Golden hour and dusk | Warm horizon, then rose-violet top and ember horizon | Low gold, then sinking red-orange | Long shadows, ground goes dark first, crowns hold the last light | Short and precious; melancholy; lamps and fires come on, the Gloam stir |
+| Golden hour and dusk | Warm horizon, then rose-violet top and ember horizon | Low gold, then sinking red-orange | Long shadows, ground goes dark first, crowns hold the last light | Short and precious; melancholy; lamps and fires come on, the Zombai stir |
 | Night | Deep navy with stars, never black | Moonlight (`MOONLIGHT`), dim | Blue-grey meadow, ember crowns and lanterns carry the colour | Dark and a little dangerous, but you can always see the path and every player |
 
 - **Sunny-day bias.** Most of the day is clear and sunny with the sun well up: readable land,
@@ -284,7 +284,7 @@ The *expression* of any particular game is not. Concretely, never:
 - **References in public**: patch notes, in-game text and PRs describe *our* look in our words;
   they never say "like <game>".
 When in doubt, push it further toward ember, cold ash, weathered wood and clean sunlight on old
-stone, which no one else owns. The Gloam are never shaped or coloured like another game's
+stone, which no one else owns. The Zombai are never shaped or coloured like another game's
 zombies (green skin, exposed brains, hazmat looks): they are the kingdom's dead, grey and
 ash-cold, in what they died wearing.
 
@@ -340,10 +340,10 @@ The look is designed so that it is cheap. These rules are as binding as the pale
 - **Lights:** one shadowed sun (shadow distance 120 m or less), every other light unshadowed,
   and at most 8 lit at once near the player. Glow through emission instead of lights.
 - **Crowds** (servers of up to about 100, owner 2026-11-25): the client only draws the players,
-  Gloam and animals the server tells it about (interest management, `docs/vision.md`). Bodies
+  Zombai and animals the server tells it about (interest management, `docs/vision.md`). Bodies
   past about 40 m use a cheaper LOD of the sculpted body, and past about 120 m a simple
   silhouette; a horde night at a busy hold must fit the same budget as the spawn shot. qa adds a
-  crowd shot (about 30 players and 40 Gloam in view) to the smoke test before the live cap
+  crowd shot (about 30 players and 40 Zombai in view) to the smoke test before the live cap
   passes 24.
 - **Effects are pooled.** Effects reuse a fixed pool (as `NodeFx` does): no meshes or nodes
   created or freed while playing, no per-frame allocations. Particles are capped by quality.

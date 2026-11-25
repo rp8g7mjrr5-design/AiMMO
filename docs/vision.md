@@ -19,15 +19,15 @@ or looks from any of them.
 
 ## The game in one paragraph
 **ZombAi** is a third-person survival game set in a **fallen kingdom**. The kingdom died when the
-Dimming rose, and its dead got back up as **the Gloam** (owner's name, 2026-11-24): the
+Dimming rose, and its dead got back up as **the Zombai** (owner's name, 2026-11-24): the
 kingdom's dead, filled with the Dimming's twilight. Each server is a freshly generated
 stretch of that kingdom: forests, moors, rivers, the old king's roads, and the **ruins**
 (burned farmsteads, a drowned village, mines, abbeys, and a castle at the heart of it). Each ruin
 is graded by how much it can kill you and how much it pays. You **make your character** and
 arrive with nothing. You eat, drink, keep warm, bandage what bleeds, and learn that noise brings
-the Gloam and **ember-fire burns them**. With the people you trust you **claim a piece of land**
+the Zombai and **ember-fire burns them**. With the people you trust you **claim a piece of land**
 and build it up from a lean-to to a walled hold, with what you **gather** and what you **loot**
-from richer and deadlier ruins. On **horde nights** the Gloam come in numbers for the holds that
+from richer and deadlier ruins. On **horde nights** the Zombai come in numbers for the holds that
 have grown loud, bright and rich. A counter keeps score: **days survived**. There is no ending:
 the goal is to survive, build and grow stronger for as long as you like. It's played on
 **servers of up to about 100 players**: alone, with a few friends, or as part of a whole
@@ -40,7 +40,7 @@ alive in for as long as you like, and **days survived** is the score. The core l
 the owner loves most, and what every phase serves:
 1. **Base building.** A hold that grows from a lean-to to a walled keep, with real choices about
    where to build, what to wall and what to upgrade.
-2. **Getting invaded.** The Gloam come for your base, and the bigger, louder and richer it gets,
+2. **Getting invaded.** The Zombai come for your base, and the bigger, louder and richer it gets,
    the bigger the invasions: a few stragglers at first, then **horde nights**, then rare great hordes
    with soldiers and wights that test every wall and gate. Holding the walls with friends is the
    game's signature moment.
@@ -66,7 +66,7 @@ the owner loves most, and what every phase serves:
 - **Not an MMO (owner, 2026-11-25).** One server is one world of up to about 100 players.
   There is no shared universe across servers, no global economy and nothing that needs
   thousands of players to work.
-- **Players: servers of up to about 100** (owner, 2026-11-25), PvE against the Gloam and the
+- **Players: servers of up to about 100** (owner, 2026-11-25), PvE against the Zombai and the
   land by default; how players treat each other is a **server rule** (section "Server rules").
   Solo play and a handful of friends work too. Today the official always-on Railway world holds
   8 and must never break; its cap rises in steps (section "Getting to 100").
@@ -76,49 +76,66 @@ the owner loves most, and what every phase serves:
 
 ## The lean: accessible, action-heavy, worth sharing
 - **Quick to learn.** In the first five minutes a new player drinks, eats, lights a fire, fights
-  one of the Gloam and knows what will kill them. Every danger is visible and explained the first time.
+  a Zombai and knows what will kill them. Every danger is visible and explained the first time.
   Needs are forgiving and come back fast.
 - **Good in a short session.** Thirty minutes always pays: a ruin looted, a wall raised, a
   level and a point in the tree, a night survived. A day and night lasts about 40 minutes.
 - **Moments worth clipping:** a horde night held by torchlight; a run into the castle's crypt
-  and out again with the hounds behind you; a friend dragged back from a Gloam pack at the
+  and out again with the hounds behind you; a friend dragged back from a Zombai pack at the
   last second; a stranger's torch on the road at night, and the choice to wave or hide.
-- **Readable for viewers.** Clear silhouettes (the Gloam grey and ash-cold, the living warm and
+- **Readable for viewers.** Clear silhouettes (the Zombai grey and ash-cold, the living warm and
   cloth-coloured), a quiet HUD, effects that are big only for the big moments, and a streamer
   mode.
 - **Fair failure.** Death costs you a couple of things from your pack, never what you know. You're back in under a
   minute.
 
-## The Gloam (our undead)
-The kingdom's dead, emptied by the Dimming. They fit the name without copying anyone's zombie.
-- **Behaviour:** they shamble by day and get faster and gather at night. They're drawn to noise
+## The Zombai (our undead; owner named them, 2026-11-25)
+The kingdom's dead, emptied by the Dimming. The owner renamed them from "the Zombai" to **the
+Zombai** (one Zombai, many Zombai). They fit the name without copying anyone's zombie, and their type names are ours (never
+another game's names for its zombies).
+- **Where they are** (owner, 2026-11-25): a few wander the open land by day, they are thick in
+  and around ruins, and they come in packs at night. That leaves room to gather and build by
+  day and makes every ruin and every night a real risk.
+- **Behaviour:** they shamble by day and move faster at night. They're drawn to noise
   (fighting, chopping, breaking walls, bells) and to the smell of blood. Alone they're
   beatable; packs are deadly.
-- **Kinds** (each with a clear silhouette and telegraph): the common **walker**; the **Gloam
-  soldier** in rusted mail, found in castles and forts, slow and hard to put down; the
-  **Gloam hound**, fast and in packs, found on the moors; the **Bell-wight**, rare, whose
-  shriek calls every one of the Gloam nearby (silence it first). More come in the "Depth" phase.
-- **Only near people.** The Gloam are simulated in full near players; the empty half of a
+- **Types** (owner, 2026-11-25: "we should have different types of Zombai"), each with a clear
+  silhouette, a telegraph and a counter. Draft list, to be confirmed with the owner:
+  - **Walker:** the common one; slow, the baseline every new player learns on.
+  - **Sprinter:** fast and fragile, alone or in pairs, mostly at night. Hear it, turn, block.
+  - **Brute:** big and slow, takes a beating, smashes doors and timber walls; the reason to
+    build in stone.
+  - **Soldier:** in rusted mail with a shield, blocks your swings; found in castles and forts.
+  - **Hound:** a dead dog or wolf, fast and in packs, on the moors and at night.
+  - **Dragger:** legless, low in grass and rubble, grabs ankles; watch the ground in ruins.
+  - **Bell-wight:** rare; its shriek calls every Zombai nearby. Silence it first.
+  - **Rotbelly:** swollen, bursts when killed into a cloud that gives the chill. Kill it at
+    range or with fire.
+  - **Your own risen body** (see Dying): a Zombai carrying your dropped items, near where you
+    fell.
+  More come in the "Depth" phase. Which types a server spawns and how fast night Zombai are
+  (sprinters everywhere or not) are server rules under Zombai difficulty.
+- **Only near people.** Zombai are simulated in full near players; the empty half of a
   100-player map costs the server next to nothing.
 - **Ember burns them.** Torches keep them wary, ember-tipped weapons hit hard, and an ember
   hearth inside your walls stops them rising in your hold. This makes the existing ember motif
   the core of the game.
-- **The chill.** A Gloam's grip can leave the chill, which slowly drains your warmth. An ember
+- **The chill.** A Zombai's grip can leave the chill, which slowly drains your warmth. An ember
   salve cures it if you treat it the same day. It's dangerous but never a hidden death sentence.
 
 ## The map: a generated kingdom with graded ruins
 - **Generator:** a seed per world. It lays out the land (coast or highland rim, rivers to the
   sea or a lake, forests, moors, farmland gone wild, stone hills, snow on the high ground), then
   the **king's roads** between the ruins, then the ruins themselves, then resource nodes,
-  wildlife and Gloam spawns. The terrain stays deterministic from the seed, so a server sends a
+  wildlife and Zombai spawns. The terrain stays deterministic from the seed, so a server sends a
   seed and never terrain, and the client builds terrain in chunks around the player.
 - **Ruins** are hand-designed set pieces written as data and placed by the generator, each with a
-  risk grade, a loot table and its own Gloam. Every world has the high-grade ones and a random
+  risk grade, a loot table and its own Zombai. Every world has the high-grade ones and a random
   mix of the rest.
 
 | Grade | Examples | Danger | Pays |
 |---|---|---|---|
-| 1 Quiet | Roadside shrine, burned farmstead, woodcutter's hut | A few Gloam | Food, cloth, basic tools |
+| 1 Quiet | Roadside shrine, burned farmstead, woodcutter's hut | A few Zombai | Food, cloth, basic tools |
 | 2 Uneasy | Abandoned village, toll bridge, watchtower | Small groups, a hound pack nearby | Better tools, the first weapons, the first iron |
 | 3 Grim | The old mine, the drowned village, a walled abbey | Soldiers, tight spaces, darkness | Ore, ember salve, armour pieces, **signet keys** |
 | 4 Deadly | The fallen castle, the royal crypt beneath it | Many soldiers, wights, hounds; a key to get in deep | The best gear, the strongest potions and rare scrolls |
@@ -131,8 +148,11 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
   link the ruins, with the high-grade ones toward the centre or the far side from the spawn
   coast. Bigger maps get more ruins of each grade, so 100 players are spread over many places,
   not queued at one castle.
-- **Spawns:** new characters arrive at one of several spawn points along the quiet edge of the
-  map, spread so a busy server doesn't drop everyone in one meadow.
+- **Edges** (owner, 2026-11-25): one **coast** where everyone arrives by boat, and **mountains
+  and the grey wall of the Dimming** on the other sides. Danger and the ruin grades rise the
+  further you get from the coast.
+- **Spawns:** new characters come ashore at one of several landing points along the coast,
+  spread so a busy server doesn't drop everyone on one beach.
 
 ## Surviving, building, getting stronger
 - **Needs:** hunger, thirst, warmth and rest. Each is a quiet icon that only shows when it
@@ -141,12 +161,12 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
 - **Food and fire:** forage, hunt, cook; food spoils slowly, and salting and smoking keep it.
   Farming comes later.
 - **Combat:** the action combat already on `main` (aimed light and heavy swings, block, dodge on
-  stamina), extended with bows and crossbows, against the Gloam and wildlife. PvP and friendly fire are
+  stamina), extended with bows and crossbows, against the Zombai and wildlife. PvP and friendly fire are
   server rules, off by default (section "Server rules").
 - **Building:** snap-grid timber and stone (foundations, walls, doors, roofs, palisades, gates),
   chests, an ember hearth, a bedroll. Tiers: wood, stone, iron-bound. Defences you loot and
   craft toward: spiked barricades, pit traps, arrow slits, a gatehouse, braziers that burn
-  the Gloam, a bell to warn the others.
+  the Zombai, a bell to warn the others.
 - **Claimed land:** a band stakes its land with a **claim marker** (a banner or boundary stone,
   final look to world). The claim sets where you can build, and grows as you build it up (more
   plots as your hold gets bigger). It sets the base's footprint and its threat, and on a server
@@ -157,7 +177,7 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
   the HUD and loudly when you die ("You survived 23 days"), and each world counts its age. Best
   runs are kept per character and per world.
 - **Nights come in rounds (owner, 2026-11-24: "round survive element at night").** A night
-  (about 17 of the day's 40 minutes) is fought in **rounds**: the Gloam come in waves until
+  (about 17 of the day's 40 minutes) is fought in **rounds**: the Zombai come in waves until
   dawn, each round a little bigger and tougher than the last, with a **short lull** between
   rounds (about a minute) to repair walls, rearm and drag a friend back inside. The round number
   and the days-survived counter sit on screen at night. Rounds come for **you**: at your base they
@@ -166,12 +186,12 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
 - **The Tolling (our horde night, not a fixed-calendar moon).** The big one. It isn't on a
   calendar: it is triggered when your base's **threat** crosses a line, and announced the evening
   before by a far bell that tolls from the direction it will come. A Tolling night has more
-  rounds, Gloam soldiers and wights among them, and a last round that tests every wall and gate.
+  rounds, soldiers and wights among them, and a last round that tests every wall and gate.
   Its size scales with threat and with days survived.
 - **Invasions:** each base has a **threat** that rises with its size, noise, light and stored
   wealth. Threat decides how big the next invasion is and how often they come, shown on a quiet
-  gauge so you always know what's coming. The Gloam break doors and weak walls (never stone
-  without siege-type Gloam), so upgrades matter. Never instant: an invasion is announced by a
+  gauge so you always know what's coming. The Zombai break doors and weak walls (never stone
+  without siege-type Zombai), so upgrades matter. Never instant: an invasion is announced by a
   sound and a sight a minute before it hits.
 - **Vehicles:** horses (tame, feed, stable, ride; a horse can be hurt and must be looked after),
   carts (hitched to a horse, hauling a ruin's worth of loot), and boats (rowboat first, then a
@@ -184,7 +204,10 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
 - **Dying** (owner, 2026-11-25): you drop **a couple of items from your pack** (two or three
   random stacks, never what you hold in your hands) in a small sack where you fell, and wake at
   your bedroll or a spawn point in under a minute with everything else. Your level and tree
-  are kept. Anyone can pick up the sack, so go back for it. The days-survived counter resets.
+  are kept. **Your body rises** (owner, 2026-11-25): a Zombai in your clothes and your look,
+  carrying those items, wandering near where you fell. Hunt it down and put it down to get them
+  back; anyone else who kills it gets them instead. It is shown on your map for a while, and it
+  crumbles to a sack after a few in-game days. The days-survived counter resets.
 - **Character creation is looks only** (owner, 2026-11-25): body, face, skin, hair, beard and
   cloth on the sculpted body. No backgrounds or starting classes: what you become comes from
   the tree.
@@ -216,7 +239,7 @@ character in that server's world. A player can have characters on many servers.
 **Holds are safe while their owners are away.** The world never stops on a dedicated server,
 so nothing attacks what nobody is there to defend:
 - Night rounds and invasions only come for players who are online, and a base is only attacked
-  by the Gloam while at least one of its owners is online. A Tolling that comes due while its
+  by the Zombai while at least one of its owners is online. A Tolling that comes due while its
   base's owners are all offline waits until one of them logs in, and its evening-before bell
   rings then.
 - On a server with PvP, other players can only break into a hold while one of its owners is
@@ -245,7 +268,7 @@ defaults.
 | Claim protection | **on** (only your band builds, opens chests and doors on your claim), off | On a server of strangers, a claim must mean "mine" |
 | Loot refills | ruins refill **daily (in-game)**, weekly, never | Late joiners still find loot on a busy server |
 | Day length | 20 to 90 minutes, **40** | |
-| Gloam difficulty | gentle, **normal**, hard; and night rounds on or off | Harder is a choice, never the default |
+| Zombai difficulty | gentle, **normal**, hard; and night rounds on or off | Harder is a choice, never the default |
 | What death costs | **drop a couple of items from your pack**, drop the whole pack, or hardcore (start a new character) | Fair failure by default (owner, 2026-11-25) |
 | XP rate | 0.5x to 3x, **1x** | One curve, scaled |
 | World reset | **never**, or on a schedule the server shows | Never on the official world without the owner |
@@ -270,9 +293,9 @@ bands.
 ### Getting to 100
 The server we have sends every player to every player. That is fine at 8 and not at 100. The
 live cap only goes up after the server proves it can hold that number:
-1. **Interest management:** a client only hears about players, the Gloam, animals and drops
+1. **Interest management:** a client only hears about players, the Zombai, animals and drops
    within its bubble (about 150 to 200 m). This comes before the cap passes 24.
-2. **The Gloam near players only:** full simulation within the bubbles, a cheap coarse
+2. **The Zombai near players only:** full simulation within the bubbles, a cheap coarse
    simulation (or none) everywhere else.
 3. **A load test in CI** (qa): the bot test's 8 bots still run on every PR; a separate load
    test connects as many bots as the next cap step (24, then 50, then 100) for at least 3
@@ -289,7 +312,7 @@ Magic is small, useful and ember-based. It is something you drink or read, never
   ruins. Drinking takes a moment and you can be hit while you drink.
 - **One-use scrolls**, found in ruins (rarer and stronger in grade 3 and 4 vaults): a burst of
   ember-fire around you, a flare that lights the field for a night round, a ward that keeps
-  the Gloam off one gate until dawn, and the rare scroll that resets your skill tree.
+  the Zombai off one gate until dawn, and the rare scroll that resets your skill tree.
 - Nothing else: no runes in walls, no enchanted relics, no spells you learn.
 All of it follows the art bible's restraint: effects are warm light and sparks, short and rare.
 
@@ -305,7 +328,7 @@ is easy to tune.
 | Godot client and headless authoritative server, ENet and WebSocket; the official always-on Railway world | One fixed valley becomes a generated kingdom per server, built in chunks; the server learns interest management and server rules | The MMO framing, "thousands on one world", anything shared across servers |
 | Gathering with E, timed bars, nodes; the bench and crafting; skills and XP | Vitals grow into needs and wounds; inventory gets weight; one global chat becomes nearby, band and server chat | The 8-player co-op cap as a design limit (it stays only as the live world's current setting) |
 | The third-person action camera, swings, dodge, block | Ashgrove's ember lore becomes the fallen kingdom's (the Dimming, the ember) | The towns-MMO plan (PR #184, closed); the old "Later, maybe" of 16 to 48 player PvP servers, now folded into server rules |
-| Grounded art and its budgets; wildlife; the character creator | New: ruins, the Gloam, building, death and loot, bands, server rules, the server list and dedicated server download | |
+| Grounded art and its budgets; wildlife; the character creator | New: ruins, the Zombai, building, death and loot, bands, server rules, the server list and dedicated server download | |
 | CI, bot test, fun metrics, the self-updating client, the worker setup | Fun metrics add survival measures (time to first fire, nights survived, ruins cleared); qa adds a load test | |
 
 ## Rename (done 2026-11-24)

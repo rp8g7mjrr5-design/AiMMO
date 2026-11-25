@@ -3,7 +3,7 @@
 Read this file first, every session. You start with no memory; this repo is your memory.
 
 ## Mission
-**ZombAi** (the repo was renamed from AiMMO on 2026-11-24; the game's internal data folder and `AIMMO_*` settings keep the old name on purpose, see `docs/vision.md`) is a real-time 3D **third-person open-world zombie survival sandbox** built by its owner and AI together (owner direction, 2026-11-24 and 2026-11-25): a fallen medieval kingdom on generated maps full of risk-graded ruins, the Gloam (our own undead), building and surviving on **servers of up to about 100 players** under rules each server sets, sold as a one-time buy. **It is not an MMO** (owner, 2026-11-25). Today's official always-on Railway world is one such server, capped at 8 until load tests prove more; never break it. **Read `docs/vision.md` every session**; it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
+**ZombAi** (the repo was renamed from AiMMO on 2026-11-24; the game's internal data folder and `AIMMO_*` settings keep the old name on purpose, see `docs/vision.md`) is a real-time 3D **third-person open-world zombie survival sandbox** built by its owner and AI together (owner direction, 2026-11-24 and 2026-11-25): a fallen medieval kingdom on generated maps full of risk-graded ruins, the Zombai (our own undead), building and surviving on **servers of up to about 100 players** under rules each server sets, sold as a one-time buy. **It is not an MMO** (owner, 2026-11-25). Today's official always-on Railway world is one such server, capped at 8 until load tests prove more; never break it. **Read `docs/vision.md` every session**; it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
 
 ## Autonomy rules
 - Never wait for human input and never ask questions. Make the call, write down why, move on.
@@ -37,7 +37,7 @@ Read this file first, every session. You start with no memory; this repo is your
 ```
 CLAUDE.md                 ← this file
 docs/
-  vision.md               ← the game: ZombAi, a fallen kingdom, ruins, the Gloam (owner direction)
+  vision.md               ← the game: ZombAi, a fallen kingdom, ruins, the Zombai (owner direction)
   research/               ← design studies behind the vision
   design_bible.md         ← world, lore, art direction, core systems (AI-owned)
   art_bible.md            ← the art direction and style guide: Emberlight, grounded; render budgets (read before any visual change)
