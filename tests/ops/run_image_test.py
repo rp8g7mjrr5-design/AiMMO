@@ -181,8 +181,11 @@ def scenario_boots_plays_stops(image: str, work: Path) -> list:
     # The bots type /time, /who and /skills, which are dev commands: off by default since
     # gameplay's chat gate (#139), so this one container switches them on the way an operator
     # would, with the env var (the image's CMD takes no flags). The frozen container keeps the
-    # image's default.
-    c = Container(image, work, "plays", extra_env={"AIMMO_DEV_COMMANDS": "1"})
+    # image's default. AIMMO_GLOAM=0 keeps the world quiet for the bots' scripted checks, as
+    # run_bot_test.py's --gloam=0 does: walkers rise on their own by default since 2026-11-25,
+    # and one grabbing a bot mid-check (15 health) failed gameplay_vitals' "/hurt 30 from full"
+    # (PR #228 CI).
+    c = Container(image, work, "plays", extra_env={"AIMMO_DEV_COMMANDS": "1", "AIMMO_GLOAM": "0"})
     problems = []
     try:
         c.server_pid()

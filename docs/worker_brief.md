@@ -26,6 +26,11 @@ player will feel that they didn't before. In practice: every action answers with
 100 ms (sound, motion, flash, number); a first reward within about 60 s of spawning; every
 loop ends in a payoff you can see, hear and use; no dead time; always one clear next goal.
 
+## A clean fight (design bible, owner direction 10)
+No text on screen in a fight: threats, blows, kills and knock-downs are told by motion and
+sound only. Full speed only forward; backing off is a walk, capped on the server. Animations
+blend, feet hold the ground, nothing plays twice or snaps.
+
 ## The look (art bible sections 0, 11, 12)
 Grounded, not cute: real proportions, muted earthy colours (naturals under about 0.45
 saturation), the ember glow only on things you can use, clear sunny days and real nights,

@@ -43,6 +43,13 @@ var gather_prompt: GatherPrompt
 var xp_meter: XpMeter
 var vitals_bar: VitalsBar ## health and stamina, under the XP bar (protocol v7 s2c_vitals)
 var level_up_banner: LevelUpBanner
+## Knocked down: the screen goes dark and you come to, lying in Spawn Meadow, and get up.
+## No words (owner, 2026-11-25); CAME_TO_DARK s fully dark, then CAME_TO_FADE s back to light.
+var came_to_shade: ColorRect
+var _came_to_t := INF
+const CAME_TO_DARK := 0.35
+const CAME_TO_FADE := 1.1
+const CAME_TO_LIE := 0.7 ## s you lie there before getting up
 var sfx_level_up: AudioStreamPlayer
 var gather_watch := GatherWatch.new() ## everyone's gathers -> node hits and empty looks
 var sfx_haul := {} ## node kind -> AudioStreamPlayer for Sfx.haul(kind)
@@ -84,9 +91,6 @@ var herd := HerdView.new() ## the grazers in view (protocol v6), smoothed
 var grazers: GrazerFigures ## draws them, in the world
 var zombai := ZombaiView.new() ## the Zombai walkers in view (protocol v10), smoothed
 var zombai_figures: ZombaiFigures ## draws them and gives them voices, in the world
-var _zombai_told := false ## the first grab's hint has been shown this session
-const ZOMBAI_WARN_RANGE := 3.0
-const ZOMBAI_GRAB_HINT := "Its arms are up: step back, or hit it first."
 var _args := {} ## command-line test hooks
 
 
@@ -480,7 +484,9 @@ func _move_vector() -> Vector2:
 		return Vector2.ZERO
 	var f := Input.get_action_strength("move_forward") - Input.get_action_strength("move_back")
 	var r := Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
-	return ActionCamera.move_vector(f, r, cam.move_yaw())
+	# You face where the camera looks while you move, so backing off is a walk, not a run
+	# (Movement.limit_for_facing; the server caps it the same way).
+	return Movement.limit_for_facing(ActionCamera.move_vector(f, r, cam.move_yaw()), ActionCamera.facing_yaw(cam.move_yaw()))
 
 
 func _process(delta: float) -> void:
@@ -489,6 +495,7 @@ func _process(delta: float) -> void:
 	vitals_bar.step(delta)
 	level_up_banner.step(delta)
 	notice_line.step(delta)
+	_step_came_to(delta)
 	if settings_menu.visible and settings_menu.in_game:
 		settings_menu.refresh_home(Time.get_ticks_msec())
 	pack_window.step(delta)
@@ -588,8 +595,11 @@ func _update_gather(delta: float, my_pos: Vector3, eye: Vector3, look: Vector3) 
 		# The server never cuts a gather short for a swing: cancel it first (reliable, ordered).
 		if bool(attack.cancel_gather) and str(op.get("op", "")) != "cancel":
 			net.play.c2s_gather_cancel.rpc_id(1)
-		net.play.c2s_attack.rpc_id(1, str(attack.kind), ActionCamera.facing_yaw(cam.move_yaw())) # face where the camera looks, like c2s_input
+		var swing_yaw := ActionCamera.facing_yaw(cam.move_yaw())
+		net.play.c2s_attack.rpc_id(1, str(attack.kind), swing_yaw) # face where the camera looks, like c2s_input
 		_attack_sent_at = _now()
+		if avatars.has(my_id):
+			avatars[my_id].yaw = swing_yaw # turn into the blow now, not the old heading
 	_apply_node_ops(gather_watch.tick(now))
 
 
@@ -828,33 +838,58 @@ func _on_wildlife(entries: PackedFloat32Array) -> void:
 
 
 ## The Zombai walkers in view (protocol v10, about 5 a second): smoothed by ZombaiView, drawn
-## and voiced by ZombaiFigures; arms coming up rasp where they happen.
+## and voiced by ZombaiFigures; arms coming up rasp where they happen. No words on screen in a
+## fight (owner, 2026-11-25): the raised arms and the rasp are the warning.
 func _on_zombai(entries: PackedFloat32Array) -> void:
 	if not logged_in:
 		return
 	var now := _now()
-	var events := zombai.feed(entries, now)
-	zombai_figures.play_events(events, zombai, now)
-	# The first raised grab that comes for you is explained once (vision: every danger is
-	# visible and explained the first time).
-	if not _zombai_told and prediction.has_position:
-		for e in events:
-			if str(e.event) == "windup" and zombai.position(int(e.id), now).distance_to(prediction.position) < ZOMBAI_WARN_RANGE:
-				_zombai_told = true
-				notice_line.show_notice(ZOMBAI_GRAB_HINT, true)
-				break
+	zombai_figures.play_events(zombai.feed(entries, now), zombai, now)
 
 
 ## s2c_gloam_hits: a blow landed on walkers. Each one struck jerks (a heavy blow rocks it
-## back) and the ones put down go over where they stood; your own connecting blow smacks.
+## back) and the ones put down go over where they stood with a thud; your own connecting blow
+## smacks. The fall says it: no "Zombai down." text (owner, 2026-11-25).
 func _on_zombai_struck(peer_id: int, kind: String, walker_ids: Array, downed: Array) -> void:
 	if not logged_in:
 		return
 	var events := zombai.struck(kind, walker_ids, downed, _now())
 	if peer_id == my_id and not events.is_empty():
 		sfx_thwack.play()
-		if not downed.is_empty():
-			notice_line.show_notice("Zombai down.", false)
+
+
+## Vitals.KNOCKED_DOWN_TEXT arrived: you were knocked down and the server moved you to Spawn
+## Meadow. The screen drops dark, then lifts on you lying there, getting back up.
+func _came_to() -> void:
+	_came_to_t = 0.0
+	if came_to_shade != null:
+		came_to_shade.visible = true
+		came_to_shade.color.a = 1.0
+	if avatars.has(my_id):
+		var anim: AvatarAnimator = avatars[my_id].anim
+		anim.lie_down()
+
+
+## Opacity of the knocked-down shade `t` seconds after it dropped: dark, then easing to clear.
+static func came_to_alpha(t: float) -> float:
+	if t < CAME_TO_DARK:
+		return 1.0
+	var k := clampf((t - CAME_TO_DARK) / CAME_TO_FADE, 0.0, 1.0)
+	return 1.0 - k * k * (3.0 - 2.0 * k)
+
+
+func _step_came_to(delta: float) -> void:
+	if _came_to_t == INF:
+		return
+	var before := _came_to_t
+	_came_to_t += delta
+	if before < CAME_TO_DARK + CAME_TO_LIE and _came_to_t >= CAME_TO_DARK + CAME_TO_LIE and avatars.has(my_id):
+		(avatars[my_id].anim as AvatarAnimator).get_up()
+	if came_to_shade != null:
+		came_to_shade.color.a = came_to_alpha(_came_to_t)
+		came_to_shade.visible = came_to_shade.color.a > 0.0
+	if _came_to_t >= CAME_TO_DARK + CAME_TO_FADE and _came_to_t >= CAME_TO_DARK + CAME_TO_LIE:
+		_came_to_t = INF
 
 
 static func _now() -> float:
@@ -875,6 +910,9 @@ func _on_chat(from_name: String, text: String) -> void:
 
 
 func _on_system(text: String) -> void:
+	if text == Vitals.KNOCKED_DOWN_TEXT:
+		_came_to()
+		return # the fade and getting up say it: no words (owner, 2026-11-25)
 	if level_up_banner != null and level_up_banner.consume_system(text):
 		return # the banner already said it (chat is for talking)
 	var echo := gather_prompt != null and gather_prompt.on_system(text)
@@ -1321,6 +1359,13 @@ func _build_ui() -> void:
 	notice_line.offset_bottom = -150 + NoticeLine.HEIGHT
 	ui.add_child(notice_line)
 	notice_line.setup(theme)
+	came_to_shade = ColorRect.new()
+	came_to_shade.name = "CameToShade"
+	came_to_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	came_to_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	came_to_shade.color = Color(0.02, 0.015, 0.01, 0.0)
+	came_to_shade.visible = false
+	ui.add_child(came_to_shade)
 	level_up_banner = LevelUpBanner.new()
 	level_up_banner.anchor_left = 0.5
 	level_up_banner.anchor_right = 0.5
@@ -1609,9 +1654,9 @@ func _on_swing_landed(peer_id: int, _kind: String, creature_ids: Array) -> void:
 
 
 ## s2c_attack_refused: "busy" is dropped quietly (a mashed button); being winded or tired
-## reddens the stamina bar and says why centre screen, so the "no" points at the bar.
+## reddens the stamina bar with the nope, so the "no" points at the bar (no words mid-fight,
+## owner, 2026-11-25).
 func _on_attack_refused(_kind: String, reason: String) -> void:
 	if reason == "winded" or reason == "tired":
 		vitals_bar.flash_stamina()
-		notice_line.show_notice(Weapons.refusal_text(reason), true)
 		sfx_nope.play()

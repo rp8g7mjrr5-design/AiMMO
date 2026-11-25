@@ -88,10 +88,24 @@ static func lean_side(id: int) -> float:
 
 ## --- poses ---
 
+## The speed the shamble's legs are drawn at for ground speed `speed`: a dragging,
+## short-stepped walk, never a run.
+static func leg_speed(speed: float) -> float:
+	return minf(speed, 2.2) * 0.8
+
+
+## Stride cycles per metre walked at ground speed `speed`, so a planted foot holds still on the
+## ground: the gait's own cadence over the leg speed. A faster walker takes quicker short steps
+## instead of its feet skating back along the grass.
+static func strides_per_metre(speed: float) -> float:
+	var s := maxf(leg_speed(speed), 0.3)
+	return AvatarClips.cadence(s) / s
+
+
 ## The shamble at stride `phase` (0..1) and ground speed `speed` m/s, `t` seconds alive.
 static func shamble(phase: float, speed: float, t: float, sd: float = 1.0) -> Dictionary:
 	# The traveller's own gait, slowed in the legs (a dragging, short-stepped walk) ...
-	var p := AvatarClips.gait(phase, minf(speed, 2.2) * 0.8)
+	var p := AvatarClips.gait(phase, leg_speed(speed))
 	var sway := sin(TAU * phase) # +1 as the left foot comes through
 	var hitch := maxf(0.0, sin(TAU * phase + 0.6)) # the bad leg: a lurch once a stride
 	var go := clampf(speed / 0.8, 0.0, 1.0)

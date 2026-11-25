@@ -21,6 +21,8 @@ const CLIPS := {
 	"walk": [1.6, "Walk 1.5 m/s"],
 	"run": [1.5, "Run 6 m/s"],
 	"walk_to_run": [3.0, "Walk to run and stop"],
+	"backpedal": [1.6, "Backpedal (S): a walk, never a run"],
+	"strafe": [1.6, "Strafe (D): hips to the travel"],
 	"chop": [1.6, "Chop (ash, pine)"],
 	"mine": [2.0, "Mine (stone)"],
 	"collect": [2.8, "Collect (ember sap)"],
@@ -89,16 +91,21 @@ func _scene() -> void:
 	root.add_child(sun)
 	floor_node = Node3D.new()
 	root.add_child(floor_node)
-	for i in range(-30, 31):
-		var stripe := MeshInstance3D.new()
-		var m := BoxMesh.new()
-		m.size = Vector3(3.0, 0.02, 0.25)
-		stripe.mesh = m
+	# A checker, so a foot sliding either way (a strafe too) shows against it.
+	var m := BoxMesh.new()
+	m.size = Vector3(0.25, 0.02, 0.25)
+	var mats: Array = []
+	for c in [Color(0.42, 0.45, 0.36), Color(0.5, 0.53, 0.43)]:
 		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.42, 0.45, 0.36) if i % 2 == 0 else Color(0.5, 0.53, 0.43)
-		stripe.material_override = mat
-		stripe.position = Vector3(0, -0.01, i * 0.25)
-		floor_node.add_child(stripe)
+		mat.albedo_color = c
+		mats.append(mat)
+	for i in range(-30, 31):
+		for j in range(-12, 13):
+			var tile := MeshInstance3D.new()
+			tile.mesh = m
+			tile.material_override = mats[posmod(i + j, 2)]
+			tile.position = Vector3(j * 0.25, -0.01, i * 0.25)
+			floor_node.add_child(tile)
 	rig = Node3D.new()
 	root.add_child(rig)
 	skel = AvatarSkeleton.rigged(AvatarSkeleton.mannequin_groups()) if mannequin else AvatarBuilder.skinned(appearance_seed)
@@ -135,6 +142,7 @@ func _run() -> void:
 ## events. `travel` is how far the body has moved along +z so far.
 func _drive(clip: String, t: float, dt: float, state: Dictionary) -> Dictionary:
 	var v := 0.0
+	var dir := Vector3(0, 0, 1) # facing +z; the line of travel
 	match clip:
 		"walk":
 			v = 1.5
@@ -142,6 +150,12 @@ func _drive(clip: String, t: float, dt: float, state: Dictionary) -> Dictionary:
 			v = 6.0
 		"walk_to_run":
 			v = 1.5 if t < 1.0 else (6.0 if t < 2.3 else 0.0)
+		"backpedal": # holding S: the server's cap (Movement.BACK_SPEED)
+			v = GameConfig.WALK_SPEED * Movement.BACK_SPEED
+			dir = Vector3(0, 0, -1)
+		"strafe": # holding D
+			v = GameConfig.WALK_SPEED * Movement.SIDE_SPEED
+			dir = Vector3(-1, 0, 0)
 	var ctx := {}
 	match clip:
 		"chop":
@@ -192,8 +206,8 @@ func _drive(clip: String, t: float, dt: float, state: Dictionary) -> Dictionary:
 			if t >= 2.5 and not state.has("up"):
 				anim.stand()
 				state.up = true
-	state.travel = float(state.get("travel", 0.0)) + v * dt
-	ctx.pos = Vector3(0, 0, state.travel)
+	state.travel = (state.get("travel", Vector3.ZERO) as Vector3) + dir * v * dt
+	ctx.pos = state.travel
 	ctx.yaw = 0.0
 	return ctx
 
@@ -204,7 +218,7 @@ func _render(clip: String) -> void:
 	var dt := 1.0 / float(fps)
 	var state := {}
 	# Moving clips start already up to speed: a second of the same motion, unrendered.
-	if clip in ["walk", "run", "swing_run"]:
+	if clip in ["walk", "run", "swing_run", "backpedal", "strafe"]:
 		var pre := {"fired": true}
 		for i in fps:
 			anim.step(dt, _drive(clip, 0.0, dt, pre))
@@ -226,7 +240,7 @@ func _render(clip: String) -> void:
 		var h: float = ctx.get("height", 0.0)
 		rig.position = Vector3(0, h, 0)
 		# The camera follows the body; the floor slides back under it by the distance walked.
-		floor_node.position = Vector3(0, 0, -fposmod(pos.z, 0.5))
+		floor_node.position = Vector3(-fposmod(pos.x, 0.5), 0, -fposmod(pos.z, 0.5))
 		await process_frame
 		await process_frame
 		var img := root.get_texture().get_image()
