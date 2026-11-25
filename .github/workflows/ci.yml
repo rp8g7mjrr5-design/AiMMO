@@ -8,8 +8,8 @@ name: CI
 # branch with no PR runs nothing, so a PR's commit is not tested twice.
 #
 # Docs-only changes (docs/, changelog.d/, *.md at the root) still run the unit tests, which
-# lint the patch notes, but skip the bot tests and the client smoke test: nothing the game
-# runs changed. Any other file runs everything.
+# lint the patch notes, but skip the bot tests, the server image build and the client smoke
+# test: nothing the game runs changed. Any other file runs everything.
 
 on:
   push:
@@ -80,9 +80,11 @@ jobs:
         run: python3 -m unittest discover -s tests/ops -p 'test_*.py'
 
       - name: Build the server image (the same Dockerfile Railway builds)
+        if: steps.changes.outputs.code == 'true'
         run: docker build -t aimmo-server:ci .
 
       - name: Server image test (contents, boot, 2 bots play, docker stop saves, watchdog restarts)
+        if: steps.changes.outputs.code == 'true'
         run: python3 tests/ops/run_image_test.py --image aimmo-server:ci
 
       - name: Fun-metrics report tests

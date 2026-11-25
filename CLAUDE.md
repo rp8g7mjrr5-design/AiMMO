@@ -3,7 +3,7 @@
 Read this file first, every session. You start with no memory; this repo is your memory.
 
 ## Mission
-**ZombAi** (the repo was renamed from AiMMO on 2026-11-24; the game's internal data folder and `AIMMO_*` settings keep the old name on purpose, see `docs/vision.md`) is a real-time 3D **third-person open-world zombie survival sandbox** built by its owner and AI together (owner direction, 2026-11-24 and 2026-11-25): a fallen medieval kingdom on generated maps full of risk-graded ruins, the Zombai (our own undead), building and surviving on **servers of up to about 100 players** under rules each server sets, sold as a one-time buy. **It is not an MMO** (owner, 2026-11-25). Today's official always-on Railway world is one such server, capped at 8 until load tests prove more; never break it. **Read `docs/vision.md` every session**; it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
+**ZombAi** (the repo was renamed from AiMMO on 2026-11-24; the game's internal data folder and `AIMMO_*` settings keep the old name on purpose, see `docs/vision.md`) is a real-time 3D **third-person open-world zombie survival sandbox** built by its owner and AI together (owner direction, 2026-11-24 and 2026-11-25): a fallen medieval kingdom on generated maps full of risk-graded ruins, the Zombai (our own undead), building and surviving on **servers of up to about 100 players** under rules each server sets, sold as a one-time buy. **It is not an MMO** (owner, 2026-11-25). Today's official always-on Railway world is one such server, capped at 8 until load tests prove more; never break it. **Read `docs/vision.md` every session** (automated runs read its summary in `docs/worker_brief.md` instead); it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
 
 ## Autonomy rules
 - Never wait for human input and never ask questions. Make the call, write down why, move on.
@@ -46,12 +46,13 @@ docs/
   devlog/week-NN.md       ← internal notes: what you built, what failed, notes to next week's self
   devlog/<stream>.md      ← each workstream's running notes (folded by the integrator)
   devlog/<stream>.d/      ← one devlog note per PR, folded into devlog/<stream>.md
-  workstreams.md          ← who owns which files, worker and integrator procedures
+  workstreams.md          ← builder and integrator procedures, the owner's own work
+  worker_brief.md         ← one-page summary of the bibles that every automated run reads
   workstreams/<stream>.md ← each workstream's backlog
   workstreams/<stream>.d/ ← one backlog note per PR (ticks, follow-ups, requests), folded in
   weekly_task.md          ← the Friday weekly review
   budget.md               ← weekly work cap, set by the owner
-  digest/YYYY-MM-DD.md    ← the director's daily summary for the owner
+  digest/YYYY-MM-DD.md    ← the integrator's daily summary for the owner
 CHANGELOG.md              ← player-facing patch notes, also shown in-game (integrator only)
 changelog.d/              ← one fragment per PR, folded into CHANGELOG.md by the integrator
 game/                     ← Godot 4 project
@@ -82,7 +83,7 @@ Dockerfile                ← server container for Railway
 
 ## Development process
 Development runs continuously. Find your role in the prompt that started your session:
-- **Worker** (`world`, `gameplay`, `client`, or `qa`): follow the worker procedure in `docs/workstreams.md` exactly.
-- **Integrator**: follow the integrator procedure in `docs/workstreams.md` exactly.
-- **Director** (daily): follow the director procedure in `docs/workstreams.md` exactly.
+- **Builder** (the one worker, a few times a day): follow the builder procedure in `docs/workstreams.md` exactly.
+- **Integrator** (daily; also does the old qa checks and the director's digest): follow the integrator procedure in `docs/workstreams.md` exactly.
+- Automated runs read lean: this file, `docs/worker_brief.md`, and only the bible sections their item names (owner, 2026-11-25, to save usage). The owner also builds on the side: never touch their branches or PRs (`docs/workstreams.md`, "The owner's own work").
 - **Weekly review** (Fridays): follow `docs/weekly_task.md` exactly.
