@@ -24,3 +24,4 @@ Owner: "no silly text when a zombie chases you and you knock it down", "cleaner 
 Didn't do: a hit-pause / camera kick on blows, a side view in the real-client recording (free
 look didn't hold the camera from a script). Next: walkers grab every ~1.3 s and can chain a
 knock-down quickly; worth a look at GRAB_RECOVER with the owner's feel in mind.
+- CI: the image test's play container now runs with AIMMO_GLOAM=0 like the bot test's --gloam=0; a walker rising on its own grabbed an image-test bot mid-check and failed gameplay_vitals' '/hurt 30 from full' (55/100 = 100 - 30 - 15).
