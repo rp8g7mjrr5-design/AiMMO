@@ -26,7 +26,7 @@ survived** is the score.
 1. **A world that feels lived in.** People come back to their server to see whose walls held, what the night broke, what the neighbours built and which ruin is next, never to tick a daily chore. A long road of skills and gear, tedium never (see "The long road").
 2. **Small, honest systems that stack.** Each week adds one system that works with the others. No feature ships half-built.
 3. **Everything is grown, not imported.** Terrain, creatures, items, music, and sound come from code and seeds. The look is a consequence of that: **Emberlight**, painted low-poly with colour in the vertices and one shared shader, cheap enough for any laptop (see `docs/art_bible.md`).
-4. **Survivors, together.** A server is a community of survivors, not a crowd. Surviving is better in a group: shared fires, a hold you build together, ruins you clear as a band, a friend dragged back from a Zombai pack. Strangers are a resource and a story before they are a threat. The Zombai and the land are the main enemy; how much players can hurt each other is a **server rule** (see "Server rules" in `docs/vision.md`), PvE by default.
+4. **Survivors, together.** A server is a community of survivors, not a crowd. Surviving is better in a group: shared fires, a hold you build together, ruins you clear as a faction, a friend dragged back from a Zombai pack. Strangers are a resource and a story before they are a threat. The Zombai and the land are the main enemy; how much players can hurt each other is a **server rule** (see "Server rules" in `docs/vision.md`), PvE by default.
 
 ## Owner directions (standing rules)
 The owner plays and tests; the AI designs everything else. The owner has given the
@@ -181,7 +181,7 @@ separately levelled skills. In our own design:
   Each branch starts with cheap, broad nodes and goes deeper into stronger, narrower ones; a
   node needs the one above it. There are far more nodes than points (about 80 nodes for 50
   points), so **a character can't take everything**: you choose what kind of survivor you are,
-  and a band is better when its members go down different branches.
+  and a faction is better when its members go down different branches.
 - **Every level unlocks something.** No empty levels: a level is a point to spend now, and the
   tree window always shows what your next point could buy and how far away it is. Some nodes
   unlock recipes and buildings outright, so the tree also gates content, softly. Nothing is
@@ -385,6 +385,7 @@ The goal is survival, with no story endgame (owner, 2026-11-24).
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 01 (2026-11-25, factions):** The owner renamed player groups from bands to **factions** (shared claim, chests, doors, faction chat, map markers; a solo player is a faction of one). Server rules and claims use the new name. Entries below keep "band" as history.
 - **Week 01 (2026-11-25, types confirmed, no traders):** The owner accepted the third round as proposed: the Zombai types list (walker, sprinter, brute, soldier, hound, dragger, Bell-wight, rotbelly, your risen body) is confirmed; no computer-run traders at launch, players trade through a trade window; groups stay **bands**; nights in rounds and the Tolling stay as written.
 - **Week 01 (2026-11-25, the Zombai, their types, your risen body, the coast):** The owner's second round of answers. The undead are renamed from the Gloam to **the Zombai** (player-facing everywhere; code names such as `gloam.gd` may stay until a worker renames them safely). Zombai are few in the open by day, thick around ruins and in packs at night. There are **types** (a draft list in `docs/vision.md`: walker, sprinter, brute, soldier, hound, dragger, Bell-wight, rotbelly, your own risen body), with sprinters one of them. When you die **your body rises** as a Zombai carrying the items you dropped. The map has one coast where everyone lands by boat, and mountains and the Dimming's grey wall on the other sides, with danger rising inland. Older entries below keep the old name as history.
 - **Week 01 (2026-11-25, one skill tree, light deaths, potions):** The owner answered the first round of questions on fitting the docs to the survival game: "just one skill tree for your character and branches to go down", "you should just lose a couple items in your bag on death", "magic like health potions and stamina potions and one-use scrolls", and no backgrounds. Direction 5 is now one character level (cap 50 to start) and one skill tree with five branches (Survival, Fighting, Building, Scavenging, Crafting), more nodes than points so characters specialise, a rare scroll to reset; today's four skills fold into character XP through an add-only migration. Death drops two or three random stacks in a sack where you fell and keeps the rest and the tree (the "What death costs" server rule now offers that, the whole pack, or hardcore). Magic is health and stamina potions and one-use scrolls; runes in walls and enchanting relics are dropped. Character creation is looks only.

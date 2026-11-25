@@ -129,7 +129,7 @@ and haul a cart of loot home.
 - **Server rules** as one data file sent at login and shown in a Rules panel: PvP, friendly
   fire, claim protection, loot refills, day length, Zombai difficulty, what death costs, XP rate,
   map size, world reset.
-- **Bands** (shared claim, chests, doors, band chat, map markers) and **nearby, band and server
+- **Factions** (shared claim, chests, doors, faction chat, map markers) and **nearby, faction and server
   chat**.
 - The **dedicated server download** (Linux, Windows, Docker image) with a plain config file;
   a **server list** in the client with player count, ping and rules in one line; join by address.
@@ -216,7 +216,7 @@ numbers go in merge order.
 **Director note (2026-11-25, survival servers):** the owner: "We are no longer making a MMO, it
 will at most have maybe 100 player servers. Like 7 days or project zomboid." The bibles were
 redone: servers of up to about 100 that anyone can run, shaped by server rules (PvE and
-forgiving by default), bands for groups, claims that protect on a server of strangers, map size
+forgiving by default), factions for groups, claims that protect on a server of strangers, map size
 scaled to the cap, and Phase 5 is now "Servers for up to 100". Nothing already in the backlogs
 changes order: the basics first (direction 9) still lead. The live cap stays 8 until the load
 test proves more.

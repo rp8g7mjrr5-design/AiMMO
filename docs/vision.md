@@ -141,7 +141,7 @@ another game's names for its zombies).
 | 4 Deadly | The fallen castle, the royal crypt beneath it | Many soldiers, wights, hounds; a key to get in deep | The best gear, the strongest potions and rare scrolls |
 
 - **Signet keys** (our own take on gating loot behind keys): found in grade 3 ruins, they open
-  the vaults in grade 4 ones. That makes a run a plan, and gives a band a reason to send its
+  the vaults in grade 4 ones. That makes a run a plan, and gives a faction a reason to send its
   best.
 - **Size:** a server rule that scales with the player cap: small (about 1.5 km across, up to
   about 16 players), medium (about 3 km, up to about 50), large (about 4 km, up to 100). Roads
@@ -167,10 +167,10 @@ another game's names for its zombies).
   chests, an ember hearth, a bedroll. Tiers: wood, stone, iron-bound. Defences you loot and
   craft toward: spiked barricades, pit traps, arrow slits, a gatehouse, braziers that burn
   the Zombai, a bell to warn the others.
-- **Claimed land:** a band stakes its land with a **claim marker** (a banner or boundary stone,
+- **Claimed land:** a faction stakes its land with a **claim marker** (a banner or boundary stone,
   final look to world). The claim sets where you can build, and grows as you build it up (more
   plots as your hold gets bigger). It sets the base's footprint and its threat, and on a server
-  with claim protection on (the default) only the band can build, open doors and chests or
+  with claim protection on (the default) only the faction can build, open doors and chests or
   break anything inside it. Claims can't be placed on a ruin, a king's road or too close to
   someone else's claim, so the map's best spots are first come, and nobody can wall off a ruin.
 - **Days survived:** each character counts days survived since their last death, shown quietly on
@@ -199,7 +199,7 @@ another game's names for its zombies).
 - **One level, one skill tree** (owner, 2026-11-25): everything you do pays character XP,
   every level gives a point, and you spend points down five branches (Survival, Fighting,
   Building, Scavenging, Crafting; design bible direction 5). You can't take everything, so a
-  band is better when its members specialise. Today's four skills fold into character XP; the
+  faction is better when its members specialise. Today's four skills fold into character XP; the
   level and tree belong to the character in that world.
 - **Dying** (owner, 2026-11-25): you drop **a couple of items from your pack** (two or three
   random stacks, never what you hold in your hands) in a small sack where you fell, and wake at
@@ -249,7 +249,7 @@ so nothing attacks what nobody is there to defend:
   climbs the board by staying logged off.
 
 **Scaling to the crowd.** Night rounds and Tollings scale with how many players are at the
-base, so a pair and a band of twelve both get a fair fight. Packs in the wild scale with the
+base, so a pair and a faction of twelve both get a fair fight. Packs in the wild scale with the
 group nearby. Nothing is server-wide: every horde has a base or a group as its target, so 100
 players means many small stories, not one big lag spike.
 
@@ -264,8 +264,8 @@ defaults.
 | Player cap | 2 to 100, **32** for a new server (8 on the official world today) | A server sized to its map and its people |
 | Map size | small (about 1.5 km), **medium (about 3 km)**, large (about 4 km) | Roughly 1.5 km for up to 16, 3 km for up to 50, 4 km for up to 100 |
 | PvP | **off**, on, or only outside claims | PvE by default, PvP a server option (owner chose this, 2026-11-25); never on by default |
-| Friendly fire within a band | **off**, on | |
-| Claim protection | **on** (only your band builds, opens chests and doors on your claim), off | On a server of strangers, a claim must mean "mine" |
+| Friendly fire within a faction | **off**, on | |
+| Claim protection | **on** (only your faction builds, opens chests and doors on your claim), off | On a server of strangers, a claim must mean "mine" |
 | Loot refills | ruins refill **daily (in-game)**, weekly, never | Late joiners still find loot on a busy server |
 | Day length | 20 to 90 minutes, **40** | |
 | Zombai difficulty | gentle, **normal**, hard; and night rounds on or off | Harder is a choice, never the default |
@@ -276,24 +276,24 @@ defaults.
 New rules can be added as systems arrive; a rule is only added when the system it changes is on
 `main`, and every rule has a bot-test case for its default.
 
-### Bands: groups on a busy server (name kept by the owner, 2026-11-25)
-On a server of 100, the people you play with need a name. A **band** is a group of players who
-share a claim, its chests and doors, a band chat and markers on each other's maps. Make one,
-invite by name, leave any time; a band has no size limit beyond the server's cap, and a player
-is in one band at a time. A solo player is a band of one. Claims, threat and invasions belong to
-bands.
+### Factions: groups on a busy server (owner named them, 2026-11-25)
+On a server of 100, the people you play with need a name. A **faction** is a group of players who
+share a claim, its chests and doors, a faction chat and markers on each other's maps. Make one,
+invite by name, leave any time; a faction has no size limit beyond the server's cap, and a player
+is in one faction at a time. A solo player is a faction of one. Claims, threat and invasions belong to
+factions.
 
 ### Trading (owner, 2026-11-25)
 No computer-run traders at launch. Players trade with each other face to face through a
 **trade window** (both sides place items, both confirm, the server swaps them at once, nothing
-can be changed after a confirm). Places to trade are the ones players build: a band can mark
+can be changed after a confirm). Places to trade are the ones players build: a faction can mark
 part of its claim as open to visitors. Crafters who went down the Crafting branch are what
 make trade worth it.
 
 ### Talking and finding each other
-- **Nearby chat** by default (about 40 m), **band chat**, and a **server channel** the server can
+- **Nearby chat** by default (about 40 m), **faction chat**, and a **server channel** the server can
   turn off. Chat stays talking-only (design bible direction 1). Proximity voice is Phase 7.
-- A **players panel** lists who is on the server; distance and position only for your band.
+- A **players panel** lists who is on the server; distance and position only for your faction.
 - Strangers meet in the world: a camp's smoke and firelight are visible from a distance, and the
   king's roads lead past everyone's land.
 
@@ -333,9 +333,9 @@ is easy to tune.
 | Keeps | Changes | Goes |
 |---|---|---|
 | Godot client and headless authoritative server, ENet and WebSocket; the official always-on Railway world | One fixed valley becomes a generated kingdom per server, built in chunks; the server learns interest management and server rules | The MMO framing, "thousands on one world", anything shared across servers |
-| Gathering with E, timed bars, nodes; the bench and crafting; skills and XP | Vitals grow into needs and wounds; inventory gets weight; one global chat becomes nearby, band and server chat | The 8-player co-op cap as a design limit (it stays only as the live world's current setting) |
+| Gathering with E, timed bars, nodes; the bench and crafting; skills and XP | Vitals grow into needs and wounds; inventory gets weight; one global chat becomes nearby, faction and server chat | The 8-player co-op cap as a design limit (it stays only as the live world's current setting) |
 | The third-person action camera, swings, dodge, block | Ashgrove's ember lore becomes the fallen kingdom's (the Dimming, the ember) | The towns-MMO plan (PR #184, closed); the old "Later, maybe" of 16 to 48 player PvP servers, now folded into server rules |
-| Grounded art and its budgets; wildlife; the character creator | New: ruins, the Zombai, building, death and loot, bands, server rules, the server list and dedicated server download | |
+| Grounded art and its budgets; wildlife; the character creator | New: ruins, the Zombai, building, death and loot, factions, server rules, the server list and dedicated server download | |
 | CI, bot test, fun metrics, the self-updating client, the worker setup | Fun metrics add survival measures (time to first fire, nights survived, ruins cleared); qa adds a load test | |
 
 ## Rename (done 2026-11-24)
