@@ -231,7 +231,7 @@ defaults.
 |---|---|---|
 | Player cap | 2 to 100, **32** for a new server (8 on the official world today) | A server sized to its map and its people |
 | Map size | small (about 1.5 km), **medium (about 3 km)**, large (about 4 km) | Roughly 1.5 km for up to 16, 3 km for up to 50, 4 km for up to 100 |
-| PvP | **off**, on, or only outside claims | Most servers of this kind are PvE; PvP is the host's call, never the default |
+| PvP | **off**, on, or only outside claims | PvE by default, PvP a server option (owner chose this, 2026-11-25); never on by default |
 | Friendly fire within a band | **off**, on | |
 | Claim protection | **on** (only your band builds, opens chests and doors on your claim), off | On a server of strangers, a claim must mean "mine" |
 | Loot refills | ruins refill **daily (in-game)**, weekly, never | Late joiners still find loot on a busy server |
