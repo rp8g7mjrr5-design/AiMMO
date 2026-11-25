@@ -91,8 +91,7 @@ and note the bump in the changelog fragment. From v4 on, the bump PR also adds a
 
 ## One run per stream at a time (claims)
 
-Workers run on a schedule (world, client and gameplay every 2 hours, qa every 4 hours, the
-integrator every 4 hours; see "Schedule"), and a run can take longer than that. Two runs of one stream at once
+Workers run on a schedule (every worker and the integrator every 4 hours; see "Schedule"), and a run can take longer than that. Two runs of one stream at once
 build the same item twice, so every worker run (and the integrator, as stream `integrator`)
 holds a **claim** while it works: a branch `claim/<stream>` that `tools/ws_claim.sh` creates
 atomically. It needs no clone, so take it before doing anything expensive:
@@ -122,15 +121,15 @@ note in `docs/devlog/<stream>.d/`.
 
 ## Schedule
 
-Set by the owner on 2026-11-24 to cut usage roughly in half and leave fewer runs fixing each
-other's conflicts. All times America/Chicago, every day, overnight included:
+Set by the owner on 2026-11-25 (every worker every 4 hours, to save usage; the owner turns the
+schedules on and off themselves). All times America/Chicago, every day, overnight included:
 
 | Session | Runs at |
 |---|---|
-| world | every 2 hours on even hours, at :07 (00:07, 02:07, ... 22:07) |
-| client | every 2 hours on even hours, at :47 (00:47, 02:47, ... 22:47) |
-| gameplay | every 2 hours on odd hours, at :27 (01:27, 03:27, ... 23:27) |
-| qa | every 4 hours, at :43 (01:43, 05:43, 09:43, 13:43, 17:43, 21:43) |
+| world | every 4 hours at :07 (00:07, 04:07, 08:07, 12:07, 16:07, 20:07) |
+| gameplay | every 4 hours at :27 (01:27, 05:27, 09:27, 13:27, 17:27, 21:27) |
+| client | every 4 hours at :47 (02:47, 06:47, 10:47, 14:47, 18:47, 22:47) |
+| qa | every 4 hours at :43 (03:43, 07:43, 11:43, 15:43, 19:43, 23:43) |
 | integrator | every 4 hours, at :56 (02:56, 06:56, 10:56, 14:56, 18:56, 22:56) |
 | director | daily at 04:47 |
 | weekly review | Fridays at 11:42 |
