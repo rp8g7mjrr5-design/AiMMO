@@ -7,8 +7,8 @@ the next week. The update must be live and playable by the weekend.
 
 ## 1. Orient
 1. `CLAUDE.md`, the rules. Follow them over anything else.
-2. `docs/design_bible.md`, especially the North star.
-3. `docs/roadmap.md` and every `docs/workstreams/<stream>.md` backlog, with its unfolded notes in `docs/workstreams/<stream>.d/`.
+2. `docs/design_bible.md`, especially the owner directions (direction 9, "The basics first", sets the order until the four basics play end to end).
+3. `docs/roadmap.md` and the Backlog and Requests sections (not Done) of every `docs/workstreams/<stream>.md` backlog, with its unfolded notes in `docs/workstreams/<stream>.d/`.
 4. This week's merged PRs, `docs/devlog/<stream>.md` entries and unfolded notes in `docs/devlog/<stream>.d/`, and last week's `docs/devlog/week-NN.md`.
 5. `docs/playtest.md`. Make sure every report is tagged `[open]`, `[fixed in Week NN]`, or `[can't reproduce: reason]` and is in a stream's backlog.
 
@@ -29,7 +29,7 @@ the next week. The update must be live and playable by the weekend.
 
 ## 4. Plan
 - Update `docs/roadmap.md`: tick what the week finished in the current milestone, move the "current" marker when its "done when" list is all true, and keep the milestones ahead of it sound.
-- Rebalance every stream's backlog to match the roadmap and the North star, fun first. Each stream should have at least 5 well-sized items, cross-stream dependencies ordered correctly, and requests between streams answered.
+- Rebalance every stream's backlog to match the roadmap and the North star, fun first. Each stream should have 4 to 8 well-sized items, basics first, cross-stream dependencies ordered correctly, and requests between streams answered.
 - If the design vision changed, log it in the design bible's revision history with the reason.
 
 ## 5. Ship
