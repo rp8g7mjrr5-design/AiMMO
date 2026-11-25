@@ -295,6 +295,75 @@ static func hurt() -> AudioStreamWAV:
 	return wav
 
 
+## A swing cutting the air (s2c_swing, played when the blow lands): band-passed noise that
+## swells and falls, its centre sweeping down as the arm comes through. The heavy swing is
+## longer, lower and a little louder, so you hear which one came. Peak about 0.3 full scale.
+const WHOOSH_LIGHT := 0.16
+const WHOOSH_HEAVY := 0.26
+
+
+static func whoosh(heavy: bool) -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 8800 if heavy else 8700
+	var length := WHOOSH_HEAVY if heavy else WHOOSH_LIGHT
+	var top := 1700.0 if heavy else 2600.0
+	var bottom := 450.0 if heavy else 800.0
+	var gain := 0.32 if heavy else 0.26
+	var data := PackedByteArray()
+	var low := 0.0
+	var band := 0.0
+	var n := int(RATE * length)
+	for i in n:
+		var t := float(i) / RATE
+		var u := t / length
+		var f := lerpf(top, bottom, u)
+		var a := clampf(TAU * f / RATE, 0.0, 1.0)
+		var noise := rng.randf_range(-1.0, 1.0)
+		low += a * (noise - low) # low-pass at the sweeping centre...
+		band += 0.35 * (low - band) # ...minus a slower one: a soft band of air, not hiss
+		var env := sin(PI * pow(u, 0.7)) # swells in, falls away
+		var s16 := int(clampf((low - band) * 2.6 * env * gain, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = RATE
+	wav.stereo = false
+	wav.data = data
+	return wav
+
+
+## Your swing connecting (s2c_swing_hits with someone in it): a short dull smack, a low
+## knock under a tight burst of noise, about 0.12 s. Duller than nope() and shorter than
+## hurt(), so landing a blow and taking one never sound alike. Peak about 0.35 full scale.
+const THWACK_LENGTH := 0.12
+
+
+static func thwack() -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9100
+	var data := PackedByteArray()
+	var lp := 0.0
+	var phase := 0.0
+	var n := int(RATE * THWACK_LENGTH)
+	for i in n:
+		var t := float(i) / RATE
+		phase += TAU * (140.0 + 80.0 * exp(-t * 40.0)) / RATE
+		var knock := sin(phase) * minf(1.0, t * 800.0) * exp(-t * 35.0)
+		lp += 0.3 * (rng.randf_range(-1.0, 1.0) - lp)
+		var smack := lp * 1.8 * exp(-t * 90.0)
+		var fade := clampf((THWACK_LENGTH - t) / 0.015, 0.0, 1.0) # no click at the end
+		var s16 := int(clampf((knock * 0.7 + smack) * fade * 0.35, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = RATE
+	wav.stereo = false
+	wav.data = data
+	return wav
+
+
 static func _tones(notes: Array, volume: float) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	for n in notes:

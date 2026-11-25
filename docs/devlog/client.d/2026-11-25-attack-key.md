@@ -1,0 +1,17 @@
+**The attack key (builder, ws/builder/attack-key).** Protocol v7's swing was on the server and half on the client (the animation on `swing_begun`, the "winded" refusal); nothing sent `c2s_attack`. Now it does.
+
+- `game/client/attack_input.gd` (`AttackInput.decide`) is the whole "which click does what" table, pure and unit tested: left click on a gatherable node you aim at gathers (or keeps chopping), anywhere else it swings light; right click (new `click_heavy` action, `DEFAULT_MOUSE`) always swings heavy; a swing mid-gather sends `c2s_gather_cancel` first (unless E/moving already cancelled that frame). Clicks are dropped while your own swing plays (`_swing_until`, set from your own `s2c_swing`) and within `MIN_GAP` 0.15 s of the last send, so a mashed button never draws a stream of "busy".
+- Decision: a click on a node you **can't** gather (spent, or skill too low) now swings instead of ticking "miss". The miss tick still plays only when a click did nothing at all (throttled, mid-swing clicks are silent).
+- Yaw: `ActionCamera.facing_yaw(cam.move_yaw())`, the same heading `c2s_input` sends while moving, so you swing where the camera looks.
+- Sound: `Sfx.whoosh(heavy)` (band-passed noise sweeping down; heavy 0.26 s, light 0.16 s) played at the blow (`AttackInput.blow_delay`, the windup stretched like the animation), flat for you and a 3D "Whoosh" player on other avatars (falls off over `Footsteps.HEAR_RANGE`). `Sfx.thwack()` when your `s2c_swing_hits` has anyone in it.
+- Flinch: every grazer id in `s2c_swing_hits` gets `GrazerFigures.bolt()` at once (dust and a snort). The server's next `s2c_wildlife` also bolts it, which can puff dust a second time; it reads as one panicked burst, so left it.
+- Bot test: no new bot behaviour; the input is client-only and `gameplay_first_swing` already drives `c2s_attack` end to end on the wire. Unit tests: `test_client_attack_input.gd` (7 tests).
+
+**Not done / next:** no local prediction of your own swing: the animation and whoosh wait for the server's echo (one round trip; fine on one region, but over 100 ms on a far connection breaks the "answers within 100 ms" rule). Predicting needs the stamina check client side so a "winded" swing isn't shown. Holding right click doesn't repeat heavies (press only). No hit-stop or camera kick on a landed blow yet; worth a small follow-up once the walker is on screen.
+
+CI fix (next builder run, 2026-11-25): the PR's first bot test failed on
+`gameplay_skills_v4` ("14 gathers paid out but only 13 gathering s2c_xp"). Not this PR's code:
+a bot brought down a grazer, and since the first hunt (2026-11-24) a kill's drops come as
+`s2c_gather_result` with no gathering XP. The check now skips hunt drops (`Wildlife.drops`
+items) and still matches every timed gather against its XP. It only shows when a bot happens
+to land a kill, so it was flaky on main too.

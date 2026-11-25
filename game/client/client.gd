@@ -58,6 +58,14 @@ var reticle: Reticle
 ## under it) since the last frame, and whether that press is still held.
 var _click_tap := false
 var _click_down := false
+## The attack keys (AttackInput): a right-click the game took since the last frame, when your
+## own swing ends (from s2c_swing, on the _now() clock), and when the last c2s_attack went out.
+var _heavy_tap := false
+var _swing_until := 0.0
+var _attack_sent_at := -INF
+var sfx_whoosh_light: AudioStreamPlayer
+var sfx_whoosh_heavy: AudioStreamPlayer
+var sfx_thwack: AudioStreamPlayer ## your swing landed on something
 var controls_overlay: ControlsOverlay
 var skills_window: SkillsWindow
 var pack_window: PackWindow
@@ -125,6 +133,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.vitals_changed.connect(_on_vitals)
 	net.attack_refused.connect(_on_attack_refused)
 	net.swing_begun.connect(_on_swing_begun)
+	net.swing_landed.connect(_on_swing_landed)
 	net.look_changed.connect(_on_look)
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _set_status("Could not reach the server.", true))
@@ -384,6 +393,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			_click_tap = true
 			_click_down = true
 			get_viewport().set_input_as_handled()
+		elif event.is_action("click_heavy") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+			_heavy_tap = true
+			get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			cam.zoom(-1.0)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
@@ -544,11 +556,16 @@ func _update_gather(delta: float, my_pos: Vector3, eye: Vector3, look: Vector3) 
 	_click_down = _click_down and free and Input.is_action_pressed("click_use")
 	var click_pressed := _click_tap and free
 	_click_tap = false
+	var heavy_pressed := _heavy_tap and free
+	_heavy_tap = false
 	var now := Time.get_ticks_msec() / 1000.0
+	var was_gathering := gather_prompt.gathering()
 	var op := gather_prompt.update(delta, my_pos, TimeDial.current_seconds(), now, held, pressed, _move_vector() != Vector2.ZERO, eye, look, _click_down, click_pressed)
-	if gather_prompt.click_missed and sfx_miss != null:
-		sfx_miss.play()
 	var t := gather_prompt.current_target()
+	var swinging := _now() < _swing_until
+	var attack := AttackInput.decide(click_pressed, heavy_pressed, op, t, was_gathering, false, swinging, _now() - _attack_sent_at)
+	if attack.is_empty() and gather_prompt.click_missed and not swinging and sfx_miss != null:
+		sfx_miss.play()
 	reticle.active = not t.is_empty() and bool(t.can)
 	_highlight_target(-1 if t.is_empty() or chat_edit.has_focus() else int(t.id))
 	match str(op.get("op", "")):
@@ -556,6 +573,12 @@ func _update_gather(delta: float, my_pos: Vector3, eye: Vector3, look: Vector3) 
 			net.play.c2s_gather_start.rpc_id(1, int(op.node))
 		"cancel":
 			net.play.c2s_gather_cancel.rpc_id(1)
+	if not attack.is_empty():
+		# The server never cuts a gather short for a swing: cancel it first (reliable, ordered).
+		if bool(attack.cancel_gather) and str(op.get("op", "")) != "cancel":
+			net.play.c2s_gather_cancel.rpc_id(1)
+		net.play.c2s_attack.rpc_id(1, str(attack.kind), ActionCamera.facing_yaw(cam.move_yaw())) # face where the camera looks, like c2s_input
+		_attack_sent_at = _now()
 	_apply_node_ops(gather_watch.tick(now))
 
 
@@ -1448,6 +1471,18 @@ func _build_audio() -> void:
 	sfx_miss.stream = Sfx.miss()
 	sfx_miss.volume_db = -12.0
 	add_child(sfx_miss)
+	sfx_whoosh_light = AudioStreamPlayer.new()
+	sfx_whoosh_light.stream = Sfx.whoosh(false)
+	sfx_whoosh_light.volume_db = -10.0
+	add_child(sfx_whoosh_light)
+	sfx_whoosh_heavy = AudioStreamPlayer.new()
+	sfx_whoosh_heavy.stream = Sfx.whoosh(true)
+	sfx_whoosh_heavy.volume_db = -8.0
+	add_child(sfx_whoosh_heavy)
+	sfx_thwack = AudioStreamPlayer.new()
+	sfx_thwack.stream = Sfx.thwack()
+	sfx_thwack.volume_db = -6.0
+	add_child(sfx_thwack)
 	sfx_hurt = AudioStreamPlayer.new()
 	sfx_hurt.stream = Sfx.hurt()
 	sfx_hurt.volume_db = -8.0
@@ -1487,6 +1522,45 @@ func _on_swing_begun(peer_id: int, weapon: String, kind: String, seconds: float)
 	var total := float(a.windup) + float(a.active) + float(a.recovery)
 	var k := seconds / total if seconds > 0.0 and total > 0.0 else 1.0
 	(avatars[peer_id].anim as AvatarAnimator).swing(kind, float(a.windup) * k, float(a.active) * k, float(a.recovery) * k)
+	if peer_id == my_id:
+		_swing_until = _now() + (seconds if seconds > 0.0 else total)
+	# The whoosh comes with the blow, not the wind-up: the wind-up is the quiet telegraph.
+	get_tree().create_timer(AttackInput.blow_delay(weapon, kind, seconds)).timeout.connect(_whoosh.bind(peer_id, kind == "heavy"))
+
+
+## The air moving as a blow comes through: yours flat, anyone else's from where they stand.
+func _whoosh(peer_id: int, heavy: bool) -> void:
+	if not avatars.has(peer_id):
+		return
+	var own := sfx_whoosh_heavy if heavy else sfx_whoosh_light
+	if peer_id == my_id:
+		own.play()
+		return
+	var node: Node3D = avatars[peer_id].node
+	if node == null or not is_instance_valid(node):
+		return
+	var p := node.get_node_or_null("Whoosh") as AudioStreamPlayer3D
+	if p == null:
+		p = AudioStreamPlayer3D.new()
+		p.name = "Whoosh"
+		p.unit_size = 3.0
+		p.max_distance = Footsteps.HEAR_RANGE
+		p.volume_db = -6.0
+		node.add_child(p)
+	p.stream = own.stream
+	p.play()
+
+
+## s2c_swing_hits: yours always (even [] for a whiff), others' only on a hit. Every grazer
+## struck flinches at once, a jolt of dust and a snort, before the next s2c_wildlife has it
+## bolt; your own connecting blow lands with a dull smack.
+func _on_swing_landed(peer_id: int, _kind: String, creature_ids: Array) -> void:
+	var now := _now()
+	for id in creature_ids:
+		if herd.has(int(id)):
+			grazers.bolt(int(id), herd, now)
+	if peer_id == my_id and not creature_ids.is_empty():
+		sfx_thwack.play()
 
 
 ## s2c_attack_refused: "busy" is dropped quietly (a mashed button); being winded or tired
