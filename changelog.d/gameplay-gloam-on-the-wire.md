@@ -1,0 +1,1 @@
+- Under the hood for the Zombai: the server now tells your game where every walker near you is, and when one raises its arms to grab, so the next update can put them on your screen with a warning you can react to. Your game updates itself once to talk to the new server.

@@ -235,6 +235,7 @@ func _tick() -> void:
 	_tick_gloam(now_seconds())
 	if tick % WILDLIFE_SEND_TICKS == 0:
 		_send_wildlife()
+		_send_gloam()
 	_flush_inventories()
 	_flush_roster()
 	if entries.is_empty():
@@ -377,6 +378,26 @@ func _tick_gloam(now: float) -> Dictionary:
 		print("[gloam] walker %d grabbed %s for %d%s" % [int(g.walker), s.character.name, roundi(float(hit.get("taken", 0.0))),
 			" and knocked them down" if bool(hit.get("knocked_down", false)) else ""])
 	return r
+
+
+## s2c_gloam to every logged-in player (protocol v10): the walkers within GameConfig.VIEW_RANGE
+## of them, with the grab's windup, on the same 5 Hz beat and goodbye rule as s2c_wildlife.
+## Nothing goes out while nobody has a walker in view, so the live world (no --gloam) sends none.
+func _send_gloam() -> void:
+	var now := now_seconds()
+	for id in sessions:
+		var s: Dictionary = sessions[id]
+		if not s.logged_in:
+			continue
+		var entries := Gloam.to_wire_near(gloam, CharacterData.position(s.character), GameConfig.VIEW_RANGE, now)
+		if entries.is_empty():
+			var bye := int(s.get("gloam_bye", 0))
+			if bye <= 0:
+				continue
+			s.gloam_bye = bye - 1
+		else:
+			s.gloam_bye = WILDLIFE_GOODBYES
+		_send(id, "s2c_gloam", [entries])
 
 
 ## s2c_wildlife to every logged-in player: the grazers within GameConfig.VIEW_RANGE of them.
@@ -1380,7 +1401,7 @@ func _land_swing(id: int, sw: Dictionary, now: float) -> Array:
 	var all_hits := Weapons.targets_hit(pos, float(sw.yaw), str(sw.weapon), str(sw.kind), Wildlife.targets(wildlife) + Gloam.targets(gloam))
 	var damage := Weapons.damage(str(sw.weapon), str(sw.kind))
 	# Grazers keep their int ids (s2c_swing_hits names only them, as since v7); walkers are
-	# "w<id>" and stay off the wire until the Gloam has an RPC.
+	# "w<id>" here and go out by their int id in s2c_gloam_hits (v10).
 	var hits: Array = []
 	var walkers: Array = []
 	for t in all_hits:
@@ -1393,9 +1414,11 @@ func _land_swing(id: int, sw: Dictionary, now: float) -> Array:
 		if Wildlife.is_down(wildlife, int(cid)):
 			_hunted(id, int(cid))
 	var stagger := str(sw.kind) == "heavy"
+	var downed: Array = []
 	for wid in walkers:
 		var r := Gloam.strike(gloam, int(wid), id, pos, now, damage, stagger)
 		if bool(r.get("down", false)):
+			downed.append(int(wid))
 			s.gloam_downs = int(s.get("gloam_downs", 0)) + 1
 			print("[gloam] %s put walker %d down" % [s.character.name, int(wid)])
 	if not all_hits.is_empty():
@@ -1410,6 +1433,8 @@ func _land_swing(id: int, sw: Dictionary, now: float) -> Array:
 	for other in players_in_view(pos):
 		if other == id or not hits.is_empty():
 			_send(other, "s2c_swing_hits", [id, str(sw.kind), hits])
+		if not walkers.is_empty():
+			_send(other, "s2c_gloam_hits", [id, str(sw.kind), walkers.duplicate(), downed.duplicate()])
 	return hits
 
 

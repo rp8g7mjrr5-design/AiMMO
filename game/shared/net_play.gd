@@ -1,7 +1,8 @@
 extends Node
 ## Net/Play: the RPCs added in protocol v3 (gathering, the pack, crafting), v4 (skills), v5
 ## (roster, Return to Spawn Meadow), v6 (wildlife), v7 (health, stamina, the first swing), v8
-## (character customization) and v9 (the world config, placed campfires). A child of Net so
+## (character customization), v9 (the world config, placed campfires) and v10 (the Gloam
+## walkers). A child of Net so
 ## Net's own RPC numbering, and with it every old client's login, never changes (see net.gd
 ## and tests/protocol/README.md). No logic: each RPC re-emits the matching signal on Net.
 ## Clients call these as `net.play.c2s_*.rpc_id(1, ...)`; the server's _send finds them here.
@@ -235,3 +236,24 @@ func s2c_place_result(item: String, ok: bool, reason: String, text: String) -> v
 @rpc("authority", "call_remote", "reliable")
 func s2c_campfires(entries: PackedFloat32Array) -> void:
 	_net().campfires_changed.emit(entries)
+
+
+# --- protocol v10: the Gloam walkers (Basics 2, zombie survival) ---
+
+## The walkers within GameConfig.VIEW_RANGE of you, about 5 times a second, as 6 values per
+## walker (Gloam.to_wire_near): [id, x, z, yaw, state_index, windup_left] (int() the id and
+## the state; names in Gloam.STATES; y from Terrain.height). State "grab" is the arms-up
+## telegraph and windup_left the seconds until it closes on whoever is still in reach: show
+## it, it is the player's cue to step back or land a heavy blow. Unreliable like
+## s2c_wildlife; an empty list means the last walker just left your view (sent a few times).
+@rpc("authority", "call_remote", "unreliable_ordered")
+func s2c_gloam(entries: PackedFloat32Array) -> void:
+	_net().gloam_changed.emit(entries)
+
+
+## peer_id's `kind` blow landed on these walkers (ids from s2c_gloam), nearest first; `downed`
+## lists the ones that blow put down (they drop out of the next s2c_gloam). Sent to everyone
+## in view, the swinger included, right after s2c_swing_hits, only when a walker was struck.
+@rpc("authority", "call_remote", "reliable")
+func s2c_gloam_hits(peer_id: int, kind: String, walker_ids: Array, downed: Array) -> void:
+	_net().gloam_struck.emit(peer_id, kind, walker_ids, downed)

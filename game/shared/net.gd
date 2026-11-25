@@ -99,6 +99,15 @@ signal place_result(item: String, ok: bool, reason: String, text: String)
 ## Every campfire burning: [id, x, y, z, seconds_left] per fire (Campfires.to_wire).
 signal campfires_changed(entries: PackedFloat32Array)
 
+# --- protocol v10, carried by Net/Play: the Gloam walkers ---
+## The walkers within GameConfig.VIEW_RANGE of you, about 5 times a second: a
+## PackedFloat32Array of [id, x, z, yaw, state_index, windup_left] per walker (Gloam.to_wire;
+## y from Terrain.height, state names in Gloam.STATES). windup_left is the seconds until a
+## raised grab closes ("grab" state), else 0. An empty one means the last one left your view.
+signal gloam_changed(entries: PackedFloat32Array)
+## peer_id's blow landed on these walker ids; `downed` are the ones it put down for good.
+signal gloam_struck(peer_id: int, kind: String, walker_ids: Array, downed: Array)
+
 var last_ack_seq := -1
 var play: Node
 
