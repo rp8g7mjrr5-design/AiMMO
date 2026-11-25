@@ -1,13 +1,14 @@
-# AiMMO Roadmap
+# ZombAi Roadmap
 
 The road from today to **ZombAi** in `docs/vision.md` (owner direction, 2026-11-24):
 a third-person survival game in a fallen medieval kingdom, on generated maps full of
-risk-graded ruins, against the Gloam. The roadmap is a list of **phases in order**, not dates.
+risk-graded ruins, against the Zombai. The roadmap is a list of **phases in order**, not dates.
 Each has a goal a player can feel and a "done when" list. Streams work on the **current phase**
 first; they may build ahead on the next one only when nothing in the current one is unblocked
 for them. A broken system or a serious bug always goes first. Milestones 0 and 1 below are the
 foundations already built; anything still open in them stays first in its backlog. The game is
-**2 to 8 player co-op**, hosted by a friend (owner, 2026-11-24).
+an open-world survival sandbox on **servers of up to about 100 players**, not an MMO (owner,
+2026-11-25).
 
 Every phase follows the owner directions in `docs/design_bible.md` (fun comes first, the lean in
 `docs/vision.md`, take the best and beat it): before a phase's first system PR, its stream
@@ -17,7 +18,7 @@ hate about it, and how ours improves on it. Everything on screen follows the art
 
 **The basics first (owner direction 9, 2026-11-25).** Phases stay in order, but four pieces are
 pulled to the front of every backlog until they work end to end: character customization on the
-sculpted body, the Gloam walker and the first night (from Phase 2), the generated map (Phase 1),
+sculpted body, the Zombai walker and the first night (from Phase 2), the generated map (Phase 1),
 and ruins as landmarks with loot to search (the loot itself is pulled forward from Phase 4, at
 grades 1 and 2 only). Polish waits until those are playable.
 
@@ -56,7 +57,9 @@ first level-up.
 **Goal:** every world is a new, generated stretch of the fallen kingdom, and what we already
 built (gathering, crafting, skills, combat basics) works in it.
 - The live Railway world stays up the whole time (owner, 2026-11-24: friends drop in any time),
-  capped at 8 players (`MAX_PLAYERS`).
+  capped at 8 players (`MAX_PLAYERS`) until the load test proves more (Phase 5).
+- The generator takes a map size (small, medium, large: about 1.5, 3 and 4 km) so it is ready
+  for bigger servers; medium is the default.
 - A world config (seed, size, generator version) the server sends at login; today's 512 m
   Ashgrove stays as version 0 until the Railway world moves to a generated map, in one announced
   step where characters keep skills, items and pack and arrive at the new spawn.
@@ -70,32 +73,34 @@ ruins; a fresh character can gather and craft end to end in one; the spawn shot 
 budget; the world builds in under 3 s.
 
 ## Phase 2: Survive the first night (in rounds)
-**Goal:** staying alive is the game, and nights are fought in rounds against the Gloam.
+**Goal:** staying alive is the game, and nights are fought in rounds against the Zombai.
+- **One character level and the skill tree** (owner, 2026-11-25): today's four skills fold into character XP (add-only), the skills window becomes the tree window, and the first nodes of each branch.
+- **Health and stamina potions** brewed at the bench and found in ruins.
 - Hunger, thirst, warmth and rest on top of today's vitals, forgiving and readable; bandages and
   the first wounds.
 - Fire, water, foraging, cooking, hunting.
-- The Gloam: the walker and the Gloam hound, drawn by noise, with clear telegraphs; torches and
+- The Zombai: the walker and the hound, drawn by noise, with clear telegraphs; torches and
   ember-fire hurt them.
 - **Night rounds:** waves until dawn, each a bit tougher, with a short lull between; the round
   number and days survived on screen; rounds only come for players who are online.
-- Death drops a lootable pack where you fell; respawn in under a minute.
+- Death drops a couple of items from your pack in a sack where you fell; respawn in under a minute.
 - The **days survived** counter per character and per world (on the always-on world, days alive
   and online for part of the day), with best runs kept.
 **Done when:** a fresh player learns, in one evening, to avoid dying of cold, hunger and to the
-Gloam and survives a night of rounds; fun metrics report time to first fire, rounds survived and
+Zombai and survives a night of rounds; fun metrics report time to first fire, rounds survived and
 nights survived; bots fight rounds, die, loot and respawn in the bot test, and no round ever
 spawns for a player who is offline.
 
 ## Phase 3: A roof, a wall, and the first invasion
 **Goal:** the heart of the game (owner, 2026-11-24): build a base with friends and hold it when
-the Gloam come for it.
+the Zombai come for it.
 - A **claim marker** that stakes your land and grows as you build it up.
 - Snap-grid timber and stone building, doors, palisades and gates, chests, an ember hearth that
-  stops the Gloam rising inside, a bedroll respawn. Saved and restored through every restart.
+  stops the Zombai rising inside, a bedroll respawn. Saved and restored through every restart.
 - Base **threat** (size, noise, light, stored wealth); night rounds hit your walls; **the Tolling** (our horde night: triggered by threat, a bell the evening before, more rounds, soldiers and wights) grows with it,
-  announced a minute ahead; the Gloam that break doors and weak walls.
-- The first defences: spiked barricades, braziers, a warning bell; the first **runes** as wall wards.
-- On the always-on world a base is only attacked while one of its owners is online.
+  announced a minute ahead; the Zombai that break doors and weak walls.
+- The first defences: spiked barricades, braziers, a warning bell; the Building branch's first defence nodes.
+- On every server a base is only attacked while one of its owners is online.
 **Done when:** a group builds a base, an invasion comes for it and can be held or lost, a bigger
 base draws bigger invasions, the base survives a server restart in the bot test, and a walled
 base fits the render budget.
@@ -103,9 +108,9 @@ base fits the render budget.
 ## Phase 4: Into the ruins
 **Goal:** the map's risk ladder: go further, risk more, come back stronger.
 - All four ruin grades (the mine, the drowned village, the abbey, the fallen castle and its
-  crypt), each with its own Gloam (soldiers, the Bell-wight) and loot tables.
+  crypt), each with its own Zombai (soldiers, the Bell-wight) and loot tables.
 - Signet keys and vaults; smithing, iron and the first armour; bows and crossbows; ember
-  weapons; relics that enchant gear and single-use spell scrolls from vaults; base upgrades from
+  weapons; potions and single-use scrolls from ruins and vaults; base upgrades from
   ruin loot (iron-bound walls, a gatehouse, traps, arrow slits).
 - **Horses and carts:** wild horses and ruined stables, taming, feeding, stabling, riding; a cart
   to haul a ruin's loot home.
@@ -113,19 +118,30 @@ base fits the render budget.
 each grade is clearly better than the one below and upgrades the base, and a group can ride out
 and haul a cart of loot home.
 
-## Phase 5: Host your own world
-**Goal:** beyond the always-on world, any player can host, the others join, and it just works.
-- A Host button that starts the server build on the player's machine with a chosen world; join
-  by invite code or address; several saved worlds per host; seed and size choice; friendly fire
-  and difficulty as host settings.
-- Joining a world in progress, leaving and coming back, the host closing the world safely.
-**Done when:** a host on a home connection runs a world for 8 players (the bot test runs 8 bots
-against a host-started server), worlds survive closing and reopening, and a friend can join in
-under a minute from the main menu.
+## Phase 5: Servers for up to 100
+**Goal:** a server holds up to about 100 players and still feels good, and anyone can run one
+(owner, 2026-11-25: "at most maybe 100 player servers"). See `docs/vision.md`, "Servers".
+- **Interest management** (a client hears only what is within its bubble) and the Zombai
+  simulated in full only near players. Pulled forward: this lands before the live cap passes 24,
+  whatever phase is current.
+- A **load test** in CI at each cap step (24, 50, 100 bots, at least 3 minutes, scattered over
+  the map), and the official world's cap stepping 8 → 24 → 50 → 100 as each passes.
+- **Server rules** as one data file sent at login and shown in a Rules panel: PvP, friendly
+  fire, claim protection, loot refills, day length, Zombai difficulty, what death costs, XP rate,
+  map size, world reset.
+- **Factions** (shared claim, chests, doors, faction chat, map markers) and **nearby, faction and server
+  chat**.
+- The **dedicated server download** (Linux, Windows, Docker image) with a plain config file;
+  a **server list** in the client with player count, ping and rules in one line; join by address.
+- Later on the same build: a Host button in the client for a small group.
+**Done when:** the load test passes at 100 bots on a large map with no errors, desync or lost
+saves and the server tick inside budget; a player can find a server in the list, read its rules
+and join in under a minute; a server run from the download keeps its world through restarts;
+the official world runs at its new cap for a week with no regressions.
 
 ## Phase 6: Launch-ready
 **Goal:** a stranger buys it, starts it and has a good first hour.
-- A first-hour path that teaches needs, fire, the Gloam and building without a wall of text.
+- A first-hour path that teaches needs, fire, the Zombai and building without a wall of text.
 - Settings and accessibility, streamer mode, performance on the target laptop, the rename to
   ZombAi everywhere, a store-ready build.
 **Done when:** a new player reaches their first night and survives it without outside help, and
@@ -133,7 +149,7 @@ the build passes the perf budget on Low and Medium.
 
 ## Phase 7: Depth (ongoing)
 Boats (rowboat, then a small sail boat for the coast), great hordes, wounds and illness,
-farming, fishing, more kinds of Gloam and ruins, weather,
+farming, fishing, more kinds of Zombai and ruins, weather,
 proximity voice, a spectator camera.
 
 ## The next six weeks (director forecast, redrawn 2026-11-24 morning)
@@ -143,13 +159,13 @@ A forecast, not a promise: it is redrawn every morning from what actually landed
 |------|-------|-------|
 | 00 | to Thu 26 Nov | Milestones 0 and 1 closed. The first hunt becomes playable (attack key). Phase 1 groundwork: the 8-player cap on Railway, the world config on the wire, generator v1. |
 | 01 | 27 Nov to 3 Dec | Phase 1: chunks, the ruin kit, the burned farmstead and abandoned village, the map (M); the Railway world moves to a generated map in one announced step. Build-ahead: campfires, hunger and cooking, the first walker behind a flag. |
-| 02 | 4 to 10 Dec | Phase 2: thirst, warmth and rest, bandages, the walker and the hound live, night rounds, death drops a pack, days survived. |
+| 02 | 4 to 10 Dec | Phase 2: thirst, warmth and rest, bandages, the walker and the hound live, night rounds, death drops a couple of items, days survived. |
 | 03 | 11 to 17 Dec | Phase 3: the claim marker, snap-grid timber building, doors and gates, chests, the ember hearth, the bedroll. |
-| 04 | 18 to 24 Dec | Phase 3: threat, night rounds at your walls, the first Tolling, barricades, braziers and the bell, runes as wards. |
+| 04 | 18 to 24 Dec | Phase 3: threat, night rounds at your walls, the first Tolling, barricades, braziers and the bell. |
 | 05 | 25 to 31 Dec | Phase 4: grade 3 ruins (the mine, the drowned village), signet keys, smithing and iron, bows. |
 | 06 | 1 to 7 Jan | Phase 4: the fallen castle and its crypt, wights and soldiers, horses and carts. |
 
-Phase 5 (hosting your own world) moved after Phase 4 in the forecast: friends already play on the always-on world (owner, 2026-11-24), so the heart of the game (building, invasions, ruins) pays more than a Host button does right now.
+Phase 5 (servers for up to 100) stays after Phase 4 in the forecast: friends already play on the always-on world, so the heart of the game (building, invasions, ruins) pays more first. Its interest-management and load-test items are pulled forward as soon as the live cap needs to pass 24.
 
 ## Week history
 | Week | Release | Notes |
@@ -180,8 +196,8 @@ low-value follow-ups ahead of milestone work.
 
 **Director note (2026-11-24, ZombAi):** the owner is reshaping the game: renamed
 ZombAi, a post-apocalyptic medieval fantasy (a fallen kingdom), third person, a one-time buy,
-and a map that works like Rust's (generated land, roads and risk-graded ruins), with the Gloam
-as our own undead. The owner then chose 2 to 8 player co-op hosted by a friend; public servers are a "later, maybe". For now co-op is today's always-on Railway world, capped at 8, so friends can drop in any time; hosting from the client comes in Phase 5. The goal is pure survival (no story endgame); the heart of it is base building, getting invaded and looting toward upgrades and vehicles (horses, carts, boats). The owner then asked the director to pick the rest, with the reference "Project Zomboid + 7 Days to Die in a medieval fantasy setting, with a round survive element at night and base defence": nights come in rounds, the big horde night is **the Tolling** (threat-triggered, a bell the evening before), and magic is a light touch from loot (runes as wards, relics, scrolls). The undead are **the Gloam**. Phase 1 is seeded in every backlog. See `docs/vision.md`.
+and a map that works like Rust's (generated land, roads and risk-graded ruins), with the Zombai
+as our own undead. The owner then chose 2 to 8 player co-op hosted by a friend; public servers are a "later, maybe". For now co-op is today's always-on Railway world, capped at 8, so friends can drop in any time; hosting from the client comes in Phase 5. The goal is pure survival (no story endgame); the heart of it is base building, getting invaded and looting toward upgrades and vehicles (horses, carts, boats). The owner then asked the director to pick the rest, with the reference "Project Zomboid + 7 Days to Die in a medieval fantasy setting, with a round survive element at night and base defence": nights come in rounds, the big horde night is **the Tolling** (threat-triggered, a bell the evening before), and magic is a light touch from loot (runes as wards, relics, scrolls). The undead are **the Zombai**. Phase 1 is seeded in every backlog. See `docs/vision.md`.
 Backlogs are not reseeded until the owner confirms. *(Superseded the same day: the owner confirmed the direction and Phase 1 was seeded.)*
 
 **Director note (2026-11-24, morning run):** Milestones 0 and 1 are closed: chat commands are
@@ -197,10 +213,17 @@ Owner-thread PRs (#192 animation, #196 fuller bodies on hold, #197 customization
 v8) are left to their threads; the streams were told not to redo them and that protocol
 numbers go in merge order.
 
+**Director note (2026-11-25, survival servers):** the owner: "We are no longer making a MMO, it
+will at most have maybe 100 player servers. Like 7 days or project zomboid." The bibles were
+redone: servers of up to about 100 that anyone can run, shaped by server rules (PvE and
+forgiving by default), factions for groups, claims that protect on a server of strangers, map size
+scaled to the cap, and Phase 5 is now "Servers for up to 100". Nothing already in the backlogs
+changes order: the basics first (direction 9) still lead. The live cap stays 8 until the load
+test proves more.
+
 ## Backlog (unscheduled)
 - Zone or proximity chat, private messages
 - Emotes
-- Interest management (only send nearby players) once the population needs it
 - Procedural ambient music
 - Moving database calls off the server's main thread
 - Steam integration (blocked until the owner sets it up)

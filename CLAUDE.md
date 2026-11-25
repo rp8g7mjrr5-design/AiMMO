@@ -3,14 +3,14 @@
 Read this file first, every session. You start with no memory; this repo is your memory.
 
 ## Mission
-**ZombAi** (the repo was renamed from AiMMO on 2026-11-24; the game's internal data folder and `AIMMO_*` settings keep the old name on purpose, see `docs/vision.md`) is a real-time 3D **third-person survival game** built by its owner and AI together (owner direction, 2026-11-24): a fallen medieval kingdom on generated maps full of risk-graded ruins, the Gloam (our own undead), building and surviving with **2 to 8 friends in co-op** (for now on today's always-on Railway world, capped at 8; never break it), sold as a one-time buy. **Read `docs/vision.md` every session**; it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
+**ZombAi** (the repo was renamed from AiMMO on 2026-11-24; the game's internal data folder and `AIMMO_*` settings keep the old name on purpose, see `docs/vision.md`) is a real-time 3D **third-person open-world zombie survival sandbox** built by its owner and AI together (owner direction, 2026-11-24 and 2026-11-25): a fallen medieval kingdom on generated maps full of risk-graded ruins, the Zombai (our own undead), building and surviving on **servers of up to about 100 players** under rules each server sets, sold as a one-time buy. **It is not an MMO** (owner, 2026-11-25). Today's official always-on Railway world is one such server, capped at 8 until load tests prove more; never break it. **Read `docs/vision.md` every session**; it is the design, and its "Never" list binds every stream. The owner plays, tests and sets the direction; the AI designs and builds everything else: world, lore, systems, art direction, balance, and the details of the roadmap. Work toward the current phase in `docs/roadmap.md`.
 
 ## Autonomy rules
 - Never wait for human input and never ask questions. Make the call, write down why, move on.
 - The human's only input channel is `docs/playtest.md` (bugs and crashes only). Treat it as bug reports, not design requests.
 - **Fun comes first.** The owner's number one rule: if it isn't fun, it isn't worth shipping. Judge every change by whether it makes the game more fun to play (tight feedback, short loops that pay off, juice, no dead time), and say how in your PR. See "Fun comes first" in `docs/design_bible.md`.
-- The owner's standing directions are in `docs/design_bible.md` under "Owner directions" (fun comes first, chat is for talking only, the action camera, how gathering feels, the whole game feels like a modern action game, the long road of skills, take the best and beat it, a look of our own that is cheap to draw (`docs/art_bible.md`), the ZombAi survival game (`docs/vision.md`), and "Inspired by, never copied"). Follow them over any other design choice; everything else stays your call.
-- **The look is grounded, not cute** (owner direction, 2026-11-24). Before any change that shows something on screen, read `docs/art_bible.md`, at least section 0 (the pillars), section 11 (what reads as cheesy) and section 12 (the checklist), and follow it. Muted earthy colours, real proportions, moody light, restrained effects and UI; inspired by grounded survival-crafting games, never copying any game.
+- The owner's standing directions are in `docs/design_bible.md` under "Owner directions" (fun comes first, chat is for talking only, the action camera, how gathering feels, the whole game feels like a modern action game, the long road of skills, take the best and beat it, a look of our own that is cheap to draw (`docs/art_bible.md`), the ZombAi survival sandbox on servers of up to 100 (`docs/vision.md`), the basics first, and "Inspired by, never copied"). Follow them over any other design choice; everything else stays your call.
+- **The look is grounded, not cute** (owner direction, 2026-11-24). Before any change that shows something on screen, read `docs/art_bible.md`, at least section 0 (the pillars), section 11 (what reads as cheesy) and section 12 (the checklist), and follow it. Muted earthy colours, real proportions, clear sunny days and moody nights, restrained effects and UI; inspired by grounded survival-crafting games, never copying any game.
 - Stay true to `docs/design_bible.md`. You may evolve it, but log every change and its reason in that file's "Revision history" so the vision doesn't flip-flop week to week.
 
 ## Hard rules (never break these)
@@ -37,7 +37,7 @@ Read this file first, every session. You start with no memory; this repo is your
 ```
 CLAUDE.md                 ← this file
 docs/
-  vision.md               ← the game: ZombAi, a fallen kingdom, ruins, the Gloam (owner direction)
+  vision.md               ← the game: ZombAi, a fallen kingdom, ruins, the Zombai (owner direction)
   research/               ← design studies behind the vision
   design_bible.md         ← world, lore, art direction, core systems (AI-owned)
   art_bible.md            ← the art direction and style guide: Emberlight, grounded; render budgets (read before any visual change)
@@ -71,6 +71,7 @@ Dockerfile                ← server container for Railway
 ## Testing standard
 - Unit tests run headless: `godot --headless --path game -s tests/unit/run_all.gd`
 - **Bot test:** start the dedicated server, connect at least 8 simulated players who log in, move, chat, use this week's new feature, disconnect, and reconnect. It runs for at least 3 minutes. Any crash, error log, desync, or data loss is a failure.
+- **Load test:** before the live world's player cap goes up, a load test with as many bots as the new cap passes on `main` (`docs/vision.md`, "Getting to 100").
 - Every new feature gets at least one unit test and a bot-test behavior.
 
 ## Writing standards
