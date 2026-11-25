@@ -78,15 +78,15 @@ the owner loves most, and what every phase serves:
 - **Quick to learn.** In the first five minutes a new player drinks, eats, lights a fire, fights
   one of the Gloam and knows what will kill them. Every danger is visible and explained the first time.
   Needs are forgiving and come back fast.
-- **Good in a short session.** Thirty minutes always pays: a ruin looted, a wall raised, a skill
-  level, a night survived. A day and night lasts about 40 minutes.
+- **Good in a short session.** Thirty minutes always pays: a ruin looted, a wall raised, a
+  level and a point in the tree, a night survived. A day and night lasts about 40 minutes.
 - **Moments worth clipping:** a horde night held by torchlight; a run into the castle's crypt
   and out again with the hounds behind you; a friend dragged back from a Gloam pack at the
   last second; a stranger's torch on the road at night, and the choice to wave or hide.
 - **Readable for viewers.** Clear silhouettes (the Gloam grey and ash-cold, the living warm and
   cloth-coloured), a quiet HUD, effects that are big only for the big moments, and a streamer
   mode.
-- **Fair failure.** Death drops what you carried, never what you know. You're back in under a
+- **Fair failure.** Death costs you a couple of things from your pack, never what you know. You're back in under a
   minute.
 
 ## The Gloam (our undead)
@@ -121,7 +121,7 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
 | 1 Quiet | Roadside shrine, burned farmstead, woodcutter's hut | A few Gloam | Food, cloth, basic tools |
 | 2 Uneasy | Abandoned village, toll bridge, watchtower | Small groups, a hound pack nearby | Better tools, the first weapons, the first iron |
 | 3 Grim | The old mine, the drowned village, a walled abbey | Soldiers, tight spaces, darkness | Ore, ember salve, armour pieces, **signet keys** |
-| 4 Deadly | The fallen castle, the royal crypt beneath it | Many soldiers, wights, hounds; a key to get in deep | The best gear and ember relics |
+| 4 Deadly | The fallen castle, the royal crypt beneath it | Many soldiers, wights, hounds; a key to get in deep | The best gear, the strongest potions and rare scrolls |
 
 - **Signet keys** (our own take on gating loot behind keys): found in grade 3 ruins, they open
   the vaults in grade 4 ones. That makes a run a plan, and gives a band a reason to send its
@@ -176,9 +176,18 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
 - **Vehicles:** horses (tame, feed, stable, ride; a horse can be hurt and must be looked after),
   carts (hitched to a horse, hauling a ruin's worth of loot), and boats (rowboat first, then a
   small sail boat for the coast). Vehicles are saved with the world.
-- **Skills, the long road kept:** our skills and XP carry over and grow (Felling, Quarrying,
-  Toolcraft, plus foraging, cooking, mending, carpentry, masonry, smithing and the weapon
-  masteries). Skills belong to the character in that world.
+- **One level, one skill tree** (owner, 2026-11-25): everything you do pays character XP,
+  every level gives a point, and you spend points down five branches (Survival, Fighting,
+  Building, Scavenging, Crafting; design bible direction 5). You can't take everything, so a
+  band is better when its members specialise. Today's four skills fold into character XP; the
+  level and tree belong to the character in that world.
+- **Dying** (owner, 2026-11-25): you drop **a couple of items from your pack** (two or three
+  random stacks, never what you hold in your hands) in a small sack where you fell, and wake at
+  your bedroll or a spawn point in under a minute with everything else. Your level and tree
+  are kept. Anyone can pick up the sack, so go back for it. The days-survived counter resets.
+- **Character creation is looks only** (owner, 2026-11-25): body, face, skin, hair, beard and
+  cloth on the sculpted body. No backgrounds or starting classes: what you become comes from
+  the tree.
 - **Carry weight**, not a grid.
 
 ## Servers: up to about 100 survivors (owner, 2026-11-25)
@@ -190,7 +199,7 @@ same wherever it runs.
 **Who runs servers.**
 - **The official world.** Today's always-on Railway server: the owner's friends' world and the
   playtest world. It **never breaks** (CLAUDE.md), it is PvE, and it moves to a generated map in
-  one announced step once the generator is ready (Phase 1): characters keep their skills, items
+  one announced step once the generator is ready (Phase 1): characters keep their level, skill tree, items
   and pack and arrive at the new world's spawn; their old position is the only thing that
   doesn't carry over.
 - **Dedicated servers anyone can run** (Phase 5): the server build as its own download (Linux
@@ -201,7 +210,7 @@ same wherever it runs.
   size, ping and its rules in one line ("PvE · claims protected · loot refills daily"), plus
   join by address. A full server says so politely and never kicks anyone.
 
-**Everything is per server.** Characters, skills, holds and days survived belong to the
+**Everything is per server.** Characters, levels and skill trees, holds and days survived belong to the
 character in that server's world. A player can have characters on many servers.
 
 **Holds are safe while their owners are away.** The world never stops on a dedicated server,
@@ -237,7 +246,7 @@ defaults.
 | Loot refills | ruins refill **daily (in-game)**, weekly, never | Late joiners still find loot on a busy server |
 | Day length | 20 to 90 minutes, **40** | |
 | Gloam difficulty | gentle, **normal**, hard; and night rounds on or off | Harder is a choice, never the default |
-| What death costs | **drop your pack, keep your skills**, or also lose a little skill XP | Fair failure by default (design bible direction 5) |
+| What death costs | **drop a couple of items from your pack**, drop the whole pack, or hardcore (start a new character) | Fair failure by default (owner, 2026-11-25) |
 | XP rate | 0.5x to 3x, **1x** | One curve, scaled |
 | World reset | **never**, or on a schedule the server shows | Never on the official world without the owner |
 
@@ -272,14 +281,16 @@ live cap only goes up after the server proves it can hold that number:
 4. **The official world's cap steps up** 8 → 24 → 50 → 100, each step only after its load
    test passes on `main`, each announced in the patch notes.
 
-## Magic: a light touch, from loot (decided 2026-11-24)
-Magic is ember-based, rare and found, not levelled (a spell skill could come later):
-- **Runes** looted from grade 2+ ruins, set into walls and gates as **wards** (a ward makes a
-  wall section burn the Gloam that claw it, or slows them).
-- **Relics** that enchant a weapon or tool (an axe that burns, a lantern that keeps the Gloam
-  wary further out).
-- A few **spell scrolls** from grade 3 and 4 vaults, single use (a burst of ember-fire, a flare
-  that lights the field for one round).
+## Magic: potions and scrolls (owner, 2026-11-25)
+Magic is small, useful and ember-based. It is something you drink or read, never a class:
+- **Potions:** a **health potion** (heals over a few seconds, and stops bleeding) and a
+  **stamina potion** (refills stamina and slows its drain for a minute). Brewed down the
+  Crafting branch from herbs and ember sap, and found in ruins; better grades come from deeper
+  ruins. Drinking takes a moment and you can be hit while you drink.
+- **One-use scrolls**, found in ruins (rarer and stronger in grade 3 and 4 vaults): a burst of
+  ember-fire around you, a flare that lights the field for a night round, a ward that keeps
+  the Gloam off one gate until dawn, and the rare scroll that resets your skill tree.
+- Nothing else: no runes in walls, no enchanted relics, no spells you learn.
 All of it follows the art bible's restraint: effects are warm light and sparks, short and rare.
 
 ## Still open

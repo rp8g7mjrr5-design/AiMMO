@@ -74,6 +74,8 @@ budget; the world builds in under 3 s.
 
 ## Phase 2: Survive the first night (in rounds)
 **Goal:** staying alive is the game, and nights are fought in rounds against the Gloam.
+- **One character level and the skill tree** (owner, 2026-11-25): today's four skills fold into character XP (add-only), the skills window becomes the tree window, and the first nodes of each branch.
+- **Health and stamina potions** brewed at the bench and found in ruins.
 - Hunger, thirst, warmth and rest on top of today's vitals, forgiving and readable; bandages and
   the first wounds.
 - Fire, water, foraging, cooking, hunting.
@@ -81,7 +83,7 @@ budget; the world builds in under 3 s.
   ember-fire hurt them.
 - **Night rounds:** waves until dawn, each a bit tougher, with a short lull between; the round
   number and days survived on screen; rounds only come for players who are online.
-- Death drops a lootable pack where you fell; respawn in under a minute.
+- Death drops a couple of items from your pack in a sack where you fell; respawn in under a minute.
 - The **days survived** counter per character and per world (on the always-on world, days alive
   and online for part of the day), with best runs kept.
 **Done when:** a fresh player learns, in one evening, to avoid dying of cold, hunger and to the
@@ -97,7 +99,7 @@ the Gloam come for it.
   stops the Gloam rising inside, a bedroll respawn. Saved and restored through every restart.
 - Base **threat** (size, noise, light, stored wealth); night rounds hit your walls; **the Tolling** (our horde night: triggered by threat, a bell the evening before, more rounds, soldiers and wights) grows with it,
   announced a minute ahead; the Gloam that break doors and weak walls.
-- The first defences: spiked barricades, braziers, a warning bell; the first **runes** as wall wards.
+- The first defences: spiked barricades, braziers, a warning bell; the Building branch's first defence nodes.
 - On every server a base is only attacked while one of its owners is online.
 **Done when:** a group builds a base, an invasion comes for it and can be held or lost, a bigger
 base draws bigger invasions, the base survives a server restart in the bot test, and a walled
@@ -108,7 +110,7 @@ base fits the render budget.
 - All four ruin grades (the mine, the drowned village, the abbey, the fallen castle and its
   crypt), each with its own Gloam (soldiers, the Bell-wight) and loot tables.
 - Signet keys and vaults; smithing, iron and the first armour; bows and crossbows; ember
-  weapons; relics that enchant gear and single-use spell scrolls from vaults; base upgrades from
+  weapons; potions and single-use scrolls from ruins and vaults; base upgrades from
   ruin loot (iron-bound walls, a gatehouse, traps, arrow slits).
 - **Horses and carts:** wild horses and ruined stables, taming, feeding, stabling, riding; a cart
   to haul a ruin's loot home.
@@ -157,9 +159,9 @@ A forecast, not a promise: it is redrawn every morning from what actually landed
 |------|-------|-------|
 | 00 | to Thu 26 Nov | Milestones 0 and 1 closed. The first hunt becomes playable (attack key). Phase 1 groundwork: the 8-player cap on Railway, the world config on the wire, generator v1. |
 | 01 | 27 Nov to 3 Dec | Phase 1: chunks, the ruin kit, the burned farmstead and abandoned village, the map (M); the Railway world moves to a generated map in one announced step. Build-ahead: campfires, hunger and cooking, the first walker behind a flag. |
-| 02 | 4 to 10 Dec | Phase 2: thirst, warmth and rest, bandages, the walker and the hound live, night rounds, death drops a pack, days survived. |
+| 02 | 4 to 10 Dec | Phase 2: thirst, warmth and rest, bandages, the walker and the hound live, night rounds, death drops a couple of items, days survived. |
 | 03 | 11 to 17 Dec | Phase 3: the claim marker, snap-grid timber building, doors and gates, chests, the ember hearth, the bedroll. |
-| 04 | 18 to 24 Dec | Phase 3: threat, night rounds at your walls, the first Tolling, barricades, braziers and the bell, runes as wards. |
+| 04 | 18 to 24 Dec | Phase 3: threat, night rounds at your walls, the first Tolling, barricades, braziers and the bell. |
 | 05 | 25 to 31 Dec | Phase 4: grade 3 ruins (the mine, the drowned village), signet keys, smithing and iron, bows. |
 | 06 | 1 to 7 Jan | Phase 4: the fallen castle and its crypt, wights and soldiers, horses and carts. |
 

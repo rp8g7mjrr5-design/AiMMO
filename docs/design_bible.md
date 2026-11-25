@@ -17,7 +17,7 @@ trusting, claim land, build a hold together and keep it through horde nights; an
 deadlier ruins for the gear to push further. Other survivors are everywhere: neighbours to trade
 with, strangers to help on the road, and, only where the server's rules allow it, a threat of
 their own. In your hands it is an action game (the over-the-shoulder camera, aimed swings, dodge,
-block) with gathering and crafting as real skills that level by doing. The core loop (owner):
+block), and everything you do feeds one character level and a skill tree you shape. The core loop (owner):
 **loot the ruins and gather resources to build up the land you've claimed**, then hold it
 through invasions and horde nights. There is no ending: the goal is survival, and **days
 survived** is the score.
@@ -67,7 +67,7 @@ What that means in practice:
   per minute, not per month: every minute of play pays a little (XP you can see, a drop, a
   step closer to an unlock), and the next unlock is always in sight. If a system only works
   by making players repeat something dull with nothing showing for it, redesign it. A
-  hundred-level skill is fine; a hundred clicks with no feedback is not.
+  fifty-level tree is fine; a hundred clicks with no feedback is not.
 
 How each stream applies it:
 - **gameplay:** tune timings and rewards for pace (gather and craft times, drop rates,
@@ -143,11 +143,11 @@ Directions 2 and 3 give the camera, gathering and looting that feel; the owner w
   wildlife telegraph their attacks so a good player can read and avoid them (fair and
   readable). No auto-attack, no target lock required.
 - **Weapons you made or found.** Weapons come from crafting and from ruins, never from a shop
-  that sells power. Each weapon type plays differently and has its own mastery that levels by
-  using it.
-- **Trade skills are real skills.** Gathering, refining (wood to planks, stone and ore to
-  bars) and crafting are each skills with levels, and high-level crafters make gear nobody
-  else can. On a big server that makes crafters worth knowing and trading with.
+  that sells power. Each weapon type plays differently, and the Fighting branch of the skill
+  tree (direction 5) makes you better with the ones you choose.
+- **Crafting is a path, not a menu.** Gathering, refining (wood to planks, stone and ore to
+  bars) and crafting all pay XP, and a character who goes down the Crafting branch makes gear
+  nobody else can. On a big server that makes crafters worth knowing and trading with.
 - **Gear worth chasing.** Gear comes in tiers tied to material tiers and ruin grades, with some
   rolled variation so two crafts of the same item can differ. Better gear changes your
   silhouette (art bible section 3).
@@ -157,34 +157,50 @@ Directions 2 and 3 give the camera, gathering and looting that feel; the owner w
 - **Physical and grounded.** Weighty movement, readable animations, sound on every action,
   day and night that change what is out there.
 
-### 5. The long road: skills that grind well
-The owner loves a long skill grind (RuneScape is the owner's reference) and wants it here,
-made fun by the rules above. In our own design:
-- **Many skills.** Every activity is a skill: each kind of gathering, each refining craft,
-  each crafting discipline, each weapon, and survival skills like cooking, mending, carpentry
-  and masonry. Start small (four in Milestone 1) and add skills as systems arrive; never retire
-  one.
-- **A high cap, levelled over months.** Each skill runs to **level 100**. The XP curve is ours
-  (do not reuse another game's table or formula): the first levels come in a minute or two,
-  level 10 inside a first session, level 50 after weeks of regular play, 100 is a long-term
-  badge of honour. Keep the curve's numbers in one data file so they can be tuned. A server
-  may scale XP as a server rule; the curve itself stays one table.
-- **Every level unlocks something.** No empty levels. Each level gives a small visible gain
-  (a bit faster, a bit more yield, a better chance at a rare find). Every few levels gives a
-  named unlock: a new node tier you can now work, a recipe, a perk, an ability, a cosmetic
-  (tool glow, a title). The skills window always shows the next unlock and how far away it is.
+### 5. The long road: one character, one skill tree (owner direction, 2026-11-25)
+The owner: "instead of multiple skills there was just one skill tree for your character and
+branches to go down." So a character has **one level and one skill tree**, not a list of
+separately levelled skills. In our own design:
+- **One level, from everything you do.** Every gather, craft, search, kill, wall raised and
+  night survived pays **character XP**, shown as it lands. The XP curve is ours (never another
+  game's table or formula) and lives in one data file: the first level in a minute or two,
+  level 10 inside a first session, the cap (**level 50** to start) after weeks of regular play.
+  A server may scale XP as a server rule; the curve stays one table.
+- **One point per level, spent in the tree.** The tree has **five branches**, each a path you
+  walk down:
+  - **Survival:** needs drain slower, wounds heal faster, foraging and cooking yield more, the
+    chill wears off sooner.
+  - **Fighting:** stronger swings and blocks, more stamina, cheaper dodges, bows and crossbows,
+    finishing moves on downed Gloam.
+  - **Building:** stronger timber and stone, faster building and repairs, gates, traps and
+    defences you can only build down this branch.
+  - **Scavenging:** faster searches, better finds in ruins, quieter footsteps, more carry
+    weight, opening locked chests.
+  - **Crafting:** better tools and weapons, smithing and iron, potions and scrolls (direction
+    on magic in `docs/vision.md`).
+  Each branch starts with cheap, broad nodes and goes deeper into stronger, narrower ones; a
+  node needs the one above it. There are far more nodes than points (about 80 nodes for 50
+  points), so **a character can't take everything**: you choose what kind of survivor you are,
+  and a band is better when its members go down different branches.
+- **Every level unlocks something.** No empty levels: a level is a point to spend now, and the
+  tree window always shows what your next point could buy and how far away it is. Some nodes
+  unlock recipes and buildings outright, so the tree also gates content, softly. Nothing is
+  gated behind payment, luck alone or a daily timer.
 - **Level-ups are moments.** A level-up is the loudest bit of juice outside a fight: a sound,
-  a burst of light around the character that others nearby see, a banner naming what you just
-  unlocked.
-- **Your levels gate content, softly.** Higher-tier nodes, recipes and ruins ask for levels,
-  so the grind opens the world. Nothing is gated behind payment, luck alone or a daily timer.
+  a burst of light around the character that others nearby see, a banner, and a nudge to spend
+  the point.
+- **Changing your mind.** A rare one-use scroll from ruins resets the tree, so a wrong turn is
+  never permanent and never cheap.
 - **No anti-fun limits.** No daily XP caps, no XP that shrinks the longer you play, no
   chores you must do every day to keep up. Being near other players should *add* XP
   (better together), never take it away.
-- **A total across skills.** The character panel shows a combined total of every skill's
-  level, so an all-rounder has something to show too. (Pick our own name for it.)
-- **What death costs is a server rule.** By default skills are kept through death (fair
-  failure); a harder server may set skills to drop a little on death (see `docs/vision.md`).
+- **The tree is kept through death** by default (fair failure); what death costs is a server
+  rule (`docs/vision.md`).
+- **Today's skills fold in, nothing is lost.** The four skills already on `main` (Felling,
+  Quarrying, Tapping, Toolcraft) stop levelling separately: a character's saved skill XP is
+  added up into their character XP once, with an add-only migration that keeps the
+  old skills rows untouched (CLAUDE.md hard rules 1 and 6). The skills window becomes the tree
+  window.
 
 ### 6. Take the best, then beat it
 The owner's words: take other games' best features and improve on them, making them better
@@ -194,7 +210,7 @@ players complain about, and how do we keep the good part and fix the rest?* Writ
 in a few lines in the PR or devlog. Then build **our own improved version**: our design, our
 numbers, our names, our look. The aim is never "as good as" a reference; it is the version
 players of that game would wish theirs had. Examples of the habit: action combat with clearer
-telegraphs and less input lag than anyone's; a skill grind where no level is empty; looting
+telegraphs and less input lag than anyone's; a skill tree where no level is empty and every branch is a real choice; looting
 that is quick and readable instead of a spreadsheet; base defence where you always know what's
 coming; a server browser and rules screen that tells you exactly what kind of server you are
 joining. This sits inside "Inspired by, never copied": study the feature, never copy its
@@ -369,6 +385,7 @@ The goal is survival, with no story endgame (owner, 2026-11-24).
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 01 (2026-11-25, one skill tree, light deaths, potions):** The owner answered the first round of questions on fitting the docs to the survival game: "just one skill tree for your character and branches to go down", "you should just lose a couple items in your bag on death", "magic like health potions and stamina potions and one-use scrolls", and no backgrounds. Direction 5 is now one character level (cap 50 to start) and one skill tree with five branches (Survival, Fighting, Building, Scavenging, Crafting), more nodes than points so characters specialise, a rare scroll to reset; today's four skills fold into character XP through an add-only migration. Death drops two or three random stacks in a sack where you fell and keeps the rest and the tree (the "What death costs" server rule now offers that, the whole pack, or hardcore). Magic is health and stamina potions and one-use scrolls; runes in walls and enchanting relics are dropped. Character creation is looks only.
 - **Week 01 (2026-11-25, survival servers, not an MMO):** The owner, after reviewing the art bible: "We need the bible redone. We are no longer making a MMO, it will at most have maybe 100 player servers. Like 7 days or project zomboid." Rewrote the North star, the vision paragraph and pillar 4 (survivors together; PvE by default, PvP a server rule), and replaced direction 8's "2 to 8 friends in co-op" with servers of up to about 100 players that anyone can run, shaped by server rules shown before you join. Directions 2 to 6 keep their meaning but drop the MMO framing (the reference is now modern third-person action games and survival sandboxes); direction 3 adds looting to gathering; direction 5 makes what death costs and XP rate server rules. Direction 7 now says clear sunny days with no haze (the owner approved the test-camp look on 2026-11-25), and the art bible's lighting follows. "The world" is now the fallen kingdom, with Ashgrove as the live test world. Phase 5 becomes "Servers for up to 100", and the technical principles add interest management and a load test before the live cap rises. Direction 9 (the basics first, PR #220) is unchanged. `docs/vision.md`, the art bible's framing, the roadmap and CLAUDE.md follow. The design forks this opened (PvP, the cap path, map size, claims, loot refills, wipes) are settled with a recommendation in `docs/vision.md`, "Server rules", until the owner says otherwise; the owner then chose PvP's: PvE by default, PvP a server option.
 - **Week 01 (2026-11-25, the basics first):** The owner asked to start with the basics: character customization, zombie survival, a randomly generated map, and landmarks with loot. Added owner direction 9: those four come before polish in every stream, and each worker's backlog was cut down to them (world first, 2026-11-25).
 - **Week 01 (2026-11-24, model direction):** The owner saw the sculpted test-camp characters ("this is a way better start", "needs polishing") and asked to fine-tune the models and give them direction. The art bible's "Characters" section is now the model direction: one continuous sculpted body on the same 18-bone skeleton instead of segment meshes, build as a single `bulk` number, readable faces (full jaw, painted eyes and brows, real beards, clean hairline), clothing as proud layers with straight hems at set heights, four reference archetypes (woodcutter, scout, elder, smith), and a new per-character cost of 1 draw call and at most 5,000 triangles, cached at build. The old per-character limit (6 draw calls, 3,000 triangles) is replaced because one skinned mesh costs far fewer draw calls. The in-game body follows as its own PR.
