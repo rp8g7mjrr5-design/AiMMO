@@ -100,7 +100,7 @@ another game's names for its zombies).
   (fighting, chopping, breaking walls, bells) and to the smell of blood. Alone they're
   beatable; packs are deadly.
 - **Types** (owner, 2026-11-25: "we should have different types of Zombai"), each with a clear
-  silhouette, a telegraph and a counter. Draft list, to be confirmed with the owner:
+  silhouette, a telegraph and a counter. Confirmed by the owner, 2026-11-25:
   - **Walker:** the common one; slow, the baseline every new player learns on.
   - **Sprinter:** fast and fragile, alone or in pairs, mostly at night. Hear it, turn, block.
   - **Brute:** big and slow, takes a beating, smashes doors and timber walls; the reason to
@@ -176,7 +176,7 @@ another game's names for its zombies).
 - **Days survived:** each character counts days survived since their last death, shown quietly on
   the HUD and loudly when you die ("You survived 23 days"), and each world counts its age. Best
   runs are kept per character and per world.
-- **Nights come in rounds (owner, 2026-11-24: "round survive element at night").** A night
+- **Nights come in rounds (owner, 2026-11-24: "round survive element at night"; kept 2026-11-25).** A night
   (about 17 of the day's 40 minutes) is fought in **rounds**: the Zombai come in waves until
   dawn, each round a little bigger and tougher than the last, with a **short lull** between
   rounds (about a minute) to repair walls, rearm and drag a friend back inside. The round number
@@ -276,12 +276,19 @@ defaults.
 New rules can be added as systems arrive; a rule is only added when the system it changes is on
 `main`, and every rule has a bot-test case for its default.
 
-### Bands: groups on a busy server
+### Bands: groups on a busy server (name kept by the owner, 2026-11-25)
 On a server of 100, the people you play with need a name. A **band** is a group of players who
 share a claim, its chests and doors, a band chat and markers on each other's maps. Make one,
 invite by name, leave any time; a band has no size limit beyond the server's cap, and a player
 is in one band at a time. A solo player is a band of one. Claims, threat and invasions belong to
 bands.
+
+### Trading (owner, 2026-11-25)
+No computer-run traders at launch. Players trade with each other face to face through a
+**trade window** (both sides place items, both confirm, the server swaps them at once, nothing
+can be changed after a confirm). Places to trade are the ones players build: a band can mark
+part of its claim as open to visitors. Crafters who went down the Crafting branch are what
+make trade worth it.
 
 ### Talking and finding each other
 - **Nearby chat** by default (about 40 m), **band chat**, and a **server channel** the server can
