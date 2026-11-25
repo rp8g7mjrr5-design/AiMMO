@@ -15,6 +15,12 @@ writes a few lines in its devlog on which game does that feature best, what play
 hate about it, and how ours improves on it. Everything on screen follows the art bible
 (`docs/art_bible.md`) and stays inside its render budget.
 
+**The basics first (owner direction 9, 2026-11-25).** Phases stay in order, but four pieces are
+pulled to the front of every backlog until they work end to end: character customization on the
+sculpted body, the Gloam walker and the first night (from Phase 2), the generated map (Phase 1),
+and ruins as landmarks with loot to search (the loot itself is pulled forward from Phase 4, at
+grades 1 and 2 only). Polish waits until those are playable.
+
 ## Milestone 0: Foundations (done 2026-11-24)
 Shared world, accounts, movement, chat, persistence, day and night, gathering, crafting at
 the workbench, the self-updating client. Real gathering (v3), the

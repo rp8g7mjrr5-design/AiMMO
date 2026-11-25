@@ -91,8 +91,7 @@ and note the bump in the changelog fragment. From v4 on, the bump PR also adds a
 
 ## One run per stream at a time (claims)
 
-Workers run on a schedule (world, client and gameplay every 2 hours, qa every 4 hours, the
-integrator every 4 hours; see "Schedule"), and a run can take longer than that. Two runs of one stream at once
+Workers run on a schedule (every worker every 4 hours, the integrator every 8; see "Schedule"), and a run can take longer than that. Two runs of one stream at once
 build the same item twice, so every worker run (and the integrator, as stream `integrator`)
 holds a **claim** while it works: a branch `claim/<stream>` that `tools/ws_claim.sh` creates
 atomically. It needs no clone, so take it before doing anything expensive:
@@ -115,23 +114,24 @@ is how protocol v3 was built twice on 2026-11-23). If some session does run stre
 outside the schedule, it takes that stream's claim first like any worker run.
 
 **Older scheduled prompts.** The scheduled tasks that start the workers and the integrator
-can't be edited, and some still say "keep at most one open PR", "squash-merge", "one hourly
-run", or "write down why in docs/devlog/<stream>.md". The owner replaced those rules on
-2026-11-23 and 2026-11-24: this file wins. "Write it in your devlog" now means a devlog
-note in `docs/devlog/<stream>.d/`.
+can't be edited from a session, and some still say "keep at most one open PR", "squash-merge",
+"you are the only session that merges", "hourly run", or "write down why in
+docs/devlog/<stream>.md". The owner replaced those rules on 2026-11-23, 2026-11-24 and
+2026-11-25: this file wins. "Write it in your devlog" now means a devlog note in
+`docs/devlog/<stream>.d/`; nobody calls merge (auto-merge does); read lean (worker step 1).
 
 ## Schedule
 
-Set by the owner on 2026-11-24 to cut usage roughly in half and leave fewer runs fixing each
-other's conflicts. All times America/Chicago, every day, overnight included:
+Set by the owner on 2026-11-25 (every worker every 4 hours, to save usage; the owner turns the
+schedules on and off themselves). All times America/Chicago, every day, overnight included:
 
 | Session | Runs at |
 |---|---|
-| world | every 2 hours on even hours, at :07 (00:07, 02:07, ... 22:07) |
-| client | every 2 hours on even hours, at :47 (00:47, 02:47, ... 22:47) |
-| gameplay | every 2 hours on odd hours, at :27 (01:27, 03:27, ... 23:27) |
-| qa | every 4 hours, at :43 (01:43, 05:43, 09:43, 13:43, 17:43, 21:43) |
-| integrator | every 4 hours, at :56 (02:56, 06:56, 10:56, 14:56, 18:56, 22:56) |
+| world | every 4 hours at :07 (00:07, 04:07, 08:07, 12:07, 16:07, 20:07) |
+| gameplay | every 4 hours at :27 (01:27, 05:27, 09:27, 13:27, 17:27, 21:27) |
+| client | every 4 hours at :47 (02:47, 06:47, 10:47, 14:47, 18:47, 22:47) |
+| qa | every 4 hours at :43 (03:43, 07:43, 11:43, 15:43, 19:43, 23:43) |
+| integrator | every 8 hours, at :56 (02:56, 10:56, 18:56) |
 | director | daily at 04:47 |
 | weekly review | Fridays at 11:42 |
 
@@ -142,12 +142,19 @@ this, if you didn't take it before cloning.
 ## Worker procedure (each run)
 
 0. **Budget check first.** Follow `docs/budget.md`. If your stream has hit its weekly cap and
-   has no open PR to fix, stop immediately. Then **take your claim** (above); if it's busy,
+   has no open PR to fix, stop immediately. **qa only, cheap exit:** if no PR merged into `main`
+   since qa's last PR was opened, `main` is green, qa has no open PR to fix and
+   `docs/playtest.md` has no untagged report, stop with one line before cloning. Then **take your claim** (above); if it's busy,
    stop with one line. From here on, release the claim before you stop, on every path.
-1. Attach and clone the repo. Read `CLAUDE.md`, this file, `docs/design_bible.md`
-   (especially the North star), `docs/vision.md` (the game), `docs/art_bible.md` (if your change shows anything on screen), `docs/roadmap.md`, your backlog `docs/workstreams/<stream>.md`,
-   unfolded notes in `docs/workstreams/<stream>.d/`, and the tail of `docs/devlog/<stream>.md`
-   plus the newest notes in `docs/devlog/<stream>.d/`.
+1. Attach and clone the repo (shallow: `--depth 50`). **Read lean** (owner, 2026-11-25: runs
+   cost usage, and the running devlogs and the Done lists are over 100 KB). Read `CLAUDE.md`,
+   this file's worker procedure, the design bible's "Fun comes first" and owner direction 9 ("The
+   basics first"), the vision's "Never" list, the **Backlog** and **Requests from other streams**
+   sections of `docs/workstreams/<stream>.md` (skip "Done"), the unfolded notes in
+   `docs/workstreams/<stream>.d/`, the **last 80 lines** of `docs/devlog/<stream>.md` and the newest
+   notes in `docs/devlog/<stream>.d/`. If your change shows anything on screen, also read the art
+   bible's sections 0, 11 and 12 (and section 3 for characters). Open the rest of the vision,
+   roadmap or bibles only for the section your item names.
 2. **Look after your open PRs, then keep going.** List your open `ws/<stream>/` PRs. For each:
    - Checks green or still running, auto-merge on, no conflict, no unanswered review comment:
      nothing to do. GitHub lands it on its own. Carry on to step 3.
@@ -254,7 +261,8 @@ the branch before opening the PR is fine; open the PR as soon as the branch is r
    until `main` is green again. If the deploy breaks, revert and
    confirm the previous version is live.
 6. Triage `docs/playtest.md`: tag new reports and add them to the right stream's backlog.
-7. If a stream's backlog has fewer than 3 items, add the next ones from the roadmap.
+7. If a stream's backlog has fewer than 3 items, add the next ones from the roadmap, basics
+   first (design bible, owner direction 9).
 8. Release the `integrator` claim and end with your two or three lines.
 
 **Week numbers:** weeks start Friday. Week 00 started 2026-11-20. Week NN is the number of
@@ -265,7 +273,11 @@ whole weeks since then.
 The director keeps the four streams pointed at the North star and makes sure they never run
 dry. It does not write game code.
 
-1. Read CLAUDE.md, this file, the design bible, the roadmap, every stream's backlog (with its
+0. **Cheap exit:** if no PR merged in the last 24 hours, no `docs/playtest.md` report is
+   untagged and every stream's Backlog has at least 4 open items, stop with one line before
+   cloning.
+1. Read CLAUDE.md, this file, the design bible's owner directions, the roadmap's current phase,
+   the **Backlog** and **Requests** sections of every stream's backlog (skip "Done"; with its
    unfolded notes in `docs/workstreams/<stream>.d/`) and the last day of `docs/devlog/<stream>.md`
    and `docs/devlog/<stream>.d/`, the PRs merged and opened in the last 24 hours, and
    `docs/playtest.md`.
@@ -273,12 +285,15 @@ dry. It does not write game code.
    fun metrics trend (time to first reward, longest dead time, rewards per minute) and
    each merged PR's "Why it's more fun" line. Are streams
    duplicating work, blocked on each other, or drifting from the design bible?
-3. Refill and reorder every backlog so each stream has 8 to 12 well-sized items, ordered by
+3. Refill and reorder every backlog so each stream has 4 to 8 well-sized items (owner, 2026-11-25:
+   short lists, basics first; never bring back polish the owner cut while a basic in owner
+   direction 9 is unfinished), ordered by
    how much fun they add for players soonest, cross-stream
    dependencies come in the right order (e.g. gameplay adds the data before client shows it),
    and requests between streams are answered. Treat unfolded backlog notes as part of the
    backlog, but leave the note files alone; the integrator folds them. Items for the current milestone in `docs/roadmap.md` come before anything else that is not a bug or an owner-direction item. Keep the roadmap's milestones current.
-4. Write `docs/digest/YYYY-MM-DD.md`: a short plain-language summary for the owner of what
+4. Write `docs/digest/YYYY-MM-DD.md` (under 250 words, and lead with how far each of the four
+   basics has come): a short plain-language summary for the owner of what
    changed in the game yesterday, what got more fun (with the fun metrics), what's coming today, anything stuck, and budget use so far.
 5. Commit on a branch `ws/director/YYYY-MM-DD`, open a PR (docs only), and turn on
    auto-merge (squash) like any other worker PR.
