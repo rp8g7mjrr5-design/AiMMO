@@ -8,3 +8,10 @@
 - Bot test: no new bot behaviour; the input is client-only and `gameplay_first_swing` already drives `c2s_attack` end to end on the wire. Unit tests: `test_client_attack_input.gd` (7 tests).
 
 **Not done / next:** no local prediction of your own swing: the animation and whoosh wait for the server's echo (one round trip; fine on one region, but over 100 ms on a far connection breaks the "answers within 100 ms" rule). Predicting needs the stamina check client side so a "winded" swing isn't shown. Holding right click doesn't repeat heavies (press only). No hit-stop or camera kick on a landed blow yet; worth a small follow-up once the walker is on screen.
+
+CI fix (next builder run, 2026-11-25): the PR's first bot test failed on
+`gameplay_skills_v4` ("14 gathers paid out but only 13 gathering s2c_xp"). Not this PR's code:
+a bot brought down a grazer, and since the first hunt (2026-11-24) a kill's drops come as
+`s2c_gather_result` with no gathering XP. The check now skips hunt drops (`Wildlife.drops`
+items) and still matches every timed gather against its XP. It only shows when a bot happens
+to land a kill, so it was flaky on main too.

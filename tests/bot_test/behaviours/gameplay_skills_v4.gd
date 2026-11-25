@@ -8,7 +8,8 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ##   total plus the gain (the client can keep a running total without asking again);
 ## - every s2c_level_up names the level that the last s2c_xp total reaches, above the last
 ##   level we knew, and its unlocks are the table's ({level, name, text});
-## - our timed gathers that paid out (s2c_gather_result) earned gathering XP;
+## - our timed gathers that paid out (s2c_gather_result) earned gathering XP (a hunt's drops
+##   come as s2c_gather_result too, 2026-11-24, but teach no gathering skill, so they don't count);
 ## - s2c_level_up_seen is never about ourselves and always names a real skill.
 
 const GATHER_SKILLS := ["felling", "quarrying", "tapping"]
@@ -30,9 +31,19 @@ func setup(net: Node) -> void:
 	net.xp_gained.connect(_on_xp)
 	net.level_up.connect(_on_level_up)
 	net.level_up_seen.connect(_on_seen)
-	net.gather_result.connect(func(_item: String, count: int):
-		if count > 0:
+	net.gather_result.connect(func(item: String, count: int):
+		if count > 0 and not _is_hunt_drop(item):
 			_results += 1)
+
+
+## A kill's drops (Wildlife.drops) arrive as s2c_gather_result for the hunt toast, but a hunt
+## earns no gathering XP, so only timed gathers are matched against gathering s2c_xp.
+static func _is_hunt_drop(item: String) -> bool:
+	for kind in Wildlife.KINDS:
+		for d in Wildlife.drops(kind):
+			if str(d[0]) == item:
+				return true
+	return false
 
 
 func on_login(_reconnect: bool, character: Dictionary) -> void:
