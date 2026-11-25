@@ -1,31 +1,37 @@
 # ZombAi: vision
 
-**Owner direction, 2026-11-24.** The owner set the name, setting, camera, price, map style,
-**2 to 8 player co-op** on today's always-on server, and the reference ("Project Zomboid + 7 Days
-to Die in a medieval fantasy setting, with a round survive element at night and base
-defence"), then asked the director to pick the rest. Every stream reads this file;
-`docs/roadmap.md` holds the phases and their "done when" lists.
+**Owner direction, 2026-11-24 and 2026-11-25.** The owner set the name, setting, camera, price,
+map style and the reference ("Project Zomboid + 7 Days to Die in a medieval fantasy setting,
+with a round survive element at night and base defence"), then, on 2026-11-25: **"We are no
+longer making a MMO, it will at most have maybe 100 player servers. Like 7 days or project
+zomboid."** So ZombAi is an **open-world zombie survival sandbox on servers of up to about 100
+players**, not an MMO and no longer capped at 8 friends. The owner asked the director to pick
+the rest. Every stream reads this file; `docs/roadmap.md` holds the phases and their "done
+when" lists.
 
 Everything here is our own design under "Inspired by, never copied" (design bible). The feel
-we're reaching for (owner, 2026-11-24): **Project Zomboid's survival depth** (needs, injuries,
-careful looting) **crossed with 7 Days to Die's base building and night defence**, in a medieval
-fantasy setting, on a procedural map full of risk-graded ruins like *Rust*'s monuments. All of it is made quicker to learn and readable on a stream. Those names stay in design
-docs, never in the game.
+we're reaching for: **Project Zomboid's survival depth** (needs, injuries, careful looting) and
+its servers full of survivors' stories, **crossed with 7 Days to Die's base building and night
+defence**, in a medieval fantasy setting, on a procedural map full of risk-graded ruins like
+*Rust*'s monuments. All of it is made quicker to learn and readable on a stream. Those names
+stay in design docs, never in the game, and we take their feel only: no names, systems, numbers
+or looks from any of them.
 
 ## The game in one paragraph
 **ZombAi** is a third-person survival game set in a **fallen kingdom**. The kingdom died when the
 Dimming rose, and its dead got back up as **the Gloam** (owner's name, 2026-11-24): the
-kingdom's dead, filled with the Dimming's twilight. Each world is a freshly generated
+kingdom's dead, filled with the Dimming's twilight. Each server is a freshly generated
 stretch of that kingdom: forests, moors, rivers, the old king's roads, and the **ruins**
 (burned farmsteads, a drowned village, mines, abbeys, and a castle at the heart of it). Each ruin
-is graded by how much it can kill you and how much it pays. You arrive with nothing. You eat,
-drink, keep warm, bandage what bleeds, and learn that noise brings the Gloam and **ember-fire
-burns them**. With your friends you **claim a piece of land** and build it up from a lean-to to
-a walled hold, with what you **gather** and what you **loot** from richer and deadlier ruins. On
-**horde nights** the Gloam come in numbers for the holds that have grown loud, bright and rich. A
-counter keeps score: **days survived**. There is no ending: the goal is to survive, build and
-grow stronger for as long as you like. It's played with **2 to 8 friends** in a shared world:
-for now the always-on server, later one a friend hosts.
+is graded by how much it can kill you and how much it pays. You **make your character** and
+arrive with nothing. You eat, drink, keep warm, bandage what bleeds, and learn that noise brings
+the Gloam and **ember-fire burns them**. With the people you trust you **claim a piece of land**
+and build it up from a lean-to to a walled hold, with what you **gather** and what you **loot**
+from richer and deadlier ruins. On **horde nights** the Gloam come in numbers for the holds that
+have grown loud, bright and rich. A counter keeps score: **days survived**. There is no ending:
+the goal is to survive, build and grow stronger for as long as you like. It's played on
+**servers of up to about 100 players**: alone, with a few friends, or as part of a whole
+server's worth of survivors, under rules the server sets and shows before you join.
 
 ## The heart of it (owner, 2026-11-24)
 **The goal is survival.** No story ending, no final boss to beat: a world is a sandbox you keep
@@ -44,7 +50,7 @@ the owner loves most, and what every phase serves:
    in ruined stables, tamed, fed and stabled), a **cart** to haul big loads, and **boats** for
    rivers, lakes and the coast. Each opens more of the map and bigger ruin runs.
 
-## Settled (owner, 2026-11-24)
+## Settled (owner, 2026-11-24 and 2026-11-25)
 - **Name: ZombAi.** The repository was renamed on 2026-11-24 and the game shows the new name
   from the build after that (section "Rename").
 - **Setting: post-apocalyptic medieval fantasy.** A kingdom that fell, not a modern city: swords,
@@ -57,9 +63,16 @@ the owner loves most, and what every phase serves:
   later.
 - **Map: works like Rust's** (in our own design). A procedurally generated landmass with biomes,
   rivers, roads and ruins placed by a generator, every world different.
-- **Players: 2 to 8 friends in co-op**, PvE against the Gloam and the land. For now that is
-  today's always-on Railway world, capped at 8, so friends can drop in any time; hosting your
-  own world comes later. Solo play works too.
+- **Not an MMO (owner, 2026-11-25).** One server is one world of up to about 100 players.
+  There is no shared universe across servers, no global economy and nothing that needs
+  thousands of players to work.
+- **Players: servers of up to about 100** (owner, 2026-11-25), PvE against the Gloam and the
+  land by default; how players treat each other is a **server rule** (section "Server rules").
+  Solo play and a handful of friends work too. Today the official always-on Railway world holds
+  8 and must never break; its cap rises in steps (section "Getting to 100").
+- **The basics first (owner, 2026-11-25, design bible direction 9):** character
+  customization, zombie survival, a randomly generated map, and ruins and landmarks with loot
+  come before any polish.
 
 ## The lean: accessible, action-heavy, worth sharing
 - **Quick to learn.** In the first five minutes a new player drinks, eats, lights a fire, fights
@@ -69,7 +82,7 @@ the owner loves most, and what every phase serves:
   level, a night survived. A day and night lasts about 40 minutes.
 - **Moments worth clipping:** a horde night held by torchlight; a run into the castle's crypt
   and out again with the hounds behind you; a friend dragged back from a Gloam pack at the
-  last second.
+  last second; a stranger's torch on the road at night, and the choice to wave or hide.
 - **Readable for viewers.** Clear silhouettes (the Gloam grey and ash-cold, the living warm and
   cloth-coloured), a quiet HUD, effects that are big only for the big moments, and a streamer
   mode.
@@ -85,6 +98,8 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
   soldier** in rusted mail, found in castles and forts, slow and hard to put down; the
   **Gloam hound**, fast and in packs, found on the moors; the **Bell-wight**, rare, whose
   shriek calls every one of the Gloam nearby (silence it first). More come in the "Depth" phase.
+- **Only near people.** The Gloam are simulated in full near players; the empty half of a
+  100-player map costs the server next to nothing.
 - **Ember burns them.** Torches keep them wary, ember-tipped weapons hit hard, and an ember
   hearth inside your walls stops them rising in your hold. This makes the existing ember motif
   the core of the game.
@@ -111,8 +126,13 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
 - **Signet keys** (our own take on gating loot behind keys): found in grade 3 ruins, they open
   the vaults in grade 4 ones. That makes a run a plan, and gives a band a reason to send its
   best.
-- **Size:** about 1 to 1.5 km across (a host setting: small, medium, large), with roads
-  linking the ruins and the high-grade ones toward the centre or the far side from the start.
+- **Size:** a server rule that scales with the player cap: small (about 1.5 km across, up to
+  about 16 players), medium (about 3 km, up to about 50), large (about 4 km, up to 100). Roads
+  link the ruins, with the high-grade ones toward the centre or the far side from the spawn
+  coast. Bigger maps get more ruins of each grade, so 100 players are spread over many places,
+  not queued at one castle.
+- **Spawns:** new characters arrive at one of several spawn points along the quiet edge of the
+  map, spread so a busy server doesn't drop everyone in one meadow.
 
 ## Surviving, building, getting stronger
 - **Needs:** hunger, thirst, warmth and rest. Each is a quiet icon that only shows when it
@@ -121,16 +141,18 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
 - **Food and fire:** forage, hunt, cook; food spoils slowly, and salting and smoking keep it.
   Farming comes later.
 - **Combat:** the action combat already on `main` (aimed light and heavy swings, block, dodge on
-  stamina), extended with bows and crossbows, against the Gloam and wildlife. No PvP in the core
-  game (friendly fire is a host setting, off by default).
+  stamina), extended with bows and crossbows, against the Gloam and wildlife. PvP and friendly fire are
+  server rules, off by default (section "Server rules").
 - **Building:** snap-grid timber and stone (foundations, walls, doors, roofs, palisades, gates),
   chests, an ember hearth, a bedroll. Tiers: wood, stone, iron-bound. Defences you loot and
   craft toward: spiked barricades, pit traps, arrow slits, a gatehouse, braziers that burn
   the Gloam, a bell to warn the others.
-- **Claimed land:** a group stakes its land with a **claim marker** (a banner or boundary stone,
+- **Claimed land:** a band stakes its land with a **claim marker** (a banner or boundary stone,
   final look to world). The claim sets where you can build, and grows as you build it up (more
-  plots as your hold gets bigger). It's co-op, so a claim is about your base's footprint and its
-  threat, not keeping other players out.
+  plots as your hold gets bigger). It sets the base's footprint and its threat, and on a server
+  with claim protection on (the default) only the band can build, open doors and chests or
+  break anything inside it. Claims can't be placed on a ruin, a king's road or too close to
+  someone else's claim, so the map's best spots are first come, and nobody can wall off a ruin.
 - **Days survived:** each character counts days survived since their last death, shown quietly on
   the HUD and loudly when you die ("You survived 23 days"), and each world counts its age. Best
   runs are kept per character and per world.
@@ -159,46 +181,96 @@ The kingdom's dead, emptied by the Dimming. They fit the name without copying an
   masteries). Skills belong to the character in that world.
 - **Carry weight**, not a grid.
 
-## Co-op: how friends play together (owner, 2026-11-24)
-**Now: one always-on world.** The owner wants friends to be able to drop in any time and try it.
-So, for now, co-op is **today's dedicated server on Railway**: one persistent world, always on,
-capped at **8 players**, updated the way it is today. Nothing about the live server breaks.
-- The cap is a server setting (`MAX_PLAYERS`, set to 8 in the Railway image); a full world says so
-  politely and never kicks anyone.
-- When the generator is ready (Phase 1), the Railway world **moves to a generated map** in one
-  announced step: characters keep their skills, items and pack, and arrive at the new world's
-  spawn. Their old position is the only thing that doesn't carry over.
-- Everything built later (holds, chests) is saved by that server and survives every deploy.
-- **The world never stops, so nothing attacks what nobody is there to defend.** The day clock
-  runs in real time on the always-on server whether anyone is on. Night rounds and invasions only
-  come for players who are online, and a base is only attacked while at least one of its owners
-  is online. A Tolling that comes due while its base's owners are all offline waits until one of
-  them logs in, and its evening-before bell rings then. Friends who drop in at different times
-  never come back to a base wrecked while they slept.
-- **Days survived on an always-on world** count in-game days a character was alive *and online
-  for at least part of that day*, so a friend who plays twice a week isn't punished, and nobody
+## Servers: up to about 100 survivors (owner, 2026-11-25)
+A server is one persistent world: one seed, one map, its own characters, holds and history. It
+holds **up to about 100 players** at once (`MAX_PLAYERS`, at most 100). It is the same
+authoritative headless server we run on Railway today, so the rules and the bot test are the
+same wherever it runs.
+
+**Who runs servers.**
+- **The official world.** Today's always-on Railway server: the owner's friends' world and the
+  playtest world. It **never breaks** (CLAUDE.md), it is PvE, and it moves to a generated map in
+  one announced step once the generator is ready (Phase 1): characters keep their skills, items
+  and pack and arrive at the new world's spawn; their old position is the only thing that
+  doesn't carry over.
+- **Dedicated servers anyone can run** (Phase 5): the server build as its own download (Linux
+  and Windows, and the Docker image), with a plain config file for the server rules. The
+  one-time buy pays for the game; running a server costs nothing extra.
+- **A Host button** for a small group comes after, on the same build, started from the client.
+- **Finding a server:** a server list in the client with each server's name, player count, map
+  size, ping and its rules in one line ("PvE · claims protected · loot refills daily"), plus
+  join by address. A full server says so politely and never kicks anyone.
+
+**Everything is per server.** Characters, skills, holds and days survived belong to the
+character in that server's world. A player can have characters on many servers.
+
+**Holds are safe while their owners are away.** The world never stops on a dedicated server,
+so nothing attacks what nobody is there to defend:
+- Night rounds and invasions only come for players who are online, and a base is only attacked
+  by the Gloam while at least one of its owners is online. A Tolling that comes due while its
+  base's owners are all offline waits until one of them logs in, and its evening-before bell
+  rings then.
+- On a server with PvP, other players can only break into a hold while one of its owners is
+  online, unless the server's rules say otherwise and say so in the server list.
+- **Days survived** on an always-on server count in-game days a character was alive *and online
+  for at least part of that day*, so someone who plays twice a week isn't punished and nobody
   climbs the board by staying logged off.
-- **Up to 8 at once:** night rounds and Tollings scale with how many players are at the base, so
-  two friends and eight friends both get a fair fight. Packs in the wild scale with the group
-  nearby.
 
-**Later: friends host their own worlds.** Once the game is ready for people beyond the owner's
-friends (Phase 5):
-- A "Host" button in the client starts our own server build on the player's machine with their
-  world; friends join with an invite code or the host's address. It is the same authoritative
-  server, so the rules and the bot test stay the same.
-- A host keeps several worlds (each with its seed, everything built and its characters), picks
-  or rolls a seed for a new one, and keeps them as long as they like.
-- Up to 8 players per world. Sending every player to every player is fine at 8; the effort goes
-  into the Gloam, ruins and building instead.
-- The one-time buy pays for the game, not for hosting. The Railway world stays as the owner's
-  friends' world and the playtest world.
+**Scaling to the crowd.** Night rounds and Tollings scale with how many players are at the
+base, so a pair and a band of twelve both get a fair fight. Packs in the wild scale with the
+group nearby. Nothing is server-wide: every horde has a base or a group as its target, so 100
+players means many small stories, not one big lag spike.
 
-## Later, maybe: dedicated servers for bigger groups
-Not in the core plan. If co-op lands well, a dedicated server mode for bigger groups (16 to 48)
-could follow: players or communities run our server build, with optional PvP rules from the
-earlier draft (bands, land claims held by resolve, raids with offline protection, seasons that
-end in a fresh map). Nothing is designed or built for it until the owner asks.
+### Server rules
+A server's rules decide what kind of server it is. They live in one data file of rule names and
+defaults (gameplay owns it), the server sends them at login, and the server list and a
+"Rules" panel show them before you join. Defaults are in bold; the official world uses the
+defaults.
+
+| Rule | Choices | Why |
+|---|---|---|
+| Player cap | 2 to 100, **32** for a new server (8 on the official world today) | A server sized to its map and its people |
+| Map size | small (about 1.5 km), **medium (about 3 km)**, large (about 4 km) | Roughly 1.5 km for up to 16, 3 km for up to 50, 4 km for up to 100 |
+| PvP | **off**, on, or only outside claims | PvE by default, PvP a server option (owner chose this, 2026-11-25); never on by default |
+| Friendly fire within a band | **off**, on | |
+| Claim protection | **on** (only your band builds, opens chests and doors on your claim), off | On a server of strangers, a claim must mean "mine" |
+| Loot refills | ruins refill **daily (in-game)**, weekly, never | Late joiners still find loot on a busy server |
+| Day length | 20 to 90 minutes, **40** | |
+| Gloam difficulty | gentle, **normal**, hard; and night rounds on or off | Harder is a choice, never the default |
+| What death costs | **drop your pack, keep your skills**, or also lose a little skill XP | Fair failure by default (design bible direction 5) |
+| XP rate | 0.5x to 3x, **1x** | One curve, scaled |
+| World reset | **never**, or on a schedule the server shows | Never on the official world without the owner |
+
+New rules can be added as systems arrive; a rule is only added when the system it changes is on
+`main`, and every rule has a bot-test case for its default.
+
+### Bands: groups on a busy server
+On a server of 100, the people you play with need a name. A **band** is a group of players who
+share a claim, its chests and doors, a band chat and markers on each other's maps. Make one,
+invite by name, leave any time; a band has no size limit beyond the server's cap, and a player
+is in one band at a time. A solo player is a band of one. Claims, threat and invasions belong to
+bands.
+
+### Talking and finding each other
+- **Nearby chat** by default (about 40 m), **band chat**, and a **server channel** the server can
+  turn off. Chat stays talking-only (design bible direction 1). Proximity voice is Phase 7.
+- A **players panel** lists who is on the server; distance and position only for your band.
+- Strangers meet in the world: a camp's smoke and firelight are visible from a distance, and the
+  king's roads lead past everyone's land.
+
+### Getting to 100
+The server we have sends every player to every player. That is fine at 8 and not at 100. The
+live cap only goes up after the server proves it can hold that number:
+1. **Interest management:** a client only hears about players, the Gloam, animals and drops
+   within its bubble (about 150 to 200 m). This comes before the cap passes 24.
+2. **The Gloam near players only:** full simulation within the bubbles, a cheap coarse
+   simulation (or none) everywhere else.
+3. **A load test in CI** (qa): the bot test's 8 bots still run on every PR; a separate load
+   test connects as many bots as the next cap step (24, then 50, then 100) for at least 3
+   minutes, scattered over the map, and fails on errors, desync, a server tick over budget or
+   any lost save.
+4. **The official world's cap steps up** 8 → 24 → 50 → 100, each step only after its load
+   test passes on `main`, each announced in the patch notes.
 
 ## Magic: a light touch, from loot (decided 2026-11-24)
 Magic is ember-based, rare and found, not levelled (a spell skill could come later):
@@ -219,11 +291,11 @@ is easy to tune.
 ## What carries over from today's build
 | Keeps | Changes | Goes |
 |---|---|---|
-| Godot client and headless authoritative server (now also started by the host), ENet and WebSocket | One fixed valley becomes a generated kingdom per world, built in chunks | The MMO framing, "thousands on one world", public servers, raiding and seasons (see "Later, maybe") |
-| Gathering with E, timed bars, nodes; the bench and crafting; skills and XP | Vitals grow into needs and wounds; inventory gets weight | Milestones 2 to 7 as written |
-| The third-person action camera, swings, dodge, block | Ashgrove's ember lore becomes the fallen kingdom's (the Dimming, the ember) | The towns-MMO plan (PR #184, closed) |
-| Grounded art and its budgets; wildlife | New: ruins, the Gloam, building, death and loot, hosting and invites | |
-| CI, bot test, fun metrics, the self-updating client, the worker setup | Fun metrics add survival measures (time to first fire, nights survived, ruins cleared) | |
+| Godot client and headless authoritative server, ENet and WebSocket; the official always-on Railway world | One fixed valley becomes a generated kingdom per server, built in chunks; the server learns interest management and server rules | The MMO framing, "thousands on one world", anything shared across servers |
+| Gathering with E, timed bars, nodes; the bench and crafting; skills and XP | Vitals grow into needs and wounds; inventory gets weight; one global chat becomes nearby, band and server chat | The 8-player co-op cap as a design limit (it stays only as the live world's current setting) |
+| The third-person action camera, swings, dodge, block | Ashgrove's ember lore becomes the fallen kingdom's (the Dimming, the ember) | The towns-MMO plan (PR #184, closed); the old "Later, maybe" of 16 to 48 player PvP servers, now folded into server rules |
+| Grounded art and its budgets; wildlife; the character creator | New: ruins, the Gloam, building, death and loot, bands, server rules, the server list and dedicated server download | |
+| CI, bot test, fun metrics, the self-updating client, the worker setup | Fun metrics add survival measures (time to first fire, nights survived, ruins cleared); qa adds a load test | |
 
 ## Rename (done 2026-11-24)
 The owner renamed the GitHub repository from AiMMO to ZombAi; GitHub redirects the old URLs.
@@ -259,3 +331,6 @@ only what is on `main`**.
 - Never sell power, safety or progress. It's a one-time buy.
 - Never lose a player's save, world or character.
 - Never make a death the player couldn't have seen coming.
+- Never break the official always-on world, and never raise its cap past what the load test has
+  proved.
+- Never let a server's rules be a surprise: what a server allows is shown before you join.

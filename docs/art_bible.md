@@ -1,28 +1,32 @@
-# AiMMO Art Bible: Emberlight, grounded
+# ZombAi Art Bible: Emberlight, grounded
 
-This is how Ashgrove looks, and how it stays cheap to draw. Every worker whose change shows
+This is how ZombAi's fallen kingdom looks, and how it stays cheap to draw, on servers of up
+to about 100 players (`docs/vision.md`). Every worker whose change shows
 anything on screen reads this first (CLAUDE.md, "Owner directions"). Owned by the director;
 every change is logged in the design bible's Revision history, like any other change to the
 vision. `world` builds the look, `client` owns the HUD, render settings and quality options,
 `qa` enforces the budgets and the style check in CI.
 
 ## 0. What the owner asked for (owner direction, 2026-11-24)
-The owner played the build and said the style "is cheesy and looks silly". They want AiMMO to
-feel **heavily inspired by the genre of grounded survival-and-crafting action MMOs** (their
-favourite is New World): a real-feeling wilderness, moody painterly light, weathered materials,
-the sense that the world is old and a little dangerous. Done in **low poly**, with a style that
+The owner played the build and said the style "is cheesy and looks silly". They want ZombAi to
+feel **heavily inspired by grounded survival-and-crafting games** (their first reference was New
+World; the game is now an open-world zombie survival sandbox, not an MMO, owner 2026-11-25): a
+real-feeling wilderness, painterly light, weathered materials, the sense that the world is old
+and a little dangerous. On 2026-11-25 the owner approved the test-camp look: **clear, sunny days
+with no haze** (section 5). Done in **low poly**, with a style that
 is **clearly our own**, and without getting us in trouble (section 6).
 
-So the bar for every visual change is: *would this look at home in a grounded, moody
-wilderness MMO, rendered as chunky low-poly?* If it would look at home in a mobile party game
-or a toy box, it is wrong for Ashgrove.
+So the bar for every visual change is: *would this look at home in a grounded open-world
+survival game, rendered as chunky low-poly?* If it would look at home in a mobile party game
+or a toy box, it is wrong for ZombAi.
 
 ### The five pillars
 1. **Grounded before cute.** Real proportions, real materials, real weight. Nothing is round
    because round is friendly; things are the shape their job and their age made them.
-2. **Mood comes from light.** Atmosphere is built with low sun, haze, long shadows, dusk and
-   real night, not with brighter colours. A good screenshot of Ashgrove could be a painting of
-   a quiet evening.
+2. **Mood comes from light.** Atmosphere is built with light, not with brighter colours: clear
+   sunny days with a strong sun and real shadows, rose dawns and dusks, and real night. No haze
+   over the land. A good screenshot could be a painting of a bright, quiet day in an old
+   country, or of a lantern on a dark road.
 3. **Earth first, ember rare.** About 90% of the screen is muted, lived-in naturals (olive,
    moss, bark, stone, rust, straw). The ember glow is the one saturated note, and it means
    "you can use this".
@@ -34,9 +38,10 @@ or a toy box, it is wrong for Ashgrove.
 ## 1. The style in one line
 **Emberlight: grounded painted low-poly.** Grounded proportions and real lighting logic,
 simplified into chunky faceted shapes, with colour *painted into the geometry* (vertex
-colours, gradients and one shared shader), never photographic textures. A muted autumn
-valley under low golden light and cool blue shadows, with a faint ember glow pulsing through
-everything the sleeping thing under the valley touches.
+colours, gradients and one shared shader), never photographic textures. A muted, weathered
+kingdom under a clear sun and cool blue shadows, with a faint ember glow pulsing through
+everything the old warmth under the land still touches, and the cold grey of the Dimming where
+it has drained away.
 
 **Low-res paint** (owner direction, 2026-11-24: "less blocky and more low res actual"). Two
 things carry it. Shapes are *organic low poly*: smooth, rounded silhouettes with real
@@ -50,7 +55,7 @@ faceted rocks and crowns still read as painted planes.
 
 The family is "stylized realism". What makes it ours, and what makes it cheap, is the same
 thing: **no texture files, one shader, colour in the vertices, a procedural low-res grain.** A texture-painted
-realistic MMO cannot look like this, and could not run on this budget.
+realistic game cannot look like this, and could not run on this budget.
 
 ## 2. Palette
 The palette lives in `game/procgen/palette.gd`. New content picks from it or extends it
@@ -58,7 +63,7 @@ there, with a comment saying what the colour is for. No other file hard-codes a 
 world art (qa lints this, see section 8).
 
 **The 60 / 30 / 10 rule.** About 60% of any screen is muted natural colour (grass, bark,
-rock, sky), about 30% is warm light (sunlit faces, haze, rust crowns), and at most 10% is ember
+rock, sky), about 30% is warm light (sunlit faces, rust crowns, warm stone), and at most 10% is ember
 accent. Ember is rare on purpose: that is why it reads.
 
 **Saturation and value rules.**
@@ -89,7 +94,7 @@ accent. Ember is rare on purpose: that is why it reads.
 | `COLD_ASH` | `#6E7A86` | The Dimming (section 4): drained, blue-grey ash |
 | `SOOT` | `#2B2A2E` | The darkest value |
 | `SHADE` | `#4A5878` | Shadow tint. Shadows lean blue-violet, never grey or black |
-| `HAZE` | `#E8C9A0` | Valley haze by day: warm, golden |
+| `HAZE` | `#E8C9A0` | Warm horizon glow at dawn and dusk only. Not a day haze (no haze by day, 2026-11-25) |
 | `CLOTH` (8 dyes) | see `palette.gd` | Characters' cloth: undyed wool, madder, woad, weld, walnut, lichen, sloe, charcoal |
 | `HAIR`, `skin()` | see `palette.gd` | Natural hair and skin ranges. No orange skin, no bright hair |
 
@@ -222,18 +227,24 @@ the opposite of the warm valley. It comes in with the hostile areas (Milestone 2
 ## 5. Light and atmosphere
 
 ### Light by time of day
-The day is where the mood lives. `SkyClock` holds the keys; these are the targets.
+**Clear, sunny days, no haze** (owner, 2026-11-25, approving the test-camp look). By day the
+sky is a clean, deep blue and the sun is strong, with crisp, real shadows and the land readable
+to the horizon. The mood lives at the ends of the day and at night, and in places (a dark ruin,
+the grey of the Dimming), not in a haze over everything. `SkyClock` holds the keys; these are
+the targets.
 
 | Time | Sky | Key light | Ground and shadows | Feel |
 |---|---|---|---|---|
-| Dawn | Deep blue top, ember-rose horizon | Low, red-orange, weak | Long blue shadows, haze lying in hollows | Cold and quiet, the valley waking |
-| Morning, golden hour | Dusty blue, warm haze at the horizon | Low gold (`GOLDEN_LIGHT`) | Long shadows, warm faces, haze glowing toward the sun | The valley's favourite hour; most of the day looks like this |
-| Noon | Dusty high-altitude blue, never postcard cyan | Warm white, still a little gold | Olive and rust, real shadow shapes (sky fill kept low) | Short, bright but never washed out or lime |
-| Dusk | Rose-violet top, ember horizon | Sinking red-orange | Ground goes dark first, crowns hold the last light | Melancholy; lamps come on |
+| Dawn | Deep blue top, ember-rose horizon | Low, red-orange, weak | Long blue shadows, clear air | Cold and quiet, the land waking |
+| Morning | Clear blue, paler at the horizon | Warm gold (`GOLDEN_LIGHT`) rising to white | Long shadows shortening, warm faces | Fresh and bright; the day opens up |
+| Noon and afternoon | Clean, deep sky blue, never flat postcard cyan | Strong warm white sun | Olive and rust in full colour, crisp shadow shapes (sky fill kept low) | Sunny and clear for most of the day; bright but never washed out or lime |
+| Golden hour and dusk | Warm horizon, then rose-violet top and ember horizon | Low gold, then sinking red-orange | Long shadows, ground goes dark first, crowns hold the last light | Short and precious; melancholy; lamps and fires come on, the Gloam stir |
 | Night | Deep navy with stars, never black | Moonlight (`MOONLIGHT`), dim | Blue-grey meadow, ember crowns and lanterns carry the colour | Dark and a little dangerous, but you can always see the path and every player |
 
-- **Golden-hour bias.** The day spends most of its time with the sun low: long warm light,
-  long blue shadows. Noon is short and still warm.
+- **Sunny-day bias.** Most of the day is clear and sunny with the sun well up: readable land,
+  crisp shadows, colour you can judge distance by. Golden hour and dusk are short and come
+  before the night. (Until 2026-11-25 the day was biased to a low golden sun under haze;
+  that is replaced.)
 - **Warm key, cool fill, strong rim.** The sun is the warm key light, the sky ambient is the
   cool fill (kept low by day so shadows keep their shape: `SkyClock.DAY_AMBIENT`), and the
   shared shader adds a soft rim on silhouettes against the sky. At night the fill is mostly a
@@ -242,13 +253,18 @@ The day is where the mood lives. `SkyClock` holds the keys; these are the target
 - **The grade.** One whole-frame grade in the tonemap pass Godot already draws (free):
   saturation x0.92, contrast x1.10 (`WorldBuilder.GRADE_*`). It is the "same film stock" that
   makes every scene sit in one key. Change it only on purpose, with before and after shots.
-- **Height haze.** Warm `HAZE` fills the valley floors and lake hollows by day; it goes blue at
-  night. Fog distance is also the draw distance (section 7), so the haze is the culling.
+- **No haze by day.** No height haze in hollows and no warm veil toward the sun. The only fog
+  is a thin distance fade right at the draw distance (section 7), so the far edge melts into
+  the sky instead of popping; it should not be noticed on a clear day. At night a faint blue
+  ground mist is allowed where it helps the mood (marsh, the Dimming), capped by quality.
+  Today's build (as of #219) still has a light height haze and fog sun scatter; the next world
+  lighting PR removes them, with before and after shots.
 - **Glow, not lights.** Ember things glow through emission and one cheap bloom pass, not
   through real lights. Real lights are few (section 7).
 
 ## 6. "Inspired by, never copied": staying legally safe
-We take inspiration from a **genre** (grounded survival-and-crafting action MMOs) and its
+We take inspiration from **genres** (grounded survival-and-crafting games, open-world zombie
+survival sandboxes) and their
 **mood, lighting philosophy, palette philosophy and gameplay feel**. Those are free for anyone.
 The *expression* of any particular game is not. Concretely, never:
 - **Names**: no place, faction, creature, item, resource, skill, effect or style names from
@@ -267,8 +283,10 @@ The *expression* of any particular game is not. Concretely, never:
   procedural anyway).
 - **References in public**: patch notes, in-game text and PRs describe *our* look in our words;
   they never say "like <game>".
-When in doubt, push it further toward ember, ash, weathered wood and late-afternoon warmth,
-which no one else owns.
+When in doubt, push it further toward ember, cold ash, weathered wood and clean sunlight on old
+stone, which no one else owns. The Gloam are never shaped or coloured like another game's
+zombies (green skin, exposed brains, hazmat looks): they are the kingdom's dead, grey and
+ash-cold, in what they died wearing.
 
 ## 7. Performance is part of the style
 The look is designed so that it is cheap. These rules are as binding as the palette.
@@ -314,12 +332,19 @@ The look is designed so that it is cheap. These rules are as binding as the pale
   are today), and **chunk it by area** (about 64 m) so the camera culls what it can't see.
   One MultiMesh spanning the whole 512 m world can never be culled.
 - **Level of detail by distance.** Near: full mesh. Mid: a simpler mesh with fewer segments
-  and no small parts. Far: gone into the haze. Use `visibility_range_begin/end` per layer.
+  and no small parts. Far: faded out at the draw distance. Use `visibility_range_begin/end` per layer.
   Small things fade first (flowers 90 m, as today; props about 160 m; trees about 300 m).
-- **Fog is the far plane.** The camera's far distance matches where the haze is solid, so
-  nothing past it is drawn.
+- **The far plane is a fade, not a haze.** The camera's far distance matches the thin distance
+  fade at the edge of view (section 5), so nothing past it is drawn. Clear days put more on
+  screen than hazy ones did, so the chunking and LODs below carry the culling.
 - **Lights:** one shadowed sun (shadow distance 120 m or less), every other light unshadowed,
   and at most 8 lit at once near the player. Glow through emission instead of lights.
+- **Crowds** (servers of up to about 100, owner 2026-11-25): the client only draws the players,
+  Gloam and animals the server tells it about (interest management, `docs/vision.md`). Bodies
+  past about 40 m use a cheaper LOD of the sculpted body, and past about 120 m a simple
+  silhouette; a horde night at a busy hold must fit the same budget as the spawn shot. qa adds a
+  crowd shot (about 30 players and 40 Gloam in view) to the smoke test before the live cap
+  passes 24.
 - **Effects are pooled.** Effects reuse a fixed pool (as `NodeFx` does): no meshes or nodes
   created or freed while playing, no per-frame allocations. Particles are capped by quality.
 - **No expensive screen effects.** No SDFGI, VoxelGI, SSR or SSIL. SSAO off by default
@@ -407,7 +432,7 @@ reintroduces them.
 | Fat, barrel-shaped bodies ("our dudes look fat and silly") | A 0.64 m wide capsule on short stubby legs | **Fixed 2026-11-24 (character overhaul)**: lean 7-head adults, tapered chest, long legs, layered survival gear (section 3, "Characters") |
 | Skull faces | Hollow cheeks and cut eye sockets go black under low light | **Direction set 2026-11-24**: full jaw and cheeks, painted eye slits and brows, real beards (section 3, "Characters"); lands with the sculpted body |
 | Saw-tooth clothing edges and sack-shaped coats | Colour picked per triangle; long garments as rounded tubes | **Direction set 2026-11-24**: straight hems at set heights, flat-cut lower edges, layers sculpted proud; lands with the sculpted body |
-| Postcard-cyan noon sky | Bright and flat, no mood | **Fixed 2026-11-24**: dusty blue, hazy horizon |
+| Postcard-cyan noon sky | Bright and flat, no mood | **Fixed 2026-11-24**: dusty blue. **Revised 2026-11-25**: a clean, deep sky blue with no haze (owner approved the test-camp look); still never flat cyan |
 | Solid gold level-up tube and red crystal sparks | Swallowed the avatar; arcade effect | **Toned down 2026-11-24**: translucent, fewer sparks, dimmer light. Next: rounder ember sparks instead of hexagon shards, a subtler ground ring |
 | Teal, green-lit nights | Neither moonlit nor dark | **Improved 2026-11-24**: navy and blue-grey, moon-blue fill. Next: check dark cloth reads on a real GPU (CI renders in software) |
 | Bold outlined yellow floaters and banners | Mobile-game shouting | **To do** (client): section 9 |
@@ -417,7 +442,8 @@ reintroduces them.
 ## 12. Checklist for any PR that changes what is on screen
 1. Before and after screenshots at noon, golden hour and night (the client smoke shots plus
    your own), in the PR and in the project files.
-2. Grounded? Proportions, materials and colours would sit in a moody wilderness MMO (pillar 1).
+2. Grounded? Proportions, materials and colours would sit in a grounded open-world survival
+   game (pillar 1).
 3. Palette from `palette.gd`, naturals under about 0.45 saturation, ember only on usable things.
 4. Effects translucent, short, ember-coloured; the character visible through them.
 5. Nothing named, shaped or laid out after another game (section 6).
