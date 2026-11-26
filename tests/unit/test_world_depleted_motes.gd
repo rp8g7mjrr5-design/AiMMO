@@ -1,5 +1,5 @@
 extends TestCase
-## World stream: a felled ash or a dry seep breathes no sparks. At night the motes over the
+## World stream: a felled ash breathes no sparks. At night the motes over the
 ## valley point only at things you can gather right now (art bible section 4, "if it glows
 ## ember, you can use it"). NodeProps.set_depleted() puts a node's motes out and a regrown
 ## node gets them back.
@@ -43,15 +43,14 @@ func test_depleting_puts_the_sparks_out_and_regrowth_brings_them_back() -> void:
 	var world := _world()
 	var nodes := world.get_node("ResourceNodes") as Node3D
 	var ash := _first("ash")
-	var seep := _first("ember_sap")
 	var old := _first("ash", 2)
-	for n in [ash, seep, old]:
+	for n in [ash, old]:
 		check(not n.is_empty(), "the world has this kind of node")
 		check(not Motes.is_dark(world, n.id), "node %d starts lit" % n.id)
 		check(NodeProps.set_depleted(nodes, n.id, true), "deplete %d" % n.id)
 		check(Motes.is_dark(world, n.id), "felled or dry: node %d breathes no sparks" % n.id)
-	NodeProps.set_depleted(nodes, seep.id, false)
-	check(not Motes.is_dark(world, seep.id), "a refilled seep sparks again")
+	NodeProps.set_depleted(nodes, old.id, false)
+	check(not Motes.is_dark(world, old.id), "a regrown ash sparks again")
 	check(Motes.is_dark(world, ash.id), "the others stay out")
 	check(Motes.set_dark(world, ash.id, true), "the same state again is fine")
 	check(Motes.is_dark(world, ash.id), "and changes nothing")
@@ -98,7 +97,7 @@ func test_dark_keeps_the_pool_and_draw_call() -> void:
 	Motes.apply(world, 1.0)
 	check_eq(mmi.multimesh.instance_count, before, "nothing rebuilt")
 	check_eq(mmi.multimesh.visible_instance_count, shown, "quality count untouched")
-	check(mmi.visible, "seeps still spark, so the node stays on at night")
+	check(mmi.visible, "the motes node stays on at night (regrowth needs no rebuild)")
 	# The live look is kept so regrowth restores exactly what was there.
 	var customs: PackedColorArray = mmi.get_meta("customs")
 	var pool := Motes.layout(Motes.anchors())

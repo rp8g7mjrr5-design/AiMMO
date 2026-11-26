@@ -6,8 +6,9 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## because every login is full health):
 ##   1. /hurt 30: the answer must say health 70/100 and in combat;
 ##   2. /vitals right after: still in combat, no health back yet;
-##   3. after the fight is over (Vitals.COMBAT_SECONDS) and a few seconds of regen, /vitals
-##      must say full health, out of combat;
+##   3. after the fight is over (Vitals.COMBAT_SECONDS) and a few seconds, /vitals must say
+##      out of combat with health held at 70 (natural healing stops at Vitals.HP_REGEN_CAP,
+##      half, since 2026-11-26: above it only a bandage heals), never lower;
 ##   4. only while we aren't gathering or stalking: /hurt 1000 must knock us down
 ##      (Vitals.KNOCKED_DOWN_TEXT), and our next snapshots must put us back near spawn.
 ## Sets the bot meta "knocked_down_at" when the knock-down goes out, so gameplay_gather_v3 and
@@ -19,7 +20,7 @@ const SLACK := 6.0 ## answers, the queue and the trip home
 const ANSWER_TIMEOUT := 4.0
 const MAX_TRIES := 3
 const QUEUED := 30.0 ## _sent_at sits this far ahead while our line waits in the bot's queue
-const REGEN_WAIT := 5.0 ## past the end of the fight; 10 %/s brings 70 back to 100 in 3 s
+const REGEN_WAIT := 5.0 ## past the end of the fight: long enough that any (wrong) regen above the cap would show
 const HOME_WITHIN := 4.0 ## metres from spawn after the knock-down
 const HOME_TIMEOUT := 3.0
 
@@ -160,8 +161,9 @@ func _on_system(text: String) -> void:
 				_answered(Step.HEAL, maxf(_hurt_at + Vitals.COMBAT_SECONDS + REGEN_WAIT - bot.elapsed, 0.0))
 		Step.HEAL:
 			if text.begins_with("Health "):
-				if not text.begins_with("Health 100/100") or not text.ends_with("out of combat."):
-					fail("health didn't come back after the fight: %s" % text)
+				var want := roundi(maxf(70.0, Vitals.MAX_HP * Vitals.HP_REGEN_CAP))
+				if not text.begins_with("Health %d/100" % want) or not text.ends_with("out of combat."):
+					fail("health after the fight should hold at %d: %s" % [want, text])
 				heals += 1
 				_answered(Step.DOWN, 1.0)
 		Step.DOWN:

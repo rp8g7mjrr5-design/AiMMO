@@ -2,16 +2,14 @@ class_name ItemIcons
 ## Procedural inventory icons, drawn in code (no image files; hard rule 3).
 ##
 ## Every item in `Inventory.ITEMS` has a little picture: logs with a cut end for wood, a grey
-## chunk with a quartz seam for stone, a glowing drop for ember sap, the two stone tools, a
-## lit torch and a campfire, and the two tier-2 materials: ember heartwood (an old grey log
-## whose cut end glows like a coal) and veinstone (a deep mauve chunk split by glowing
-## veins with gold flecks), drawn like the old ember ash and the rich seam, and the two
-## ember tools (the stone tools' shapes with coal-dark heads and an ember-hot edge), and the
-## ember lantern (a stone-footed pine lantern with an ember burning behind its glass, the
-## meadow lamps' look in your hand; drawn ahead of gameplay's "Bench sense" recipe), and the first hunt's drops: a folded grazer
-## hide (fur up, a pale corner turned back) and a dark raw cut with its fat rim and bone. They match what the world draws (the outcrop's pale seam, the
-## seep's ember glow, the ash's warm leaves), so a "+2 ash wood" toast looks like the tree
-## you just hit.
+## chunk with a quartz seam for stone, a tied bundle of plant fibre, the wooden and stone
+## axes and pickaxes (the same shapes, a carved wooden head or a lashed stone one), the club
+## and stone maul, the wooden and stone spears, a rolled linen bandage, a lit torch and a
+## campfire, and the first hunt's drops: a folded grazer hide (fur up, a pale corner turned
+## back) and a dark raw cut with its fat rim and bone. They match what the world draws (the
+## outcrop's pale seam, the scrub's dull stems, the ash's warm leaves), so a "+2 ash wood"
+## toast looks like the tree you just hit. Nothing here glows but fire (owner direction,
+## 2026-11-26: no magic; the ember items and their icons are retired).
 ##
 ## How it works: each icon is a short list of flat shapes in a 0..1 square (`shapes(item)`,
 ## pure data). `image()` rasterises them with signed distance fields: one anti-aliased edge
@@ -43,14 +41,12 @@ const STONE := Color(0.56, 0.54, 0.52)
 const STONE_DARK := Color(0.43, 0.41, 0.40)
 const QUARTZ := Color(0.92, 0.90, 0.84)
 const SAP := Color(1.0, 0.55, 0.16)
-const SAP_CORE := Color(1.0, 0.82, 0.38)
 const HANDLE := Color(0.60, 0.44, 0.28)
 const LASHING := Color(0.36, 0.26, 0.16)
 const FLAME := Color(1.0, 0.50, 0.12)
 const FLAME_CORE := Color(1.0, 0.88, 0.45)
 const CLOTH := Color(0.70, 0.60, 0.44)
 const WARM_GLOW := Color(1.0, 0.55, 0.15)
-static var COAL := Palette.SOOT.lightened(0.12) ## ember tool heads: coal-dark, but lighter than the outline so the shape reads
 
 static var _cache := {}
 
@@ -66,7 +62,37 @@ static func has_icon(item: String) -> bool:
 ## small details drawn on top) and `glow` (radius of a warm halo behind it).
 static func shapes(item: String) -> Array:
 	var r := _recipe(item)
-	return r if r != [] else _recipe(FALLBACK)
+	if r == []:
+		return _recipe(FALLBACK)
+	return _mirror(r) if MIRRORED.has(item) else r
+
+
+## Wooden tools lean the other way from their stone versions (handle bottom-right), so the
+## two tiers read apart at a glance in a pack slot, not only by colour.
+const MIRRORED := ["wooden_axe", "wooden_pickaxe", "wooden_spear", "wooden_club"]
+
+
+## The shapes flipped left to right.
+static func _mirror(raw: Array) -> Array:
+	var out: Array = []
+	for sh in raw:
+		var m: Dictionary = sh.duplicate()
+		match str(sh.t):
+			"circle", "box":
+				m.c = Vector2(1.0 - sh.c.x, sh.c.y)
+				if sh.t == "box":
+					m.rot = -float(sh.rot)
+			"capsule":
+				m.a = Vector2(1.0 - sh.a.x, sh.a.y)
+				m.b = Vector2(1.0 - sh.b.x, sh.b.y)
+			"poly":
+				var pts := PackedVector2Array()
+				for i in range((sh.pts as PackedVector2Array).size() - 1, -1, -1):
+					var q: Vector2 = sh.pts[i]
+					pts.append(Vector2(1.0 - q.x, q.y))
+				m.pts = pts
+		out.append(m)
+	return out
 
 
 ## A fresh `size` x `size` RGBA image of the icon, transparent round the outside.
@@ -106,18 +132,16 @@ static func tint(item: String) -> Color:
 			return PINE_CUT
 		"stone":
 			return QUARTZ
-		"ember_sap", "torch", "campfire":
+		"plant_fibre":
+			return Palette.FIBRE
+		"torch", "campfire":
 			return SAP
-		"ember_lantern":
-			return Palette.EMBER_CORE
-		"ember_heartwood":
-			return Palette.OLD_ASH_LEAF
-		"veinstone":
-			return Palette.RICH_FLECK
-		"stone_axe", "stone_pickaxe":
+		"stone_axe", "stone_pickaxe", "stone_maul", "stone_spear":
 			return STONE.lightened(0.2)
-		"ember_axe", "ember_pickaxe":
-			return Palette.EMBER
+		"wooden_axe", "wooden_pickaxe", "wooden_club", "wooden_spear":
+			return Palette.WORKED_WOOD.lightened(0.2)
+		"bandage":
+			return Palette.LINEN
 		"hide":
 			return Palette.HIDE_FUR.lightened(0.15)
 		"raw_meat":
@@ -341,48 +365,82 @@ static func _recipe(item: String) -> Array:
 				_circle(Vector2(0.36, 0.63), 0.035, QUARTZ.lightened(0.3), {"outline": false, "shade": 0.0}),
 				_circle(Vector2(0.62, 0.49), 0.03, QUARTZ.lightened(0.3), {"outline": false, "shade": 0.0}),
 			]
-		"ember_heartwood":
-			# One fat old log, greyer than ash wood, its heart still a live coal: the old ember
-			# ash's grey bark and gold crown, so the pick reads "rarer" at a glance.
-			var a := [
-				_capsule(Vector2(0.74, 0.34), Vector2(0.34, 0.62), 0.17, Palette.OLD_ASH_BARK, {"shade": 0.26}),
-				_capsule(Vector2(0.70, 0.30), Vector2(0.46, 0.47), 0.016, Palette.OLD_ASH_BARK.darkened(0.35), {"outline": false, "shade": 0.0}),
-				_capsule(Vector2(0.78, 0.42), Vector2(0.56, 0.58), 0.015, Palette.OLD_ASH_BARK.darkened(0.35), {"outline": false, "shade": 0.0}),
-				# A glowing crack along the bark, like the old ash's vein cracks.
-				_poly([Vector2(0.74, 0.24), Vector2(0.62, 0.34), Vector2(0.66, 0.36), Vector2(0.52, 0.46), Vector2(0.60, 0.40), Vector2(0.58, 0.38)], Palette.EMBER, {"outline": false, "shade": 0.0}),
-				_circle(Vector2(0.34, 0.62), 0.15, ASH_CUT.darkened(0.12), {"shade": 0.1}),
-				_circle(Vector2(0.34, 0.62), 0.11, RING.darkened(0.1), {"outline": false, "shade": 0.0}),
-				# The heart: a live coal in the middle of the rings, with a warm halo.
-				_circle(Vector2(0.34, 0.62), 0.08, Palette.EMBER, {"outline": false, "shade": 0.1, "glow": 0.34}),
-				_circle(Vector2(0.34, 0.62), 0.05, Palette.EMBER_CORE, {"outline": false, "shade": 0.0}),
-			]
-			# Two small gold leaves from the old crown.
-			a.append(_box(Vector2(0.70, 0.17), Vector2(0.10, 0.045), -0.5, Palette.OLD_ASH_LEAF, {"round": 0.04}))
-			a.append(_box(Vector2(0.82, 0.24), Vector2(0.07, 0.035), 0.5, Palette.OLD_ASH_LEAF.darkened(0.1), {"round": 0.03}))
+		"plant_fibre":
+			# A bundle of pulled stems, tied in the middle with a twist of the same fibre,
+			# the ends fanning out: dull straw-olive, nothing that glows.
+			var a := []
+			for i in 7:
+				var t := (i - 3) / 3.0
+				var top := Vector2(0.50 + t * 0.22, 0.14 + absf(t) * 0.06)
+				var bottom := Vector2(0.50 + t * 0.16, 0.86 - absf(t) * 0.05)
+				var col: Color = Palette.FIBRE if i % 2 == 0 else Palette.FIBRE.darkened(0.14)
+				a.append(_capsule(top, bottom, 0.032, col, {"shade": 0.15}))
+			a.append(_capsule(Vector2(0.38, 0.32), Vector2(0.20, 0.20), 0.016, Palette.SCRUB_LEAF, {"shade": 0.1}))
+			a.append(_capsule(Vector2(0.62, 0.70), Vector2(0.80, 0.80), 0.016, Palette.SCRUB_LEAF, {"shade": 0.1}))
+			a.append(_box(Vector2(0.50, 0.50), Vector2(0.17, 0.045), 0.0, Palette.FIBRE.darkened(0.35), {"round": 0.02}))
 			return a
-		"veinstone":
-			# A deep mauve chunk like the rich seam, split by a glowing ember vein and dotted
-			# with gold flecks: plain stone, but obviously worth more.
+		"wooden_axe":
+			# The stone axe's shape, all wood: a carved wedge pegged through the handle.
 			return [
-				_poly([Vector2(0.12, 0.58), Vector2(0.22, 0.30), Vector2(0.44, 0.14), Vector2(0.72, 0.18), Vector2(0.90, 0.44), Vector2(0.80, 0.78), Vector2(0.50, 0.88), Vector2(0.22, 0.80)], Palette.RICH_STONE, {"shade": 0.3}),
-				_poly([Vector2(0.44, 0.14), Vector2(0.72, 0.18), Vector2(0.90, 0.44), Vector2(0.60, 0.42)], Palette.RICH_STONE.darkened(0.18), {"outline": false, "shade": 0.1}),
-				# The vein: a zig-zag crack of ember light across the face.
-				_capsule(Vector2(0.18, 0.66), Vector2(0.38, 0.52), 0.032, Palette.EMBER, {"outline": false, "shade": 0.0, "glow": 0.22}),
-				_capsule(Vector2(0.38, 0.52), Vector2(0.52, 0.62), 0.032, Palette.EMBER, {"outline": false, "shade": 0.0}),
-				_capsule(Vector2(0.52, 0.62), Vector2(0.80, 0.38), 0.032, Palette.EMBER, {"outline": false, "shade": 0.0, "glow": 0.22}),
-				_capsule(Vector2(0.20, 0.65), Vector2(0.78, 0.39), 0.012, Palette.EMBER_CORE, {"outline": false, "shade": 0.0}),
-				# Gold flecks.
-				_circle(Vector2(0.34, 0.36), 0.03, Palette.RICH_FLECK, {"outline": false, "shade": 0.0}),
-				_circle(Vector2(0.62, 0.30), 0.024, Palette.RICH_FLECK, {"outline": false, "shade": 0.0}),
-				_circle(Vector2(0.44, 0.76), 0.028, Palette.RICH_FLECK, {"outline": false, "shade": 0.0}),
-				_circle(Vector2(0.70, 0.66), 0.022, Palette.RICH_FLECK, {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.24, 0.84), Vector2(0.66, 0.22), 0.045, HANDLE),
+				_poly([Vector2(0.52, 0.24), Vector2(0.70, 0.14), Vector2(0.84, 0.24), Vector2(0.86, 0.44), Vector2(0.72, 0.42), Vector2(0.58, 0.38)], Palette.WORKED_WOOD, {"shade": 0.26}),
+				_capsule(Vector2(0.62, 0.22), Vector2(0.78, 0.30), 0.009, Palette.WORKED_WOOD.darkened(0.3), {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.66, 0.36), Vector2(0.80, 0.38), 0.009, Palette.WORKED_WOOD.darkened(0.3), {"outline": false, "shade": 0.0}),
+				_circle(Vector2(0.61, 0.31), 0.028, Palette.WORKED_WOOD.darkened(0.4), {"outline": false, "shade": 0.0}),
 			]
-		"ember_sap":
+		"wooden_pickaxe":
+			# The stone pick's two prongs, carved from one bent piece of wood.
 			return [
-				_circle(Vector2(0.50, 0.62), 0.24, SAP, {"glow": 0.46, "shade": 0.3}),
-				_poly([Vector2(0.27, 0.55), Vector2(0.50, 0.12), Vector2(0.73, 0.55)], SAP, {"shade": 0.3}),
-				_circle(Vector2(0.52, 0.64), 0.13, SAP_CORE, {"outline": false, "shade": 0.1}),
-				_circle(Vector2(0.41, 0.52), 0.05, Color(1, 1, 0.92, 0.85), {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.26, 0.86), Vector2(0.60, 0.26), 0.045, HANDLE),
+				_poly([Vector2(0.24, 0.30), Vector2(0.44, 0.18), Vector2(0.62, 0.17), Vector2(0.63, 0.26), Vector2(0.44, 0.27)], Palette.WORKED_WOOD, {"shade": 0.26}),
+				_poly([Vector2(0.58, 0.17), Vector2(0.76, 0.23), Vector2(0.88, 0.38), Vector2(0.75, 0.33), Vector2(0.60, 0.27)], Palette.WORKED_WOOD, {"shade": 0.26}),
+				_capsule(Vector2(0.34, 0.24), Vector2(0.52, 0.21), 0.008, Palette.WORKED_WOOD.darkened(0.3), {"outline": false, "shade": 0.0}),
+				_circle(Vector2(0.59, 0.23), 0.03, Palette.WORKED_WOOD.darkened(0.4), {"outline": false, "shade": 0.0}),
+			]
+		"wooden_club":
+			# A heavy ash club: a grip that swells into a knotted head.
+			return [
+				_capsule(Vector2(0.26, 0.86), Vector2(0.56, 0.38), 0.05, HANDLE),
+				_capsule(Vector2(0.50, 0.44), Vector2(0.70, 0.20), 0.12, Palette.WORKED_WOOD, {"shade": 0.28}),
+				_circle(Vector2(0.62, 0.24), 0.03, Palette.WORKED_WOOD.darkened(0.35), {"outline": false, "shade": 0.0}),
+				_circle(Vector2(0.70, 0.34), 0.024, Palette.WORKED_WOOD.darkened(0.35), {"outline": false, "shade": 0.0}),
+				_box(Vector2(0.33, 0.75), Vector2(0.06, 0.025), 0.98, LASHING, {"outline": false}),
+			]
+		"wooden_spear":
+			# A long pine shaft, its point fire-hardened dark.
+			return [
+				_capsule(Vector2(0.16, 0.88), Vector2(0.76, 0.22), 0.028, HANDLE),
+				_poly([Vector2(0.72, 0.22), Vector2(0.88, 0.10), Vector2(0.80, 0.29)], Palette.FIRE_LOG, {"shade": 0.2}),
+				_box(Vector2(0.30, 0.72), Vector2(0.06, 0.025), 0.84, LASHING, {"outline": false}),
+			]
+		"stone_spear":
+			# The same shaft with a knapped stone point lashed on.
+			return [
+				_capsule(Vector2(0.16, 0.88), Vector2(0.70, 0.28), 0.028, HANDLE),
+				_poly([Vector2(0.62, 0.30), Vector2(0.72, 0.18), Vector2(0.90, 0.08), Vector2(0.82, 0.28), Vector2(0.70, 0.36)], STONE, {"shade": 0.28}),
+				_capsule(Vector2(0.72, 0.24), Vector2(0.86, 0.12), 0.009, QUARTZ, {"outline": false, "shade": 0.0}),
+				_box(Vector2(0.65, 0.32), Vector2(0.06, 0.03), 0.84, LASHING, {"outline": false}),
+				_box(Vector2(0.30, 0.72), Vector2(0.06, 0.025), 0.84, LASHING, {"outline": false}),
+			]
+		"stone_maul":
+			# A short handle and a big squared stone head, lashed on crosswise.
+			return [
+				_capsule(Vector2(0.26, 0.86), Vector2(0.56, 0.40), 0.045, HANDLE),
+				_box(Vector2(0.62, 0.30), Vector2(0.24, 0.13), -0.58, STONE, {"shade": 0.3, "round": 0.03}),
+				_capsule(Vector2(0.46, 0.20), Vector2(0.76, 0.44), 0.012, STONE_DARK, {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.62, 0.12), Vector2(0.84, 0.30), 0.011, QUARTZ, {"outline": false, "shade": 0.0}),
+				_box(Vector2(0.60, 0.33), Vector2(0.05, 0.10), 0.98, LASHING, {"outline": false, "round": 0.01}),
+			]
+		"bandage":
+			# A rolled linen bandage, its loose end trailing: undyed and a little grubby,
+			# never hospital white.
+			return [
+				_poly([Vector2(0.50, 0.62), Vector2(0.86, 0.70), Vector2(0.84, 0.82), Vector2(0.50, 0.76)], Palette.LINEN.darkened(0.08), {"shade": 0.15}),
+				_circle(Vector2(0.44, 0.50), 0.27, Palette.LINEN, {"shade": 0.26}),
+				_circle(Vector2(0.44, 0.50), 0.19, Palette.LINEN.darkened(0.1), {"outline": false, "shade": 0.0}),
+				_circle(Vector2(0.44, 0.50), 0.12, Palette.LINEN.darkened(0.04), {"outline": false, "shade": 0.0}),
+				_circle(Vector2(0.44, 0.50), 0.05, Palette.LINEN.darkened(0.25), {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.62, 0.68), Vector2(0.80, 0.72), 0.008, Palette.LINEN.darkened(0.2), {"outline": false, "shade": 0.0}),
 			]
 		"stone_axe":
 			return [
@@ -399,64 +457,12 @@ static func _recipe(item: String) -> Array:
 				_poly([Vector2(0.58, 0.16), Vector2(0.76, 0.22), Vector2(0.90, 0.40), Vector2(0.76, 0.34), Vector2(0.60, 0.28)], STONE, {"shade": 0.28}),
 				_box(Vector2(0.59, 0.24), Vector2(0.055, 0.05), 0.5, LASHING, {"outline": false, "round": 0.01}),
 			]
-		"ember_axe":
-			# The stone axe's shape, but the head is a dark coal-veined wedge, broader and
-			# bearded, whose cutting edge glows ember orange: the tool you make from the old ash and the rich seam.
-			return [
-				_capsule(Vector2(0.24, 0.84), Vector2(0.64, 0.24), 0.045, HANDLE.darkened(0.1)),
-				_poly([Vector2(0.48, 0.22), Vector2(0.68, 0.10), Vector2(0.86, 0.16), Vector2(0.90, 0.40), Vector2(0.84, 0.58), Vector2(0.72, 0.46), Vector2(0.56, 0.40)], COAL, {"shade": 0.3}),
-				# Coal veins across the head.
-				_capsule(Vector2(0.60, 0.22), Vector2(0.74, 0.30), 0.011, Palette.SMOULDER, {"outline": false, "shade": 0.0}),
-				_capsule(Vector2(0.66, 0.38), Vector2(0.78, 0.33), 0.010, Palette.SMOULDER, {"outline": false, "shade": 0.0}),
-				# The glowing edge: a smoulder rim, an ember band and a hot core line.
-				_poly([Vector2(0.84, 0.14), Vector2(0.90, 0.17), Vector2(0.94, 0.40), Vector2(0.88, 0.60), Vector2(0.84, 0.56), Vector2(0.87, 0.40)], Palette.SMOULDER, {"outline": false, "shade": 0.0}),
-				_capsule(Vector2(0.88, 0.20), Vector2(0.90, 0.40), 0.022, Palette.EMBER, {"outline": false, "shade": 0.0, "glow": 0.18}),
-				_capsule(Vector2(0.90, 0.40), Vector2(0.86, 0.54), 0.020, Palette.EMBER, {"outline": false, "shade": 0.0}),
-				_capsule(Vector2(0.89, 0.22), Vector2(0.89, 0.46), 0.008, Palette.EMBER_CORE, {"outline": false, "shade": 0.0}),
-				_box(Vector2(0.60, 0.30), Vector2(0.06, 0.025), 0.98, LASHING, {"outline": false}),
-				_box(Vector2(0.56, 0.36), Vector2(0.06, 0.025), 0.98, LASHING, {"outline": false}),
-			]
-		"ember_pickaxe":
-			# The stone pick's two prongs in dark coal, each tip burning ember hot.
-			return [
-				_capsule(Vector2(0.26, 0.86), Vector2(0.60, 0.26), 0.045, HANDLE.darkened(0.1)),
-				_poly([Vector2(0.14, 0.34), Vector2(0.40, 0.16), Vector2(0.62, 0.14), Vector2(0.64, 0.27), Vector2(0.42, 0.28)], COAL, {"shade": 0.3}),
-				_poly([Vector2(0.56, 0.14), Vector2(0.78, 0.20), Vector2(0.92, 0.46), Vector2(0.76, 0.35), Vector2(0.58, 0.28)], COAL, {"shade": 0.3}),
-				_capsule(Vector2(0.30, 0.25), Vector2(0.48, 0.21), 0.010, Palette.SMOULDER, {"outline": false, "shade": 0.0}),
-				_capsule(Vector2(0.68, 0.22), Vector2(0.80, 0.32), 0.010, Palette.SMOULDER, {"outline": false, "shade": 0.0}),
-				# Hot tips.
-				_poly([Vector2(0.15, 0.335), Vector2(0.30, 0.23), Vector2(0.33, 0.30)], Palette.EMBER, {"outline": false, "shade": 0.0, "glow": 0.2}),
-				_poly([Vector2(0.91, 0.455), Vector2(0.78, 0.25), Vector2(0.74, 0.34)], Palette.EMBER, {"outline": false, "shade": 0.0, "glow": 0.2}),
-				_capsule(Vector2(0.19, 0.31), Vector2(0.27, 0.27), 0.014, Palette.EMBER_CORE, {"outline": false, "shade": 0.0}),
-				_capsule(Vector2(0.86, 0.39), Vector2(0.80, 0.31), 0.014, Palette.EMBER_CORE, {"outline": false, "shade": 0.0}),
-				_box(Vector2(0.59, 0.24), Vector2(0.055, 0.05), 0.5, LASHING, {"outline": false, "round": 0.01}),
-			]
 		"torch":
 			var a := [
 				_capsule(Vector2(0.38, 0.85), Vector2(0.56, 0.48), 0.045, HANDLE),
 				_box(Vector2(0.57, 0.47), Vector2(0.07, 0.06), 0.42, LASHING, {"round": 0.02}),
 			]
 			a.append_array(_flame(Vector2(0.59, 0.43), 0.32, 0.32))
-			return a
-		"ember_lantern":
-			# A little stone-and-pine lantern like the meadow's: stone foot, two pine posts, a
-			# stone roof with a carry loop, and warm glass with an ember flame inside. Upright
-			# and boxy so it never reads as the torch (slanted) or the campfire (wide and low).
-			var a := [
-				_capsule(Vector2(0.43, 0.20), Vector2(0.50, 0.12), 0.02, LASHING),
-				_capsule(Vector2(0.50, 0.12), Vector2(0.57, 0.20), 0.02, LASHING),
-				_box(Vector2(0.50, 0.53), Vector2(0.15, 0.19), 0.0, Palette.EMBER, {"glow": 0.42, "shade": 0.12, "round": 0.02}),
-				_capsule(Vector2(0.33, 0.33), Vector2(0.33, 0.74), 0.035, PINE_BARK),
-				_capsule(Vector2(0.67, 0.33), Vector2(0.67, 0.74), 0.035, PINE_BARK),
-				_poly([Vector2(0.28, 0.32), Vector2(0.50, 0.19), Vector2(0.72, 0.32)], STONE_DARK, {"shade": 0.25}),
-				_box(Vector2(0.50, 0.33), Vector2(0.23, 0.035), 0.0, STONE, {"round": 0.015}),
-				_box(Vector2(0.50, 0.78), Vector2(0.24, 0.055), 0.0, STONE, {"shade": 0.28, "round": 0.02}),
-				_box(Vector2(0.50, 0.85), Vector2(0.19, 0.03), 0.0, STONE_DARK, {"round": 0.015}),
-				# The flame behind the glass: a hot core with a smoulder tip.
-				_poly([Vector2(0.42, 0.60), Vector2(0.49, 0.40), Vector2(0.56, 0.50), Vector2(0.58, 0.62)], Palette.SMOULDER, {"outline": false, "shade": 0.0}),
-				_circle(Vector2(0.50, 0.62), 0.065, Palette.EMBER_CORE, {"outline": false, "shade": 0.05}),
-				_poly([Vector2(0.46, 0.61), Vector2(0.50, 0.47), Vector2(0.54, 0.61)], Palette.EMBER_CORE, {"outline": false, "shade": 0.0}),
-			]
 			return a
 		"campfire":
 			var a := []

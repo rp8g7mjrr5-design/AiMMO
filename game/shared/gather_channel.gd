@@ -9,10 +9,10 @@ class_name GatherChannel
 ##
 ## Times (`now`) are real seconds on the server's monotonic clock, like Gathering.
 
-## How long one gather takes, bare-handed, per node kind. Rocks are a little slower, the
-## seep a little quicker (sap is scooped, not chopped). A tool (Gathering.tool_for) scales
-## it by Gathering.tool_speed (stone 0.5, ember-hardened 0.35).
-const SECONDS := {"ash": 2.0, "pine": 2.0, "stone": 2.4, "ember_sap": 1.6}
+## How long one gather takes, bare-handed (or, for stone, with the least pickaxe), per node
+## kind. Rocks are a little slower, scrub a little quicker (fibre is pulled, not chopped). A
+## tool (Gathering.tool_for) scales it by Gathering.tool_speed (wood 0.75, stone 0.5).
+const SECONDS := {"ash": 2.0, "pine": 2.0, "stone": 2.4, "scrub": 1.6}
 const DEFAULT_SECONDS := 2.0
 ## Moving further than this (flat metres) from where the gather started cancels it. Small
 ## enough that walking off always cancels, big enough that a server tick of drift doesn't.

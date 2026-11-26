@@ -2,7 +2,7 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## Bot behaviour (gameplay): crafting.
 ##
 ## Right after each login the bot stands still and types /craft (the recipe list must come
-## back), then /craft axe. Where it stands decides the right answer: near the Spawn Meadow
+## back), then /craft stone axe (a bench recipe). Where it stands decides the right answer: near the Spawn Meadow
 ## workbench (every first login starts there) the server must look at the pack ("You need
 ## ..." or "You craft ..."), far from it the server must send it to the bench. Bots never
 ## carry 3 ash wood and 2 stone this early, so the real craft is proven by the unit tests;
@@ -48,10 +48,10 @@ func on_play(_delta: float) -> void:
 	if _step == 1:
 		bot.send_command("/craft")
 	else:
-		bot.send_command("/craft axe", _judge_position)
+		bot.send_command("/craft stone axe", _judge_position)
 
 
-## Runs when the bot harness actually sends /craft axe, so the position judged is the one the
+## Runs when the bot harness actually sends /craft stone axe, so the position judged is the one the
 ## server sees (the line may wait a moment behind other behaviours' commands).
 func _judge_position() -> void:
 	var d := Vector2(bot.my_pos.x, bot.my_pos.z).distance_to(Crafting.workbench_xz())
@@ -90,4 +90,4 @@ func on_finish() -> void:
 	if lists < 1:
 		fail("/craft never listed the recipes")
 	if pack_checks + bench_checks < 1:
-		fail("/craft axe was never answered where the right answer was clear")
+		fail("/craft stone axe was never answered where the right answer was clear")

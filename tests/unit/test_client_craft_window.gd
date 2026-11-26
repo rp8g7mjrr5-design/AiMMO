@@ -17,8 +17,8 @@ func test_prompt_only_at_the_bench() -> void:
 
 
 func test_rows_agree_with_the_server_rules() -> void:
-	var packs := [{}, {"ash_wood": 3, "stone": 2}, {"ash_wood": 3, "stone": 2, "stone_axe": 1},
-		{"pine_wood": 5, "ember_sap": 2, "stone": 9, "ash_wood": 9}, {"torch": 98, "pine_wood": 1, "ember_sap": 1}]
+	var packs := [{}, {"ash_wood": 3, "stone": 2}, {"wooden_axe": 1, "stone": 3, "plant_fibre": 2, "stone_axe": 1},
+		{"pine_wood": 5, "plant_fibre": 2, "stone": 9, "ash_wood": 9}, {"torch": 998, "pine_wood": 1, "plant_fibre": 1}]
 	var spots := [_bench(), _bench() + Vector3(40, 0, 0)]
 	for inv in packs:
 		for p in spots:
@@ -27,18 +27,18 @@ func test_rows_agree_with_the_server_rules() -> void:
 				check_eq(r.reason, Crafting.check(inv, id, p), "%s with %s" % [id, inv])
 				for part in r.parts:
 					check_eq(bool(part.ok), int(part.have) >= int(part.need))
-	var axe := CraftWindow.row({"ash_wood": 2, "stone": 2}, "stone_axe", _bench())
+	var axe := CraftWindow.row({"wooden_axe": 1, "stone": 2, "plant_fibre": 2}, "stone_axe", _bench())
 	check_eq(axe.title, "Stone axe")
-	check_eq(axe.hint, "Need 1 ash wood")
-	check_eq(axe.parts[0], {"item": "ash_wood", "label": "Ash wood", "have": 2, "need": 3, "ok": false})
-	check_eq(axe.parts[1], {"item": "stone", "label": "Stone", "have": 2, "need": 2, "ok": true})
-	check(CraftWindow.parts_bbcode(axe.parts).contains("Ash wood 2/3"), "needs text")
+	check_eq(axe.hint, "Need 1 stone")
+	check_eq(axe.parts[0], {"item": "stone", "label": "Stone", "have": 2, "need": 3, "ok": false})
+	check_eq(axe.parts[1], {"item": "plant_fibre", "label": "Plant fibre", "have": 2, "need": 2, "ok": true})
+	check(CraftWindow.parts_bbcode(axe.parts).contains("Stone 2/3"), "needs text")
 	var torch := CraftWindow.row({}, "torch", _bench() + Vector3(40, 0, 0))
-	check_eq(torch.title, "Torch ×3")
+	check_eq(torch.title, "Torch ×2")
 	check(str(torch.hint).ends_with("craft anywhere"), "torch says anywhere: %s" % torch.hint)
 	check_eq(CraftWindow.row({"stone_axe": 1}, "stone_axe", _bench()).button, "Have it")
 	check_eq(CraftWindow.toast_text("stone_axe"), "Crafted: Stone axe!")
-	check_eq(CraftWindow.toast_text("torch"), "Crafted: 3 Torches!")
+	check_eq(CraftWindow.toast_text("torch"), "Crafted: 2 Torches!")
 
 
 ## The window sends nothing until you press Craft, then exactly one c2s_craft request, and
@@ -50,31 +50,31 @@ func test_craft_goes_out_as_one_request() -> void:
 	w.craft_requested.connect(func(id: String): sent.append(id))
 	w.open(_bench())
 	check_eq(w.status_label.text, "Checking your pack...", "no pack yet")
-	check(not w.craft("stone_axe"), "no pack, no request")
-	w.seed_pack({"ash_wood": 3, "stone": 2})
+	check(not w.craft("wooden_axe"), "no pack, no request")
+	w.seed_pack({"ash_wood": 3})
 	w.open(_bench())
 	check_eq(w.status_label.text, "", "pack known: nothing to wait for")
-	check(not (w._rows["stone_axe"].button as Button).disabled, "axe is craftable")
+	check(not (w._rows["wooden_axe"].button as Button).disabled, "axe is craftable")
 	check((w._rows["campfire"].button as Button).disabled, "campfire is not")
-	check(w.craft("stone_axe"), "press Craft")
-	check_eq(sent, ["stone_axe"], "one request, by exact recipe id")
+	check(w.craft("wooden_axe"), "press Craft")
+	check_eq(sent, ["wooden_axe"], "one request, by exact recipe id")
 	check_eq(w.status_label.text, CraftWindow.WORKING)
-	check((w._rows["stone_axe"].button as Button).disabled, "buttons wait while crafting")
-	check(not w.craft("stone_axe"), "a second press waits for the answer")
+	check((w._rows["wooden_axe"].button as Button).disabled, "buttons wait while crafting")
+	check(not w.craft("wooden_axe"), "a second press waits for the answer")
 	check(not w.craft("moon"), "unknown ids are never sent")
 	check_eq(sent.size(), 1, "still one request")
 	# The server's answer, then its pack update.
-	var server := {"stone_axe": 1}
-	var text := Crafting.success("stone_axe", 1, server)
-	var r := w.on_craft_result("stone_axe", true, text)
+	var server := {"wooden_axe": 1}
+	var text := Crafting.success("wooden_axe", 1, server)
+	var r := w.on_craft_result("wooden_axe", true, text)
 	check(bool(r.ok), "ok")
-	check_eq(r.crafted, "stone_axe", "the toast is for the axe")
+	check_eq(r.crafted, "wooden_axe", "the toast is for the axe")
 	check_eq(w.status_label.text, text, "the server's own words")
 	check_eq(w.status_label.modulate, CraftWindow.ACCENT)
 	check(not w.is_waiting(), "answered")
 	w.seed_pack(server)
-	check_eq(Inventory.to_wire(w.pack), {"stone_axe": 1}, "pack is the server's")
-	check_eq((w._rows["stone_axe"].button as Button).text, "Have it")
+	check_eq(Inventory.to_wire(w.pack), {"wooden_axe": 1}, "pack is the server's")
+	check_eq((w._rows["wooden_axe"].button as Button).text, "Have it")
 	w.free()
 
 
@@ -84,7 +84,7 @@ func test_refusals_and_lost_answers() -> void:
 	var sent: Array = []
 	w.craft_requested.connect(func(id: String): sent.append(id))
 	var far := _bench() + Vector3(40, 0, 0)
-	w.seed_pack({"pine_wood": 1, "ember_sap": 1})
+	w.seed_pack({"pine_wood": 1, "plant_fibre": 1})
 	w.open(far)
 	check(w.craft("torch"), "torches are made anywhere")
 	var why := Crafting.refusal("missing", {}, "torch", far)
@@ -104,7 +104,7 @@ func test_refusals_and_lost_answers() -> void:
 	check(w.craft("torch"), "press once more")
 	w.on_craft_result("stone_axe", false, "late")
 	check(w.is_waiting(), "torch still in flight")
-	w.on_craft_result("torch", true, Crafting.success("torch", 3, {"torch": 3}))
+	w.on_craft_result("torch", true, Crafting.success("torch", 2, {"torch": 2}))
 	check(not w.is_waiting(), "torch answered")
 	check_eq(sent, ["torch", "torch", "torch"], "three presses, three requests")
 	# Disconnect clears everything.
@@ -139,19 +139,19 @@ func test_no_chat_commands_left() -> void:
 # --- no levels: materials, tools and the bench are the only gates ---
 
 func test_every_row_agrees_with_the_server() -> void:
-	var rich := {"ash_wood": 20, "stone": 20, "pine_wood": 20, "ember_sap": 10, "ember_heartwood": 10, "veinstone": 10}
+	var rich := {"ash_wood": 20, "stone": 20, "pine_wood": 20, "plant_fibre": 10, "wooden_axe": 1, "wooden_pickaxe": 1}
 	for id in Crafting.RECIPE_ORDER:
 		var r := CraftWindow.row(rich, id, _bench())
 		check_eq(r.reason, Crafting.check(rich, id, _bench()), id)
 		check(r.reason != "level", "%s has no level wall" % id)
 
 
-func test_ember_axe_is_gated_by_what_it_eats() -> void:
-	var r := CraftWindow.row({}, "ember_axe", _bench())
-	check_eq(r.reason, "missing", "a fresh pack lacks the heartwood, sap and stone axe")
+func test_stone_axe_is_gated_by_what_it_eats() -> void:
+	var r := CraftWindow.row({}, "stone_axe", _bench())
+	check_eq(r.reason, "missing", "a fresh pack lacks the stone, fibre and wooden axe")
 	check(str(r.hint).begins_with("Need "), r.hint)
-	var ready := {"ember_sap": 1, "ember_heartwood": 4, "stone_axe": 1}
-	check_eq(CraftWindow.row(ready, "ember_axe", _bench()).reason, "", "with them, anyone can harden their axe")
+	var ready := {"plant_fibre": 2, "stone": 3, "wooden_axe": 1}
+	check_eq(CraftWindow.row(ready, "stone_axe", _bench()).reason, "", "with them, anyone can make one")
 
 
 func test_window_fits_a_720p_screen() -> void:

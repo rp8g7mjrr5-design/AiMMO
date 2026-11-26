@@ -7,11 +7,11 @@ extends SceneTree
 ##
 ## Boots the real game scene, logs a fresh character in and plays the first minute with real
 ## input (Input.action_press, as a keyboard would):
-## - walks to the nearest ash, then the nearest stone, and presses E on each until the pack
-##   holds a stone axe's parts. Every press must show the gather bar (or a refusal notice) within
+## - walks to the nearest ash, then the nearest pine, and presses E on each until the pack
+##   holds a wooden pickaxe's parts (the first tool: bare hands can't break stone). Every press must show the gather bar (or a refusal notice) within
 ##   100 ms, and every haul toast must pop within 100 ms of the bar filling.
 ## - walks to the workbench and presses E: the window must open on that frame. Presses the
-##   stone axe's real Craft button: "Working..." on that frame, and the server's answer (the
+##   wooden pickaxe's real Craft button: "Working..." on that frame, and the server's answer (the
 ##   "Crafted" toast) within 100 ms.
 ## Times are wall-clock from the press to the first frame that shows the feedback. Any client
 ## needs two frames for an answer from the server (the frame that handles the press and sends
@@ -27,7 +27,7 @@ const GIVE_UP_MS := 3000.0 ## no feedback at all by then: "nothing happened"
 const LOGIN_TIMEOUT := 40.0
 const WALK_TIMEOUT := 25.0
 const SETTLE := 1.5
-const AXE := "stone_axe"
+const AXE := "wooden_pickaxe" ## the first tool a fresh character makes (owner direction 11)
 
 var problems: Array[String] = []
 var samples: Array = [] ## {what, ms, frames}
@@ -282,8 +282,8 @@ func _craft_axe(client: Node) -> void:
 func _finish() -> void:
 	var mf := median(frame_ms)
 	problems.append_array(verdict(samples, BUDGET_MS, mf, [
-		"gather press -> bar (ash)", "bar full -> haul toast (ash)", "gather press -> bar (stone)",
-		"bar full -> haul toast (stone)", "bench press -> window", "craft press -> working", "craft press -> crafted toast"]))
+		"gather press -> bar (ash)", "bar full -> haul toast (ash)", "gather press -> bar (pine)",
+		"bar full -> haul toast (pine)", "bench press -> window", "craft press -> working", "craft press -> crafted toast"]))
 	print("[feedback] median frame %.1f ms, limit %.0f ms per feedback" % [mf, limit_ms(BUDGET_MS, mf)])
 	if out_path != "":
 		var f := FileAccess.open(out_path, FileAccess.WRITE)

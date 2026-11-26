@@ -4,7 +4,7 @@ extends RefCounted
 ## tests/unit/test_qa_craft_haul.gd can drive them without a server.
 ##
 ## The main bots press Craft with whatever they happen to carry, and they almost never carry a
-## recipe's inputs (ember sap is night-only, one charge, ten-minute respawn), so in the 180 s
+## recipe's inputs (when this check was written the torch's ember sap was night-only, one charge, ten-minute respawn), so in the 180 s
 ## run every press was refused "missing" and the ok path (the toast)
 ## was only proven in unit tests. The haul check is the player coming home from a haul: a
 ## character seeded at the workbench with exactly a campfire's and a torch's inputs presses

@@ -87,8 +87,12 @@ static func tooltip_text(item: String, n: int) -> String:
 	var uses := used_in(item)
 	if not uses.is_empty():
 		lines.append("Used in: " + ", ".join(uses))
+	elif Weapons.exists(item):
+		lines.append("A weapon: you swing the best one you carry")
 	elif Crafting.makes_tool(item):
 		lines.append("A tool: you gather faster with it in your pack")
+	if item == Vitals.BANDAGE_ITEM:
+		lines.append("Press H to put one on when you're hurt")
 	return "\n".join(lines)
 
 

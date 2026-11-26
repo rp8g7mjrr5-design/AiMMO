@@ -11,7 +11,7 @@ func test_gate_node_is_the_nearest_tool_gated_node() -> void:
 	var node := ResourceNodes.get_by_id(id)
 	check(Gathering.needs_tool(node), "the gate node needs a tool")
 	var d := Vector2(node.pos.x - GameConfig.SPAWN_POINT.x, node.pos.z - GameConfig.SPAWN_POINT.z).length()
-	for n in ResourceNodes.all():
+	for n in ResourceNodes.tier2():
 		if Gathering.needs_tool(n):
 			check(Vector2(n.pos.x - GameConfig.SPAWN_POINT.x, n.pos.z - GameConfig.SPAWN_POINT.z).length() >= d - 0.001,
 				"node %d is nearer spawn than the gate node %d" % [n.id, id])
@@ -42,10 +42,11 @@ func test_veteran_has_the_tool_and_the_fresh_player_none() -> void:
 		check(not Gathering.can_work(node, {}), "a fresh player is refused")
 		check_eq(Gathering.check(Gathering.new_state(), id, node.pos, 0.0, 0.0, -1000.0, Gathering.COOLDOWN, {}), "tool")
 		check_eq(Gathering.check(Gathering.new_state(), id, node.pos, 0.0, 0.0, -1000.0, Gathering.COOLDOWN, pack), "")
-		var word := "a pickaxe" if str(node.kind) == "stone" else "an axe"
+		var word := "a stone pickaxe" if str(node.kind) == "stone" else "a stone axe"
 		check_eq(ToolGate.refusal_text(id), "You need %s to work this %s." % [word, str(ResourceNodes.info(node).label).to_lower()])
-	# Both kinds of tier-2 node: an axe opens the old ash, a pickaxe the seam, never the other.
-	for n in ResourceNodes.all():
+	# Both kinds of tier-2 node: a stone axe opens the old ash, a stone pickaxe the seam, never
+	# the other (and never a wooden one).
+	for n in ResourceNodes.tier2():
 		if Gathering.needs_tool(n):
 			var p := ToolGate.veteran_pack(int(n.id))
 			check(Gathering.can_work(n, p), "node %d opens to %s" % [n.id, p])

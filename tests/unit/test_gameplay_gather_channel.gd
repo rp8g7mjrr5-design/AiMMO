@@ -28,6 +28,11 @@ func _server(positions: Dictionary) -> Node:
 	return srv
 
 
+## Stone needs a pickaxe (owner direction, 2026-11-26): give player `id` the least one.
+func _pick(srv: Node, id: int) -> void:
+	srv.sessions[id].character.inventory["wooden_pickaxe"] = 1
+
+
 func _texts(srv: Node, id: int) -> Array:
 	var out: Array = []
 	for m in srv.test_outbox:
@@ -54,7 +59,7 @@ func _move(srv: Node, id: int, offset: Vector3) -> void:
 func test_seconds_per_kind_and_tools() -> void:
 	check_eq(GatherChannel.seconds_for("pine", {}), 2.0)
 	check_eq(GatherChannel.seconds_for("stone", {}), 2.4)
-	check_eq(GatherChannel.seconds_for("ember_sap", {}), 1.6)
+	check_eq(GatherChannel.seconds_for("scrub", {}), 1.6)
 	check_eq(GatherChannel.seconds_for("mystery", {}), GatherChannel.DEFAULT_SECONDS)
 	check_near(GatherChannel.seconds_for("pine", {"stone_axe": 1}), 2.0 * Gathering.TOOL_SPEED, 0.0001, "axe speeds wood")
 	check_near(GatherChannel.seconds_for("stone", {"stone_axe": 1}), 2.4, 0.0001, "axe does nothing for rock")
@@ -110,12 +115,13 @@ func test_start_then_complete() -> void:
 func test_cancel_by_moving_costs_nothing() -> void:
 	var n := _first("stone")
 	var srv := _server({2: n.pos + Vector3(1.0, 0, 0)})
+	_pick(srv, 2)
 	check(srv.gather_start(2, n.id).ok, "started")
 	_run(srv, 1.0)
 	_move(srv, 2, Vector3(0.0, 0, 0.8))
 	_run(srv, GameConfig.TICK_DT)
 	check(not GatherChannel.is_active(srv.sessions[2].channel), "cancelled")
-	check_eq(Inventory.total(srv.sessions[2].character.inventory), 0, "nothing given")
+	check_eq(Inventory.total(srv.sessions[2].character.inventory), 1, "nothing given (only the pickaxe)")
 	check_eq(Gathering.charges_left(srv.gathering, n.id, srv.test_now), Gathering.CHARGES.stone, "no charge used")
 	check_eq(srv.sessions[2].last_gather, -1000.0, "no cooldown spent")
 	check(_texts(srv, 2).back() == GatherChannel.cancel_text("moved"), "told why: %s" % [_texts(srv, 2)])
@@ -169,6 +175,8 @@ func test_contested_node() -> void:
 func test_start_refusals() -> void:
 	var n := _first("stone")
 	var srv := _server({2: n.pos + Vector3(ResourceNodes.GATHER_RANGE + 1.0, 0, 0), 3: n.pos})
+	check_eq(srv.gather_start(3, n.id).reason, "tool", "stone needs a pickaxe")
+	_pick(srv, 2)
 	check_eq(srv.gather_start(2, n.id).reason, "far")
 	check_eq(srv.gather_start(2, -5).reason, "unknown")
 	check_eq(srv.gather_start(99, n.id).reason, "offline")
@@ -180,6 +188,7 @@ func test_a_full_stack_is_refused_up_front() -> void:
 	# stack is refused before the bar starts, no charge used, "Your pack is full" centre screen.
 	var n := _first("stone")
 	var srv := _server({3: n.pos})
+	_pick(srv, 3)
 	var s: Dictionary = srv.sessions[3]
 	s.character.inventory["stone"] = Inventory.MAX_STACK
 	var r: Dictionary = srv.gather_start(3, n.id)
@@ -197,6 +206,7 @@ func test_a_stack_filling_mid_gather_ends_quietly() -> void:
 	# home: no haul toast, a line saying why.
 	var n := _first("stone")
 	var srv := _server({3: n.pos})
+	_pick(srv, 3)
 	var s: Dictionary = srv.sessions[3]
 	var r: Dictionary = srv.gather_start(3, n.id)
 	check(r.ok, r.reason)

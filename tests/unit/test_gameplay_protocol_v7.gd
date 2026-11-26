@@ -211,8 +211,8 @@ func test_striking_one_bolts_its_herd_mates() -> void:
 func test_weapon_of_is_bare_hands_until_a_weapon_is_carried() -> void:
 	var srv := _server({1: Vector3(40, 0, 40)})
 	check_eq(srv.weapon_of(1), Weapons.FISTS)
-	srv.sessions[1].character.inventory["ash_spear"] = 1
-	check_eq(srv.weapon_of(1), "ash_spear")
+	srv.sessions[1].character.inventory["stone_spear"] = 1
+	check_eq(srv.weapon_of(1), "stone_spear")
 	srv.sessions[1].character.inventory["stone_maul"] = 1
 	check_eq(srv.weapon_of(1), "stone_maul", "the best one carried")
 	check_eq(srv.weapon_of(99), Weapons.FISTS)

@@ -5,7 +5,8 @@ class_name Gathering
 ## The server keeps one state for the whole world (made by new_state()) and one
 ## "last gather" time per player. A node gives ResourceNodes.KINDS[kind].amount items per
 ## gather, can be gathered CHARGES[kind] times, then is depleted until its respawn timer
-## (KINDS[kind].respawn real seconds) runs out. Ember-sap seeps only give at night.
+## (KINDS[kind].respawn real seconds) runs out. A node kind may still be `night_only` (none
+## is today: the ember-sap seeps were, and are scrub now).
 ##
 ## State lives in server memory only: every node comes back on a restart, which is fine for
 ## things that respawn anyway, and keeps player tables free of world state.
@@ -14,30 +15,32 @@ class_name Gathering
 
 const COOLDOWN := 1.5 ## real seconds between two gathers by the same player
 ## Gathers a node gives before it is depleted. Wood and stone are shared by everyone at
-## Spawn Meadow, so they last a few gathers; a seep gives once and is gone for a while.
-const CHARGES := {"ash": 3, "pine": 3, "stone": 3, "ember_sap": 1}
+## Spawn Meadow, so they last a few gathers; so does a patch of scrub.
+const CHARGES := {"ash": 3, "pine": 3, "stone": 3, "scrub": 3}
 const DEFAULT_CHARGES := 1
 const HINT_RADIUS := 80.0 ## how far "the nearest pine is 14 m north-east" looks
-## Tools (see Crafting): carrying the right one gives more per gather (tool_extra) and
+## Tools (see Crafting), Minecraft's idea in our own world (owner direction, 2026-11-26):
+## wood first, then stone. Carrying the right one gives more per gather (tool_extra) and
 ## shortens both the gather bar (GatherChannel) and the cooldown by tool_speed. Each kind
-## lists its tools best first; the best one you carry is the one used. A stone tool gives
-## TOOL_EXTRA more and runs at TOOL_SPEED; the ember-hardened tools give
-## EMBER_EXTRA more and run at EMBER_SPEED, so the bar is visibly shorter on the very next
-## gather. Seeps take no tool: sap is collected by hand.
+## lists its tools best first; the best one you carry is the one used. Bare hands can still
+## pull wood (slowly) and scrub, but stone needs a pickaxe (ResourceNodes.KINDS `needs_tool`)
+## and the tier-2 old ash and rich seam need a stone tool (`min_tool_tier`).
 const TOOLS := {
-	"ash": ["ember_axe", "stone_axe"],
-	"pine": ["ember_axe", "stone_axe"],
-	"stone": ["ember_pickaxe", "stone_pickaxe"],
+	"ash": ["stone_axe", "wooden_axe"],
+	"pine": ["stone_axe", "wooden_axe"],
+	"stone": ["stone_pickaxe", "wooden_pickaxe"],
 }
-const TOOL_EXTRA := 1
-const TOOL_SPEED := 0.5
-const EMBER_EXTRA := 2
-const EMBER_SPEED := 0.35
+## 1 wood, 2 stone. A node's `min_tool_tier` (default 1) is the least it takes.
+const TOOL_TIER := {"wooden_axe": 1, "wooden_pickaxe": 1, "stone_axe": 2, "stone_pickaxe": 2}
+const WOOD_SPEED := 0.75
+const WOOD_EXTRA := 0
+const TOOL_SPEED := 0.5 ## stone
+const TOOL_EXTRA := 1 ## stone
 const TOOL_POWER := {
+	"wooden_axe": {"speed": WOOD_SPEED, "extra": WOOD_EXTRA},
+	"wooden_pickaxe": {"speed": WOOD_SPEED, "extra": WOOD_EXTRA},
 	"stone_axe": {"speed": TOOL_SPEED, "extra": TOOL_EXTRA},
 	"stone_pickaxe": {"speed": TOOL_SPEED, "extra": TOOL_EXTRA},
-	"ember_axe": {"speed": EMBER_SPEED, "extra": EMBER_EXTRA},
-	"ember_pickaxe": {"speed": EMBER_SPEED, "extra": EMBER_EXTRA},
 }
 
 
@@ -60,10 +63,20 @@ static func needs_tool(node: Dictionary) -> bool:
 	return bool(ResourceNodes.info(node).get("needs_tool", false))
 
 
-## True if a player carrying `inv` may work `node`: anyone for a tier-1 node, and for a
-## tool-gated one only with one of TOOLS[kind] in the pack.
+## The least tool tier `node` takes (Gathering.TOOL_TIER), 0 when bare hands do.
+static func min_tier(node: Dictionary) -> int:
+	if not needs_tool(node):
+		return 0
+	return int(ResourceNodes.info(node).get("min_tool_tier", 1))
+
+
+## True if a player carrying `inv` may work `node`: anyone for a node that takes no tool, and
+## for a tool-gated one only with one of TOOLS[kind] of at least min_tier in the pack.
 static func can_work(node: Dictionary, inv: Dictionary) -> bool:
-	return not needs_tool(node) or tool_for(str(node.get("kind", "")), inv) != ""
+	var need := min_tier(node)
+	if need <= 0:
+		return true
+	return int(TOOL_TIER.get(tool_for(str(node.get("kind", "")), inv), 0)) >= need
 
 
 ## Brings back every node whose respawn time has passed. Returns the ids that came back
@@ -227,9 +240,9 @@ static func parse_kind(word: String) -> Variant:
 	if w == "":
 		return ""
 	const WORDS := {
-		"ash": "ash", "ash_wood": "ash", "ember_ash": "ash", "pine": "pine", "pine_wood": "pine",
+		"ash": "ash", "ash_wood": "ash", "tree": "ash", "pine": "pine", "pine_wood": "pine",
 		"stone": "stone", "rock": "stone", "outcrop": "stone",
-		"sap": "ember_sap", "ember_sap": "ember_sap", "seep": "ember_sap", "ember": "ember_sap",
+		"scrub": "scrub", "fibre": "scrub", "plant_fibre": "scrub", "fiber": "scrub", "bush": "scrub",
 	}
 	return WORDS.get(w, null)
 
@@ -247,7 +260,7 @@ static func refusal(reason: String, state: Dictionary, id: int, player_pos: Vect
 			return "This %s is spent; it comes back in about %d minute%s. %s" % [
 				label, mins, "" if mins == 1 else "s", hint(state, player_pos, now, world_seconds, kind, inv)]
 		"day":
-			return "The %s is dry by daylight. Ember sap only seeps at night." % label
+			return "The %s can only be worked at night." % label
 		"cooldown":
 			return "Easy; you're still gathering."
 		"full":
@@ -256,15 +269,17 @@ static func refusal(reason: String, state: Dictionary, id: int, player_pos: Vect
 	return "Nothing to gather within reach. %s" % hint(state, player_pos, now, world_seconds, kind, inv)
 
 
-## "You need an axe to work this old ember ash." for a tool-gated node and bare hands.
+## "You need a stone axe to work this old ash." for a tool-gated node and a pack without
+## a good enough tool.
 static func tool_text(node: Dictionary) -> String:
 	var label := str(ResourceNodes.info(node).get("label", "node")).to_lower()
-	return "You need %s to work this %s." % [tool_word(str(node.get("kind", ""))), label]
+	return "You need %s to work this %s." % [tool_word(str(node.get("kind", "")), min_tier(node)), label]
 
 
-## "an axe" or "a pickaxe": what a tool-gated node of `kind` takes.
-static func tool_word(kind: String) -> String:
-	return "a pickaxe" if kind == "stone" else "an axe"
+## "a pickaxe" or "a stone axe": what a tool-gated node of `kind` takes at `tier`.
+static func tool_word(kind: String, tier: int = 1) -> String:
+	var what := "pickaxe" if kind == "stone" else "axe"
+	return "a stone %s" % what if tier >= 2 else "a %s" % what
 
 
 ## "Your pack can't hold any more ash wood, so you leave it." for a timed gather that
@@ -277,7 +292,7 @@ static func full_text(id: int, depleted: bool = false) -> String:
 	return line
 
 
-## "You gather 2 ash wood from the ember ash (6 in your pack). It is spent for now."
+## "You gather 2 ash wood from the ash (6 in your pack). It is spent for now."
 ## Pass the tool's item id (from tool_for) to say it was used.
 static func success(id: int, got: int, in_pack: int, depleted: bool, tool: String = "") -> String:
 	var node := ResourceNodes.get_by_id(id)

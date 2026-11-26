@@ -19,7 +19,7 @@ class_name Campfires
 ## (lower-case character name, so it survives a reconnect), lit_at, out_at}. Times (`now`)
 ## are real seconds on the server's monotonic clock, like Vitals and GatherChannel.
 
-## The one item that can be placed today (ember lanterns later; backlog).
+## The one item that can be placed today (bandages are used through the same message).
 const ITEM := "campfire"
 ## Metres in front of you that a fire is set down.
 const PLACE_DISTANCE := 1.5

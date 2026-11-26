@@ -72,20 +72,23 @@ func test_spent_nodes_are_skipped() -> void:
 
 func test_action_words() -> void:
 	var nd := _a_night_and_a_day()
-	check_eq(GatherPrompt.target(_first("ash").pos, nd[1]).text, "[E] Chop Ember Ash")
-	check_eq(GatherPrompt.target(_first("ember_sap").pos, nd[0]).text, "[E] Collect Ember Sap")
+	check_eq(GatherPrompt.target(_first("ash").pos, nd[1]).text, "[E] Chop Ash")
+	check_eq(GatherPrompt.target(_first("scrub").pos, nd[0]).text, "[E] Pull Scrub")
 	check_eq(GatherPrompt.doing_text("stone"), "Mining Stone Outcrop")
-	check_eq(GatherPrompt.doing_text("ember_sap"), "Collecting Ember Sap")
+	check_eq(GatherPrompt.doing_text("scrub"), "Pulling Scrub")
 	check_eq(GatherPrompt.doing_text("nope"), "Gathering")
 
 
-func test_seeps_only_at_night() -> void:
+func test_scrub_day_and_night_and_stone_needs_a_pickaxe() -> void:
 	var nd := _a_night_and_a_day()
-	var seep := _first("ember_sap")
-	var by_day := GatherPrompt.target(seep.pos, nd[1])
-	check(not bool(by_day.can), "a seep can't be gathered by day")
-	check(str(by_day.text).contains("night"), by_day.text)
-	check(bool(GatherPrompt.target(seep.pos, nd[0]).can), "a seep can be gathered at night")
+	var scrub := _first("scrub")
+	check(bool(GatherPrompt.target(scrub.pos, nd[1]).can), "scrub by day")
+	check(bool(GatherPrompt.target(scrub.pos, nd[0]).can), "and by night")
+	var rock := _first("stone")
+	var bare := GatherPrompt.target(rock.pos, nd[1], Vector3.ZERO, Vector3.ZERO, {}, {})
+	check(not bool(bare.can), "bare hands can't break rock")
+	check_eq(bare.text, "Stone Outcrop · needs a pickaxe")
+	check(bool(GatherPrompt.target(rock.pos, nd[1], Vector3.ZERO, Vector3.ZERO, {}, {"wooden_pickaxe": 1}).can), "a wooden pickaxe can")
 
 
 func test_decide() -> void:
@@ -178,6 +181,7 @@ func test_widget_runs_a_timed_gather() -> void:
 	var n := _first("stone")
 	var w := GatherPrompt.new()
 	w.setup(Theme.new())
+	w.pack = {"wooden_pickaxe": 1}
 	var now := 100.0
 	var op := w.update(0.05, n.pos, nd[1], now, true, true)
 	check_eq(op, {"op": "start", "node": int(n.id)}, "E at the outcrop starts it")
@@ -192,7 +196,7 @@ func test_widget_runs_a_timed_gather() -> void:
 	check_near(w.bar.value, 0.5, 0.01, "half way after half the server's time")
 	check_eq(w.prompt_label.text, "Mining Stone Outcrop")
 	# Done: pack first, then the result, then the end; holding E starts the next at once.
-	w.pack = {"stone": 4}
+	w.pack = {"stone": 4, "wooden_pickaxe": 1}
 	w.on_result("stone", 2)
 	check_eq(w.toast_label.text, "+2 Stone  (4)")
 	check_eq(w.toast_item(), "stone")
@@ -284,32 +288,34 @@ func _tier2(kind: String) -> Dictionary:
 func test_tier2_node_shows_what_it_needs() -> void:
 	var nd := _a_night_and_a_day()
 	var ash := _tier2("ash")
-	check(not ash.is_empty(), "there is an old ember ash")
+	check(not ash.is_empty(), "there is an old ash")
 	var at: Vector3 = ash.pos + Vector3(0.5, 0, 0)
 	var bare := GatherPrompt.target(at, nd[1], Vector3.ZERO, Vector3.ZERO, {}, {})
 	check_eq(int(bare.id), int(ash.id), "targets the old ash")
 	check(not bool(bare.can), "bare hands can't work it")
 	check(bool(bare.needs_tool), "flagged as a tool wall")
-	check_eq(bare.text, "Old Ember Ash · needs an axe")
+	check_eq(bare.text, "Old Ash · needs a stone axe")
 	check_eq(GatherPrompt.decide(true, true, false, bare, false, false, false), {}, "E does nothing without the tool")
 	var ok := GatherPrompt.target(at, nd[1], Vector3.ZERO, Vector3.ZERO, {}, {"stone_axe": 1})
-	check(bool(ok.can), "an axe can")
+	check(bool(ok.can), "a stone axe can")
 	check(not bool(ok.needs_tool), "no wall with the axe")
-	check_eq(ok.text, "[E] Chop Old Ember Ash", "names the old ash, not a plain ash")
-	check_eq(ok.doing, "Chopping Old Ember Ash")
+	check_eq(ok.text, "[E] Chop Old Ash", "names the old ash, not a plain ash")
+	check_eq(ok.doing, "Chopping Old Ash")
+	check(not bool(GatherPrompt.target(at, nd[1], Vector3.ZERO, Vector3.ZERO, {}, {"wooden_axe": 1}).can), "a wooden axe can't")
 	check_eq(GatherPrompt.decide(false, true, false, ok, false, false, false), {"op": "start", "node": int(ash.id)})
 	var seam := _tier2("stone")
 	var s_bare := GatherPrompt.target(seam.pos + Vector3(0.5, 0, 0), nd[1])
-	check_eq(s_bare.text, "Rich Stone Seam · needs a pickaxe")
+	check_eq(s_bare.text, "Rich Stone Seam · needs a stone pickaxe")
 	check(GatherPrompt.need_text(seam, {"stone_axe": 1}) != "", "an axe doesn't open a seam")
-	check_eq(GatherPrompt.need_text(seam, {"ember_pickaxe": 1}), "", "any pickaxe does")
+	check(GatherPrompt.need_text(seam, {"wooden_pickaxe": 1}) != "", "nor a wooden pickaxe")
+	check_eq(GatherPrompt.need_text(seam, {"stone_pickaxe": 1}), "", "a stone pickaxe does")
 
 
 func test_tier2_prompt_agrees_with_the_server_by_pack() -> void:
 	var nd := _a_night_and_a_day()
 	var state := Gathering.new_state()
 	for n in ResourceNodes.tier2():
-		for inv in [{}, {"stone_axe": 1}, {"stone_pickaxe": 1}, {"ember_axe": 1, "ember_pickaxe": 1}]:
+		for inv in [{}, {"stone_axe": 1}, {"stone_pickaxe": 1}, {"wooden_axe": 1, "wooden_pickaxe": 1}]:
 			var t := GatherPrompt.target(n.pos + Vector3(0.4, 0, 0), nd[1], Vector3.ZERO, Vector3.ZERO, {}, inv)
 			if t.is_empty() or int(t.id) != int(n.id):
 				continue
@@ -319,8 +325,9 @@ func test_tier2_prompt_agrees_with_the_server_by_pack() -> void:
 
 func test_tool_refusal_notice_names_the_tool() -> void:
 	var ash := _tier2("ash")
-	check_eq(GatherPrompt.notice_for("tool", int(ash.id)), "Needs an axe")
-	check_eq(GatherPrompt.notice_for("tool", int(_tier2("stone").id)), "Needs a pickaxe")
+	check_eq(GatherPrompt.notice_for("tool", int(ash.id)), "Needs a stone axe")
+	check_eq(GatherPrompt.notice_for("tool", int(_tier2("stone").id)), "Needs a stone pickaxe")
+	check_eq(GatherPrompt.notice_for("tool", int(_first("stone").id)), "Needs a pickaxe")
 	check_eq(GatherPrompt.notice_for("tool", -1), GatherPrompt.notice_text("tool"), "unknown node: plain words")
 	check(GatherPrompt.notice_text("tool") != "", "tool has centre words")
 	check_eq(GatherPrompt.notice_for("full", int(ash.id)), "Your pack is full")

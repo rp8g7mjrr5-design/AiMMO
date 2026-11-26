@@ -48,7 +48,7 @@ func test_everyone_starts_full_and_idle_costs_nothing() -> void:
 	srv.free()
 
 
-func test_a_hit_hurts_then_health_comes_back_out_of_combat() -> void:
+func test_a_hit_hurts_then_a_bandage_heals() -> void:
 	var srv := _server({1: "Ash"})
 	var r: Dictionary = srv.hurt(1, 30.0)
 	check_eq([r.taken, r.dead, r.knocked_down], [30.0, false, false])
@@ -56,7 +56,11 @@ func test_a_hit_hurts_then_health_comes_back_out_of_combat() -> void:
 	_run(srv, Vitals.COMBAT_SECONDS - 0.5)
 	check_eq(int(srv.vitals_of(1).hp), 70, "no health back while in combat")
 	_run(srv, 4.0)
-	check_eq(Vitals.shown(srv.vitals_of(1)), [100, 100], "full again a few seconds after the fight")
+	check_eq(int(srv.vitals_of(1).hp), 70, "above half nothing comes back by itself")
+	srv.give_item(1, "bandage", 1)
+	check(srv.place_request(1, "bandage").ok, "a bandage goes on")
+	_run(srv, Vitals.BANDAGE_SECONDS + 0.5)
+	check_eq(Vitals.shown(srv.vitals_of(1)), [100, 100], "and patches you up to full")
 	var last: Array = _sent(srv, 1, "s2c_vitals").back()
 	check_eq(last, [100, 100, 100, 100], "the last send says full")
 	var sends := _sent(srv, 1, "s2c_vitals").size()

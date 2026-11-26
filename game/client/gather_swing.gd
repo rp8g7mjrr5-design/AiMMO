@@ -5,7 +5,7 @@ extends RefCounted
 ## a loop, a different motion per kind:
 ## - ash and pine: a two-handed chop, slow wind-up over the head, fast bite down;
 ## - stone: the same but heavier and slower, with a deeper lean into each blow;
-## - ember sap: both hands low and forward, dipping and lifting gently.
+## - scrub: both hands low and forward, pulling fibre and lifting gently.
 ## It blends in and out over a fraction of a second, so starting, finishing and cancelling
 ## never snap the pose.
 ##
@@ -30,7 +30,7 @@ const STYLES := {
 	"mine": {"period": 1.0, "top": -2.85, "bottom": -0.55, "wind": 0.66, "lean": 0.24},
 	"collect": {"period": 1.4, "top": -1.25, "bottom": -0.7, "wind": 0.5, "lean": 0.2},
 }
-const KIND_STYLE := {"ash": "chop", "pine": "chop", "stone": "mine", "ember_sap": "collect"}
+const KIND_STYLE := {"ash": "chop", "pine": "chop", "stone": "mine", "scrub": "collect"}
 
 var weight := 0.0  ## 0 = walk pose only, 1 = full swing
 var phase := 0.0   ## 0..1 through the current stroke

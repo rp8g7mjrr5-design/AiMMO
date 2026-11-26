@@ -184,36 +184,35 @@ func test_a_fresh_character_gathers_and_crafts_on_a_kingdom() -> void:
 	var ch: Dictionary = srv.sessions[7].character
 	var sp := WorldGen.spawn_point()
 	check(_flat(CharacterData.position(ch), sp) < 0.01, "a new character arrives at the kingdom's spawn")
-	var need := {"ash": 3, "stone": 2}
-	var item := {"ash": "ash_wood", "stone": "stone"}
-	for kind in need:
-		var tries := 0
-		while Inventory.count(ch.inventory, item[kind]) < need[kind] and tries < 8:
-			tries += 1
-			var n := ResourceNodes.nearest(CharacterData.position(ch), kind, 60.0)
-			if n.is_empty():
-				break
-			ch.x = n.pos.x + 1.0
-			ch.y = n.pos.y
-			ch.z = n.pos.z
-			var r: Dictionary = srv.gather_start(7, n.id)
-			if not bool(r.get("ok", false)):
-				check(false, "gather %s refused: %s" % [kind, r])
-				break
-			var t := 0.0
-			while t < 6.0 and GatherChannel.is_active(srv.sessions[7].channel):
-				srv.test_now += GameConfig.TICK_DT
-				t += GameConfig.TICK_DT
-				srv._tick_channels(srv.test_now)
-			srv.test_now += 2.0 # past the gather cooldown
-		check(Inventory.count(ch.inventory, item[kind]) >= need[kind], "gathered %s on a kingdom" % item[kind])
-	var bench := Crafting.workbench_pos()
-	ch.x = bench.x - 1.5
-	ch.z = bench.z
-	ch.y = Terrain.height(ch.x, ch.z)
-	var made: Dictionary = srv.craft_request(7, "stone_axe")
-	check(bool(made.ok), "crafted a stone axe at the kingdom's bench: %s" % made)
-	check_eq(Inventory.count(ch.inventory, "stone_axe"), 1)
+	# Wood first (a wooden pickaxe, made on the spot), then stone with it.
+	for step in [[{"ash": 2, "pine": 2}, "wooden_pickaxe"], [{"stone": 2}, ""]]:
+		var need: Dictionary = step[0]
+		var item := {"ash": "ash_wood", "pine": "pine_wood", "stone": "stone"}
+		for kind in need:
+			var tries := 0
+			while Inventory.count(ch.inventory, item[kind]) < need[kind] and tries < 8:
+				tries += 1
+				var n := ResourceNodes.nearest(CharacterData.position(ch), kind, 60.0)
+				if n.is_empty():
+					break
+				ch.x = n.pos.x + 1.0
+				ch.y = n.pos.y
+				ch.z = n.pos.z
+				var r: Dictionary = srv.gather_start(7, n.id)
+				if not bool(r.get("ok", false)):
+					check(false, "gather %s refused: %s" % [kind, r])
+					break
+				var t := 0.0
+				while t < 6.0 and GatherChannel.is_active(srv.sessions[7].channel):
+					srv.test_now += GameConfig.TICK_DT
+					t += GameConfig.TICK_DT
+					srv._tick_channels(srv.test_now)
+				srv.test_now += 2.0 # past the gather cooldown
+			check(Inventory.count(ch.inventory, item[kind]) >= need[kind], "gathered %s on a kingdom" % item[kind])
+		if str(step[1]) != "":
+			var made: Dictionary = srv.craft_request(7, str(step[1]))
+			check(bool(made.ok), "crafted a %s in the field: %s" % [step[1], made])
+	check_eq(Inventory.count(ch.inventory, "wooden_pickaxe"), 1)
 	srv.free()
 	_ashgrove()
 

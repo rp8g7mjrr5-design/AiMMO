@@ -43,22 +43,24 @@ func test_refusals() -> void:
 	var far: Vector3 = n.pos + Vector3(0, 0, ResourceNodes.GATHER_RANGE + 0.5)
 	check_eq(Gathering.check(st, -1, near, 0.0, NOON, -1000.0), "unknown", "negative id")
 	check_eq(Gathering.check(st, 99999, near, 0.0, NOON, -1000.0), "unknown", "id past the end")
-	check_eq(Gathering.check(st, n.id, far, 0.0, NOON, -1000.0), "far")
-	check_eq(Gathering.check(st, n.id, near, 10.0, NOON, 9.5), "cooldown")
-	check_eq(Gathering.check(st, n.id, near, 10.0, NOON, 10.0 - Gathering.COOLDOWN), "", "cooldown over")
+	var pick := {"wooden_pickaxe": 1}
+	check_eq(Gathering.check(st, n.id, near, 0.0, NOON, -1000.0), "tool", "stone needs a pickaxe")
+	check_eq(Gathering.check(st, n.id, far, 0.0, NOON, -1000.0, Gathering.COOLDOWN, pick), "far")
+	check_eq(Gathering.check(st, n.id, near, 10.0, NOON, 9.5, Gathering.COOLDOWN, pick), "cooldown")
+	check_eq(Gathering.check(st, n.id, near, 10.0, NOON, 10.0 - Gathering.COOLDOWN, Gathering.COOLDOWN, pick), "", "cooldown over")
 
 
-func test_ember_sap_only_at_night() -> void:
+func test_scrub_any_time_by_hand() -> void:
 	var st := Gathering.new_state()
-	var n := _first("ember_sap")
-	check(not n.is_empty(), "there is a seep")
+	var n := _first("scrub")
+	check(not n.is_empty(), "there is scrub")
 	var pos: Vector3 = n.pos
-	check_eq(Gathering.check(st, n.id, pos, 0.0, NOON, -1000.0), "day", "dry at noon")
-	check_eq(Gathering.check(st, n.id, pos, 0.0, MIDNIGHT, -1000.0), "", "seeps at midnight")
+	check_eq(Gathering.check(st, n.id, pos, 0.0, NOON, -1000.0), "", "by day")
+	check_eq(Gathering.check(st, n.id, pos, 0.0, MIDNIGHT, -1000.0), "", "and by night")
 	var got := Gathering.take(st, n.id, 0.0)
-	check_eq(got.item, "ember_sap")
-	check(got.depleted, "one gather empties a seep")
-	check(Gathering.refusal("day", st, n.id, pos, 0.0, NOON).contains("night"), "refusal says when")
+	check_eq(got.item, "plant_fibre")
+	check(not got.depleted, "a patch lasts a few pulls")
+	check(Gathering.refusal("day", st, n.id, pos, 0.0, NOON).contains("night"), "a night-only refusal still says when")
 
 
 func test_pick_target_prefers_gatherable_and_kind() -> void:
@@ -70,16 +72,17 @@ func test_pick_target_prefers_gatherable_and_kind() -> void:
 	for i in Gathering.CHARGES.ash:
 		Gathering.take(st, n.id, 0.0)
 	check_eq(Gathering.pick_target(st, pos, 1.0, NOON), n.id, "still named when spent, so the refusal can say so")
-	check(Gathering.refusal("depleted", st, n.id, pos, 1.0, NOON).begins_with("This ember ash is spent; it comes back in about 3 minutes."), "depleted refusal")
+	check(Gathering.refusal("depleted", st, n.id, pos, 1.0, NOON).begins_with("This ash is spent; it comes back in about 3 minutes."), "depleted refusal")
 
 
 func test_give_back_undoes_take() -> void:
 	var st := Gathering.new_state()
-	var n := _first("ember_sap")
-	Gathering.take(st, n.id, 5.0)
-	check(Gathering.is_depleted(st, n.id, 5.0), "depleted after take")
+	var n := _first("scrub")
+	for i in Gathering.CHARGES.scrub:
+		Gathering.take(st, n.id, 5.0)
+	check(Gathering.is_depleted(st, n.id, 5.0), "depleted after the last take")
 	Gathering.give_back(st, n.id)
-	check(not Gathering.is_depleted(st, n.id, 5.0), "a full pack doesn't waste the seep")
+	check(not Gathering.is_depleted(st, n.id, 5.0), "a full pack doesn't waste the patch")
 	check_eq(Gathering.charges_left(st, n.id, 5.0), 1)
 
 
@@ -92,7 +95,8 @@ func test_hint_points_at_nearest_live_node() -> void:
 	for i in Gathering.CHARGES.pine:
 		Gathering.take(st, pine.id, 0.0)
 	check(Gathering.hint(st, spawn, 1.0, NOON, "pine") != line, "a spent pine is skipped")
-	check(Gathering.hint(st, spawn, 0.0, NOON, "ember_sap").begins_with("Nothing"), "no seep hint by day")
+	check(Gathering.hint(st, spawn, 0.0, NOON, "scrub").begins_with("The nearest scrub is"), "scrub by day too")
+	check(not Gathering.hint(st, spawn, 0.0, NOON, "stone").contains("stone outcrop"), "no rock hint without a pickaxe")
 
 
 func test_direction_names() -> void:
@@ -110,7 +114,7 @@ func test_parse_kind_and_command() -> void:
 	check_eq(Gathering.parse_kind("Pine"), "pine")
 	check_eq(Gathering.parse_kind("ash wood"), "ash")
 	check_eq(Gathering.parse_kind("rock"), "stone")
-	check_eq(Gathering.parse_kind("sap"), "ember_sap")
+	check_eq(Gathering.parse_kind("fibre"), "scrub")
 	check_eq(Gathering.parse_kind("dragon"), null)
 	check(ChatCommands.is_gather("/gather"), "gather")
 	check(ChatCommands.is_gather("/G pine"), "alias, any case")

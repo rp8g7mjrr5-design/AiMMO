@@ -94,24 +94,15 @@ func test_lantern_pools_fall_off() -> void:
 	lamps.free()
 
 
-func test_seeps_light_the_dark() -> void:
-	check(Lamps.glow_values(1.0).seep_light > 0.0 and Lamps.glow_values(0.0).seep_light == 0.0, "seeps light up only at night")
-	var seeps: Array = ResourceNodes.all().filter(func(n): return n.kind == "ember_sap")
+func test_no_seep_lights_since_the_seeps_went() -> void:
+	# The glowing ember-sap seeps became plain scrub (owner direction, 2026-11-26: no magic):
+	# the SeepLights holder is still built (Lamps walks it) but holds no light.
 	var root := NodeProps.build()
 	var world := Node3D.new()
 	world.add_child(root)
-	check_eq(root.get_node(NodeProps.SEEP_LIGHTS).get_child_count(), seeps.size(), "one light per seep")
-	var id: int = seeps[0].id
-	var omni := NodeProps.seep_light(root, id)
-	check(omni != null and not omni.shadow_enabled, "seep light exists and casts no shadow")
-	Lamps.apply_glow(world, 1.0)
-	check(omni.visible and omni.light_energy > 0.0, "lit at night")
-	NodeProps.set_depleted(root, id, true)
-	check(not omni.visible, "a dried-out seep goes dark")
-	Lamps.apply_glow(world, 1.0)
-	check(not omni.visible, "and stays dark through a repaint")
-	NodeProps.set_depleted(root, id, false)
-	check(omni.visible, "refilled, it glows again")
-	Lamps.apply_glow(world, 0.0)
-	check(not omni.visible, "off by day")
+	check_eq(root.get_node(NodeProps.SEEP_LIGHTS).get_child_count(), 0, "no seep lights")
+	var scrub: Array = ResourceNodes.all().filter(func(n): return n.kind == "scrub")
+	check(NodeProps.seep_light(root, int(scrub[0].id)) == null, "scrub throws no light")
+	Lamps.apply_glow(world, 1.0) # and a night repaint is fine without them
 	world.free()
+

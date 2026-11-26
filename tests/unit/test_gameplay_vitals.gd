@@ -110,7 +110,10 @@ func test_health_regen_only_out_of_combat() -> void:
 	check_eq(v.hp, 50.0, "hitting back keeps you in combat")
 	var t := 6.0 + Vitals.COMBAT_SECONDS
 	Vitals.tick(v, t, 1.0)
-	check_eq(v.hp, 50.0 + Vitals.MAX_HP * Vitals.HP_REGEN_SHARE, "regen out of combat")
-	Vitals.tick(v, t + 1.0, 100.0)
-	check_eq(v.hp, Vitals.MAX_HP, "stops at max")
-	check(1.0 / Vitals.HP_REGEN_SHARE <= 12.0, "empty to full in about 10 s: back to gathering quickly")
+	check_eq(v.hp, 50.0, "at half, nothing comes back by itself: that takes a bandage")
+	v.hp = 20.0
+	Vitals.tick(v, t + 1.0, 1.0)
+	check_near(float(v.hp), 20.0 + Vitals.MAX_HP * Vitals.HP_REGEN_SHARE, 0.0001, "a slow trickle below half")
+	Vitals.tick(v, t + 2.0, 1000.0)
+	check_eq(v.hp, Vitals.MAX_HP * Vitals.HP_REGEN_CAP, "stops at half")
+	check(Vitals.HP_REGEN_CAP < 1.0, "never back to full on its own (owner direction 2026-11-26: bandages)")

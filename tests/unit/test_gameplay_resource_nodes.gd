@@ -5,13 +5,32 @@ extends TestCase
 ## the first 397 (passes 1 and 2) must never change; new passes only append. FINGERPRINT is
 ## the whole list today: when a pass is appended, pin the old whole list as another prefix
 ## here and update FINGERPRINT, and say why in docs/devlog/gameplay.md.
-const FINGERPRINT_397 := "397-661be157d592b82ad460e8b5154aa417" ## starter ring + wild
-const FINGERPRINT := "405-413500cecfbb07c82c21389af3f8a317" ## + the tier-2 ring (2026-11-23)
+## 2026-11-26 (grounded tools, owner direction): the ember-sap seeps became scrub. Same ids,
+## same spots: only the kind's name changed, so the old pins still hold for the list with
+## "scrub" read as "ember_sap" (LEGACY_*), and the pins below are the renamed list.
+const LEGACY_397 := "397-661be157d592b82ad460e8b5154aa417" ## starter ring + wild, as "ember_sap"
+const LEGACY := "405-413500cecfbb07c82c21389af3f8a317" ## + the tier-2 ring (2026-11-23)
+const FINGERPRINT_397 := "397-73340a460f9e906cc66aed519ccf10e4" ## starter ring + wild
+const FINGERPRINT := "405-76d42e5ee91a96dc7c0a0c5b4c89bf8c" ## + the tier-2 ring
+
+
+## ResourceNodes.fingerprint with today's "scrub" spelled the old way.
+func _legacy_fingerprint(upto: int = -1) -> String:
+	var list := ResourceNodes.all()
+	var n_used := list.size() if upto < 0 else mini(upto, list.size())
+	var parts := PackedStringArray()
+	for i in n_used:
+		var n: Dictionary = list[i]
+		var kind := "ember_sap" if n.kind == "scrub" else str(n.kind)
+		parts.append("%d:%s:%.2f:%.2f" % [n.id, kind, n.pos.x, n.pos.z])
+	return "%d-%s" % [n_used, "\n".join(parts).md5_text()]
 
 
 func test_list_is_pinned() -> void:
 	check_eq(ResourceNodes.fingerprint(397), FINGERPRINT_397, "the first 397 nodes never change (ids are permanent)")
 	check_eq(ResourceNodes.fingerprint(), FINGERPRINT, "node list unchanged")
+	check_eq(_legacy_fingerprint(397), LEGACY_397, "the seeps became scrub in the very same spots")
+	check_eq(_legacy_fingerprint(), LEGACY, "and nothing else moved")
 
 
 func test_deterministic() -> void:
@@ -45,11 +64,12 @@ func test_every_kind_reaches_its_target() -> void:
 		by_kind[n.kind] = by_kind.get(n.kind, 0) + 1
 	for k in ResourceNodes.KIND_ORDER:
 		check(by_kind.get(k, 0) >= ResourceNodes.TARGETS[k], "%s: %d placed, target %d" % [k, by_kind.get(k, 0), ResourceNodes.TARGETS[k]])
-	check(by_kind.ember_sap < by_kind.ash / 3, "ember sap is rare")
+	check(by_kind.scrub < by_kind.ash / 3, "ember sap is rare")
 	for k in ResourceNodes.KINDS:
 		var info := ResourceNodes.kind_info(k)
 		check(info.item != "" and info.amount > 0 and info.respawn > 0.0, "%s has an item, amount and respawn" % k)
-	check(ResourceNodes.kind_info("ember_sap").night_only, "ember sap seeps only at night")
+	check(not ResourceNodes.kind_info("scrub").night_only, "scrub any time of day")
+	check(ResourceNodes.kind_info("stone").get("needs_tool", false), "stone takes a pickaxe")
 	check(ResourceNodes.kind_info("nope").is_empty(), "unknown kind gives empty info")
 
 
@@ -108,7 +128,7 @@ func test_near_matches_brute_force() -> void:
 
 
 func test_nearest_and_range() -> void:
-	var n := ResourceNodes.nearest(GameConfig.SPAWN_POINT, "ember_sap")
+	var n := ResourceNodes.nearest(GameConfig.SPAWN_POINT, "scrub")
 	check(not n.is_empty(), "an ember-sap seep near spawn")
 	check(Vector2(n.pos.x, n.pos.z).length() <= ResourceNodes.STARTER_MAX_RADIUS, "and it is the starter one")
 	check(ResourceNodes.in_range(n.id, n.pos + Vector3(2.0, 5.0, 0.0)), "2 m away is in range (height ignored)")

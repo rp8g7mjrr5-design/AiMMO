@@ -379,6 +379,8 @@ func place_request(id: int, item: String) -> Dictionary:
 	var word := item.strip_edges().to_lower()
 	if word in ["", "fire", "camp_fire"]:
 		word = Campfires.ITEM
+	if word in [Vitals.BANDAGE_ITEM, "bandages"]:
+		return use_bandage(id)
 	if word != Campfires.ITEM:
 		return _refuse_place("unknown")
 	if Vitals.is_dead(vitals_of(id)):
@@ -391,6 +393,23 @@ func place_request(id: int, item: String) -> Dictionary:
 	take_item(id, Campfires.ITEM, 1)
 	_lit(r.fire, s.character.name)
 	return {"ok": true, "reason": "", "text": PLACED_TEXT, "fire_id": int(r.fire.id)}
+
+
+## Player `id` puts a bandage from their pack on (owner direction, 2026-11-26: bandages).
+## c2s_place("bandage") runs this (protocol v9's "use this from my pack", so no protocol
+## bump); the client sends it on H. Refused ("no_item", "full", "busy", "dead") it costs
+## nothing; on success one bandage leaves the pack and Vitals heals BANDAGE_HEAL over
+## BANDAGE_SECONDS (the bar fills up through s2c_vitals). Returns {ok, reason, text, fire_id: -1}.
+func use_bandage(id: int) -> Dictionary:
+	var s: Dictionary = sessions[id]
+	var why := ""
+	if not Inventory.has(s.character.inventory, Vitals.BANDAGE_ITEM):
+		why = "dead" if Vitals.is_dead(vitals_of(id)) else "no_item"
+	else:
+		why = Vitals.apply_bandage(vitals_of(id))
+	if why == "":
+		take_item(id, Vitals.BANDAGE_ITEM, 1)
+	return {"ok": why == "", "reason": why, "text": Vitals.bandage_text(why), "fire_id": -1}
 
 
 ## What the placer is told when a fire catches.
@@ -795,13 +814,16 @@ func _on_set_look(id: int, look: Dictionary) -> void:
 	set_look(id, look)
 
 
-## c2s_place(item): set a campfire down from the pack (protocol v9). The answer goes to the
+## c2s_place(item): set a campfire down from the pack, or put a bandage on (protocol v9). The answer goes to the
 ## placer as s2c_place_result; a fire that catches reaches everyone as s2c_campfires.
 func _on_place(id: int, item: String) -> void:
 	if not _play_allowed(id, "_last_place"):
 		return
 	var r := place_request(id, item)
-	_send(id, "s2c_place_result", [Campfires.ITEM if r.ok else item.strip_edges().to_lower().left(32), r.ok, str(r.reason), str(r.text)])
+	var word := item.strip_edges().to_lower().left(32)
+	if r.ok:
+		word = Vitals.BANDAGE_ITEM if word in [Vitals.BANDAGE_ITEM, "bandages"] else Campfires.ITEM
+	_send(id, "s2c_place_result", [word, r.ok, str(r.reason), str(r.text)])
 
 
 ## Seconds between two saved looks per player: the window sends one per click of Save, so
@@ -1318,7 +1340,7 @@ func knock_down(id: int) -> void:
 ## --- The first swing (protocol v7, roadmap Milestone 2 "First blood") ---
 
 ## What player `id` swings: the best weapon in their pack (Weapons.ORDER, last is best), or
-## bare hands. Nobody can make a weapon yet, so today this is always Weapons.FISTS.
+## bare hands. Weapons are crafted (Crafting: club and spear in wood, then stone).
 func weapon_of(id: int) -> String:
 	if not sessions.has(id) or not sessions[id].logged_in:
 		return Weapons.FISTS

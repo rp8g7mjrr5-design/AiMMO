@@ -40,7 +40,10 @@ static func normalize(src: Dictionary) -> Dictionary:
 				elif k == "look":
 					out[k] = Appearance.from_json(v)
 				else:
-					out[k] = Inventory.normalize(v)
+					# Retired (ember) items become their grounded equivalents (Inventory.RETIRED).
+					var inv := Inventory.normalize(v)
+					Inventory.convert_retired(inv)
+					out[k] = inv
 			_:
 				out[k] = str(v)
 	# A position outside the world (e.g. after a world resize) snaps back inside it.

@@ -33,7 +33,7 @@ The owner plays and tests; the AI designs everything else. The owner has given t
 directions below, and these are standing rules: they win over any other design choice, and
 the weekly review and director may refine them but never reverse them. Everything not
 covered here (systems, lore, balance, roadmap) stays the AI's call. Fun comes first and sits
-above the numbered directions: when two choices both respect directions 1 to 9, pick the
+above the numbered directions: when two choices both respect directions 1 to 11, pick the
 more fun one. Direction 7 (a look of our own, cheap to draw) binds every visual change.
 
 ### Fun comes first (the first rule)
@@ -162,7 +162,7 @@ zombie game right now." So there are **no levels, no XP and no skill tree**. Thi
 "The long road" (one character level and a five-branch tree, 2026-11-25) and the four skills
 before it. In our own design:
 - **You get stronger by what you hold and build.** A better tool opens a better node (an axe
-  works the old ember ash, a pickaxe the rich stone seam) and works every node a little faster
+  of stone works the old ash, a stone pickaxe the rich stone seam; see direction 11) and works every node a little faster
   and for a little more; better weapons and armour from crafting and ruins; a stronger base;
   and what you, the player, know about the map, the ruins and the Zombai.
 - **Gates are things, never numbers.** Anything locked is locked by a material, a tool, a
@@ -281,6 +281,29 @@ shouldn't be able to run backwards." So:
 - **Clean motion:** feet hold the ground, strides run the way you travel, every state change
   blends, and nothing plays twice or snaps.
 
+### 11. A grounded survival kit: no magic, wood then stone (owner direction, 2026-11-26)
+The owner, looking at the ember lantern, ember axe and ember pickaxe recipes: "lets remove these
+and go for basic zombie survival tools ... Wooden pic and axe first. then stone. maybe a wooden
+club ... We dont need magic or anything. Were looking for a full zombie survival. Bandages and
+other things like that." ("Lets copy minecraft" is read as the tier idea only: wood, then stone,
+then later metal. Never its names, recipes grid, blocks or look; "Inspired by, never copied".) So:
+- **No magic.** No ember tools, glowing sap, enchanted or "imbued" anything. Fire is the only
+  thing that glows. Items that were magic are retired and converted in saves (ember axe to a stone
+  axe, ember pickaxe to a stone pickaxe, ember lantern to 3 torches, heartwood to ash wood,
+  veinstone to stone, ember sap to plant fibre), so nobody loses what they earned.
+- **Tools come in tiers you can see.** Bare hands fell wood slowly and cannot break rock. A
+  **wooden axe and wooden pickaxe** are made by hand from a few logs in the first minute; their
+  **stone** versions are made at the workbench from the wooden one plus stone and plant fibre,
+  and they open the tier-2 nodes. Each tier is a clear, felt speed-up. The next tier (metal from
+  ruins and ore) comes later and follows the same shape.
+- **Basic melee to match:** a wooden club and wooden spear by hand, a stone maul and stone spear
+  at the bench. The club is wide and staggers, the spear long and narrow. You swing the best one
+  you carry.
+- **Survival basics over spells:** plant fibre from scrub patches, bandages from fibre (H puts one
+  on: heals over a few seconds, not in a fight's single frame), and natural healing that only
+  trickles back to half health. Food, cooking, splints, water and the like follow this pattern:
+  plain things from the land, made by hand or at a station.
+
 ### Studio intro (owner direction, 2026-11-23)
 The owner supplied the **Budda Games** intro video and asked for it to replace Godot's boot
 splash. It is the studio's own logo, so it is the one owner-supplied asset in the client and an
@@ -377,6 +400,7 @@ The goal is survival, with no story endgame (owner, 2026-11-24).
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 01 (2026-11-26, a grounded survival kit):** The owner asked to remove the ember (magic) tools and go for basic zombie-survival tools in wood then stone tiers, a wooden club, bandages and the like ("We dont need magic"). Added owner direction 11. Removed the ember axe, ember pickaxe, ember lantern, heartwood, veinstone and ember sap; old saves convert them on load to their grounded counterparts. Added the wooden axe, wooden pickaxe, wooden club, wooden spear, stone pickaxe, stone maul, stone spear, plant fibre and bandage. The glowing sap seeps became scrub patches at the same places (node ids unchanged). Stone now needs a pickaxe. Natural healing caps at half health; bandages heal the rest. The ember glow left on trees and stone is a visual follow-up for the world stream.
 - **Week 01 (2026-11-26, the island map):** The owner, after reading the map plan: "Lets do an island. if we can handle 3 km lets go big ... wash up on a random beach with nothing. Remove the spawn meadow but you can leave it in the game as a random place ... make sure the areas all roll random too so it never looks the same", then "lets do monthly" for wipes, automatic. `docs/vision.md` "The map" now says island (sea all round) instead of one coast and the Dimming wall, beach landings instead of a spawn meadow, a location pool where every site rolls its own layout, and monthly automatic wipes (first Thursday, 19:00 UTC) that keep looks and best days survived and archive the old world. Generator v2 (`IslandGen`) builds it; version 1 stays frozen.
 - **Week 01 (2026-11-26, no levels):** The owner: "We should get rid of the leveling system and just work on the basics. a survival zombie game right now." Direction 5 was "The long road: one character, one skill tree" (2026-11-25); it is now "Progress you can hold: tools, gear and the base, no levels". Removed from the game: the four skills, XP, the XP floaters, level-up banners and bursts, the skills window (K), the level column in the players panel, and every level wall. The tier-2 nodes (old ember ash, rich stone seam) now need an axe or a pickaxe instead of level 5; recipes are gated only by materials and the bench. Old XP stays in saves untouched. The pillars, "Long road, never tedium", directions 4 and 6, the look's restraint line and `docs/vision.md` follow; the vision's "Never" list now forbids levels, XP and skill trees.
 - **Week 01 (2026-11-25, a clean fight):** After playtesting the Zombai the owner asked for no text when a zombie chases you or you knock it down, cleaner animations, and no running backwards. Added owner direction 10: no words in a fight (motion and sound tell it), full speed only forward (server-capped backpedal), and clean motion.

@@ -25,8 +25,9 @@ func test_every_kind_has_its_own_live_and_depleted_look() -> void:
 	check(pine.get("NodePineTiers", 0) >= 3 and pine.get("NodeTrunks", 0) == 1, "pine: trunk and tiers")
 	var stone := NodeProps.parts(_first_of("stone"), false)
 	check(stone.any(func(p): return p.color == NodeProps.STONE_VEIN), "stone outcrop shows its pale seam")
-	var sap := _parts_by_layer(_first_of("ember_sap"), false)
-	check(sap.get(NodeProps.GLOW_LAYER, 0) >= 1, "live sap seep glows")
+	var scrub := _parts_by_layer(_first_of("scrub"), false)
+	check(scrub.get("NodePineTiers", 0) >= 3 and scrub.get(NodeProps.DETAIL_LAYER, 0) >= 6, "scrub: low mounds and stems")
+	check_eq(scrub.get(NodeProps.GLOW_LAYER, 0) + scrub.get(NodeProps.VEIN_LAYER, 0), 0, "scrub never glows (no magic)")
 	for kind in ResourceNodes.KIND_ORDER:
 		var dead := _parts_by_layer(_first_of(kind), true)
 		check(not dead.is_empty(), "%s has a depleted look" % kind)

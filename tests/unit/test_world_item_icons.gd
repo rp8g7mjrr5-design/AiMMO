@@ -41,7 +41,7 @@ func _all_items() -> Array:
 
 ## Icons world drew before gameplay added the item (gameplay's request in world's backlog):
 ## they get every check the real items get, so they are ready the moment the item exists.
-const DRAWN_AHEAD := ["ember_lantern", "cooked_meat"]
+const DRAWN_AHEAD := ["cooked_meat"]
 
 
 func test_every_item_has_its_own_icon() -> void:
@@ -95,10 +95,13 @@ func test_icons_are_distinct() -> void:
 
 
 func test_glowing_things_glow_and_cold_things_do_not() -> void:
-	for item in ["ember_sap", "torch", "campfire", "ember_heartwood", "veinstone"]:
+	# Only fire glows (owner direction, 2026-11-26: no magic; the ember items are retired).
+	for item in ["torch", "campfire"]:
 		check(_stats(ItemIcons.image(item, 48)).warm >= 20, "%s has a bright warm core" % item)
 		check(ItemIcons.shapes(item).any(func(s): return s.get("glow", 0.0) > 0.0), "%s has a halo" % item)
-	for item in ["stone", "stone_axe", "stone_pickaxe", "pine_wood"]:
+	for item in Inventory.ITEMS:
+		if item in ["torch", "campfire"]:
+			continue
 		check(not ItemIcons.shapes(item).any(func(s): return s.get("glow", 0.0) > 0.0), "%s does not glow" % item)
 
 
@@ -119,48 +122,22 @@ func test_unknown_items_get_a_bundle() -> void:
 	check(ItemIcons.tint("retired_gizmo") is Color, "unknown id still has a tint")
 
 
-func test_tier2_materials_look_richer_than_their_tier1() -> void:
-	# Ember heartwood comes from the old ember ash, veinstone from the rich seam: each has its
-	# own icon, glows where its plain cousin doesn't, and tints the toast its own colour.
-	for pair in [["ember_heartwood", "ash_wood"], ["veinstone", "stone"]]:
-		check(ItemIcons.has_icon(pair[0]), "%s has its own icon" % pair[0])
-		var rich := _stats(ItemIcons.image(pair[0], 48))
-		var plain := _stats(ItemIcons.image(pair[1], 48))
-		check(rich.warm > plain.warm + 15, "%s glows more than %s (%d vs %d)" % [pair[0], pair[1], rich.warm, plain.warm])
+func test_wood_and_stone_tiers_read_apart() -> void:
+	# The grounded tools (owner direction, 2026-11-26): each wooden tool or weapon and its stone
+	# version have their own icons, tint differently, and differ by silhouette, not only colour.
+	for pair in [["wooden_axe", "stone_axe"], ["wooden_pickaxe", "stone_pickaxe"], ["wooden_spear", "stone_spear"], ["wooden_club", "stone_maul"]]:
+		check(ItemIcons.has_icon(pair[0]) and ItemIcons.has_icon(pair[1]), "%s and %s are drawn" % pair)
 		check(ItemIcons.tint(pair[0]) != ItemIcons.tint(pair[1]), "%s tints differently from %s" % pair)
-		check(ItemIcons.tint(pair[0]) != ItemIcons.tint(ItemIcons.FALLBACK), "%s does not tint like the bundle" % pair[0])
-
-
-func test_ember_tools_are_drawn_and_burn_hotter_than_stone() -> void:
-	# Gameplay's Toolcraft 5 tools: the stone tools' shapes with coal-dark heads and an
-	# ember edge, so upgrading reads at a glance in the pack and on the craft toast.
-	for pair in [["ember_axe", "stone_axe"], ["ember_pickaxe", "stone_pickaxe"]]:
-		check(ItemIcons.has_icon(pair[0]), "%s has its own icon" % pair[0])
-		check(ItemIcons.shapes(pair[0]).any(func(s): return s.get("glow", 0.0) > 0.0), "%s has a halo" % pair[0])
-		var hot := _stats(ItemIcons.image(pair[0], 48))
-		var cold := _stats(ItemIcons.image(pair[1], 48))
-		check(hot.warm >= 20 and hot.warm > cold.warm + 15, "%s edge glows (%d vs %d)" % [pair[0], hot.warm, cold.warm])
-		check(ItemIcons.tint(pair[0]) != ItemIcons.tint(pair[1]), "%s tints differently from %s" % pair)
-	# Only the ember tools: anything else in Inventory.UNDRAWN is allowed to wait for its
-	# icon (that is what UNDRAWN is for; gameplay's request, 2026-11-23).
-
-
-func test_ember_lantern_glows_and_reads_apart_from_torch_and_campfire() -> void:
-	# Gameplay's "Bench sense" lantern: a lantern with an ember inside. It glows like the
-	# other fire items but must not be mistaken for the torch or campfire in a pack slot.
-	check(ItemIcons.has_icon("ember_lantern"), "ember_lantern has its own icon")
-	var s := _stats(ItemIcons.image("ember_lantern", 48))
-	check(s.warm >= 20, "ember_lantern has a bright warm core (%d)" % s.warm)
-	check(ItemIcons.shapes("ember_lantern").any(func(sh): return sh.get("glow", 0.0) > 0.0), "ember_lantern has a halo")
-	check(ItemIcons.tint("ember_lantern") != ItemIcons.tint(ItemIcons.FALLBACK), "ember_lantern does not tint like the bundle")
-	var a := ItemIcons.image("ember_lantern", 24)
-	for other in ["torch", "campfire"]:
-		var b := ItemIcons.image(other, 24)
+		var a := ItemIcons.image(pair[0], 24)
+		var b := ItemIcons.image(pair[1], 24)
 		var diff := 0.0
 		for y in 24:
 			for x in 24:
 				diff += absf(a.get_pixel(x, y).a - b.get_pixel(x, y).a)
-		check(diff / (24 * 24) > 0.12, "ember_lantern's silhouette differs from %s (%.3f)" % [other, diff / (24 * 24)])
+		check(diff / (24 * 24) > 0.08, "%s's silhouette differs from %s's (%.3f)" % [pair[0], pair[1], diff / (24 * 24)])
+	for item in ["plant_fibre", "bandage"]:
+		check(_stats(ItemIcons.image(item, 48)).warm < 5, "%s has no ember-bright pixels" % item)
+		check(ItemIcons.tint(item) != ItemIcons.tint(ItemIcons.FALLBACK), "%s does not tint like the bundle" % item)
 
 
 func test_hunt_drops_are_drawn_earthy_and_never_glow() -> void:

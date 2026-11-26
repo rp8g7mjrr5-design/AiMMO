@@ -1,7 +1,8 @@
 extends TestCase
 ## World stream: Emberlight part 2a (docs/art_bible.md). Every gatherable carries glowing ember
 ## veins (live look only, more on richer tiers), resource nodes and flora draw with the shared
-## Emberlight materials, and the night glow still reaches the node leaves and the sap.
+## Emberlight materials, and the night glow still reaches the node leaves and the old ash's pods.
+## Scrub (plant fibre, 2026-11-26) is plain growth: no veins, at any tier.
 
 
 func _first_of(kind: String) -> Dictionary:
@@ -19,6 +20,10 @@ func test_every_live_gatherable_has_veins() -> void:
 	var counts := {}
 	for n in ResourceNodes.all():
 		var live := _veins(n)
+		if n.kind == "scrub":
+			check_eq(live.size(), 0, "node %d: scrub never glows" % n.id)
+			counts[n.kind] = true
+			continue
 		check(live.size() >= 4, "node %d (%s) has ember veins (%d)" % [n.id, n.kind, live.size()])
 		check(live.size() <= NodeProps.MAX_VEIN_PARTS, "node %d: veins fit NodeFx's glow shell" % n.id)
 		check_eq(_veins(n, true).size(), 0, "node %d: an emptied node goes dark" % n.id)
@@ -29,7 +34,8 @@ func test_every_live_gatherable_has_veins() -> void:
 
 
 func test_richer_tiers_glow_more() -> void:
-	for kind in ["ash", "pine", "stone", "ember_sap"]:
+	check_eq(NodeProps.vein_cracks("scrub", 2), 0, "scrub: no veins at any tier")
+	for kind in ["ash", "pine", "stone"]:
 		var n := _first_of(kind).duplicate()
 		var t1 := _veins(n).size()
 		n["tier"] = 2
@@ -54,9 +60,6 @@ func test_veins_sit_on_the_surface() -> void:
 				"stone":
 					var e := Vector3(o.x / s / 1.1, (o.y / s - 0.6) / 0.9, o.z / s / 0.9).length()
 					check(e > 0.9 and e < 1.04, "node %d: stone vein on the big stone (%.3f)" % [n.id, e])
-				"ember_sap":
-					check(d > 0.6 and d < 1.3, "node %d: seep vein on a rim stone (%.3f m out)" % [n.id, d])
-					check(o.y / s > 0.15 and o.y / s < 0.43, "node %d: seep vein on top of the stone" % n.id)
 
 
 func test_veins_are_deterministic() -> void:
@@ -109,7 +112,8 @@ func test_baking_keeps_node_and_flora_shapes() -> void:
 
 
 func test_night_glow_reaches_emberlight_nodes() -> void:
-	var nodes := [_first_of("ash"), _first_of("ember_sap")]
+	var old_ash: Dictionary = ResourceNodes.tier2().filter(func(n): return n.kind == "ash")[0]
+	var nodes := [_first_of("ash"), old_ash] # the old ash's pods are the glow layer now
 	var world := Node3D.new()
 	var root := NodeProps.build(nodes)
 	world.add_child(root)

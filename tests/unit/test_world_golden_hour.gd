@@ -1,7 +1,7 @@
 extends TestCase
 ## World stream: Emberlight part 4 (art bible sections 4 and 5). The day spends longer in
 ## golden light, nights are blue and ember (never green-black), the valley floors hold a
-## warm height haze, and ember motes rise over the ash and the seeps from dusk to dawn,
+## warm height haze, and ember motes rise over the old ember ash from dusk to dawn,
 ## capped by the Graphics quality.
 
 
@@ -63,15 +63,15 @@ func test_height_haze_and_sun_scatter() -> void:
 
 func test_motes_anchor_on_ember_things() -> void:
 	var anchors := Motes.anchors()
-	check(anchors.size() > 100, "motes rise over every ember ash and seep (%d)" % anchors.size())
+	check(anchors.size() > 100, "motes rise over every ember ash (%d)" % anchors.size())
 	var kinds := {}
 	var tier2 := 0
 	for a in anchors:
 		kinds[a.kind] = true
-		check(a.kind in ["ash", "ember_sap"], "only ember things breathe motes (if it glows ember, you can use it)")
+		check(a.kind == "ash", "only ember things breathe motes (if it glows ember, you can use it)")
 		if a.weight > 1.0:
 			tier2 += 1
-	check(kinds.has("ash") and kinds.has("ember_sap"), "both ash and seeps")
+	check(kinds.has("ash") and not kinds.has("scrub"), "ash breathes motes, scrub never does")
 	check(tier2 > 0, "the old ember ashes get a taller plume")
 
 

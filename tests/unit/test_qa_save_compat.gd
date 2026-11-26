@@ -402,7 +402,11 @@ func _check_account(fixture: String, store: PgStore, row: Dictionary, packs: Dic
 		"%s: position %s, stored %s" % [who, CharacterData.position(ch), want])
 	check_near(ch.yaw, float(row.yaw), 0.0001, who + ": yaw")
 	var stored_pack: Dictionary = packs.get(int(row.id), {})
-	for p in pack_problems(stored_pack, ch.inventory):
+	# Retired items (the ember kit, owner direction 11) load as their grounded equivalents,
+	# with the old id kept at 0: that is the only change a load may make.
+	var want_pack := stored_pack.duplicate()
+	Inventory.convert_retired(want_pack)
+	for p in pack_problems(want_pack, ch.inventory):
 		check(false, "%s: pack on load: %s" % [who, p])
 	if not stored_pack.is_empty():
 		print("[qa] save-compat: %s carries %d stored item row(s)" % [who, stored_pack.size()])

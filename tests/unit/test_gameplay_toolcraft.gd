@@ -1,22 +1,14 @@
 extends TestCase
-## The ember tools: the ember axe and ember pickaxe, made at the workbench from a stone tool,
-## ember sap and a tier-2 material (only an axe or pickaxe gets those out of the old ashes and
-## rich seams). No levels (owner direction, 2026-11-26): the materials are the gate.
-## The recipes and their refusals, the upgrade (the stone tool is used up and counts
-## as owned afterwards), how much better the tools gather, and the whole craft through the
-## real server functions (no network: messages land in test_outbox).
+## Wood, then stone (owner direction, 2026-11-26: "Wooden pic and axe first. then stone"):
+## the wooden axe and pickaxe are made in your hands from wood alone, stone needs the wooden
+## pickaxe, and the bench turns each wooden tool into its stone version (the wooden one is used
+## up and counts as owned afterwards). No levels: the materials and tools are the gate.
+## Also how much better each tier gathers, and the whole craft through the real server
+## functions (no network: messages land in test_outbox).
 
 const ServerScript := preload("res://server/server.gd")
 const AT_BENCH := Vector3(3.0, 0.0, -2.0)
 const FAR := Vector3(60.0, 0.0, 60.0)
-
-
-func _axe_pack() -> Dictionary:
-	return {"stone_axe": 1, "ember_heartwood": 4, "ember_sap": 1}
-
-
-func _pick_pack() -> Dictionary:
-	return {"stone_pickaxe": 1, "veinstone": 4, "ember_sap": 1}
 
 
 func _server(id: int, pos: Vector3, inv: Dictionary) -> Node:
@@ -31,118 +23,98 @@ func _server(id: int, pos: Vector3, inv: Dictionary) -> Node:
 	return srv
 
 
-func _sent(srv: Node, method: String) -> Array:
-	var out: Array = []
-	for m in srv.test_outbox:
-		if m[1] == method:
-			out.append(m[2])
-	return out
+func _first(kind: String, tier: int) -> Dictionary:
+	for n in ResourceNodes.all():
+		if n.kind == kind and int(n.get("tier", 1)) == tier:
+			return n
+	return {}
 
 
-func test_ember_tools_are_real_items() -> void:
-	for id in ["ember_axe", "ember_pickaxe"]:
-		check(Crafting.is_recipe(id), "%s is a recipe" % id)
-		check(Crafting.makes_tool(id), "%s is a tool" % id)
-		check(Inventory.is_item(id), "%s can sit in a pack" % id)
-		check_eq(Inventory.label(id), id.replace("_", " "))
-		check(not Crafting.RECIPES[id].has("level"), "%s needs no level" % id)
-		check(Crafting.RECIPES[id].bench, "%s is made at the workbench" % id)
-	check_eq(Crafting.parse_recipe("ember axe"), "ember_axe")
-	check_eq(Crafting.parse_recipe("ember pick"), "ember_pickaxe")
-	check_eq(Crafting.parse_recipe("axe"), "stone_axe", "plain 'axe' is still the stone one")
+func test_wooden_tools_are_made_by_hand_from_wood() -> void:
+	for id in ["wooden_axe", "wooden_pickaxe"]:
+		check(Crafting.is_recipe(id) and Crafting.makes_tool(id) and Inventory.is_item(id), id)
+		check(not Crafting.RECIPES[id].bench, "%s is made anywhere" % id)
+		for item in Crafting.RECIPES[id].needs:
+			check(item in ["ash_wood", "pine_wood"], "%s needs only wood, not %s" % [id, item])
+		check_eq(Crafting.check(Crafting.RECIPES[id].needs.duplicate(), id, FAR), "", "%s far from the bench" % id)
+	check_eq(Crafting.parse_recipe("axe"), "wooden_axe", "plain 'axe' is the wooden one")
+	check_eq(Crafting.parse_recipe("pick"), "wooden_pickaxe")
+	check_eq(Crafting.parse_recipe("stone axe"), "stone_axe")
 
 
-func test_materials_are_the_gate() -> void:
-	check_eq(Crafting.check(_axe_pack(), "ember_axe", AT_BENCH), "", "a fresh character with the parts makes it")
-	check_eq(Crafting.check(_pick_pack(), "ember_pickaxe", AT_BENCH), "")
-	check_eq(Crafting.check({"stone_axe": 1}, "ember_axe", AT_BENCH), "missing")
-	check_eq(Crafting.check(_axe_pack(), "ember_axe", FAR), "bench")
-	check_eq(Crafting.check(_axe_pack(), "torch", FAR), "missing")
-	# And the materials take the stone tool to get: bare hands can't work the old ash or seam.
-	for n in ResourceNodes.tier2():
-		check(not Gathering.can_work(n, {}), "node %d needs a tool first" % n.id)
-	check(Crafting.refusal("bench", {}, "ember_axe", FAR).begins_with("An ember axe needs the workbench."), "an, not a")
-	check_eq(Crafting.refusal("missing", {"stone_axe": 1}, "ember_axe", AT_BENCH),
-		"You need 1 ember sap and 4 ember heartwood more to make an ember axe.")
+func test_stone_needs_a_pickaxe() -> void:
+	var rock := _first("stone", 1)
+	check(Gathering.needs_tool(rock), "an outcrop takes a tool")
+	check(not Gathering.can_work(rock, {}), "bare hands can't break rock")
+	check(not Gathering.can_work(rock, {"wooden_axe": 1}), "an axe doesn't mine")
+	check(Gathering.can_work(rock, {"wooden_pickaxe": 1}), "a wooden pickaxe does")
+	check(Gathering.can_work(rock, {"stone_pickaxe": 1}), "and a stone one")
+	check_eq(Gathering.tool_text(rock), "You need a pickaxe to work this stone outcrop.")
+	# Wood and scrub never need a tool: the first pickaxe is always within reach.
+	for kind in ["ash", "pine", "scrub"]:
+		check(Gathering.can_work(_first(kind, 1), {}), "%s by hand" % kind)
 
 
-func test_the_upgrade_replaces_the_stone_tool() -> void:
-	check_eq(Crafting.RECIPES.ember_axe.needs.get("stone_axe", 0), 1, "the stone axe goes into it")
-	check_eq(Crafting.RECIPES.ember_pickaxe.needs.get("stone_pickaxe", 0), 1)
-	var inv := {"ember_axe": 1, "ash_wood": 9, "stone": 9}
-	check_eq(Crafting.owned_tool(inv, "stone_axe"), "ember_axe")
-	check_eq(Crafting.check(inv, "stone_axe", AT_BENCH), "owned", "no going back to stone")
-	check(Crafting.refusal("owned", inv, "stone_axe", AT_BENCH).begins_with("You already carry an ember axe"),
-		Crafting.refusal("owned", inv, "stone_axe", AT_BENCH))
-	check_eq(Crafting.check(inv, "ember_axe", AT_BENCH), "owned")
-	check_eq(Crafting.owned_tool(inv, "stone_pickaxe"), "", "an axe is not a pickaxe")
+func test_the_stone_tools_upgrade_the_wooden_ones() -> void:
+	var axe_pack := {"wooden_axe": 1, "stone": 3, "plant_fibre": 2}
+	check_eq(Crafting.check(axe_pack, "stone_axe", AT_BENCH), "")
+	check_eq(Crafting.check(axe_pack, "stone_axe", FAR), "bench")
+	check_eq(Crafting.check({"stone": 3, "plant_fibre": 2}, "stone_axe", AT_BENCH), "missing", "the wooden axe goes into it")
+	check_eq(Crafting.refusal("missing", {"stone": 3, "plant_fibre": 2}, "stone_axe", AT_BENCH),
+		"You need 1 wooden axe more to make a stone axe.")
+	var inv := {"stone_axe": 1, "ash_wood": 9}
+	check_eq(Crafting.owned_tool(inv, "wooden_axe"), "stone_axe")
+	check_eq(Crafting.check(inv, "wooden_axe", AT_BENCH), "owned", "no going back to wood")
+	check(Crafting.refusal("owned", inv, "wooden_axe", AT_BENCH).begins_with("You already carry a stone axe"),
+		Crafting.refusal("owned", inv, "wooden_axe", AT_BENCH))
+	check_eq(Crafting.owned_tool(inv, "wooden_pickaxe"), "", "an axe is not a pickaxe")
 	check_eq(Crafting.owned_tool(inv, "torch"), "", "only tools are owned")
-	check(Crafting.recipes_text(inv).contains("stone axe: 3 ash wood and 2 stone, at the workbench (have it)"), Crafting.recipes_text(inv))
-	check(Crafting.recipes_text({}).contains("ember axe: 1 ember sap, 4 ember heartwood and 1 stone axe, at the workbench"),
-		Crafting.recipes_text({}))
+	check(Crafting.recipes_text({}).contains("stone axe: 3 stone, 2 plant fibre and 1 wooden axe, at the workbench"), Crafting.recipes_text({}))
 
 
-func test_ember_tools_gather_faster_and_richer() -> void:
-	var stone_axe := {"stone_axe": 1}
-	var ember_axe := {"ember_axe": 1}
-	var both := {"stone_axe": 1, "ember_axe": 1}
-	check_eq(Gathering.tool_for("pine", ember_axe), "ember_axe")
-	check_eq(Gathering.tool_for("ash", both), "ember_axe", "the best tool carried is used")
-	check_eq(Gathering.tool_for("stone", {"ember_pickaxe": 1}), "ember_pickaxe")
-	check_eq(Gathering.tool_for("stone", ember_axe), "", "an axe doesn't mine")
-	check_eq(Gathering.tool_for("ember_sap", {"ember_axe": 1, "ember_pickaxe": 1}), "", "sap is by hand")
+func test_each_tier_gathers_faster_and_richer() -> void:
 	for kind in ["ash", "pine", "stone"]:
-		var stone_tool := {"stone_axe": 1} if kind != "stone" else {"stone_pickaxe": 1}
-		var ember_tool := {"ember_axe": 1} if kind != "stone" else {"ember_pickaxe": 1}
-		var bare_s := GatherChannel.seconds_for(kind, {})
-		var stone_s := GatherChannel.seconds_for(kind, stone_tool)
-		var ember_s := GatherChannel.seconds_for(kind, ember_tool)
-		check(ember_s < stone_s and stone_s < bare_s, "%s: bar %.2f < %.2f < %.2f" % [kind, ember_s, stone_s, bare_s])
-		check(ember_s <= stone_s * 0.75, "%s: the ember bar is clearly shorter (%.2f vs %.2f)" % [kind, ember_s, stone_s])
-		check(Gathering.amount_for(kind, ember_tool) > Gathering.amount_for(kind, stone_tool), "%s: more per gather" % kind)
-		check(Gathering.cooldown_for(kind, ember_tool) < Gathering.cooldown_for(kind, stone_tool), "%s: shorter cooldown" % kind)
-	check_eq(Gathering.amount_for("pine", stone_axe), int(ResourceNodes.kind_info("pine").amount) + Gathering.TOOL_EXTRA)
-	check_eq(Gathering.amount_for("pine", ember_axe), int(ResourceNodes.kind_info("pine").amount) + Gathering.EMBER_EXTRA)
-	var ash2: Dictionary = {}
-	for n in ResourceNodes.tier2():
-		if n.kind == "ash":
-			ash2 = n
-			break
-	check(GatherChannel.seconds_at(ash2.id, ember_axe) < GatherChannel.seconds_at(ash2.id, stone_axe), "old ash too")
-	check_eq(Gathering.amount_at(ash2.id, ember_axe), int(ResourceNodes.info(ash2).amount) + Gathering.EMBER_EXTRA)
+		var wood := {"wooden_axe": 1} if kind != "stone" else {"wooden_pickaxe": 1}
+		var stone := {"stone_axe": 1} if kind != "stone" else {"stone_pickaxe": 1}
+		var wood_s := GatherChannel.seconds_for(kind, wood)
+		var stone_s := GatherChannel.seconds_for(kind, stone)
+		check(stone_s < wood_s, "%s: stone bar %.2f < wood %.2f" % [kind, stone_s, wood_s])
+		check(Gathering.amount_for(kind, stone) > Gathering.amount_for(kind, wood), "%s: stone gives more" % kind)
+		check(Gathering.cooldown_for(kind, stone) < Gathering.cooldown_for(kind, wood), "%s: shorter cooldown" % kind)
+		if kind != "stone":
+			check(wood_s < GatherChannel.seconds_for(kind, {}), "%s: the wooden axe beats bare hands" % kind)
+	check_eq(Gathering.tool_for("ash", {"wooden_axe": 1, "stone_axe": 1}), "stone_axe", "the best tool carried is used")
+	check_eq(Gathering.tool_for("scrub", {"stone_axe": 1, "stone_pickaxe": 1}), "", "fibre is pulled by hand")
 
 
-func test_server_crafts_the_ember_axe() -> void:
-	var srv := _server(2, AT_BENCH, _axe_pack())
-	var r: Dictionary = srv.craft_request(2, "ember_axe")
-	check(r.ok, "made: %s" % r.text)
+func test_server_crafts_the_wooden_pickaxe_then_the_stone_one() -> void:
+	var srv := _server(2, FAR, {"ash_wood": 2, "pine_wood": 2})
+	var r: Dictionary = srv.craft_request(2, "wooden_pickaxe")
+	check(r.ok, "made in the field: %s" % r.text)
 	var inv: Dictionary = srv.sessions[2].character.inventory
-	check_eq(Inventory.count(inv, "ember_axe"), 1, "the ember axe is in the pack")
-	check_eq(Inventory.count(inv, "stone_axe"), 0, "the stone axe went into it")
-	check_eq(Inventory.count(inv, "ember_heartwood"), 0)
-	check_eq(Inventory.count(inv, "ember_sap"), 0)
-	check(str(r.text).contains("ember axe"), r.text)
-	check(_sent(srv, "s2c_xp").is_empty(), "no XP: there are no levels")
-	check_eq(Gathering.tool_for("ash", inv), "ember_axe", "and the next chop uses it")
-	var again: Dictionary = srv.craft_request(2, "stone_axe")
-	check_eq(again.reason, "owned", "no second stone axe once you carry the ember one")
+	check_eq(Inventory.count(inv, "wooden_pickaxe"), 1)
+	check_eq(Inventory.count(inv, "ash_wood") + Inventory.count(inv, "pine_wood"), 0)
+	check(str(r.text).contains("break stone"), r.text)
+	srv.free()
+	srv = _server(2, AT_BENCH, {"wooden_pickaxe": 1, "stone": 3, "plant_fibre": 2})
+	r = srv.craft_request(2, "stone_pickaxe")
+	check(r.ok, "made at the bench: %s" % r.text)
+	inv = srv.sessions[2].character.inventory
+	check_eq(Inventory.count(inv, "stone_pickaxe"), 1)
+	check_eq(Inventory.count(inv, "wooden_pickaxe"), 0, "the wooden pick went into it")
+	check_eq(Gathering.tool_for("stone", inv), "stone_pickaxe", "and the next strike uses it")
+	check_eq(srv.craft_request(2, "wooden_pickaxe").reason, "owned")
 	srv.free()
 
 
-## World drew the ember tools (PR #112), so they are ordinary items now: in ITEMS and in pack
-## order right after the stone tools, not trailing after the campfires as unknown extras.
-func test_ember_tools_sit_with_the_stone_tools() -> void:
-	for id in ["ember_axe", "ember_pickaxe"]:
-		check(not Inventory.UNDRAWN.has(id), "%s no longer waits for an icon" % id)
-		check(Inventory.ITEMS.has(id) and Inventory.ITEM_ORDER.has(id), "%s is a full item" % id)
-		check(ItemIcons.has_icon(id), "%s has its own icon" % id)
-	var o: Array = Inventory.ITEM_ORDER
-	check_eq(o.find("ember_axe"), o.find("stone_pickaxe") + 1, "ember axe right after the stone tools")
-	check_eq(o.find("ember_pickaxe"), o.find("ember_axe") + 1)
-	var inv := {"campfire": 1, "torch": 2, "ember_pickaxe": 1, "ember_axe": 1, "ash_wood": 3}
-	check_eq(Inventory.held(inv), ["ash_wood", "ember_axe", "ember_pickaxe", "torch", "campfire"], "pack order")
-	check_eq(Inventory.to_wire(inv).keys(), ["ash_wood", "ember_axe", "ember_pickaxe", "torch", "campfire"], "wire order")
-	# Saved before this change, the same ids load and count the same.
-	var saved := Inventory.normalize({"ember_axe": 1, "ember_pickaxe": 1})
-	check_eq(Inventory.count(saved, "ember_axe"), 1)
-	check_eq(Inventory.label("ember_pickaxe"), "ember pickaxe")
+func test_tier2_nodes_need_a_stone_tool() -> void:
+	for n in ResourceNodes.tier2():
+		var wood := {"wooden_axe": 1} if n.kind == "ash" else {"wooden_pickaxe": 1}
+		var stone := {"stone_axe": 1} if n.kind == "ash" else {"stone_pickaxe": 1}
+		check(not Gathering.can_work(n, {}), "node %d: not by hand" % n.id)
+		check(not Gathering.can_work(n, wood), "node %d: not with a wooden tool" % n.id)
+		check(Gathering.can_work(n, stone), "node %d: a stone tool opens it" % n.id)
+	var old_ash := _first("ash", 2)
+	check_eq(Gathering.tool_text(old_ash), "You need a stone axe to work this old ash.")
+	check_eq(str(ResourceNodes.info(old_ash).item), "ash_wood", "the old ash gives plain wood, lots of it")
+	check(Gathering.amount_at(old_ash.id, {"stone_axe": 1}) > Gathering.amount_for("ash", {"stone_axe": 1}), "more per blow")
