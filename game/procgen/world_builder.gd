@@ -35,6 +35,7 @@ static func build() -> Node3D:
 	root.add_child(Flora.build())
 	root.add_child(Grass.build()) # tufts near the camera only, one draw call
 	root.add_child(NodeProps.build())
+	root.add_child(BeachProps.build()) # the starting beaches' landmarks and shore dressing (islands only)
 	root.add_child(Lamps.build())
 	root.add_child(Workbench.build())
 	root.add_child(CampfireProps.build()) # hidden and empty until the server says a fire burns
@@ -111,15 +112,18 @@ static func _terrain() -> Node3D:
 static func _water() -> MeshInstance3D:
 	var pm := PlaneMesh.new()
 	pm.size = Vector2(WorldGen.half_size() * 2.0, WorldGen.half_size() * 2.0)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Palette.WATER
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.roughness = 0.15
-	mat.metallic = 0.1
 	var mi := MeshInstance3D.new()
 	mi.name = "Water"
 	mi.mesh = pm
-	mi.material_override = mat
+	if WorldGen.is_island():
+		mi.material_override = Sea.material() # surf, shallows and swell (the starting-beach pass)
+	else:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Palette.WATER
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.roughness = 0.15
+		mat.metallic = 0.1
+		mi.material_override = mat
 	mi.position.y = Terrain.water_level()
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mi

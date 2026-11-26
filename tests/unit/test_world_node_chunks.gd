@@ -58,6 +58,8 @@ func test_layers_are_split_and_cut_at_their_range() -> void:
 	var root := NodeProps.build()
 	for l in NodeProps.LAYERS:
 		var chunks := root.get_node(l).get_children()
+		if l == NodeProps.BOX_LAYER and chunks.is_empty():
+			continue # only an island's beaches have crates (BeachGen); Ashgrove draws none
 		var whole := NodeProps.chunk_size(l) <= 0.0
 		if whole:
 			check_eq(chunks.size(), 1, "%s stays whole" % l)

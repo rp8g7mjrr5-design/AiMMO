@@ -16,7 +16,9 @@ class_name Gathering
 const COOLDOWN := 1.5 ## real seconds between two gathers by the same player
 ## Gathers a node gives before it is depleted. Wood and stone are shared by everyone at
 ## Spawn Meadow, so they last a few gathers; so does a patch of scrub.
-const CHARGES := {"ash": 3, "pine": 3, "stone": 3, "scrub": 3}
+const CHARGES := {"ash": 3, "pine": 3, "stone": 3, "scrub": 3,
+	# The starting beaches (BeachGen): a log, a few stones, a heap of kelp, one crate's planks.
+	"driftwood": 2, "beach_stones": 3, "kelp": 2, "wreck_crate": 2}
 const DEFAULT_CHARGES := 1
 const HINT_RADIUS := 80.0 ## how far "the nearest pine is 14 m north-east" looks
 ## Tools (see Crafting), Minecraft's idea in our own world (owner direction, 2026-11-26):
@@ -243,6 +245,8 @@ static func parse_kind(word: String) -> Variant:
 		"ash": "ash", "ash_wood": "ash", "tree": "ash", "pine": "pine", "pine_wood": "pine",
 		"stone": "stone", "rock": "stone", "outcrop": "stone",
 		"scrub": "scrub", "fibre": "scrub", "plant_fibre": "scrub", "fiber": "scrub", "bush": "scrub",
+		"driftwood": "driftwood", "kelp": "kelp", "seaweed": "kelp", "crate": "wreck_crate", "wreck_crate": "wreck_crate",
+		"stones": "beach_stones", "beach_stones": "beach_stones", "pebbles": "beach_stones",
 	}
 	return WORDS.get(w, null)
 

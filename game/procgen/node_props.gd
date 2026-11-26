@@ -22,7 +22,10 @@ class_name NodeProps
 ## `put_xform`), and a chunk whose parts are all hidden (a stump chunk while nothing is felled)
 ## is hidden as a whole, so it costs no draw call and no triangles.
 
-const LAYERS := ["NodeTrunks", "NodeAshCrowns", "NodePineTiers", "NodeStones", "NodeSapPools", "NodeStumps", "NodeDetail", "NodeVeins"]
+const LAYERS := ["NodeTrunks", "NodeAshCrowns", "NodePineTiers", "NodeStones", "NodeSapPools", "NodeStumps", "NodeDetail", "NodeVeins", "NodeBoxes"]
+## Planks and boards (the beach's washed-up crates, 2026-11-26): a box mesh on the bark
+## material that casts a shadow and is seen as far as the stones (the detail layer is neither).
+const BOX_LAYER := "NodeBoxes"
 const GLOW_LAYER := "NodeSapPools" ## drawn with a warm emissive material
 ## Small boxes that only matter up close, behind the action camera's shoulder: root flares
 ## and bark ridges on trees and stumps, quartz studs along the outcrop's seam. Shadowless.
@@ -88,6 +91,11 @@ const SOLID_COLUMNS := {
 	"scrub": [[1.35, 0.0, 1.15]],
 	"ash:2": [[1.15, 0.0, 0.25], [0.62, 0.0, 2.65], [3.05, 2.65, 5.1], [1.8, 5.1, 6.2], [1.25, 6.2, 7.1]],
 	"stone:2": [[2.4, 0.0, 0.9], [1.65, 0.9, 1.75], [0.8, 1.75, 2.9]],
+	# The starting beaches' pickings (BeachGen), low things on the sand.
+	"driftwood": [[1.75, 0.0, 0.62]],
+	"beach_stones": [[0.95, 0.0, 0.45]],
+	"kelp": [[1.25, 0.0, 0.42]],
+	"wreck_crate": [[1.05, 0.0, 1.0]],
 }
 
 ## A collapsed basis hides a MultiMesh instance without resizing the MultiMesh.
@@ -104,11 +112,12 @@ const HIDDEN := Basis(Vector3.ZERO, Vector3.ZERO, Vector3.ZERO)
 const CHUNK_SIZES := {
 	"NodeTrunks": 0.0, "NodeAshCrowns": 0.0, "NodePineTiers": 0.0, GLOW_LAYER: 0.0,
 	"NodeStones": 256.0, "NodeStumps": 256.0, VEIN_LAYER: 128.0, DETAIL_LAYER: 128.0,
+	BOX_LAYER: 256.0,
 }
 ## Draw distance per chunked layer, metres (a whole layer has none). Stones and stumps go as
 ## far as the big boulders and a bit more; the close-up layers (root flares, bark ridges,
 ## studs, flecks, 4-6 cm ember cracks) only as far as anyone can make them out.
-const RANGES := {"NodeStones": 220.0, "NodeStumps": 220.0, VEIN_LAYER: 110.0, DETAIL_LAYER: 60.0}
+const RANGES := {"NodeStones": 220.0, "NodeStumps": 220.0, VEIN_LAYER: 110.0, DETAIL_LAYER: 60.0, BOX_LAYER: 220.0}
 
 
 ## Every part of one node's prop, in world space, as an Array of
@@ -183,6 +192,12 @@ static func parts(node: Dictionary, depleted: bool = false) -> Array:
 					put.call("NodePineTiers", Vector3(cos(a) * 0.42, h * 1.25, sin(a) * 0.42), Vector3(w, h, w),
 						Palette.SCRUB_LEAF.lightened(rng.randf() * 0.08), a)
 	match "" if look_tier >= 2 else node.kind:
+		"driftwood", "beach_stones", "kelp", "wreck_crate":
+			var put_any := func(layer: String, local_basis: Basis, local_pos: Vector3, size: Vector3, color: Color) -> void:
+				var b := turn * local_basis * Basis.from_scale(size * s)
+				out.append({"layer": layer, "xform": Transform3D(b, origin + turn * (local_pos * s)), "color": color})
+			_beach_pickings(put, put_any, put_detail, rng, str(node.kind), depleted)
+	match "" if look_tier >= 2 else node.kind:
 		"ash", "pine":
 			var bark: Color = Palette.TRUNK if node.kind == "ash" else Palette.TRUNK.darkened(0.2)
 			_roots(put_detail, drng, bark)
@@ -215,6 +230,62 @@ static func _scrub_stems(put_detail: Callable, drng: RandomNumberGenerator, depl
 		var lean := Basis(Vector3.UP, a) * Basis(Vector3.RIGHT, drng.randf_range(0.05, 0.3))
 		var col: Color = Palette.SCRUB_DRY if (depleted or i % 3 == 0) else Palette.FIBRE.darkened(0.1)
 		put_detail.call(lean, Vector3(cos(a) * r, tall * 0.5, sin(a) * r), Vector3(0.045, tall, 0.045), col)
+
+
+## The starting beaches' pickings (BeachGen), low and readable on the sand from the landing:
+## a bleached driftwood log with a forked branch, a little heap of sea-rounded stones, a dark
+## tangle of kelp, a washed-up crate with a broken lid. Picked over: a splinter or two, a dent
+## in the sand, a wet stain, the crate's smashed boards.
+static func _beach_pickings(put: Callable, put_b: Callable, put_detail: Callable, rng: RandomNumberGenerator, kind: String, depleted: bool) -> void:
+	var lay_down := Basis(Vector3.BACK, PI * 0.5) # a trunk mesh on its side, along local X
+	match kind:
+		"driftwood":
+			if depleted:
+				for i in 3:
+					var a := rng.randf() * TAU
+					put_detail.call(Basis(Vector3.UP, a), Vector3(cos(a) * 0.6, 0.03, sin(a) * 0.6), Vector3(0.5, 0.05, 0.06), Palette.DRIFTWOOD.darkened(0.1))
+			else:
+				var bend := rng.randf_range(-0.25, 0.25)
+				put_b.call("NodeTrunks", lay_down, Vector3(0, 0.26, 0), Vector3(0.62, 1.05, 0.62), Palette.DRIFTWOOD)
+				put_b.call("NodeTrunks", Basis(Vector3.UP, 0.9 + bend) * lay_down, Vector3(0.5, 0.2, 0.35), Vector3(0.34, 0.45, 0.34), Palette.DRIFTWOOD.darkened(0.06))
+				put_detail.call(Basis(Vector3.UP, 0.3), Vector3(-1.3, 0.24, 0.05), Vector3(0.12, 0.2, 0.12), Palette.DRIFTWOOD.lightened(0.05))
+		"beach_stones":
+			var n := 2 if depleted else 5
+			for i in n:
+				var a := TAU * i / float(n) + rng.randf() * 0.8
+				var r := 0.0 if i == 0 else rng.randf_range(0.35, 0.6)
+				var w := rng.randf_range(0.42, 0.62) * (0.6 if depleted else 1.0)
+				put.call("NodeStones", Vector3(cos(a) * r, w * 0.3, sin(a) * r), Vector3(w, w * 0.62, w * 0.85),
+					Palette.PEBBLE.lightened(rng.randf() * 0.12) if i % 2 == 0 else Palette.PEBBLE.darkened(rng.randf() * 0.12), a)
+		"kelp":
+			if depleted:
+				put.call("NodeStumps", Vector3(0, 0.01, 0), Vector3(2.2, 0.02, 1.6), Palette.WET_SAND.darkened(0.12))
+			else:
+				for i in 3:
+					var a := TAU * i / 3.0 + rng.randf() * 0.9
+					var w := rng.randf_range(0.8, 1.1)
+					put.call("NodeStones", Vector3(cos(a) * 0.45, 0.1, sin(a) * 0.45), Vector3(w * 1.3, 0.34, w * 0.8),
+						Palette.KELP.lightened(rng.randf() * 0.06), a)
+				for i in 5:
+					var a := rng.randf() * TAU
+					put_detail.call(Basis(Vector3.UP, a) * Basis(Vector3.FORWARD, 0.15), Vector3(cos(a) * 0.7, 0.1, sin(a) * 0.7), Vector3(0.9, 0.04, 0.1), Palette.KELP.darkened(0.15))
+		"wreck_crate":
+			if depleted:
+				for i in 4:
+					var a := rng.randf() * TAU
+					var r := rng.randf_range(0.15, 0.5)
+					put.call(BOX_LAYER, Vector3(cos(a) * r, 0.03, sin(a) * r), Vector3(0.9, 0.05, 0.22), Palette.PLANK.darkened(rng.randf() * 0.15), a)
+			else:
+				var tilt := rng.randf_range(-0.08, 0.08)
+				put.call(BOX_LAYER, Vector3(0, 0.38, 0), Vector3(1.1, 0.76, 0.8), Palette.PLANK, tilt)
+				# Plank seams and corner battens, darker; the lid half stove in.
+				for y in [0.2, 0.55]:
+					put.call(BOX_LAYER, Vector3(0, y, 0), Vector3(1.14, 0.05, 0.84), Palette.PLANK.darkened(0.22), tilt)
+				put.call(BOX_LAYER, Vector3(0.18, 0.8, 0.1), Vector3(0.75, 0.06, 0.35), Palette.PLANK.lightened(0.04), tilt + 0.25)
+				put_detail.call(Basis(Vector3.UP, tilt), Vector3(-0.5, 0.4, 0.38), Vector3(0.04, 0.6, 0.04), Palette.IRON_RUST)
+				put_detail.call(Basis(Vector3.UP, tilt), Vector3(0.5, 0.4, 0.38), Vector3(0.04, 0.6, 0.04), Palette.IRON_RUST)
+				# A tail of rope out of the broken lid.
+				put_detail.call(Basis(Vector3.UP, 0.6) * Basis(Vector3.FORWARD, 0.5), Vector3(-0.25, 0.82, -0.1), Vector3(0.5, 0.05, 0.05), Palette.ROPE)
 
 
 ## A node's tier: 1 unless its data says more. Only ash and stone have a tier-2 look so far
@@ -750,6 +821,7 @@ static func _meshes() -> Dictionary:
 		"NodeStumps": Emberlight.bake(stump, 0.35),
 		DETAIL_LAYER: Emberlight.bake(detail, 0.25),
 		VEIN_LAYER: vein,
+		BOX_LAYER: Emberlight.bake(BoxMesh.new(), 0.3),
 	}
 
 
@@ -785,7 +857,7 @@ static func layer_material(layer: String) -> ShaderMaterial:
 			# the beat rather than clipping to white in the noon sun.
 			vein.set_shader_parameter("vein_energy", 1.4)
 			return vein
-		"NodeTrunks", "NodeStumps":
+		"NodeTrunks", "NodeStumps", BOX_LAYER:
 			return Emberlight.painted("bark")
 		"NodeStones":
 			return Emberlight.painted("stone")

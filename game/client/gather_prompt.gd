@@ -17,8 +17,9 @@ const BAR_WIDTH := 150.0
 const HEIGHT := 64.0
 const KEY_LABEL := "E"
 ## The action word per node kind, as in the design bible ("[E] Chop Ash").
-const VERBS := {"ash": "Chop", "pine": "Chop", "stone": "Mine", "scrub": "Pull"}
-const DOING := {"Chop": "Chopping", "Mine": "Mining", "Pull": "Pulling", "Collect": "Collecting", "Gather": "Gathering"}
+const VERBS := {"ash": "Chop", "pine": "Chop", "stone": "Mine", "scrub": "Pull",
+	"driftwood": "Gather", "beach_stones": "Collect", "kelp": "Pull", "wreck_crate": "Break"}
+const DOING := {"Chop": "Chopping", "Mine": "Mining", "Pull": "Pulling", "Collect": "Collecting", "Gather": "Gathering", "Break": "Breaking"}
 ## A start the server hasn't answered yet is asked again after this many seconds.
 const ASK_TIMEOUT := 1.5
 const TOAST_SECONDS := 2.2
