@@ -188,7 +188,7 @@ func _on_inventory(items: Dictionary) -> void:
 func _amount_of(node_id: int) -> int:
 	if node_id < 0:
 		return 0
-	return int(ResourceNodes.kind_info(str(ResourceNodes.get_by_id(node_id).kind)).get("amount", 0))
+	return int(ResourceNodes.info_by_id(node_id).get("amount", 0))
 
 
 func _on_nodes(ids: Array) -> void:
@@ -213,7 +213,7 @@ func _on_node_state(node_id: int, is_depleted: bool) -> void:
 		_share_log.append(["empty"])
 	if is_depleted:
 		_empty[node_id] = true
-		var info := ResourceNodes.kind_info(str(ResourceNodes.get_by_id(node_id).get("kind", "")))
+		var info := ResourceNodes.info_by_id(node_id)
 		depleted.append([node_id, Time.get_unix_time_from_system(), float(info.get("respawn", 0.0)), bool(info.get("night_only", false))])
 	else:
 		_empty.erase(node_id)
@@ -314,7 +314,7 @@ func on_play(delta: float) -> void:
 			bot.move = Vector2.ZERO
 			if _probe_next > 0.0 and bot.elapsed >= _probe_next:
 				_probe_next = 0.0
-				_probe_item = str(ResourceNodes.kind_info(str(ResourceNodes.get_by_id(_probe_node).kind)).item)
+				_probe_item = str(ResourceNodes.info_by_id(_probe_node).item)
 				_probe_pack_before = int(_pack.get(_probe_item, 0))
 				_probe_ends_by = bot.elapsed + ANSWER_TIMEOUT
 				bot.send_play("c2s_gather_start", [_probe_node])

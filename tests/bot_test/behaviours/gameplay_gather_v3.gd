@@ -243,7 +243,7 @@ func _disconnect_soon() -> bool:
 func _start() -> void:
 	_step = Step.START
 	_answer_by = bot.elapsed + ANSWER_TIMEOUT
-	_item = str(ResourceNodes.kind_info(str(ResourceNodes.get_by_id(_target).kind)).item)
+	_item = str(ResourceNodes.info_by_id(_target).item) # tier-aware: an old ash gives heartwood
 	_pack_before = int(_pack.get(_item, 0))
 	_result_count = 0
 	_cancel_sent = false
