@@ -1,5 +1,5 @@
 {
-  "_doc": "Render budget for tests/client_smoke/render_budget.py (art bible section 7). art_bible: the targets. ceilings: what fails the Test check today. Ceilings only go down: world lowers them when it slims the world. baseline: the worst frame per shot (llvmpipe, 1280x720); a PR that raises draw calls or primitives more than `regression` over it fails. History: on 2026-11-23 the spawn shot was 1.98M primitives (about 3x the scene's ~600k triangles: every MultiMesh spanned the whole world, so the camera and each of 4 shadow cascades drew all of it) and 30 materials. 2026-11-23, ws/world/chunked-instancing: the scatter forest and flora are chunked by area with per-layer draw distances and the sun uses 2 shadow cascades: primitives 2.0M -> 613k night / 587k noon, draw calls up from 219 to 273 night / 257 noon (each chunk is a draw call; still under 300), 18 materials. Ceilings lowered to primitives 650k and materials 20; baseline reset to those numbers. 2026-11-23, ws/world/emberlight-everything: lanterns, the workbench, avatars and NodeFx hit bits moved onto the shared Emberlight materials: 18 -> 11 world materials, materials ceiling lowered to 12. 2026-11-23, ws/world/chunked-node-props: resource-node props chunked (close-up layers 128 m with 60/110 m ranges, stones and stumps 256 m, tree parts and glows whole) and a chunk with nothing shown (stumps before anything is felled) hidden: primitives 625k -> 461k night / 599k -> 435k noon, draw calls 277 -> 286 night / 261 -> 270 noon. Primitives ceiling lowered to 500k; baseline reset to those numbers. cheaper: each {cheap shot: full shot} pair must save (scene triangles at least min_saving lower, fewer primitives, no more draw calls). 2026-11-23, ws/qa/low-render-cheaper: low (Low preset, noon) vs noon (Medium): scene triangles 541k vs 610k (-11%, flora halved), primitives 432k vs 435k (-0.7%), draw calls 268 vs 272. 2026-11-24, ws/client/painted-surfaces (owner direction, the test-camp look in the game): bark and stone get their own shared Emberlight materials painted with SurfaceTex detail, 12 -> 14 world materials; the materials ceiling is raised to 14 on purpose (still well under the art bible's 24): no extra draw calls, the layers were already separate MultiMeshes. 2026-11-26, client/new-characters (owner direction, the model direction in the game): every traveller is the sculpted body (Traveller, about 4,200 triangles in 1 draw call, against the old kit's 2,300 in 1): night primitives 494k -> 502k with the player's own body drawn in the camera and both shadow cascades. Primitives ceiling raised on purpose 500k -> 520k (art bible 600k); draw calls and materials unchanged.",
+  "_doc": "Render budget for tests/client_smoke/render_budget.py (art bible section 7). art_bible: the targets. ceilings: what fails the Test check today. Ceilings only go down: world lowers them when it slims the world. baseline: the worst frame per shot (llvmpipe, 1280x720); a PR that raises draw calls or primitives more than `regression` over it fails. History: on 2026-11-23 the spawn shot was 1.98M primitives (about 3x the scene's ~600k triangles: every MultiMesh spanned the whole world, so the camera and each of 4 shadow cascades drew all of it) and 30 materials. 2026-11-23, ws/world/chunked-instancing: the scatter forest and flora are chunked by area with per-layer draw distances and the sun uses 2 shadow cascades: primitives 2.0M -> 613k night / 587k noon, draw calls up from 219 to 273 night / 257 noon (each chunk is a draw call; still under 300), 18 materials. Ceilings lowered to primitives 650k and materials 20; baseline reset to those numbers. 2026-11-23, ws/world/emberlight-everything: lanterns, the workbench, avatars and NodeFx hit bits moved onto the shared Emberlight materials: 18 -> 11 world materials, materials ceiling lowered to 12. 2026-11-23, ws/world/chunked-node-props: resource-node props chunked (close-up layers 128 m with 60/110 m ranges, stones and stumps 256 m, tree parts and glows whole) and a chunk with nothing shown (stumps before anything is felled) hidden: primitives 625k -> 461k night / 599k -> 435k noon, draw calls 277 -> 286 night / 261 -> 270 noon. Primitives ceiling lowered to 500k; baseline reset to those numbers. cheaper: each {cheap shot: full shot} pair must save (scene triangles at least min_saving lower, fewer primitives, no more draw calls). 2026-11-23, ws/qa/low-render-cheaper: low (Low preset, noon) vs noon (Medium): scene triangles 541k vs 610k (-11%, flora halved), primitives 432k vs 435k (-0.7%), draw calls 268 vs 272. 2026-11-24, ws/client/painted-surfaces (owner direction, the test-camp look in the game): bark and stone get their own shared Emberlight materials painted with SurfaceTex detail, 12 -> 14 world materials; the materials ceiling is raised to 14 on purpose (still well under the art bible's 24): no extra draw calls, the layers were already separate MultiMeshes. 2026-11-25, client/grass (owner direction, the test-camp look in the game): grass tufts near the camera (Grass, 24 m around a point ahead of the camera, faded at the edge): one MultiMesh, so one draw call, about 30k triangles, no shadow, and its own material. Ceilings raised on purpose: primitives 500k -> 560k (still under the art bible's 600k), materials 14 -> 15 (art bible 24). Baseline reset to the measured frames: noon 248 dc / 491k primitives, night 262 / 524k. Low draws half the grass and stays cheaper. 2026-11-26, client/new-characters (owner direction, the model direction in the game): every traveller is the sculpted body (Traveller, about 4,200 triangles in 1 draw call, against the old kit's 2,300): about +8k primitives at night (the body in the camera and both shadow cascades). Fits under the 560k ceiling the grass PR set; draw calls and materials unchanged.",
   "art_bible": {
     "draw_calls": 300,
     "primitives": 600000,
@@ -9,8 +9,8 @@
   },
   "ceilings": {
     "draw_calls": 300,
-    "primitives": 520000,
-    "materials": 14,
+    "primitives": 560000,
+    "materials": 15,
     "texture_mem_mb": 32
   },
   "regression": 0.2,
@@ -20,12 +20,12 @@
   "min_saving": 0.05,
   "baseline": {
     "noon": {
-      "draw_calls": 270,
-      "primitives": 435178
+      "draw_calls": 248,
+      "primitives": 491210
     },
     "night": {
-      "draw_calls": 286,
-      "primitives": 460930
+      "draw_calls": 262,
+      "primitives": 524422
     }
   }
 }

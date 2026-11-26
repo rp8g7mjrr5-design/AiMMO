@@ -5,7 +5,7 @@ extends TestCase
 ## and the whole built world stays inside the art bible's material budget.
 
 const RenderStats := preload("res://tests/client_smoke/render_stats.gd")
-const WORLD_MATERIAL_CEILING := 14 ## 11 on 2026-11-23 (part 2b); 14 on 2026-11-24 (painted bark and stone); art bible target 24, smoke-test ceiling 20
+const WORLD_MATERIAL_CEILING := 15 ## 11 on 2026-11-23 (part 2b); 14 on 2026-11-24 (painted bark and stone); 15 on 2026-11-25 (grass); art bible target 24, smoke-test ceiling 20
 
 
 func _meshes_under(n: Node, out: Array) -> Array:

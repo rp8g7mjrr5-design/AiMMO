@@ -6,7 +6,7 @@
 - Paint borders: hem and seam planes are cut into the mesh only where they matter (regions per cut), keeping a body at ~4,200 triangles (budget 5,000). Above the armpit the sleeve/body border is one straight seam at |x| = 0.19 x bulk, not the nearest shape (that zigzagged across the deltoid). The pouch is painted as a rectangle. Neckline cut at 1.44.
 - `TravellerBodies` (client): one low-priority thread sculpts shapes in order (your own first); the avatar keeps its old body until then, a restyle keeps the previous sculpted body on screen, and the new mesh drops in on the same `AvatarSkeleton`, so every clip (idle, gait, swings, knockdown, sit) poses it unchanged. Finished shapes go to `user://travellers/<key>.bin` (zstd), so a shape is sculpted once per install; `Traveller.VERSION` in the key invalidates old ones. Screenshot test hooks wait for pending bodies.
 - Palette: `IRON`, `EYE`, `COAT` (were literals in the camp).
-- Budget: render ceiling primitives 500k -> 520k (night 494k -> 502k: the body is drawn in the camera and two shadow cascades). Draw calls and materials unchanged.
+- Budget: about +8k primitives at night (the body is drawn in the camera and two shadow cascades), under the 560k ceiling grass set. Draw calls and materials unchanged.
 
 **Tried:** the first port took 34 s a body (every sample ran every shape). Buckets were empty at first because a PackedInt32Array taken out of an Array is a copy: append to a local and store it back. The cloak first had a hole: its back reached z = -0.285, past the sampling box (-0.26); the box now starts at -0.34. The hood's cowl covered the chin; it now sits below it.
 

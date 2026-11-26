@@ -323,6 +323,8 @@ The look is designed so that it is cheap. These rules are as binding as the pale
   look): 64 px brightness-only images made in code (grass and earth, bark, stone, wood), laid on
   triplanar in world space with nearest filtering, one shared material per kind. The colour
   still comes from the vertices.
+  And `Grass`'s blade sheet (2026-11-25): one 64 x 32 alpha-cut brightness image for the grass
+  tufts near the camera; the colour comes from the ground under each tuft.
 - **The low-res look is maths, not textures.** The texel grain hashes the mesh's own position
   in the fragment shader (`texel_size`, `texel_grain` uniforms on the shared materials). If a
   later step wants painted patterns (bark lines, cloth weave) they are generated the same way
