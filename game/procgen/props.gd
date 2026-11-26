@@ -8,9 +8,21 @@ const NODE_CLEARANCE := 3.0 ## no decorative tree or rock this close to a resour
 ## Returns an Array of {pos: Vector3, scale: float, kind: "ash"|"pine"|"rock", rot: float}.
 ## On a generated kingdom (WorldGen gen_version 1) the forest follows the kingdom's biomes
 ## instead (`_scatter_kingdom`); Ashgrove keeps this exact code path, tree for tree.
+## Worked out once per world and count, then cached (the world builder, flora and the camera's
+## solids all ask; on a 3 km island each ask cost about 1.7 s). Treat the result as read-only.
 static func scatter(count: int = 1800) -> Array:
-	if WorldGen.is_kingdom():
-		return _scatter_kingdom(count)
+	var key := [WorldGen.config(), count]
+	if _cache_key != key:
+		_cache_key = key
+		_cache = _scatter_kingdom(count) if WorldGen.is_kingdom() else _scatter_ashgrove(count)
+	return _cache.duplicate()
+
+
+static var _cache: Array = []
+static var _cache_key: Array = []
+
+
+static func _scatter_ashgrove(count: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = GameConfig.WORLD_SEED + 7
 	var out: Array = []
