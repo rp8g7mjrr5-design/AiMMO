@@ -106,6 +106,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	_build_ui()
 	_build_audio()
 	world = WorldBuilder.build()
+	world.add_child(RuinKit.build()) # the ruin set pieces (Basics 4); none on Ashgrove
 	world.set_meta("world_config", WorldGen.config())
 	add_child(world)
 	grazers = GrazerFigures.new()
@@ -905,6 +906,7 @@ func _on_world_config(config: Dictionary) -> void:
 		shore_cover.show_now()
 	var old := world
 	world = WorldBuilder.build()
+	world.add_child(RuinKit.build()) # the ruin set pieces (Basics 4); none on Ashgrove
 	world.set_meta("world_config", WorldGen.config())
 	if old != null:
 		for child in old.get_children():

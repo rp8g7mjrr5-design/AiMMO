@@ -1,0 +1,2 @@
+- **The first ruins stand on the island.** Look inland from the beach for a dark chimney against the sky: it's a **Burned Farmstead**. Walk up and you'll find the stone farmhouse gutted by fire, a half-fallen barn, an old well, a wrecked cart and a broken fence, laid out differently on every island.
+- Look around the yard: a chest by the hearth, a crate by the barn, a sack off the cart, and someone by the well who didn't make it.
