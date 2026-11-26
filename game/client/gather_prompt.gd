@@ -12,7 +12,7 @@ extends Control
 ## timing. The client only knows which nodes are spent (s2c_nodes / s2c_node_state) so the
 ## prompt never offers one. All the rules are static functions so they are unit tested headless.
 
-const WIDTH := 380.0 ## room for "Rich Stone Seam · Quarrying 5 (1,680 XP to go)"
+const WIDTH := 380.0 ## room for "Rich Stone Seam · needs a pickaxe" and the longest names
 const BAR_WIDTH := 150.0
 const HEIGHT := 64.0
 const KEY_LABEL := "E"
@@ -37,7 +37,7 @@ const NOTICES := {
 	"day": "Ember sap only seeps at night",
 	"far": "Out of reach",
 	"unknown": "Nothing to gather there",
-	"level": "Your level is too low", ## notice_for() names the skill and level when it can
+	"tool": "You need the right tool", ## notice_for() names it ("Needs an axe") when it can
 }
 
 var prompt_label: Label
@@ -48,11 +48,9 @@ var toast_icon: TextureRect
 var icons: IconShelf
 ## node id -> true for every node the server says is empty right now.
 var spent := {}
-## Your pack as the server last sent it (s2c_inventory), for the toast's "(6)".
+## Your pack as the server last sent it (s2c_inventory), for the toast's "(6)", and so a
+## tier-2 node you have no tool for says what it needs instead of offering E.
 var pack := {}
-## Your skills (skill id -> XP) as the server last sent them (skills_changed / xp_gained), so
-## a tier-2 node you can't work yet says what it needs instead of offering E. {} = level 1.
-var skills := {}
 var _target := {}
 var _channel := {} ## your running gather: {node_id, kind, text, started, seconds}
 var _asked_node := -1 ## a start we sent and the server hasn't answered yet
@@ -69,12 +67,12 @@ var _miss_age := INF
 ## within ResourceNodes.GATHER_RANGE under the reticle (look-to-interact, when `look` is
 ## given: the camera's eye and look direction), else the nearest live one in reach. With
 ## only spent nodes in reach it names the nearest one, greyed out. {} for nothing in reach.
-## A tier-2 node above your level (`skills`: skill id -> XP) shows what it needs, greyed:
-## "Old Ember Ash · Felling 5 (1,205 XP to go)".
-## {id, kind, label, can: bool (false for a spent node, a seep in daylight or a node above
-## your level), needs_level: bool, aimed: bool (the reticle is on it, so a left-click takes
+## A tier-2 node your pack (`inv`) has no tool for shows what it needs, greyed:
+## "Old Ember Ash · needs an axe".
+## {id, kind, label, can: bool (false for a spent node, a seep in daylight or a node you have
+## no tool for), needs_tool: bool, aimed: bool (the reticle is on it, so a left-click takes
 ## it; false for the nearest-node fallback), text, doing}.
-static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look := Vector3.ZERO, spent_ids := {}, skills := {}) -> Dictionary:
+static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look := Vector3.ZERO, spent_ids := {}, inv := {}) -> Dictionary:
 	var in_reach := ResourceNodes.near(pos, ResourceNodes.GATHER_RANGE)
 	if in_reach.is_empty():
 		return {}
@@ -88,37 +86,33 @@ static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look
 	var verb := str(VERBS.get(n.kind, "Gather"))
 	var is_spent := live.is_empty()
 	var night_only := bool(info.get("night_only", false)) and not WorldClock.is_night(world_seconds)
-	var too_low := not Gathering.can_work(n, skills)
+	var no_tool := not Gathering.can_work(n, inv)
 	var text := "[%s] %s %s" % [KEY_LABEL, verb, what]
 	if is_spent:
 		text = "%s is spent for now" % label
-	elif too_low:
-		text = need_text(n, skills)
+	elif no_tool:
+		text = need_text(n, inv)
 	elif night_only:
 		text = "%s only seeps at night" % label
 	return {
 		"id": int(n.id),
 		"kind": str(n.kind),
 		"label": label,
-		"can": not is_spent and not night_only and not too_low,
-		"needs_level": too_low,
+		"can": not is_spent and not night_only and not no_tool,
+		"needs_tool": no_tool,
 		"aimed": aimed,
 		"text": text,
 		"doing": doing_for(n),
 	}
 
 
-## "Old Ember Ash · Felling 5 (1,205 XP to go)" for a node above your level, so the prompt is
-## a goal rather than a wall. "" when `skills` may work `node`.
-static func need_text(node: Dictionary, skills: Dictionary) -> String:
-	if Gathering.can_work(node, skills):
+## "Old Ember Ash · needs an axe" for a node your pack has no tool for, so the prompt is a
+## goal rather than a wall. "" when `inv` may work `node`.
+static func need_text(node: Dictionary, inv: Dictionary) -> String:
+	if Gathering.can_work(node, inv):
 		return ""
 	var info := ResourceNodes.info(node)
-	var skill := str(info.get("skill", ""))
-	var need := Gathering.required_level(node)
-	var to_go := maxi(0, Skills.xp_for_level(need) - Skills.xp_of(skills, skill))
-	return "%s · %s %d (%s XP to go)" % [_what(str(node.kind), str(info.get("label", node.kind))),
-		Skills.label(skill), need, SkillsWindow._grouped(to_go)]
+	return "%s · needs %s" % [_what(str(node.kind), str(info.get("label", node.kind))), Gathering.tool_word(str(node.kind))]
 
 
 ## The node's name as the prompt shows it: "Old Ember Ash", "Ember Sap".
@@ -200,12 +194,12 @@ static func notice_text(reason: String) -> String:
 	return str(NOTICES.get(reason, ""))
 
 
-## notice_text, but a "level" refusal on a known node names what it needs: "Needs Felling 5".
+## notice_text, but a "tool" refusal on a known node names what it needs: "Needs an axe".
 static func notice_for(reason: String, node_id: int) -> String:
-	if reason == "level":
+	if reason == "tool":
 		var n := ResourceNodes.get_by_id(node_id)
-		if not n.is_empty() and Gathering.required_level(n) > 1:
-			return "Needs %s %d" % [Skills.label(str(ResourceNodes.info(n).skill)), Gathering.required_level(n)]
+		if not n.is_empty() and Gathering.needs_tool(n):
+			return "Needs %s" % Gathering.tool_word(str(n.kind))
 	return notice_text(reason)
 
 
@@ -215,10 +209,11 @@ static func is_echo(text: String) -> bool:
 	return text.begins_with("You start gathering") or text.begins_with("You gather ") or text.begins_with("You stop gathering")
 
 
-## Reads the server's full-stack line ("Your pack can't hold any more ash wood. You leave it,
-## but the work still counts.", see Gathering.full_text) into {item, label}, or {} for any other.
+## Reads the server's full-stack line ("Your pack can't hold any more ash wood, so you leave
+## it.", see Gathering.full_text; older servers said ". You leave it, but the work still
+## counts.") into {item, label}, or {} for any other.
 static func parse_full(text: String) -> Dictionary:
-	var m := RegEx.create_from_string("^Your pack can't hold any more (.+?)\\. You leave it").search(text)
+	var m := RegEx.create_from_string("^Your pack can't hold any more (.+?)(?:, so you|\\. You) leave it").search(text)
 	if m == null:
 		return {}
 	var label := m.get_string(1)
@@ -228,11 +223,10 @@ static func parse_full(text: String) -> Dictionary:
 	return {"item": "", "label": label}
 
 
-## The full-stack toast: "Pack full: Ash wood (99) · XP still counts". The XP floater shows
-## the gain itself; this says why no "+2" came with it.
+## The full-stack toast: "Pack full: Ash wood (99)", which says why no "+2" came.
 static func full_toast_text(item: String, in_pack: int) -> String:
 	var label := Inventory.label(item) if item != "" else "that"
-	return "Pack full: %s (%d) · XP still counts" % [label.left(1).to_upper() + label.substr(1), in_pack]
+	return "Pack full: %s (%d)" % [label.left(1).to_upper() + label.substr(1), in_pack]
 
 
 ## Reads the server's success line ("You gather 2 ash wood from the ember ash (6 in your
@@ -323,7 +317,7 @@ func _make_label(font_size: int, color: Color) -> Label:
 ## Returns what to send now: {"op": "start", "node": id} (c2s_gather_start), {"op": "cancel"}
 ## (c2s_gather_cancel), or {}.
 func update(delta: float, pos: Vector3, world_seconds: float, now: float, held: bool, pressed: bool = false, moving: bool = false, eye := Vector3.ZERO, look := Vector3.ZERO, click_held: bool = false, click_pressed: bool = false) -> Dictionary:
-	_target = target(pos, world_seconds, eye, look, spent, skills)
+	_target = target(pos, world_seconds, eye, look, spent, pack)
 	if not held and not click_held:
 		_hold_blocked = false
 	var waiting := _asked_node >= 0 and now - _asked_at < ASK_TIMEOUT
@@ -387,8 +381,8 @@ func on_result(item_id: String, count: int) -> void:
 
 
 ## A system line: true if it is an echo of your timed gather (keep it out of chat). A gather
-## that finished on a full stack (no s2c_gather_result, the XP still lands) gets its own
-## quiet toast here instead of a centre-screen refusal: the work counted, nothing went wrong.
+## that finished on a full stack (no s2c_gather_result) gets its own quiet toast here
+## instead of a centre-screen refusal: nothing went wrong, there was just no room.
 func on_system(text: String) -> bool:
 	var full := parse_full(text)
 	if not full.is_empty():
@@ -449,7 +443,6 @@ func hide_all() -> void:
 	_hold_blocked = false
 	spent = {}
 	pack = {}
-	skills = {}
 	prompt_label.visible = false
 	bar.visible = false
 	_toast_age = INF

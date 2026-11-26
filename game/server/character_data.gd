@@ -12,7 +12,7 @@ const DEFAULTS := {
 	"yaw": 0.0,
 	"appearance_seed": 0,
 	"inventory": {}, ## item id -> quantity, see Inventory. Stored in inventory_items (Postgres).
-	"skills": {}, ## skill id -> total XP, see Skills. Stored in character_skills (Postgres).
+	"skills": {}, ## old XP from the retired leveling system, kept untouched (RetiredSkills). Stored in character_skills (Postgres).
 	## The chosen look (Appearance), {} until the player picks one. Stored as JSON text in
 	## characters.appearance (migration 0004); older saves have none and keep their seed look.
 	"look": {},
@@ -33,7 +33,7 @@ static func normalize(src: Dictionary) -> Dictionary:
 				out[k] = f if is_finite(f) else 0.0
 			TYPE_DICTIONARY:
 				if k == "skills":
-					out[k] = Skills.normalize(v)
+					out[k] = RetiredSkills.normalize(v)
 				elif k == "look":
 					out[k] = Appearance.from_json(v)
 				else:

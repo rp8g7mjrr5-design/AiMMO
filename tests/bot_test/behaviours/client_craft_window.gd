@@ -7,7 +7,6 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## - every press is answered by craft_result for that recipe, the window shows the server's
 ##   own words, and its row had predicted the answer (Ready <-> ok, and a "missing" refusal
 ##   in exactly the server's words);
-## - every successful craft also pays Toolcraft XP (the "+N Toolcraft" floater);
 ## - the "[E] Use Workbench" prompt shows exactly within Crafting.BENCH_RANGE.
 ## It crafts torches (anywhere) or a campfire (at the bench) only, never a tool, so
 ## gameplay_crafting's "/craft axe" answers stay as it expects. Presses wait for a quiet
@@ -21,7 +20,7 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## exactly a campfire's and a torch's inputs, see craft_haul.gd): the main bots almost never
 ## carry a recipe's inputs, so this bot proves the ok path live. It holds still at the bench
 ## until both are made, presses sooner and more often, and fails unless the campfire and the
-## torches were both made, each paid Toolcraft XP, and the pack ended exactly as CraftHaul says.
+## torches were both made and the pack ended exactly as CraftHaul says.
 
 const WindowScript := preload("res://client/craft_window.gd")
 const CraftHaul := preload("res://tests/bot_test/craft_haul.gd")
@@ -43,7 +42,6 @@ var _sent_at := 0.0
 var _gathering := false
 var _gather_ended_at := -1000.0
 var _pack_command_at := -1000.0 ## last /gather or /craft chat line this bot sent
-var _toolcraft_xp := 0
 var presses := 0
 var answers := 0
 var crafted := 0
@@ -64,9 +62,6 @@ func setup(net: Node) -> void:
 			bot.send_play("c2s_craft", [id]))
 	net.inventory_changed.connect(_on_inventory)
 	net.craft_result.connect(_on_craft_result)
-	net.xp_gained.connect(func(skill: String, _g: int, _t: int):
-		if skill == "toolcraft":
-			_toolcraft_xp += 1)
 	net.gather_begun.connect(func(peer: int, _n: int, _s: float):
 		if peer == int(bot.my_id):
 			_gathering = true)
@@ -205,11 +200,8 @@ func on_finish() -> void:
 		fail("never found a quiet moment to press Craft")
 	if pack_checks < 1:
 		fail("never got an s2c_inventory to check the window against")
-	# s2c_xp is sent before the craft_result it belongs to.
-	if _toolcraft_xp < crafted:
-		fail("%d crafts but only %d Toolcraft XP gains" % [crafted, _toolcraft_xp])
 	if _haul:
-		var haul := {"made": made, "presses": presses, "toolcraft_xp": _toolcraft_xp,
+		var haul := {"made": made, "presses": presses,
 			"haul_pack": Inventory.to_wire(_w.pack) if _w else null}
 		stat("made", made)
 		stat("haul_pack", haul.haul_pack)

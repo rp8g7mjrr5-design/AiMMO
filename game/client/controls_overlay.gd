@@ -22,7 +22,6 @@ const DEFAULT_BINDS := {
 	"free_look": [KEY_ALT],
 	"swap_shoulder": [KEY_V],
 	"toggle_controls": [KEY_F1],
-	"toggle_skills": [KEY_K],
 	"toggle_pack": [KEY_I],
 	"toggle_players": [KEY_O],
 	"toggle_perf": [KEY_F3],
@@ -55,7 +54,6 @@ const SECTIONS := [
 	["Talking and menus", [
 		["Chat", ["=Enter"]],
 		["Your pack", ["toggle_pack"]],
-		["Your skills and next goal", ["toggle_skills"]],
 		["Who is online", ["toggle_players"]],
 		["Settings, or close a window", ["=Esc"]],
 		["This list", ["toggle_controls"]],

@@ -14,10 +14,6 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ##     node this client shows empty (a desync between clients). Emptied nodes are reported
 ##     (`depleted`, with wall-clock times) so the harness can check one comes back;
 ##   - two players on one node at once (`shared_node_max`, from s2c_gather_begin/end);
-##   - skills (Milestone 1): the least XP this bot is known to have in each skill, from the
-##     login character and every "<Skill> is now level N!" line, goes into the stats as
-##     `skills_floor`; verify_store.gd checks the saved character holds at least that, so a
-##     level-up is never lost on logout.
 ##
 ## Probe mode (`--gather-probe=<node> --probe-due=<unix time>`, started by run_bot_test.py
 ## after the 8 bots, with --only-behaviour=qa_gather_ledger): a fresh player logs in while
@@ -60,7 +56,6 @@ const PAIR_STILL := 0.8 ## the follower trusts the leader's node once it has sto
 const AFTER_WAIT_MAX := 6.0 ## leader: how long to wait for the others' ends before the extra press
 
 var _pack: Dictionary = {}
-var _skills_floor: Dictionary = {} ## skill -> least XP we know this character has
 var _have_pack := false
 var _check_pack_at_login := false
 var _pack_at_close: Dictionary = {}
@@ -116,7 +111,6 @@ func setup(net: Node) -> void:
 	net.node_state.connect(_on_node_state)
 	net.gather_begun.connect(_on_begun)
 	net.gather_ended.connect(_on_ended)
-	net.system_message.connect(_on_system_skills)
 	net.player_left.connect(func(id: int):
 		_channels.erase(id)
 		_others_pos.erase(id))
@@ -159,9 +153,6 @@ func on_snapshot(_tick: int, entries: Array) -> void:
 
 
 func on_login(reconnect: bool, character: Dictionary) -> void:
-	var sk := Skills.normalize(character.get("skills", {}))
-	for id in sk:
-		_skills_floor[id] = maxi(int(_skills_floor.get(id, 0)), int(sk[id]))
 	_channels.clear()
 	_empty.clear()
 	_others_pos.clear()
@@ -177,16 +168,6 @@ func on_login(reconnect: bool, character: Dictionary) -> void:
 		_running_at_close = _mine_running
 	_mine_running = -1
 	_have_pack = false
-
-
-## "Felling is now level 2! ..." means at least the XP that level starts at.
-func _on_system_skills(text: String) -> void:
-	var lv := RegEx.create_from_string("^(\\w+) is now level (\\d+)!").search(text)
-	if lv == null:
-		return
-	var id := lv.get_string(1).to_lower()
-	if Skills.is_skill(id):
-		_skills_floor[id] = maxi(int(_skills_floor.get(id, 0)), Skills.xp_for_level(lv.get_string(2).to_int()))
 
 
 func _on_inventory(items: Dictionary) -> void:
@@ -446,7 +427,6 @@ func _play_pair(delta: float) -> void:
 
 func on_finish() -> void:
 	stat("final_pack", _pack)
-	stat("skills_floor", _skills_floor)
 	stat("running_node", _mine_running)
 	stat("running_amount", _amount_of(_mine_running))
 	stat("depleted", depleted)

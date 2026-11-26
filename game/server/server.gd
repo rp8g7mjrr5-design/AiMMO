@@ -43,7 +43,7 @@ const WILDLIFE_SEND_TICKS := 4
 ## After the last grazer leaves a player's view, the empty s2c_wildlife goes out this many
 ## sends in a row (it is unreliable, so one lost packet must not leave a herd frozen on screen).
 const WILDLIFE_GOODBYES := 3
-## Someone joined, left or levelled up since the last tick: send everyone the new roster
+## Someone joined or left since the last tick: send everyone the new roster
 ## (once per tick, so eight players logging in at once is eight rosters, not 36).
 var _roster_dirty := false
 ## How many players may be logged in at once (owner direction 8: a world for 2 to 8 friends).
@@ -151,7 +151,7 @@ static func parse_gloam(args: Dictionary, env: Callable = Callable(OS, "get_envi
 
 ## A character saved somewhere this world has no dry land for (out past its border, in a
 ## river, a lake or the sea) comes to at this world's spawn instead. Only position changes:
-## pack, skills and everything else are untouched. On Ashgrove nobody is ever moved, so the
+## pack and everything else are untouched. On Ashgrove nobody is ever moved, so the
 ## live world behaves exactly as before; on a kingdom it keeps a character from another world
 ## (or an old save) from logging in under water. Returns true if it moved them.
 static func place_on_this_world(ch: Dictionary) -> bool:
@@ -613,7 +613,6 @@ func _on_chat(id: int, text: String) -> void:
 	if ChatCommands.is_gather(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [gather(id, ChatCommands.argument(clean))])
-		_send_queued_lines(id)
 		return
 	if ChatCommands.is_hurt(clean) or ChatCommands.is_vitals(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
@@ -640,14 +639,13 @@ func _on_chat(id: int, text: String) -> void:
 	if ChatCommands.is_craft(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [craft(id, "" if ChatCommands.name_of(clean) == "recipes" else ChatCommands.argument(clean))])
-		_send_queued_lines(id)
 		return
 	if ChatCommands.is_command(clean):
 		var online: Array = []
 		for other in sessions:
 			if sessions[other].logged_in:
 				online.append(sessions[other].character.name)
-		var reply := ChatCommands.run(clean, {"world_seconds": world_seconds(), "online": online, "inventory": s.character.inventory, "skills": s.character.get("skills", {})})
+		var reply := ChatCommands.run(clean, {"world_seconds": world_seconds(), "online": online, "inventory": s.character.inventory})
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [reply])
 		return
@@ -772,36 +770,36 @@ func gather(id: int, kind_word: String = "") -> String:
 	var kind = Gathering.parse_kind(kind_word)
 	if kind == null:
 		return "Gather what? Try /gather, or /gather ash, pine, stone or sap."
-	var skills := skills_of(id)
+	var inv: Dictionary = s.character.inventory
 	if GatherChannel.is_active(s.channel):
-		return Gathering.refusal("cooldown", gathering, -1, CharacterData.position(s.character), now, ws, kind, skills)
+		return Gathering.refusal("cooldown", gathering, -1, CharacterData.position(s.character), now, ws, kind, inv)
 	var pos := CharacterData.position(s.character)
-	var node_id := Gathering.pick_target(gathering, pos, now, ws, kind, skills)
+	var node_id := Gathering.pick_target(gathering, pos, now, ws, kind, inv)
 	if node_id < 0:
-		return Gathering.refusal("none", gathering, -1, pos, now, ws, kind, skills)
+		return Gathering.refusal("none", gathering, -1, pos, now, ws, kind, inv)
 	var node := ResourceNodes.get_by_id(node_id)
 	var node_kind := str(node.kind)
-	var inv: Dictionary = s.character.inventory
-	var why := Gathering.check(gathering, node_id, pos, now, ws, s.last_gather, Gathering.cooldown_for(node_kind, inv), skills)
+	var why := Gathering.check(gathering, node_id, pos, now, ws, s.last_gather, Gathering.cooldown_for(node_kind, inv), inv)
 	if why != "":
-		return Gathering.refusal(why, gathering, node_id, pos, now, ws, kind, skills)
+		return Gathering.refusal(why, gathering, node_id, pos, now, ws, kind, inv)
 	var tool := Gathering.tool_for(node_kind, inv)
 	var got := Gathering.take(gathering, node_id, now)
-	var added := give_item(id, got.item, Gathering.amount_at(node_id, inv, skill_level(id, Skills.skill_for_kind(node_kind))))
+	var added := give_item(id, got.item, Gathering.amount_at(node_id, inv))
 	if added <= 0:
 		Gathering.give_back(gathering, node_id)
-		return Gathering.refusal("full", gathering, node_id, pos, now, ws, kind, skills)
+		return Gathering.refusal("full", gathering, node_id, pos, now, ws, kind, inv)
 	s.last_gather = now
 	if got.depleted:
 		_node_changed(node_id, true, got.respawn)
-	award_xp(id, Skills.skill_for_kind(node_kind), Skills.gather_xp(node_kind, has_company(id), int(node.get("tier", 1))))
 	return Gathering.success(node_id, added, Inventory.count(s.character.inventory, got.item), got.depleted, tool)
 
 
 ## Starts a timed gather (GatherChannel) on node `node_id` for player `id`: the same checks
 ## as an instant gather (reach from the server's own position, depletion, night-only; not
-## the instant gather's cooldown, the bar itself paces it), plus "busy" if a gather is already running. A full stack still
-## starts (it pays XP, not items). Returns {ok, reason, seconds}. On success the channel runs
+## the instant gather's cooldown, the bar itself paces it), plus "busy" if a gather is already
+## running and "full" when the pack can't hold one more of what the node gives (there is no
+## XP any more, so a gather that can pay nothing would be dead time). Returns {ok, reason,
+## seconds}. On success the channel runs
 ## in _tick_channels and ends in _gather_event "done" or "cancelled".
 ## Protocol v3's c2s_gather_start calls this directly.
 func gather_start(id: int, node_id: int) -> Dictionary:
@@ -819,12 +817,12 @@ func gather_start(id: int, node_id: int) -> Dictionary:
 	# No gather cooldown here: the channel's own server-timed bar is the pacing, so a player
 	# who keeps pressing E goes straight from one gather into the next (no dead time). The
 	# cooldown stays for the instant /gather dev command.
-	# A full stack doesn't stop the gather either: the work still teaches the skill (see
-	# _finish_channel), so a full pack is never a wall on the road to the next level.
-	var why := Gathering.check(gathering, node_id, pos, now, world_seconds(), -INF, 0.0, skills_of(id))
+	var why := Gathering.check(gathering, node_id, pos, now, world_seconds(), -INF, 0.0, inv)
+	if why == "" and Inventory.count(inv, str(ResourceNodes.info(node).get("item", ""))) >= Inventory.MAX_STACK:
+		why = "full"
 	if why != "":
 		return {"ok": false, "reason": why, "seconds": 0.0}
-	var secs := GatherChannel.seconds_at(node_id, inv, skill_level(id, Skills.skill_for_kind(kind)))
+	var secs := GatherChannel.seconds_at(node_id, inv)
 	s.channel = GatherChannel.start(node_id, pos, now, secs)
 	_gather_event(id, "begin", node_id, {"seconds": secs})
 	return {"ok": true, "reason": "", "seconds": secs}
@@ -870,7 +868,7 @@ func _finish_channel(id: int, now: float) -> void:
 	var ws := world_seconds()
 	_respawn_nodes(now)
 	var audience: Array = ch.get("audience", [])
-	var why := GatherChannel.finish_check(gathering, ch, pos, now, ws, skills_of(id))
+	var why := GatherChannel.finish_check(gathering, ch, pos, now, ws, s.character.inventory)
 	if why != "":
 		_gather_event(id, "cancelled", node_id, {"reason": why, "audience": audience})
 		return
@@ -879,14 +877,13 @@ func _finish_channel(id: int, now: float) -> void:
 	var inv: Dictionary = s.character.inventory
 	var tool := Gathering.tool_for(kind, inv)
 	var got := Gathering.take(gathering, node_id, now)
-	# A full stack takes nothing, but the gather still happened: the charge is used and the
-	# XP is paid (Milestone 1: the first session must reach level 5, and a fresh feller fills
-	# both wood stacks well before that). "done" with count 0: no haul toast, a system line.
-	var added := give_item(id, got.item, Gathering.amount_at(node_id, inv, skill_level(id, Skills.skill_for_kind(kind))))
+	# A stack that filled up while the bar ran (another gather or a craft can't, but be
+	# safe) takes nothing, but the gather still happened: the charge is used. "done" with
+	# count 0: no haul toast, a system line.
+	var added := give_item(id, got.item, Gathering.amount_at(node_id, inv))
 	s.last_gather = now
 	if got.depleted:
 		_node_changed(node_id, true, got.respawn)
-	award_xp(id, Skills.skill_for_kind(kind), Skills.gather_xp(kind, has_company(id), int(node.get("tier", 1))))
 	Gloam.noise(gloam, pos, now, GATHER_NOISE) # chopping and mining carry
 	_gather_event(id, "done", node_id, {"item": got.item, "count": added, "tool": tool, "depleted": got.depleted, "audience": audience})
 
@@ -928,7 +925,7 @@ func _gather_event(id: int, event: String, node_id: int, info: Dictionary) -> vo
 			if reason in ["moved", "far", "stopped"]:
 				text = GatherChannel.cancel_text(reason)
 			elif reason != "disconnected":
-				text = Gathering.refusal(reason, gathering, node_id, pos, now, world_seconds(), "", skills_of(id))
+				text = Gathering.refusal(reason, gathering, node_id, pos, now, world_seconds(), "", s.character.inventory)
 	if reason != "":
 		var to := players_in_view(pos)
 		for other in info.get("audience", []):
@@ -940,7 +937,6 @@ func _gather_event(id: int, event: String, node_id: int, info: Dictionary) -> vo
 				_send(other, "s2c_gather_end", [id, node_id, reason])
 	if text != "":
 		_send(id, "s2c_system", [text])
-	_send_queued_lines(id)
 
 
 ## What protocol v3's c2s_gather_start(node_id) does: start a timed gather on that node.
@@ -958,7 +954,7 @@ func gather_request(id: int, node_id: int) -> Dictionary:
 		if ResourceNodes.get_by_id(node_id).is_empty():
 			_send(id, "s2c_system", ["There is nothing to gather there."])
 		else:
-			_send(id, "s2c_system", [Gathering.refusal(reason, gathering, node_id, pos, now_seconds(), world_seconds(), "", skills_of(id))])
+			_send(id, "s2c_system", [Gathering.refusal(reason, gathering, node_id, pos, now_seconds(), world_seconds(), "", s.character.inventory)])
 	return r
 
 
@@ -1006,21 +1002,9 @@ func _node_changed(node_id: int, depleted: bool, respawn: float = 0.0) -> void:
 func _send_world_state(id: int) -> void:
 	_send(id, "s2c_inventory", [Inventory.to_wire(sessions[id].character.inventory)])
 	_send(id, "s2c_nodes", [Gathering.depleted_ids(gathering, now_seconds())])
-	_send(id, "s2c_skills", [skills_wire(sessions[id].character.get("skills", {}))])
 	if Campfires.count(campfires) > 0:
 		_send(id, "s2c_campfires", [Campfires.to_wire(campfires, now_seconds())])
 	sessions[id].inv_dirty = false
-
-
-## What s2c_skills carries: every known skill id -> total XP (0 for untouched skills), so
-## the client's skills window always has all four. Unknown ids kept in the save stay there
-## but are not sent (the client has no row for them).
-static func skills_wire(skills: Variant) -> Dictionary:
-	var src := Skills.normalize(skills)
-	var out := {}
-	for skill in Skills.ORDER:
-		out[skill] = Skills.xp_of(src, skill)
-	return out
 
 
 ## Sends s2c_inventory once to every player whose pack changed since the last tick, so a
@@ -1028,7 +1012,6 @@ static func skills_wire(skills: Variant) -> Dictionary:
 func _flush_inventories() -> void:
 	for id in sessions:
 		var s: Dictionary = sessions[id]
-		_send_queued_lines(id)
 		if s.logged_in and s.get("inv_dirty", false):
 			s.inv_dirty = false
 			_send(id, "s2c_inventory", [Inventory.to_wire(s.character.inventory)])
@@ -1064,7 +1047,6 @@ func craft_request(id: int, recipe_id: String) -> Dictionary:
 	else:
 		r = _craft(id, recipe_id)
 	_send(id, "s2c_craft_result", [recipe_id.substr(0, 32), bool(r.ok), str(r.text)])
-	_send_queued_lines(id)
 	return r
 
 
@@ -1073,10 +1055,9 @@ func _craft(id: int, recipe: String) -> Dictionary:
 	var s: Dictionary = sessions[id]
 	var inv: Dictionary = s.character.inventory
 	var pos := CharacterData.position(s.character)
-	var skills := skills_of(id)
-	var why := Crafting.check(inv, recipe, pos, skills)
+	var why := Crafting.check(inv, recipe, pos)
 	if why != "":
-		return {"ok": false, "reason": why, "text": Crafting.refusal(why, inv, recipe, pos, skills)}
+		return {"ok": false, "reason": why, "text": Crafting.refusal(why, inv, recipe, pos)}
 	var r: Dictionary = Crafting.RECIPES[recipe]
 	var taken := {}
 	for item in r.needs:
@@ -1091,108 +1072,19 @@ func _craft(id: int, recipe: String) -> Dictionary:
 			give_item(id, back, int(taken[back]))
 		return {"ok": false, "reason": "full", "text": Crafting.refusal("full", inv, recipe, pos)}
 	print("[craft] %s made %d %s" % [s.character.name, made, recipe])
-	award_xp(id, "toolcraft", Skills.craft_xp(recipe, has_company(id)))
 	return {"ok": true, "reason": "", "text": Crafting.success(recipe, made, inv)}
 
 
-## Player `id`'s skills (skill id -> XP; empty for a player who is not here, which is level 1
-## everywhere). Gathering.check uses it for tier-2 nodes.
-func skills_of(id: int) -> Dictionary:
-	if not sessions.has(id) or not sessions[id].logged_in:
-		return {}
-	return sessions[id].character.get("skills", {})
-
-
-## Player `id`'s level in `skill` (1 for an unknown skill or a player who is not here).
-func skill_level(id: int, skill: String) -> int:
-	if skill == "" or not sessions.has(id) or not sessions[id].logged_in:
-		return 1
-	return Skills.level_of(sessions[id].character.get("skills", {}), skill)
-
-
-## True when another logged-in player is within Skills.TOGETHER_RANGE of player `id`
-## (better together: their gathers and crafts pay Skills.TOGETHER_BONUS more XP).
-func has_company(id: int) -> bool:
-	if not sessions.has(id) or not sessions[id].logged_in:
-		return false
-	var p := CharacterData.position(sessions[id].character)
-	var here := Vector2(p.x, p.z)
-	for other in sessions:
-		if other == id or not sessions[other].logged_in:
-			continue
-		var o := CharacterData.position(sessions[other].character)
-		if here.distance_to(Vector2(o.x, o.z)) <= Skills.TOGETHER_RANGE:
-			return true
-	return false
-
-
-## Server-authoritative XP. Every system that teaches a skill (gathering, crafting, later
-## combat) goes through this, never edits CharacterData.skills itself. Saved with the
-## character like the pack. A level-up queues a system line ("Felling is now level 2! ...")
-## that goes out right after the reply it came with (_send_queued_lines), so it always reads
-## after "You gather ...". Protocol v4 queues the same way, in this order: s2c_xp(skill,
-## gained, total) to the player, and on a level-up s2c_level_up(skill, level, unlocks) to
-## the player, s2c_level_up_seen(peer, skill, level) to everyone else in view, then the line.
-## Returns Skills.gain()'s result.
-func award_xp(id: int, skill: String, amount: int) -> Dictionary:
-	if not sessions.has(id) or not sessions[id].logged_in or skill == "":
-		return {}
-	var s: Dictionary = sessions[id]
-	if typeof(s.character.get("skills")) != TYPE_DICTIONARY:
-		s.character.skills = {}
-	var r := Skills.gain(s.character.skills, skill, amount)
-	if int(r.gained) <= 0:
-		return r
-	print("[xp] %s +%d %s (%d total, level %d)" % [s.character.name, int(r.gained), skill, int(r.xp), int(r.level)])
-	var queued: Array = s.get("queued_lines", [])
-	queued.append([id, "s2c_xp", [skill, int(r.gained), int(r.xp)]])
-	if int(r.level) > int(r.level_before):
-		print("[xp] %s reached %s %d" % [s.character.name, skill, int(r.level)])
-		queued.append([id, "s2c_level_up", [skill, int(r.level), Array(r.unlocks).duplicate(true)]])
-		for other in players_in_view(CharacterData.position(s.character)):
-			if other != id:
-				queued.append([other, "s2c_level_up_seen", [id, skill, int(r.level)]])
-		queued.append([id, "s2c_system", [Skills.level_up_text(r)]])
-		_roster_dirty = true # the players panel shows everyone's level
-	s.queued_lines = queued
-	return r
-
-
-## Sends the messages award_xp queued for player `id`'s action, in order: [to, method, args]
-## (to is usually `id`; s2c_level_up_seen goes to the players around them).
-func _send_queued_lines(id: int) -> void:
-	if not sessions.has(id):
-		return
-	var s: Dictionary = sessions[id]
-	var queued: Array = s.get("queued_lines", [])
-	if queued.is_empty():
-		return
-	s.queued_lines = []
-	for m in queued:
-		if int(m[0]) == id or (sessions.has(int(m[0])) and sessions[int(m[0])].logged_in):
-			_send(int(m[0]), StringName(m[1]), m[2])
-
-
-## Everyone online for the players panel (s2c_roster): [{id, name, level}, ...] sorted by
-## name, case-insensitively. level is the total of every skill's level (4 for a new
-## character), the one number that says how far along someone is.
+## Everyone online for the players panel (s2c_roster): [{id, name}, ...] sorted by name,
+## case-insensitively.
 func roster() -> Array:
 	var out: Array = []
 	for id in sessions:
 		var s: Dictionary = sessions[id]
 		if s.logged_in:
-			out.append({"id": int(id), "name": str(s.character.name), "level": total_level(s.character.get("skills", {}))})
+			out.append({"id": int(id), "name": str(s.character.name)})
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.name.nocasecmp_to(b.name) < 0)
 	return out
-
-
-## The sum of every skill's level (unknown ids in an old save don't count).
-static func total_level(skills: Variant) -> int:
-	var src := Skills.normalize(skills)
-	var total := 0
-	for skill in Skills.ORDER:
-		total += Skills.level_of(src, skill)
-	return total
 
 
 func _flush_roster() -> void:
@@ -1303,7 +1195,7 @@ func hurt(id: int, amount: float, blocking: bool = false) -> Dictionary:
 
 
 ## Fair failure: player `id` hit 0 health. Any gather stops, they come to at once on the
-## Spawn Meadow arc (unstuck_spot), full, with their pack and XP untouched, and are told so.
+## Spawn Meadow arc (unstuck_spot), full, with their pack untouched, and are told so.
 ## Doesn't touch the Return to Spawn Meadow cooldown.
 func knock_down(id: int) -> void:
 	if not sessions.has(id) or not sessions[id].logged_in:

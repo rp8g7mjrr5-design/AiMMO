@@ -59,7 +59,7 @@ const SAP_DRY := Color(0.22, 0.19, 0.17)
 const STUMP_CUT := Color(0.74, 0.60, 0.42) ## the pale cut face on top of a stump
 const SEAM_STUD := Color(0.84, 0.80, 0.70) ## quartz studs along the outcrop's seam
 
-## Tier 2 (node "tier" 2, gameplay's level-gated nodes: Felling 5 and Quarrying 5). Each is
+## Tier 2 (node "tier" 2, gated by tools: an axe or a pickaxe). Each is
 ## built to be a landmark seen from the meadow: an old ember ash is taller and wider than any
 ## tree around it, gnarled boughs, a brighter gold crown and glowing ember pods hanging under
 ## it (the sap glow, so it shines at night and beats with the heartbeat); a rich stone seam is

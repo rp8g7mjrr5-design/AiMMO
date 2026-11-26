@@ -1,0 +1,3 @@
+- **No more levels.** Skills, XP, level-ups and the skills window are gone, so you can get straight to surviving. Your gear is how you get stronger now.
+- **The old ember ashes and rich stone seams open with a tool:** bring an axe or a pickaxe and they're yours from your first trip. Every recipe needs only its materials and the workbench.
+- **No wasted gathers:** if a stack in your pack is full, the game tells you right away instead of running the bar for nothing.

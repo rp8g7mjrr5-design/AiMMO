@@ -1,24 +1,24 @@
 extends "res://tests/bot_test/bot_behaviour.gd"
-## Bot behaviour (qa): tier-2 nodes refuse a too-low level, and only that (roadmap
-## Milestone 1, "tier-2 nodes refuse a too-low level"). Acts only on bots started with
-## --level-gate (run_bot_test.py's gate phase, next to the pair check, with
-## --only-behaviour=qa_level_gate); every other bot loads it and does nothing.
+## Bot behaviour (qa): tier-2 nodes refuse bare hands, and only that (no levels, owner
+## direction 2026-11-26: the gate is the tool). Acts only on bots started with --tool-gate
+## (run_bot_test.py's gate phase, next to the pair check, with --only-behaviour=qa_tool_gate);
+## every other bot loads it and does nothing.
 ##
-## `--level-gate=fresh --gate-node=<id>`: a brand-new player walks to tier-2 node <id> and
-## presses E. The server must answer s2c_gather_end(me, node, "level") and the line
-## "Needs <Skill> 5. You're <Skill> 1.", never start a bar, pay an item or award XP. It then
-## stands at the node a while (the veteran waits for that), reconnects, presses again and is
-## still refused: a reconnect unlocks nothing.
+## `--tool-gate=fresh --gate-node=<id>`: a brand-new player walks to tier-2 node <id> and
+## presses E. The server must answer s2c_gather_end(me, node, "tool") and the line "You need
+## an axe to work this old ember ash." (or a pickaxe for a seam), never start a bar or pay an
+## item. It then stands at the node a while (the veteran waits for that), reconnects, presses
+## again and is still refused: a reconnect unlocks nothing.
 ##
-## `--level-gate=veteran --gate-node=<id> --gate-partner=<fresh bot's name>`: a character
-## seeded by seed_veteran.gd at exactly the node's level, a few metres away. It walks up,
-## waits until the fresh player has stood at the node (and so been refused), then works the
-## node until it is empty: every one of its charges must pay, so the refusal took none
-## (LevelGate.veteran_problem). After a reconnect its level and XP must have survived, and the
-## node must still show empty. Its XP floor goes into the stats as `skills_floor`, which
-## run_bot_test.py hands to verify_store.gd like qa_gather_ledger's.
+## `--tool-gate=veteran --gate-node=<id> --gate-partner=<fresh bot's name>`: a character
+## seeded by seed_veteran.gd with the node's tool and old XP from the retired skills, a few
+## metres away. It walks up, waits until the fresh player has stood at the node (and so been
+## refused), then works the node until it is empty: every one of its charges must pay, so the
+## refusal took none (ToolGate.veteran_problem). After a reconnect it must still carry its
+## tool, and the node must still show empty. Its old XP goes into the stats as `old_xp_kept`,
+## which run_bot_test.py hands to verify_store.gd: the save must still hold it exactly.
 
-const LevelGate := preload("res://tests/bot_test/level_gate.gd")
+const ToolGate := preload("res://tests/bot_test/tool_gate.gd")
 
 const SETTLE := 0.5
 const WALK_TIMEOUT := 40.0
@@ -35,7 +35,7 @@ enum S { OFF, WAIT_NODES, GOTO, SETTLING, PRESSED, HOLDING, WAIT_PARTNER, GATHER
 
 var role := ""
 var node_id := -1
-var skill := ""
+var tool := ""
 var item := ""
 var partner_name := ""
 var partner_peer := -1
@@ -51,11 +51,9 @@ var _nodes_seen := false
 var _others := {} ## peer -> position
 var _partner_pos := Vector3.INF
 var _partner_still_since := 0.0
-var _xp_total := -1 ## veteran: last known total XP in the node's skill
-var _xp_at_login := 0
 
-var refusals := 0 ## "level" answers to our presses
-var lines := 0 ## matching "Needs ..." lines
+var refusals := 0 ## "tool" answers to our presses
+var lines := 0 ## matching "You need an axe ..." lines
 var _line_due := false
 var _ended_reason := ""
 var dones := 0
@@ -67,23 +65,23 @@ var reconnect_ok := false
 
 func setup(net: Node) -> void:
 	var args: Dictionary = bot.args if "args" in bot else {}
-	if not args.has("level-gate"):
+	if not args.has("tool-gate"):
 		return
-	role = str(args["level-gate"])
+	role = str(args["tool-gate"])
 	node_id = int(args.get("gate-node", "-1"))
 	partner_name = str(args.get("gate-partner", ""))
 	var node := ResourceNodes.get_by_id(node_id)
 	if role not in ["fresh", "veteran"]:
-		fail("--level-gate must be fresh or veteran, got %s" % role)
+		fail("--tool-gate must be fresh or veteran, got %s" % role)
 		role = ""
 		return
-	if node.is_empty() or Gathering.required_level(node) <= 1:
-		fail("--gate-node=%d is not a level-gated node" % node_id)
+	if node.is_empty() or not Gathering.needs_tool(node):
+		fail("--gate-node=%d is not a tool-gated node" % node_id)
 		role = ""
 		return
 	if role == "veteran" and partner_name == "":
-		fail("--level-gate=veteran needs --gate-partner=<name>")
-	skill = str(node.skill)
+		fail("--tool-gate=veteran needs --gate-partner=<name>")
+	tool = str(ToolGate.veteran_pack(node_id).keys()[0])
 	item = str(ResourceNodes.info(node).item)
 	bot.disconnect_at = float(bot.duration) - 6.0 # we decide when to hang up
 	net.inventory_changed.connect(func(items: Dictionary): _pack = Inventory.normalize(items))
@@ -95,7 +93,6 @@ func setup(net: Node) -> void:
 		if it == item:
 			_paid_seen += n)
 	net.system_message.connect(_on_system)
-	net.xp_gained.connect(_on_xp)
 	net.player_joined.connect(func(id: int, n: String, _seed: int):
 		if n == partner_name:
 			partner_peer = id)
@@ -109,21 +106,15 @@ func on_login(reconnect: bool, character: Dictionary) -> void:
 	_empty.clear()
 	_nodes_seen = false
 	_others.clear()
-	var sk := Skills.normalize(character.get("skills", {}))
-	var xp := Skills.xp_of(sk, skill)
-	var need := Gathering.required_level(ResourceNodes.get_by_id(node_id))
+	var inv := Inventory.normalize(character.get("inventory", {}))
+	var node := ResourceNodes.get_by_id(node_id)
 	if role == "veteran":
-		if Skills.level_of(sk, skill) < need:
-			fail("veteran logged in at %s %d (%d XP), the node needs %d" % [skill, Skills.level_of(sk, skill), xp, need])
-		if reconnect:
-			if xp < _xp_total:
-				fail("veteran's %s XP went from %d to %d across the reconnect" % [skill, _xp_total, xp])
-			else:
-				reconnect_ok = true
-		_xp_at_login = xp if not reconnect else _xp_at_login
-		_xp_total = maxi(_xp_total, xp)
-	elif Skills.level_of(sk, skill) >= need:
-		fail("fresh player logged in at %s %d, already past the gate" % [skill, Skills.level_of(sk, skill)])
+		if not Gathering.can_work(node, inv):
+			fail("veteran logged in without a tool for node %d (pack %s)" % [node_id, inv])
+		elif reconnect:
+			reconnect_ok = true
+	elif Gathering.can_work(node, inv):
+		fail("fresh player logged in already carrying a tool for node %d (pack %s)" % [node_id, inv])
 	if reconnect:
 		# Fresh: stand where we were saved (at the node), let s2c_inventory land, press again.
 		_to(S.SETTLING if role == "fresh" else S.RECHECK)
@@ -169,7 +160,7 @@ func _on_begun(peer: int, id: int, _seconds: float) -> void:
 	if peer != int(bot.my_id):
 		return
 	if role == "fresh":
-		fail("the server started a gather bar on node %d for a level-1 player" % id)
+		fail("the server started a gather bar on node %d for a bare-handed player" % id)
 	elif role == "veteran" and id == node_id and _s == S.GATHERING:
 		_deadline = bot.elapsed + GATHER_TIMEOUT
 
@@ -182,8 +173,8 @@ func _on_ended(peer: int, id: int, reason: String) -> void:
 		if _s not in [S.PRESSED, S.RECHECK]:
 			fail("gather on node %d ended '%s' without a press" % [id, reason])
 			return
-		if reason != "level":
-			fail("pressed E at tier-2 node %d at level 1, answer '%s', not 'level'" % [id, reason])
+		if reason != "tool":
+			fail("pressed E at tier-2 node %d bare-handed, answer '%s', not 'tool'" % [id, reason])
 			_to(S.DONE)
 			return
 		refusals += 1
@@ -202,16 +193,9 @@ func _on_ended(peer: int, id: int, reason: String) -> void:
 func _on_system(text: String) -> void:
 	if role == "" or not _line_due:
 		return
-	if text == LevelGate.refusal_text(node_id):
+	if text == ToolGate.refusal_text(node_id):
 		lines += 1
 		_line_due = false
-
-
-func _on_xp(sk: String, _gained: int, total: int) -> void:
-	if role == "fresh":
-		fail("a refused level-1 player got %s XP (total %d)" % [sk, total])
-	elif sk == skill:
-		_xp_total = maxi(_xp_total, total)
 
 
 func _walk_to_node() -> bool:
@@ -230,7 +214,7 @@ func on_play(_delta: float) -> void:
 		return
 	bot.move = Vector2.ZERO
 	if _line_due and bot.elapsed > _deadline and _s != S.DONE:
-		fail("no '%s' line after the refusal" % LevelGate.refusal_text(node_id))
+		fail("no '%s' line after the refusal" % ToolGate.refusal_text(node_id))
 		_line_due = false
 	match _s:
 		S.WAIT_NODES:
@@ -291,7 +275,7 @@ func on_play(_delta: float) -> void:
 		S.EMPTIED:
 			if bot.elapsed >= _deadline:
 				paid = int(_pack.get(item, 0)) - int(_pack_before.get(item, 0))
-				var why := LevelGate.veteran_problem(node_id, dones, emptied, paid)
+				var why := ToolGate.veteran_problem(node_id, dones, emptied, paid)
 				if why != "":
 					fail(why)
 				if paid != _paid_seen:
@@ -350,14 +334,14 @@ func on_finish() -> void:
 		if refusals < 2:
 			fail("refused %d times at tier-2 node %d, wanted 2 (before and after a reconnect)" % [refusals, node_id])
 		if lines < refusals:
-			fail("%d refusals but only %d '%s' lines" % [refusals, lines, LevelGate.refusal_text(node_id)])
+			fail("%d refusals but only %d '%s' lines" % [refusals, lines, ToolGate.refusal_text(node_id)])
 	else:
-		out.merge({"dones": dones, "emptied": emptied, "paid": paid, "xp_gained": _xp_total - _xp_at_login, "reconnect_ok": reconnect_ok})
+		out.merge({"dones": dones, "emptied": emptied, "paid": paid, "tool": tool, "reconnect_ok": reconnect_ok})
 		if _s != S.DONE:
 			fail("veteran stopped in state %s" % S.keys()[_s])
 		if not reconnect_ok:
-			fail("veteran's level was never checked after a reconnect")
-		if _xp_total <= _xp_at_login:
-			fail("veteran worked node %d but gained no %s XP" % [node_id, skill])
-		stat("skills_floor", {skill: _xp_total})
+			fail("veteran's tool was never checked after a reconnect")
+		if Inventory.count(_pack, tool) < 1:
+			fail("veteran lost its %s while working node %d" % [tool, node_id])
+		stat("old_xp_kept", ToolGate.VETERAN_OLD_XP.duplicate())
 	stat("gate", out)

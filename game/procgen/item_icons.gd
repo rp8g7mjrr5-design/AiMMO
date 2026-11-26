@@ -75,7 +75,7 @@ static func image(item: String, size: int = DEFAULT_SIZE) -> Image:
 
 
 ## Draws any shape list (the same format as `shapes()`) into a fresh `size` x `size` RGBA
-## image with ItemIcons' outline, light, shadow and halo. `SkillIcons` draws through this
+## image with ItemIcons' outline, light, shadow and halo. Any new icon set draws through this
 ## too, so every icon in the game shares one hand.
 static func rasterise(raw: Array, size: int = DEFAULT_SIZE) -> Image:
 	size = clampi(size, 8, 512)
@@ -401,7 +401,7 @@ static func _recipe(item: String) -> Array:
 			]
 		"ember_axe":
 			# The stone axe's shape, but the head is a dark coal-veined wedge, broader and
-			# bearded, whose cutting edge glows ember orange: the tool you earned at Toolcraft 5.
+			# bearded, whose cutting edge glows ember orange: the tool you make from the old ash and the rich seam.
 			return [
 				_capsule(Vector2(0.24, 0.84), Vector2(0.64, 0.24), 0.045, HANDLE.darkened(0.1)),
 				_poly([Vector2(0.48, 0.22), Vector2(0.68, 0.10), Vector2(0.86, 0.16), Vector2(0.90, 0.40), Vector2(0.84, 0.58), Vector2(0.72, 0.46), Vector2(0.56, 0.40)], COAL, {"shade": 0.3}),

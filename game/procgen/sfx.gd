@@ -68,43 +68,6 @@ static func craft() -> AudioStreamWAV:
 	return wav
 
 
-## A level-up: a quick rising arpeggio (C, E, G, C) that lands on a warm held major chord
-## with a soft shimmer on top, the loudest moment in the game but over in about 1.5 s.
-const LEVEL_UP_SECONDS := 1.5
-const LEVEL_UP_NOTES := [[0.0, 523.25], [0.07, 659.25], [0.14, 783.99], [0.21, 1046.5]]
-
-
-static func level_up() -> AudioStreamWAV:
-	var data := PackedByteArray()
-	for i in int(RATE * LEVEL_UP_SECONDS):
-		var t := float(i) / RATE
-		var v := 0.0
-		# The climb: each note plucks and rings, the top one longest.
-		for n in LEVEL_UP_NOTES:
-			var d: float = t - float(n[0])
-			if d >= 0.0:
-				var f: float = n[1]
-				v += (sin(TAU * f * d) * 0.75 + sin(TAU * f * 2.0 * d) * 0.18) * minf(1.0, d * 150.0) * exp(-d * 4.5) * 0.42
-		# The chord it lands on: C major an octave down, swelling in and fading out slowly.
-		var dc := t - 0.21
-		if dc >= 0.0:
-			var env := minf(1.0, dc * 12.0) * exp(-dc * 2.2)
-			for f in [261.63, 329.63, 392.0, 523.25]:
-				v += (sin(TAU * f * dc) * 0.7 + sin(TAU * f * 3.0 * dc) * 0.08) * env * 0.22
-			# A shimmer: a high G with a slow tremolo, like sparks in the air.
-			v += sin(TAU * 1567.98 * dc) * (0.5 + 0.5 * sin(TAU * 7.0 * dc)) * env * 0.08
-		var fade := clampf((LEVEL_UP_SECONDS - t) / 0.12, 0.0, 1.0) # no click at the end
-		var s16 := int(clampf(v * fade * 0.34, -1.0, 1.0) * 32767.0)
-		data.append(s16 & 0xFF)
-		data.append((s16 >> 8) & 0xFF)
-	var wav := AudioStreamWAV.new()
-	wav.format = AudioStreamWAV.FORMAT_16_BITS
-	wav.mix_rate = RATE
-	wav.stereo = false
-	wav.data = data
-	return wav
-
-
 ## One gather paying out, by node kind: the hit itself (a wooden chop for ash and pine, a
 ## bright stone clink for an outcrop, a soft slosh for a sap seep), then a little pickup chime
 ## as the haul lands in your pack. Under half a second, so a held E never stacks them up.

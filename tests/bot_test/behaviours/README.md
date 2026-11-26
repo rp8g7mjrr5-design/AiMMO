@@ -38,15 +38,16 @@ with `--retry-when-full`: it must read exactly "The world is full (8 / 8). Try a
 keep knocking, and get in only after one of the eight leaves; no bot may ever see more than 8
 players, and nobody inside is dropped. See `run_bot_test.run_player_cap`.
 
-`qa_level_gate.gd` only acts on bots started with `--level-gate=fresh|veteran` (Milestone 1,
-"tier-2 nodes refuse a too-low level"). Before a long run's server starts, `../seed_veteran.gd`
-saves a character at exactly the level the tier-2 node nearest spawn needs; next to the pair
-check, a fresh bot walks there and must be refused ("level" and the "Needs <Skill> 5" line,
-nothing paid), then the veteran works the node empty with every charge paid, and both
-reconnect (still refused; level and XP kept, also in the save). See `../level_gate.gd`.
+`qa_tool_gate.gd` only acts on bots started with `--tool-gate=fresh|veteran` (tier-2 nodes
+refuse bare hands; there are no levels since 2026-11-26). Before a long run's server starts,
+`../seed_veteran.gd` saves a character carrying the tool the tier-2 node nearest spawn needs,
+plus old XP from the retired skills; next to the pair check, a fresh bot walks there and must
+be refused ("tool" and the "You need an axe ..." line, nothing paid), then the veteran works
+the node empty with every charge paid, and both reconnect (still refused; the veteran keeps its
+tool, and its old XP is still in the save, untouched). See `../tool_gate.gd`.
 
 `client_craft_window.gd` with `--craft-haul` is the craft-haul check: after a long run's main
 bots, `../seed_crafter.gd` saves a character at the workbench holding exactly a campfire's
 and a torch's inputs, and one bot with only this behaviour presses Craft on the real client
-window. It must make both, get Toolcraft XP for each, and end with exactly the goods (also
+window. It must make both and end with exactly the goods (also
 checked in the save). See `../craft_haul.gd`; skip it with `--no-craft-haul`.

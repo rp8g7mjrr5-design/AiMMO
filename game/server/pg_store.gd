@@ -83,7 +83,7 @@ func save_character(ch: Dictionary) -> bool:
 		return false
 	if not _save_inventory(int(ch.id), Inventory.normalize(ch.get("inventory", {}))):
 		return false
-	return _save_skills(int(ch.id), Skills.normalize(ch.get("skills", {})))
+	return _save_skills(int(ch.id), RetiredSkills.normalize(ch.get("skills", {})))
 
 
 func find_character_by_name(char_name: String) -> Dictionary:
@@ -93,7 +93,8 @@ func find_character_by_name(char_name: String) -> Dictionary:
 	return _with_skills(_with_inventory(CharacterData.from_pg_row(rows[0])))
 
 
-## Fills ch.skills from character_skills (migration 0003). Returns {} if the query fails
+## Fills ch.skills (old XP from the retired leveling system, see RetiredSkills) from
+## character_skills (migration 0003). Returns {} if the query fails
 ## (or `ch` is already {}), so a character is never handed out, and later saved, with
 ## skills that failed to load.
 func _with_skills(ch: Dictionary) -> Dictionary:
@@ -105,11 +106,11 @@ func _with_skills(ch: Dictionary) -> Dictionary:
 	var skills := {}
 	for r in rows:
 		skills[r.skill] = r.xp
-	ch.skills = Skills.normalize(skills)
+	ch.skills = RetiredSkills.normalize(skills)
 	return ch
 
 
-## Upserts every skill's total XP in one statement. Never deletes rows, and never lowers a
+## Writes the old XP back unchanged (nothing earns XP any more). Never deletes rows, never lowers a
 ## stored total (GREATEST), so a stale copy of a character can't take XP away.
 func _save_skills(character_id: int, skills: Dictionary) -> bool:
 	if skills.is_empty():

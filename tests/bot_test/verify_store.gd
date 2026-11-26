@@ -1,12 +1,13 @@
 extends SceneTree
 
 const GatherLedger := preload("res://tests/bot_test/gather_ledger.gd")
+const ToolGate := preload("res://tests/bot_test/tool_gate.gd")
 ## Opens storage the same way the server does and checks each bot's saved position
 ## matches what the bot last saw. Run by run_bot_test.py after the server has stopped.
 ## Each expected entry is [x, y, z] (old form) or {"pos": [x, y, z], "pack": {item: n}}: then
 ## the saved inventory must also hold exactly the pack the bot last got in s2c_inventory.
-## With "skills_floor": {skill: xp} the saved character must hold at least that XP in each
-## skill (the bot can't see every gain, only logins and level-up lines, so it is a floor).
+## With "old_xp_kept": {skill: xp} the saved character must still hold exactly that XP from the
+## retired leveling system (nothing earns or reads it, but old player data is never lost).
 
 
 func _init() -> void:
@@ -48,23 +49,11 @@ func _init() -> void:
 				printerr("verify: %s saved pack %s but the server last told the bot %s" % [bot_name, saved, seen])
 				bad += 1
 				continue
-		if entry is Dictionary and entry.has("skills_floor"):
-			var why := skills_problem(entry.skills_floor, ch.get("skills", {}))
+		if entry is Dictionary and entry.has("old_xp_kept"):
+			var why := ToolGate.old_xp_problem(entry.old_xp_kept, ch.get("skills", {}))
 			if why != "":
 				printerr("verify: %s %s" % [bot_name, why])
 				bad += 1
 	store.close()
-	print("verify: %d/%d characters persisted correctly (position, pack and skills)" % [expected.size() - bad, expected.size()])
+	print("verify: %d/%d characters persisted correctly (position, pack and old XP)" % [expected.size() - bad, expected.size()])
 	quit(0 if bad == 0 else 1)
-
-
-## Pure: "" when `saved` holds at least `least` XP in every skill, else what is short.
-static func skills_problem(least: Dictionary, saved: Variant) -> String:
-	var sk := Skills.normalize(saved)
-	var short := PackedStringArray()
-	for id in least:
-		if Skills.xp_of(sk, str(id)) < int(least[id]):
-			short.append("%s %d XP (level %d), the bot knew of at least %d (level %d)" % [
-				id, Skills.xp_of(sk, str(id)), Skills.level_for(Skills.xp_of(sk, str(id))),
-				int(least[id]), Skills.level_for(int(least[id]))])
-	return "" if short.is_empty() else "saved " + ", ".join(short)

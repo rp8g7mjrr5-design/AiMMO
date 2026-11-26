@@ -43,12 +43,11 @@ func test_both_crafts_leave_exactly_the_goods() -> void:
 
 
 func test_verdict() -> void:
-	var good := {"made": ["campfire", "torch"], "presses": 4, "toolcraft_xp": 2, "haul_pack": CraftHaul.pack_after()}
+	var good := {"made": ["campfire", "torch"], "presses": 4, "haul_pack": CraftHaul.pack_after()}
 	check_eq(CraftHaul.verdict(good), [], "a full haul passes")
 	var none := good.duplicate()
 	none.made = []
-	none.toolcraft_xp = 0
-	check_eq(CraftHaul.verdict(none).size(), 3, "nothing made: both recipes and the XP are reported")
+	check_eq(CraftHaul.verdict(none).size(), 2, "nothing made: both recipes are reported")
 	var short := good.duplicate()
 	short.haul_pack = CraftHaul.pack()
 	check(CraftHaul.verdict(short).size() == 1 and str(CraftHaul.verdict(short)[0]).begins_with("pack after"), "inputs still in the pack")

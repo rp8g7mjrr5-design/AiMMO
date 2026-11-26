@@ -19,20 +19,18 @@ const DEFAULT_SECONDS := 2.0
 const MOVE_TOLERANCE := 0.5
 
 
-## Seconds a gather of `kind` takes with this pack, at `level` in the skill that kind trains
-## (every level is a little quicker, Skills.speed_factor).
-static func seconds_for(kind: String, inv: Dictionary, level: int = 1) -> float:
+## Seconds a gather of `kind` takes with this pack (the best tool carried shortens it).
+static func seconds_for(kind: String, inv: Dictionary) -> float:
 	var base := float(SECONDS.get(kind, DEFAULT_SECONDS))
-	base *= Gathering.tool_speed(Gathering.tool_for(kind, inv))
-	return base * Skills.speed_factor(level)
+	return base * Gathering.tool_speed(Gathering.tool_for(kind, inv))
 
 
 ## seconds_for, for one node: a tier-2 node's bar is ResourceNodes.TIER2's seconds_scale
 ## longer.
-static func seconds_at(id: int, inv: Dictionary, level: int = 1) -> float:
+static func seconds_at(id: int, inv: Dictionary) -> float:
 	var node := ResourceNodes.get_by_id(id)
 	var scale := float(ResourceNodes.info(node).get("seconds_scale", 1.0))
-	return seconds_for(str(node.get("kind", "")), inv, level) * scale
+	return seconds_for(str(node.get("kind", "")), inv) * scale
 
 
 ## A new channel on node `id`, started at `now` from `pos`, lasting `seconds`.
@@ -75,9 +73,9 @@ static func progress(ch: Dictionary, now: float) -> float:
 ## Why a finished channel gives nothing after all, re-checked at the end because another
 ## player may have emptied the node, or dawn dried the seep, meanwhile. The cooldown was
 ## checked when the channel started, so it is not checked again. "" means take it.
-## `skills` is the player's (levels never go down, so it only matters for tier-2 nodes).
-static func finish_check(state: Dictionary, ch: Dictionary, pos: Vector3, now: float, world_seconds: float, skills: Dictionary = {}) -> String:
-	return Gathering.check(state, int(ch.node_id), pos, now, world_seconds, -INF, Gathering.COOLDOWN, skills)
+## `inv` is the player's pack (it only matters for tool-gated tier-2 nodes).
+static func finish_check(state: Dictionary, ch: Dictionary, pos: Vector3, now: float, world_seconds: float, inv: Dictionary = {}) -> String:
+	return Gathering.check(state, int(ch.node_id), pos, now, world_seconds, -INF, Gathering.COOLDOWN, inv)
 
 
 ## "You start gathering the pine (2.0 s)."

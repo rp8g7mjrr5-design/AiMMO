@@ -25,21 +25,22 @@ const KINDS := {
 }
 const KIND_ORDER := ["ash", "pine", "stone", "ember_sap"]
 
-## Tier 2 (roadmap Milestone 1 part 3): richer nodes a short walk past the meadow that only
-## open at a skill level. A tier-2 node keeps its `kind` (so world draws it as the old ash or
-## the rich seam, NodeProps keys its look on kind + "tier") and these values replace the
-## kind's own (KINDS) for it. `min_level` is in the skill the kind trains (Skills.KIND_SKILL).
+## Tier 2: richer nodes a short walk past the meadow that only open to the right tool (there
+## are no levels, owner direction 2026-11-26). A tier-2 node keeps its `kind` (so world draws
+## it as the old ash or the rich seam, NodeProps keys its look on kind + "tier") and these
+## values replace the kind's own (KINDS) for it. `needs_tool`: bare hands can't work it; you
+## need one of Gathering.TOOLS[kind] (any axe for the old ash, any pickaxe for the seam).
 ## `seconds_scale` stretches the gather bar (GatherChannel) a little: a bigger tree, a harder
-## rock. `charges` replaces Gathering.CHARGES. XP is in Skills (TIER_XP_SCALE).
+## rock. `charges` replaces Gathering.CHARGES.
 const TIER2 := {
 	"ash": {"label": "Old ember ash", "item": "ember_heartwood", "amount": 2, "respawn": 300.0,
-		"night_only": false, "min_level": 5, "charges": 4, "seconds_scale": 1.2},
+		"night_only": false, "needs_tool": true, "charges": 4, "seconds_scale": 1.2},
 	"stone": {"label": "Rich stone seam", "item": "veinstone", "amount": 2, "respawn": 360.0,
-		"night_only": false, "min_level": 5, "charges": 4, "seconds_scale": 1.2},
+		"night_only": false, "needs_tool": true, "charges": 4, "seconds_scale": 1.2},
 }
 ## The tier-2 ring: alternating old ashes and rich seams around the meadow, past the starter
-## ring and the first wild nodes, so the first goal after level 5 is a short walk away and
-## other players working toward it pass each other on the way.
+## ring and the first wild nodes, so the first goal after your first axe or pickaxe is a
+## short walk away and other players working toward it pass each other on the way.
 const TIER2_SEED_OFFSET := 211 ## its own rng, so the passes before it never change
 const TIER2_RING := ["ash", "stone", "ash", "stone", "ash", "stone", "ash", "stone"]
 const TIER2_MIN_RADIUS := 48.0
@@ -70,8 +71,7 @@ static var _built_for: Dictionary = {}
 
 
 ## Every node, as an Array of {id: int, kind: String, pos: Vector3, rot: float, scale: float,
-## tier: int (1, or 2 for the level-gated ones), skill: String (the skill it trains),
-## min_level: int (the level in that skill needed to gather it, 1 for anyone)}.
+## tier: int (1, or 2 for the richer, tool-gated ones)}.
 ## Built once and cached; treat it as read-only.
 static func all() -> Array:
 	if _nodes.is_empty() or _built_for != WorldGen.config():
@@ -108,7 +108,7 @@ static func kind_info(kind: String) -> Dictionary:
 
 
 ## Everything about gathering one node: KINDS[kind], with TIER2[kind] over it for a tier-2
-## node, plus `tier`, `skill` and `min_level`. Empty for an empty (unknown) node.
+## node, plus `tier`. Empty for an empty (unknown) node.
 static func info(node: Dictionary) -> Dictionary:
 	if node.is_empty():
 		return {}
@@ -117,8 +117,6 @@ static func info(node: Dictionary) -> Dictionary:
 	if tier >= 2:
 		out.merge(TIER2.get(str(node.kind), {}), true)
 	out.tier = tier
-	out.skill = str(node.get("skill", Skills.skill_for_kind(str(node.kind))))
-	out.min_level = int(node.get("min_level", 1))
 	return out
 
 
@@ -256,7 +254,7 @@ static func _place_tier2(rng: RandomNumberGenerator, out: Array, grid: Dictionar
 
 ## A generated kingdom (gen_version 1, Phase 1 part 3): every spot WorldGen hands out, in its
 ## order (starter ring on the spawn plot first, then the wild), then the tier-2 ring around
-## the kingdom's spawn, so "Felling 5 opens the old ashes" is a short walk on every world.
+## the kingdom's spawn, so "an axe opens the old ashes" is a short walk on every world.
 ## Ids are permanent per config once a world runs on it: never reorder; append new passes.
 static func _generate_kingdom() -> Array:
 	var out: Array = []
@@ -333,8 +331,6 @@ static func _add(out: Array, grid: Dictionary, kind: String, x: float, z: float,
 		"rot": rot,
 		"scale": scale,
 		"tier": tier,
-		"skill": Skills.skill_for_kind(kind),
-		"min_level": int(TIER2.get(kind, {}).get("min_level", 1)) if tier >= 2 else 1,
 	})
 	var c := _cell(x, z)
 	if not grid.has(c):
@@ -347,8 +343,6 @@ static func _append(out: Array, grid: Dictionary, kind: String, pos: Vector3, ro
 	var id := out.size()
 	out.append({
 		"id": id, "kind": kind, "pos": pos, "rot": rot, "scale": scale, "tier": tier,
-		"skill": Skills.skill_for_kind(kind),
-		"min_level": int(TIER2.get(kind, {}).get("min_level", 1)) if tier >= 2 else 1,
 	})
 	var c := _cell(pos.x, pos.z)
 	if not grid.has(c):

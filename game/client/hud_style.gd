@@ -12,9 +12,9 @@ extends RefCounted
 
 ## The one accent: a title, a ready button, a progress fill, your own row. Never decoration.
 const EMBER := Palette.EMBER
-## XP and "you just got this": the accent's hue, a step calmer, so the XP bar and the haul
-## toast don't shout over each other.
-const XP := Color(0.90, 0.70, 0.40)
+## "You just got this": the accent's hue, a step calmer, so a glow and the haul toast don't
+## shout over each other.
+const GLOW := Color(0.90, 0.70, 0.40)
 ## Body text: warm parchment white, never paper white.
 const TEXT := Color(0.91, 0.88, 0.82)
 const TEXT_DIM := Color(0.91, 0.88, 0.82, 0.62)

@@ -2,7 +2,7 @@ extends TestCase
 ## World stream: night on the Compatibility renderer (opengl3). Godot 4.3's Compatibility
 ## renderer linearises a shader's ALBEDO and EMISSION itself; ours are linear already, so
 ## without a fix every colour was linearised twice and night went near black. Emberlight,
-## Motes and the level-up sparks encode their colours once, on Compatibility only.
+## and Motes encode their colours once, on Compatibility only.
 
 
 func test_encode_inverts_godots_own_conversion() -> void:
@@ -38,10 +38,9 @@ func test_detection_can_be_pinned() -> void:
 	Emberlight.force_srgb_output = -1
 
 
-func test_motes_and_sparks_carry_the_fix() -> void:
+func test_motes_carry_the_fix() -> void:
 	# Built headless, so the define is off; the guarded encode must still be in the source.
 	var motes: String = Motes.material().shader.code
 	check(motes.contains("#ifdef COMPAT_SRGB") and motes.contains("ALBEDO = compat_encode(ALBEDO)"), "motes encode on Compatibility")
 	check(not motes.contains("$"), "motes: every token filled in")
-	var sparks: String = LevelUpFx._spark_shader().code
-	check(sparks.contains("ALBEDO = compat_encode(ALBEDO)") and not sparks.contains("$"), "level-up sparks encode on Compatibility")
+

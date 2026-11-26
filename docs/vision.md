@@ -79,7 +79,7 @@ the owner loves most, and what every phase serves:
   a Zombai and knows what will kill them. Every danger is visible and explained the first time.
   Needs are forgiving and come back fast.
 - **Good in a short session.** Thirty minutes always pays: a ruin looted, a wall raised, a
-  level and a point in the tree, a night survived. A day and night lasts about 40 minutes.
+  better tool made, a night survived. A day and night lasts about 40 minutes.
 - **Moments worth clipping:** a horde night held by torchlight; a run into the castle's crypt
   and out again with the hounds behind you; a friend dragged back from a Zombai pack at the
   last second; a stranger's torch on the road at night, and the choice to wave or hide.
@@ -182,7 +182,7 @@ another game's names for its zombies).
   rounds (about a minute) to repair walls, rearm and drag a friend back inside. The round number
   and the days-survived counter sit on screen at night. Rounds come for **you**: at your base they
   hit your walls; caught out in the wild, a smaller wandering pack finds you. Surviving to dawn
-  pays (XP and a little loot from what fell at your walls).
+  pays (a little loot from what fell at your walls).
 - **The Tolling (our horde night, not a fixed-calendar moon).** The big one. It isn't on a
   calendar: it is triggered when your base's **threat** crosses a line, and announced the evening
   before by a far bell that tolls from the direction it will come. A Tolling night has more
@@ -196,21 +196,22 @@ another game's names for its zombies).
 - **Vehicles:** horses (tame, feed, stable, ride; a horse can be hurt and must be looked after),
   carts (hitched to a horse, hauling a ruin's worth of loot), and boats (rowboat first, then a
   small sail boat for the coast). Vehicles are saved with the world.
-- **One level, one skill tree** (owner, 2026-11-25): everything you do pays character XP,
-  every level gives a point, and you spend points down five branches (Survival, Fighting,
-  Building, Scavenging, Crafting; design bible direction 5). You can't take everything, so a
-  faction is better when its members specialise. Today's four skills fold into character XP; the
-  level and tree belong to the character in that world.
+- **No levels, no XP, no skill tree** (owner, 2026-11-26: "get rid of the leveling system and
+  just work on the basics"; this replaces the one-level-one-tree plan of 2026-11-25). You get
+  stronger through what you carry and build: better tools open better nodes (an axe for the
+  old ember ash, a pickaxe for the rich seam), better weapons and armour, a stronger base, and
+  what you know about the map and the Zombai. A gate on anything is a material, a tool, a
+  station or a place, never a number that goes up by grinding. Old XP in saves is kept
+  untouched but never read.
 - **Dying** (owner, 2026-11-25): you drop **a couple of items from your pack** (two or three
   random stacks, never what you hold in your hands) in a small sack where you fell, and wake at
-  your bedroll or a spawn point in under a minute with everything else. Your level and tree
-  are kept. **Your body rises** (owner, 2026-11-25): a Zombai in your clothes and your look,
+  your bedroll or a spawn point in under a minute with everything else. **Your body rises** (owner, 2026-11-25): a Zombai in your clothes and your look,
   carrying those items, wandering near where you fell. Hunt it down and put it down to get them
   back; anyone else who kills it gets them instead. It is shown on your map for a while, and it
   crumbles to a sack after a few in-game days. The days-survived counter resets.
 - **Character creation is looks only** (owner, 2026-11-25): body, face, skin, hair, beard and
   cloth on the sculpted body. No backgrounds or starting classes: what you become comes from
-  the tree.
+  what you find, make and build.
 - **Carry weight**, not a grid.
 
 ## Servers: up to about 100 survivors (owner, 2026-11-25)
@@ -222,7 +223,7 @@ same wherever it runs.
 **Who runs servers.**
 - **The official world.** Today's always-on Railway server: the owner's friends' world and the
   playtest world. It **never breaks** (CLAUDE.md), it is PvE, and it moves to a generated map in
-  one announced step once the generator is ready (Phase 1): characters keep their level, skill tree, items
+  one announced step once the generator is ready (Phase 1): characters keep their items
   and pack and arrive at the new world's spawn; their old position is the only thing that
   doesn't carry over.
 - **Dedicated servers anyone can run** (Phase 5): the server build as its own download (Linux
@@ -233,7 +234,7 @@ same wherever it runs.
   size, ping and its rules in one line ("PvE · claims protected · loot refills daily"), plus
   join by address. A full server says so politely and never kicks anyone.
 
-**Everything is per server.** Characters, levels and skill trees, holds and days survived belong to the
+**Everything is per server.** Characters, their packs, holds and days survived belong to the
 character in that server's world. A player can have characters on many servers.
 
 **Holds are safe while their owners are away.** The world never stops on a dedicated server,
@@ -270,7 +271,7 @@ defaults.
 | Day length | 20 to 90 minutes, **40** | |
 | Zombai difficulty | gentle, **normal**, hard; and night rounds on or off | Harder is a choice, never the default |
 | What death costs | **drop a couple of items from your pack**, drop the whole pack, or hardcore (start a new character) | Fair failure by default (owner, 2026-11-25) |
-| XP rate | 0.5x to 3x, **1x** | One curve, scaled |
+| Gather rate | 0.5x to 3x, **1x** | How much each gather pays |
 | World reset | **never**, or on a schedule the server shows | Never on the official world without the owner |
 
 New rules can be added as systems arrive; a rule is only added when the system it changes is on
@@ -287,7 +288,7 @@ factions.
 No computer-run traders at launch. Players trade with each other face to face through a
 **trade window** (both sides place items, both confirm, the server swaps them at once, nothing
 can be changed after a confirm). Places to trade are the ones players build: a faction can mark
-part of its claim as open to visitors. Crafters who went down the Crafting branch are what
+part of its claim as open to visitors. Crafters who built the better stations are what
 make trade worth it.
 
 ### Talking and finding each other
@@ -314,12 +315,12 @@ live cap only goes up after the server proves it can hold that number:
 ## Magic: potions and scrolls (owner, 2026-11-25)
 Magic is small, useful and ember-based. It is something you drink or read, never a class:
 - **Potions:** a **health potion** (heals over a few seconds, and stops bleeding) and a
-  **stamina potion** (refills stamina and slows its drain for a minute). Brewed down the
-  Crafting branch from herbs and ember sap, and found in ruins; better grades come from deeper
+  **stamina potion** (refills stamina and slows its drain for a minute). Brewed at a station
+  from herbs and ember sap, and found in ruins; better grades come from deeper
   ruins. Drinking takes a moment and you can be hit while you drink.
 - **One-use scrolls**, found in ruins (rarer and stronger in grade 3 and 4 vaults): a burst of
   ember-fire around you, a flare that lights the field for a night round, a ward that keeps
-  the Zombai off one gate until dawn, and the rare scroll that resets your skill tree.
+  the Zombai off one gate until dawn.
 - Nothing else: no runes in walls, no enchanted relics, no spells you learn.
 All of it follows the art bible's restraint: effects are warm light and sparks, short and rare.
 
@@ -333,7 +334,7 @@ is easy to tune.
 | Keeps | Changes | Goes |
 |---|---|---|
 | Godot client and headless authoritative server, ENet and WebSocket; the official always-on Railway world | One fixed valley becomes a generated kingdom per server, built in chunks; the server learns interest management and server rules | The MMO framing, "thousands on one world", anything shared across servers |
-| Gathering with E, timed bars, nodes; the bench and crafting; skills and XP | Vitals grow into needs and wounds; inventory gets weight; one global chat becomes nearby, faction and server chat | The 8-player co-op cap as a design limit (it stays only as the live world's current setting) |
+| Gathering with E, timed bars, nodes; the bench and crafting; tools that open better nodes | Vitals grow into needs and wounds; inventory gets weight; one global chat becomes nearby, faction and server chat | The 8-player co-op cap as a design limit (it stays only as the live world's current setting); skills, XP and levels (owner, 2026-11-26) |
 | The third-person action camera, swings, dodge, block | Ashgrove's ember lore becomes the fallen kingdom's (the Dimming, the ember) | The towns-MMO plan (PR #184, closed); the old "Later, maybe" of 16 to 48 player PvP servers, now folded into server rules |
 | Grounded art and its budgets; wildlife; the character creator | New: ruins, the Zombai, building, death and loot, factions, server rules, the server list and dedicated server download | |
 | CI, bot test, fun metrics, the self-updating client, the worker setup | Fun metrics add survival measures (time to first fire, nights survived, ruins cleared); qa adds a load test | |
@@ -370,6 +371,7 @@ only what is on `main`**.
 ## Never
 - Never tell players about a feature before it is on `main` and in the bot test.
 - Never sell power, safety or progress. It's a one-time buy.
+- Never add levels, XP or a skill tree (owner, 2026-11-26). Progress is tools, gear, the base and what you know.
 - Never lose a player's save, world or character.
 - Never make a death the player couldn't have seen coming.
 - Never break the official always-on world, and never raise its cap past what the load test has

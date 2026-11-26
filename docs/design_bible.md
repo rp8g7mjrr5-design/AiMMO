@@ -5,7 +5,7 @@ evolve, but every change is logged in the Revision history at the bottom with it
 game does not flip-flop.
 
 ## North star
-**Make the survival sandbox people keep coming back to: a server you live on, a base you hold, a story you tell your friends.** Owner direction, 2026-11-25: ZombAi is **not an MMO**. It is a third-person open-world zombie survival sandbox in a fallen medieval kingdom, played on **servers of up to about 100 players**, sold as a one-time buy (`docs/vision.md`). The feel references are open-world zombie survival sandboxes (the owner named 7 Days to Die and Project Zomboid); we take their feel, never their content ("Inspired by, never copied"). The number one way there is still to make it **fun**: if it isn't fun, it isn't worth shipping (see "Fun comes first"). When two options compete, pick the one that is quicker to learn, better in a 30-minute session, makes a better story to tell, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5). (This was "the Greatest MMO of all time" until 2026-11-24 and "2 to 8 friends in co-op" until 2026-11-25; the skills, camera, combat and art built for both carry over.)
+**Make the survival sandbox people keep coming back to: a server you live on, a base you hold, a story you tell your friends.** Owner direction, 2026-11-25: ZombAi is **not an MMO**. It is a third-person open-world zombie survival sandbox in a fallen medieval kingdom, played on **servers of up to about 100 players**, sold as a one-time buy (`docs/vision.md`). The feel references are open-world zombie survival sandboxes (the owner named 7 Days to Die and Project Zomboid); we take their feel, never their content ("Inspired by, never copied"). The number one way there is still to make it **fun**: if it isn't fun, it isn't worth shipping (see "Fun comes first"). When two options compete, pick the one that is quicker to learn, better in a 30-minute session, makes a better story to tell, and never trade working and stable for big and flashy (CLAUDE.md hard rule 5). (This was "the Greatest MMO of all time" until 2026-11-24 and "2 to 8 friends in co-op" until 2026-11-25; the camera, combat and art built for both carry over; the skills did until 2026-11-26.)
 
 ### The vision in one paragraph (owner direction, 2026-11-25)
 A kingdom fell when the Dimming rose, and its dead got back up as **the Zombai**. Each server runs
@@ -17,13 +17,13 @@ trusting, claim land, build a hold together and keep it through horde nights; an
 deadlier ruins for the gear to push further. Other survivors are everywhere: neighbours to trade
 with, strangers to help on the road, and, only where the server's rules allow it, a threat of
 their own. In your hands it is an action game (the over-the-shoulder camera, aimed swings, dodge,
-block), and everything you do feeds one character level and a skill tree you shape. The core loop (owner):
+block), and you get stronger through the tools, gear and walls you make, never through levels. The core loop (owner):
 **loot the ruins and gather resources to build up the land you've claimed**, then hold it
 through invasions and horde nights. There is no ending: the goal is survival, and **days
 survived** is the score.
 
 ## Pillars
-1. **A world that feels lived in.** People come back to their server to see whose walls held, what the night broke, what the neighbours built and which ruin is next, never to tick a daily chore. A long road of skills and gear, tedium never (see "The long road").
+1. **A world that feels lived in.** People come back to their server to see whose walls held, what the night broke, what the neighbours built and which ruin is next, never to tick a daily chore. A long road of tools, gear and a hold to grow, tedium never (see direction 5).
 2. **Small, honest systems that stack.** Each week adds one system that works with the others. No feature ships half-built.
 3. **Everything is grown, not imported.** Terrain, creatures, items, music, and sound come from code and seeds. The look is a consequence of that: **Emberlight**, painted low-poly with colour in the vertices and one shared shader, cheap enough for any laptop (see `docs/art_bible.md`).
 4. **Survivors, together.** A server is a community of survivors, not a crowd. Surviving is better in a group: shared fires, a hold you build together, ruins you clear as a faction, a friend dragged back from a Zombai pack. Strangers are a resource and a story before they are a threat. The Zombai and the land are the main enemy; how much players can hurt each other is a **server rule** (see "Server rules" in `docs/vision.md`), PvE by default.
@@ -62,17 +62,16 @@ What that means in practice:
   meeting someone should be an event, not noise.
 - **Fair and readable.** Never punish players for things they couldn't see coming. Lose
   little on failure; never lose a whole session's progress.
-- **Long road, never tedium.** A long progression is wanted (direction 5, "The long
-  road"); boring work is not. Busywork, chores and dead repetition don't ship. The test is
-  per minute, not per month: every minute of play pays a little (XP you can see, a drop, a
-  step closer to an unlock), and the next unlock is always in sight. If a system only works
-  by making players repeat something dull with nothing showing for it, redesign it. A
-  fifty-level tree is fine; a hundred clicks with no feedback is not.
+- **Long road, never tedium.** A long progression is wanted (direction 5: tools, gear and
+  the base, no levels); boring work is not. Busywork, chores and dead repetition don't ship.
+  The test is per minute, not per month: every minute of play pays a little (a drop, a step
+  closer to the next tool or wall), and the next unlock is always in sight. If a system only
+  works by making players repeat something dull with nothing showing for it, redesign it.
 
 How each stream applies it:
 - **gameplay:** tune timings and rewards for pace (gather and craft times, drop rates,
   respawns, loot refills) and add the server events the client needs for feedback (hit, crit,
-  rare drop, level-up). Prefer a rewarding loop over a deep but slow one.
+  rare drop). Prefer a rewarding loop over a deep but slow one.
 - **world:** make places worth walking to: landmarks in view, something to find along every
   path, visible reactions (nodes shake, leaves fall, sparks fly), and a world that changes.
 - **client:** responsiveness and juice: instant input feedback, animation, sound, camera
@@ -143,11 +142,11 @@ Directions 2 and 3 give the camera, gathering and looting that feel; the owner w
   wildlife telegraph their attacks so a good player can read and avoid them (fair and
   readable). No auto-attack, no target lock required.
 - **Weapons you made or found.** Weapons come from crafting and from ruins, never from a shop
-  that sells power. Each weapon type plays differently, and the Fighting branch of the skill
-  tree (direction 5) makes you better with the ones you choose.
+  that sells power. Each weapon type plays differently; you get better with one by playing it
+  and by making a better one, never through a level (direction 5).
 - **Crafting is a path, not a menu.** Gathering, refining (wood to planks, stone and ore to
-  bars) and crafting all pay XP, and a character who goes down the Crafting branch makes gear
-  nobody else can. On a big server that makes crafters worth knowing and trading with.
+  bars) and crafting lead from one material to the next, and a player who builds the better
+  stations and gathers the rare materials makes gear others want. On a big server that makes crafters worth knowing and trading with.
 - **Gear worth chasing.** Gear comes in tiers tied to material tiers and ruin grades, with some
   rolled variation so two crafts of the same item can differ. Better gear changes your
   silhouette (art bible section 3).
@@ -157,50 +156,30 @@ Directions 2 and 3 give the camera, gathering and looting that feel; the owner w
 - **Physical and grounded.** Weighty movement, readable animations, sound on every action,
   day and night that change what is out there.
 
-### 5. The long road: one character, one skill tree (owner direction, 2026-11-25)
-The owner: "instead of multiple skills there was just one skill tree for your character and
-branches to go down." So a character has **one level and one skill tree**, not a list of
-separately levelled skills. In our own design:
-- **One level, from everything you do.** Every gather, craft, search, kill, wall raised and
-  night survived pays **character XP**, shown as it lands. The XP curve is ours (never another
-  game's table or formula) and lives in one data file: the first level in a minute or two,
-  level 10 inside a first session, the cap (**level 50** to start) after weeks of regular play.
-  A server may scale XP as a server rule; the curve stays one table.
-- **One point per level, spent in the tree.** The tree has **five branches**, each a path you
-  walk down:
-  - **Survival:** needs drain slower, wounds heal faster, foraging and cooking yield more, the
-    chill wears off sooner.
-  - **Fighting:** stronger swings and blocks, more stamina, cheaper dodges, bows and crossbows,
-    finishing moves on downed Zombai.
-  - **Building:** stronger timber and stone, faster building and repairs, gates, traps and
-    defences you can only build down this branch.
-  - **Scavenging:** faster searches, better finds in ruins, quieter footsteps, more carry
-    weight, opening locked chests.
-  - **Crafting:** better tools and weapons, smithing and iron, potions and scrolls (direction
-    on magic in `docs/vision.md`).
-  Each branch starts with cheap, broad nodes and goes deeper into stronger, narrower ones; a
-  node needs the one above it. There are far more nodes than points (about 80 nodes for 50
-  points), so **a character can't take everything**: you choose what kind of survivor you are,
-  and a faction is better when its members go down different branches.
-- **Every level unlocks something.** No empty levels: a level is a point to spend now, and the
-  tree window always shows what your next point could buy and how far away it is. Some nodes
-  unlock recipes and buildings outright, so the tree also gates content, softly. Nothing is
-  gated behind payment, luck alone or a daily timer.
-- **Level-ups are moments.** A level-up is the loudest bit of juice outside a fight: a sound,
-  a burst of light around the character that others nearby see, a banner, and a nudge to spend
-  the point.
-- **Changing your mind.** A rare one-use scroll from ruins resets the tree, so a wrong turn is
-  never permanent and never cheap.
-- **No anti-fun limits.** No daily XP caps, no XP that shrinks the longer you play, no
-  chores you must do every day to keep up. Being near other players should *add* XP
-  (better together), never take it away.
-- **The tree is kept through death** by default (fair failure); what death costs is a server
-  rule (`docs/vision.md`).
-- **Today's skills fold in, nothing is lost.** The four skills already on `main` (Felling,
-  Quarrying, Tapping, Toolcraft) stop levelling separately: a character's saved skill XP is
-  added up into their character XP once, with an add-only migration that keeps the
-  old skills rows untouched (CLAUDE.md hard rules 1 and 6). The skills window becomes the tree
-  window.
+### 5. Progress you can hold: tools, gear and the base, no levels (owner direction, 2026-11-26)
+The owner: "We should get rid of the leveling system and just work on the basics. a survival
+zombie game right now." So there are **no levels, no XP and no skill tree**. This replaces
+"The long road" (one character level and a five-branch tree, 2026-11-25) and the four skills
+before it. In our own design:
+- **You get stronger by what you hold and build.** A better tool opens a better node (an axe
+  works the old ember ash, a pickaxe the rich stone seam) and works every node a little faster
+  and for a little more; better weapons and armour from crafting and ruins; a stronger base;
+  and what you, the player, know about the map, the ruins and the Zombai.
+- **Gates are things, never numbers.** Anything locked is locked by a material, a tool, a
+  station, a key or a place: something you can see, go and get. Never by a number that only
+  goes up by grinding, and never by payment, luck alone or a daily timer.
+- **Every minute still pays.** With no XP bar, the pay is the haul itself: the item landing in
+  the pack with its toast, the next recipe in sight in the craft window, a node that shakes and
+  empties. A gather that can pay nothing (a full stack) is refused up front instead of
+  wasting the bar.
+- **Old XP is kept, never read.** Characters saved with skill XP (the character_skills table
+  and the save's `skills`) keep it exactly (CLAUDE.md hard rules 1 and 6); nothing in the game
+  shows it, earns it or uses it. The old skills network messages stay as do-nothing slots so the
+  protocol's numbering never moves.
+- **Don't bring it back sideways.** No "proficiency", "mastery", "reputation level", perk
+  points or any other bar that fills by repetition and unlocks power. If a future system seems
+  to need one, ask whether a tool, a station or a place can do the same job first; only the
+  owner can reopen levels.
 
 ### 6. Take the best, then beat it
 The owner's words: take other games' best features and improve on them, making them better
@@ -210,7 +189,7 @@ players complain about, and how do we keep the good part and fix the rest?* Writ
 in a few lines in the PR or devlog. Then build **our own improved version**: our design, our
 numbers, our names, our look. The aim is never "as good as" a reference; it is the version
 players of that game would wish theirs had. Examples of the habit: action combat with clearer
-telegraphs and less input lag than anyone's; a skill tree where no level is empty and every branch is a real choice; looting
+telegraphs and less input lag than anyone's; crafting where every new tool opens something you can see; looting
 that is quick and readable instead of a spreadsheet; base defence where you always know what's
 coming; a server browser and rules screen that tells you exactly what kind of server you are
 joining. This sits inside "Inspired by, never copied": study the feature, never copy its
@@ -230,8 +209,8 @@ Emberlight is **grounded first**: read the art bible's section 0 (pillars) and s
 - **Clear, sunny days and moody nights** (owner, 2026-11-25, approving the test-camp look): a
   clean blue sky and a strong sun with real shadows by day, no haze over the land; the mood
   comes from dawn, dusk and real night, and from the ruins and the Dimming.
-- **Restraint:** effects, UI and colour stay quiet so the world carries the mood; level-ups
-  are the one loud moment outside a fight and even they stay translucent.
+- **Restraint:** effects, UI and colour stay quiet so the world carries the mood; the big
+  moments (a horde night, a first ember tool) are the loud ones, and even they stay restrained.
 - **Ember is the signature and the signal:** ember veins, a world-wide heartbeat pulse,
   leaves that never fall, rising motes. *If it glows ember, you can use it.* The dark layer
   is ours too: the Dimming, cold grey ash where the warmth has drained, and the Zombai who
@@ -376,7 +355,7 @@ Searching a crate, chest or body in a ruin works the same way (look, E, a short 
 
 ## Core systems (planned order)
 The phases and what "done" means for each are in `docs/roadmap.md`. In short, after the
-foundations (gathering, crafting, skills and XP, the action camera and combat basics), and with
+foundations (gathering, crafting and tools, the action camera and combat basics), and with
 the basics first (direction 9):
 1. A kingdom from a seed: the generator, roads, ruin sites, chunked building
 2. Survive the first night: needs, fire and cooking, the Zombai, death and loot
@@ -398,6 +377,7 @@ The goal is survival, with no story endgame (owner, 2026-11-24).
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 01 (2026-11-26, no levels):** The owner: "We should get rid of the leveling system and just work on the basics. a survival zombie game right now." Direction 5 was "The long road: one character, one skill tree" (2026-11-25); it is now "Progress you can hold: tools, gear and the base, no levels". Removed from the game: the four skills, XP, the XP floaters, level-up banners and bursts, the skills window (K), the level column in the players panel, and every level wall. The tier-2 nodes (old ember ash, rich stone seam) now need an axe or a pickaxe instead of level 5; recipes are gated only by materials and the bench. Old XP stays in saves untouched. The pillars, "Long road, never tedium", directions 4 and 6, the look's restraint line and `docs/vision.md` follow; the vision's "Never" list now forbids levels, XP and skill trees.
 - **Week 01 (2026-11-25, a clean fight):** After playtesting the Zombai the owner asked for no text when a zombie chases you or you knock it down, cleaner animations, and no running backwards. Added owner direction 10: no words in a fight (motion and sound tell it), full speed only forward (server-capped backpedal), and clean motion.
 - **Week 01 (2026-11-25, factions):** The owner renamed player groups from bands to **factions** (shared claim, chests, doors, faction chat, map markers; a solo player is a faction of one). Server rules and claims use the new name. Entries below keep "band" as history.
 - **Week 01 (2026-11-25, types confirmed, no traders):** The owner accepted the third round as proposed: the Zombai types list (walker, sprinter, brute, soldier, hound, dragger, Bell-wight, rotbelly, your risen body) is confirmed; no computer-run traders at launch, players trade through a trade window; groups stay **bands**; nights in rounds and the Tolling stay as written.

@@ -9,7 +9,7 @@ func test_routes_people_to_chat_and_the_rest_centre() -> void:
 	check_eq(NoticeLine.route(ChatCommands.TOO_FAST), "notice", "too fast")
 	check_eq(NoticeLine.route(ChatCommands.NOT_FOR_CHAT), "notice", "not for chat")
 	check_eq(NoticeLine.route("There is nothing to gather there."), "notice")
-	check_eq(NoticeLine.route(Gathering.full_text(int(ResourceNodes.all()[0].id))), "notice", "a full haul still counts: says so")
+	check_eq(NoticeLine.route(Gathering.full_text(int(ResourceNodes.all()[0].id))), "notice", "a full haul: says so")
 	check_eq(NoticeLine.route("   "), "drop", "blank")
 	check_eq(NoticeLine.route("x".repeat(NoticeLine.MAX_CHARS + 1)), "chat", "long dev answers stay in chat")
 	check_eq(NoticeLine.route("Recipes:\nTorch"), "chat", "multi-line answers stay in chat")
@@ -18,7 +18,7 @@ func test_routes_people_to_chat_and_the_rest_centre() -> void:
 
 func test_pairs_with_the_gather_toast() -> void:
 	# A refusal whose toast already says it: the server's longer line is dropped.
-	for reason in ["full", "day", "busy", "cooldown", "level", "far", "unknown"]:
+	for reason in ["full", "day", "busy", "cooldown", "tool", "far", "unknown"]:
 		check(GatherPrompt.notice_for(reason, -1) != "" or reason in ["busy", "cooldown"], "%s has toast words (or none)" % reason)
 		check_eq(NoticeLine.route("Your pack can't hold any more ash wood.", reason), "drop", reason)
 	# Depleted adds when it comes back and where the next one is: show it.

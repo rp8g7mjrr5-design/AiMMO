@@ -11,7 +11,7 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## first meets one: after the reconnect, between two of gameplay_gather_v3's gathers
 ## (ready_to_lend), when a calm grazer is within STALK_MAX_START metres, it borrows the bot
 ## (bot meta "wildlife_stalking") and rushes straight at it. Short on purpose (a herd close by,
-## STALK_TIMEOUT at most) so the stalker still levels up inside the run. The grazer must bolt
+## STALK_TIMEOUT at most) so the stalker still gets its gathers in inside the run. The grazer must bolt
 ## ("flee" in s2c_wildlife) by the time we are within BOLT_SLACK of Wildlife.BOLT_RADIUS, and
 ## at least one herd-mate must bolt with it. Then the bot is handed back. A stalk that never
 ## gets close (a lake in the way, a herd too far off) is skipped and counted, not failed.

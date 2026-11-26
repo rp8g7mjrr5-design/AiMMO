@@ -1,13 +1,13 @@
 class_name VitalsBar
 extends Control
-## Your health and stamina, bottom centre under the XP bar (gameplay's protocol v7
+## Your health and stamina, bottom centre (gameplay's protocol v7
 ## `s2c_vitals`, roadmap Milestone 2 "First blood"). Built to read at a glance mid-swing:
 ## - **A hit you can see land.** Health drops at once, the bar flashes bright, and the part
 ##   you just lost stays behind as a pale chip for CHIP_HOLD before it drains away, so a big
 ##   hit and a small one look different even if you blinked. A soft low thump goes with it
 ##   (`Sfx.hurt`, played by client.gd on `hurt`).
 ## - **Low health pulses** below LOW_SHARE, so "back off now" is felt without reading numbers.
-## - **Stamina** is its own thinner bar in sage green (XP owns gold); `flash_stamina()` reddens
+## - **Stamina** is its own thinner bar in sage green (the glow owns gold); `flash_stamina()` reddens
 ##   its track when a swing is refused for being winded or tired, so the "why" is on the bar
 ##   your eyes go to.
 ## - **Out of the way when it doesn't matter.** Both bars full: they fade out HOLD_SECONDS
@@ -23,7 +23,7 @@ const ST_H := 5.0
 const GAP := 4.0
 const HEALTH := Color(0.86, 0.29, 0.2) ## ember red: warm like the valley, not alarm red
 const CHIP := Color(1.0, 0.86, 0.66) ## the just-lost part, pale ember
-const STAMINA := HudStyle.OK ## sage green; ember is XP's
+const STAMINA := HudStyle.OK ## sage green; ember is the accent's
 const TRACK := HudStyle.TRACK
 const TRACK_WARN := Color(0.62, 0.12, 0.08, 0.85) ## the stamina track when a swing is refused
 const LABEL := HudStyle.TEXT

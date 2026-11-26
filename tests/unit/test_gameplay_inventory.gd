@@ -18,8 +18,8 @@ func test_add_stacks_and_caps() -> void:
 
 
 func test_stack_cap_is_999() -> void:
-	# Raised from 99 (2026-11-23): both wood stacks filled around Felling 4. At 999 the
-	# first-session pace run (Felling 5, ~340 wood over two kinds) never fills one.
+	# Raised from 99 (2026-11-23): both wood stacks filled in one long session. At 999 a
+	# long first session (a few hundred wood over two kinds) never fills one.
 	check_eq(Inventory.MAX_STACK, 999)
 	var inv := {"pine_wood": 99}
 	check_eq(Inventory.add(inv, "pine_wood", 5), 5, "a 99 stack keeps filling")

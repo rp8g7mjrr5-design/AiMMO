@@ -33,9 +33,6 @@ const NO_ANSWER := "The bench didn't answer. Try again."
 var pack := {} ## the pack as the server last sent it
 var pack_known := false
 var pos := Vector3.ZERO ## where you stand, for the bench check
-## Your skills (skill id -> XP) once the server has sent them (skills_changed / xp_gained);
-## null until then, and the level check is left to the server.
-var skills: Variant = null
 var status_label: Label
 var list_scroll: ScrollContainer
 ## Where the icons come from (set by the client; without one, world's cache draws them).
@@ -57,11 +54,10 @@ static func walked_away(p: Vector3) -> bool:
 	return Vector2(p.x, p.z).distance_to(Crafting.workbench_xz()) > Crafting.BENCH_RANGE + CLOSE_SLACK
 
 
-## One recipe as the window shows it, for a pack, a position and (when known) your skills:
+## One recipe as the window shows it, for a pack and a position:
 ## {id, title ("Stone axe" / "Torch ×3"), parts: [{label, have, need, ok}], reason (Crafting.check,
 ## "" = ready), button ("Craft" / "Have it"), hint (why it's greyed out, or where it's made)}.
-## A recipe above your Toolcraft level says "Needs Toolcraft 5 · 1,205 XP to go".
-static func row(inv: Dictionary, id: String, p: Vector3, skills: Variant = null) -> Dictionary:
+static func row(inv: Dictionary, id: String, p: Vector3) -> Dictionary:
 	var r: Dictionary = Crafting.RECIPES[id]
 	var label := str(r.label)
 	var title := label.left(1).to_upper() + label.substr(1)
@@ -74,13 +70,11 @@ static func row(inv: Dictionary, id: String, p: Vector3, skills: Variant = null)
 			var have := Inventory.count(inv, item)
 			var item_label := Inventory.label(item)
 			parts.append({"item": item, "label": item_label.left(1).to_upper() + item_label.substr(1), "have": have, "need": need, "ok": have >= need})
-	var reason := Crafting.check(inv, id, p, skills)
+	var reason := Crafting.check(inv, id, p)
 	var hint := ""
 	match reason:
 		"":
 			hint = "Ready"
-		"level":
-			hint = level_hint(id, skills)
 		"owned":
 			hint = "In your pack; it never wears out"
 		"bench":
@@ -93,16 +87,6 @@ static func row(inv: Dictionary, id: String, p: Vector3, skills: Variant = null)
 		hint += " · craft anywhere"
 	return {"id": id, "title": title, "parts": parts, "reason": reason,
 		"button": "Have it" if reason == "owned" else "Craft", "hint": hint}
-
-
-## "Needs Toolcraft 5 · 1,205 XP to go" for a recipe above your level, "" otherwise.
-static func level_hint(id: String, skills: Variant) -> String:
-	var need := Crafting.required(id)
-	if need.is_empty() or not skills is Dictionary or Crafting.level_ok(id, skills):
-		return ""
-	var skill := str(need[0])
-	var to_go := maxi(0, Skills.xp_for_level(int(need[1])) - Skills.xp_of(skills, skill))
-	return "Needs %s %d · %s XP to go" % [Skills.label(skill), int(need[1]), SkillsWindow._grouped(to_go)]
 
 
 ## "[color=#..]Ash wood 2/3[/color] · ..." for a row's parts.
@@ -252,9 +236,8 @@ func craft(id: String) -> bool:
 func refresh() -> void:
 	for id in _rows:
 		var w: Dictionary = _rows[id]
-		var r := row(pack, id, pos, skills)
+		var r := row(pack, id, pos)
 		w.name.text = r.title
-		(w.name as Label).modulate = DIM if r.reason == "level" else Color.WHITE
 		(w.icon as TextureRect).texture = _icon(id, IconShelf.ROW_SIZE)
 		_fill_needs(w.needs, r.parts)
 		w.hint.text = r.hint if pack_known else ""
@@ -330,12 +313,6 @@ func seed_pack(inv: Variant) -> void:
 		refresh()
 
 
-## skills_changed / xp_gained: your skills (skill id -> XP), so level-gated rows grey out.
-func on_skills(all: Dictionary) -> void:
-	skills = all.duplicate()
-	refresh()
-
-
 func is_waiting() -> bool:
 	return _awaiting != ""
 
@@ -344,7 +321,6 @@ func reset() -> void:
 	visible = false
 	pack = {}
 	pack_known = false
-	skills = null
 	_awaiting = ""
 	_awaiting_age = 0.0
 	if status_label:

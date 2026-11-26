@@ -1,7 +1,7 @@
 extends TestCase
 ## Vitals wired into the server (roadmap Milestone 2 "First blood", build-ahead): every
 ## logged-in player has health and stamina that tick with the server, a hit can knock them
-## down (fair failure: back in Spawn Meadow at once, full, pack and XP untouched), and
+## down (fair failure: back in Spawn Meadow at once, full, pack untouched), and
 ## "Return to Spawn Meadow" is refused mid-fight so it is never an escape button. The hidden
 ## /hurt and /vitals dev commands drive it until creatures fight.
 
@@ -68,7 +68,7 @@ func test_a_hit_hurts_then_health_comes_back_out_of_combat() -> void:
 func test_knocked_down_wakes_in_the_meadow_with_everything() -> void:
 	var srv := _server({1: "Ash", 2: "Bryn"})
 	srv.give_item(1, "ash_wood", 7)
-	srv.sessions[1].character.skills = {"felling": Skills.xp_for_level(4)}
+	srv.sessions[1].character.skills = {"felling": 1700}
 	srv.sessions[1].move = Vector2(1, 0)
 	var r: Dictionary = srv.hurt(1, 250.0)
 	check(r.knocked_down, "250 damage knocks a 100-health player down")
@@ -79,7 +79,7 @@ func test_knocked_down_wakes_in_the_meadow_with_everything() -> void:
 	check_eq(Vitals.shown(srv.vitals_of(1)), [100, 100], "full on waking")
 	check(not Vitals.in_combat(srv.vitals_of(1), srv.test_now), "the fight is over")
 	check_eq(Inventory.count(ch.inventory, "ash_wood"), 7, "pack untouched")
-	check_eq(Skills.level_of(ch.skills, "felling"), 4, "XP untouched")
+	check_eq(ch.skills, {"felling": 1700}, "old XP in the save untouched")
 	check_eq(_sent(srv, 1, "s2c_system"), [[Vitals.KNOCKED_DOWN_TEXT]], "told what happened")
 	check_eq(_sent(srv, 2, "s2c_system"), [], "nobody else is told")
 	check_eq(int(srv.sessions[1].knockdowns), 1)

@@ -6,11 +6,11 @@ in the 180 s bot test of each CI run, but CI artifact zips sit on a blob host th
 session can't reach. Job logs can be read through the API, so this reads the "Test" job log of
 the last N `main` runs and prints one line per run:
 
-  time (UTC)        sha     ci       1st reward  dead max  wait max  items/min  levelled  1st level-up
-  2026-11-23 12:41  2a3d9bb success  7.9 / 9.2   34 / 64   0.24      9.6        8/8       36.7 / 43.8
+  time (UTC)        sha     ci       1st reward  dead max  wait max  items/min  gathering s
+  2026-11-23 12:41  2a3d9bb success  7.9 / 9.2   34 / 64   0.24      9.6        52
 
-"a / b" is median / worst bot. "1st level-up" is seconds of gathering before a fresh bot's
-first level-up (Milestone 1: level 2 inside about a minute).
+"a / b" is median / worst bot. "gathering s" is the median bot's seconds in timed gathers.
+(The level-up columns went with the leveling system on 2026-11-26.)
 
 Where the numbers come from, best first:
   1. `[bot-test] fun summary: {json}` (run_bot_test.py prints it since ws/qa/fun-trend),
@@ -20,7 +20,7 @@ Only the bot-test step run with --fun-check counts (the 45 s ENet run prints met
 
 After the table comes one "vs yesterday" line: the median of each metric over the newest
 day's runs against the day before (days in America/Chicago, like the budget week), so the
-digest can say "first level-up got 4 s faster" without arithmetic:
+digest can say "first reward got 1 s faster" without arithmetic:
 
   vs yesterday: 2026-11-24 (6 runs) vs 2026-11-23 (9 runs): 1st reward 7.7 s (-0.3, better), ...
 
@@ -112,8 +112,8 @@ def _pair(s, key, digits=1):
     return f"{_f(s.get(key + '_median'), digits)} / {_f(s.get(key + '_worst'), digits)}"
 
 
-HEADER = "%-16s  %-7s  %-9s  %-12s  %-11s  %-8s  %-9s  %-8s  %s" % (
-    "time (UTC)", "sha", "ci", "1st reward", "dead max", "wait max", "items/min", "levelled", "1st level-up (gathering s)")
+HEADER = "%-16s  %-7s  %-9s  %-12s  %-11s  %-8s  %-9s  %s" % (
+    "time (UTC)", "sha", "ci", "1st reward", "dead max", "wait max", "items/min", "gathering s")
 
 
 def format_row(run: dict, s) -> str:
@@ -122,13 +122,12 @@ def format_row(run: dict, s) -> str:
     if not s:
         return head + "  no fun metrics in this run"
     first = "never" if s.get("bots_without_reward") else _f(s.get("first_reward_s_worst"))
-    return head + "  %-12s  %-11s  %-8s  %-9s  %-8s  %s" % (
+    return head + "  %-12s  %-11s  %-8s  %-9s  %s" % (
         f"{_f(s.get('first_reward_s_median'))} / {first}",
         _pair(s, "longest_dead_s", 0),
         _f(s.get("longest_wait_s_worst"), 2),
         _f(s.get("rewards_per_min_median")),
-        f"{s.get('bots_levelled', 0)}/{s.get('bots', 0)}",
-        _pair(s, "first_level_up_gather_s"),
+        _f(s.get("gather_s_median"), 0),
     )
 
 
@@ -137,10 +136,8 @@ DAY_TZ = ZoneInfo("America/Chicago")
 # (summary key, label, unit, digits, True if higher is better) for the "vs yesterday" line.
 DELTAS = [
     ("first_reward_s_median", "1st reward", " s", 1, False),
-    ("first_level_up_gather_s_median", "1st level-up", " s of gathering", 1, False),
     ("rewards_per_min_median", "items/min", "", 1, True),
     ("longest_dead_s_median", "dead max", " s", 0, False),
-    ("bots_levelled", "levelled", " bots", 1, True),
 ]
 
 

@@ -48,8 +48,8 @@ class FunTrend(unittest.TestCase):
         self.assertEqual(s["first_reward_s_median"], 7.0)
         self.assertEqual(s["first_reward_s_worst"], 9.15)
         self.assertEqual(s["longest_dead_s_worst"], 63.8)
-        self.assertEqual(s["bots_levelled"], 2)
-        self.assertEqual(s["first_level_up_gather_s_worst"], 43.76)
+        self.assertEqual(s["gather_s_median"], 30.0)
+        self.assertFalse([k for k in s if "level" in k], "no level metrics any more")
 
     def test_only_the_fun_checked_step_counts(self):
         # The 45 s ENet run comes after and prints metrics too; it must not be mixed in.
@@ -80,8 +80,7 @@ class FunTrend(unittest.TestCase):
                                     "conclusion": "success"}, s)
         self.assertTrue(row.startswith("2026-11-23 12:41  2a3d9bb  success"))
         self.assertIn("8.5 / 9.2", row)   # first reward median / worst
-        self.assertIn("2/2", row)         # bots levelled
-        self.assertIn("40.2 / 43.8", row)  # first level-up gathering median / worst
+        self.assertTrue(row.rstrip().endswith("30"), row)  # gathering seconds, median bot
 
     def test_whole_numbers_keep_their_zeros(self):
         # The dead-time column printed 40.5 / 70.5 as "4 / 7" (2026-11-23): trailing zeros of
@@ -113,6 +112,7 @@ class FunTrend(unittest.TestCase):
 
     def test_vs_yesterday_compares_day_medians(self):
         def s(first, lv, rpm, dead, levelled):
+            # lv and levelled are old runs' level-up numbers: the line ignores them now.
             return {"first_reward_s_median": first, "first_level_up_gather_s_median": lv,
                     "rewards_per_min_median": rpm, "longest_dead_s_median": dead, "bots_levelled": levelled}
         runs = [
@@ -125,18 +125,17 @@ class FunTrend(unittest.TestCase):
         line = fun_trend.vs_yesterday(runs)
         self.assertTrue(line.startswith("vs yesterday: 2026-11-24 (2 runs) vs 2026-11-23 (1 run): "), line)
         self.assertIn("1st reward 7.5 s (same)", line)                       # 7.5 vs 7.5
-        self.assertIn("1st level-up 31 s of gathering (-5, better)", line)   # faster level-up is better
+        self.assertNotIn("level", line)
         self.assertIn("items/min 10.5 (same)", line)
         self.assertIn("dead max 30 s (same)", line)
-        self.assertIn("levelled 8 bots (same)", line)
         worse = fun_trend.vs_yesterday([("2026-11-24T15:00:00Z", s(9.0, 40.0, 9.0, 45.0, 6)),
                                         ("2026-11-23T15:00:00Z", s(7.5, 36.0, 10.5, 30.0, 8))])
         self.assertIn("1st reward 9 s (+1.5, worse)", worse)
         self.assertIn("items/min 9 (-1.5, worse)", worse)
-        self.assertIn("levelled 6 bots (-2, worse)", worse)
+        self.assertNotIn("levelled", worse)
 
     def test_vs_yesterday_needs_two_days(self):
-        self.assertIsNone(fun_trend.vs_yesterday([("2026-11-24T15:00:00Z", {"bots_levelled": 8})]))
+        self.assertIsNone(fun_trend.vs_yesterday([("2026-11-24T15:00:00Z", {"rewards_per_min_median": 8})]))
         self.assertIsNone(fun_trend.vs_yesterday([]))
 
 

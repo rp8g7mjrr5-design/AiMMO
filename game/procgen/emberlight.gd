@@ -181,7 +181,7 @@ const COMPAT_ALBEDO := 0.5
 
 
 ## The line that switches `COMPAT_GLSL`'s fix on, for any of our shaders' sources (Motes and
-## LevelUpFx put it first too). Empty on Forward+ and Mobile, so their shaders are unchanged.
+## other shaders put it first too). Empty on Forward+ and Mobile, so their shaders are unchanged.
 static func compat_define(on: bool = srgb_output()) -> String:
 	return "#define COMPAT_SRGB\n" if on else ""
 

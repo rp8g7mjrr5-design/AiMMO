@@ -15,7 +15,7 @@
 # share, neon, warm/cool and a not-black, not-grey night on the noon and night shots, against
 # tests/client_smoke/style_baseline.json, written to style_stats.json, plus contact_sheet.html
 # of every screenshot for the CI artifact.
-# The F1 controls, a haul toast with its XP floater, and the Low Graphics preset are shot too
+# The F1 controls, a haul toast, and the Low Graphics preset are shot too
 # (client's test hooks): Low is styled against the noon baseline (the look must hold on Low),
 # and the two HUD shots get the hard rules only (ember stays rare, the frame is not black).
 # Then the feedback check (tests/client_smoke/feedback_check.gd, design bible "Fun comes first"):
@@ -52,12 +52,12 @@ run_client login --screenshot="$OUT/login.png" --quit-after=5
 AIMMO_TIME_OF_DAY=0.5 run_client world --screenshot="$OUT/world.png" --quit-after=8 --name=SmokeTester --password=smoke123 --address=127.0.0.1:$PORT --autoconnect
 AIMMO_TIME_OF_DAY=0.0 run_client night --screenshot="$OUT/world-night.png" --quit-after=8 --name=SmokeTester --password=smoke123 --address=127.0.0.1:$PORT --autoconnect
 # The client's own shot hooks, so the contact sheet and the style check cover them: the F1
-# controls overlay, a haul toast with its "+10 Felling" XP floater, and the world on the Low
+# controls overlay, a haul toast, and the world on the Low
 # Graphics preset. Low is a saved setting, so that run gets its own user folder (XDG_DATA_HOME)
 # with a settings.cfg as the Settings window writes it when you pick Low, and never touches
 # the developer's own settings.
 AIMMO_TIME_OF_DAY=0.5 run_client controls --screenshot="$OUT/controls.png" --quit-after=8 --open-controls --name=SmokeTester --password=smoke123 --address=127.0.0.1:$PORT --autoconnect
-AIMMO_TIME_OF_DAY=0.5 run_client toast --screenshot="$OUT/toast-xp.png" --quit-after=8 --show-toast=ash_wood --show-xp --name=SmokeTester --password=smoke123 --address=127.0.0.1:$PORT --autoconnect
+AIMMO_TIME_OF_DAY=0.5 run_client toast --screenshot="$OUT/toast.png" --quit-after=8 --show-toast=ash_wood --name=SmokeTester --password=smoke123 --address=127.0.0.1:$PORT --autoconnect
 LOW_HOME="$OUT/xdg-low"
 rm -rf "$LOW_HOME"; mkdir -p "$LOW_HOME/godot/app_userdata/AiMMO"
 printf '[settings]\n\ngraphics_quality=0\nshadow_quality=1\ndraw_distance=400.0\n' > "$LOW_HOME/godot/app_userdata/AiMMO/settings.cfg"
@@ -89,7 +89,7 @@ fail=$camera_fail
 [ $camera_fail -eq 0 ] || { echo "camera shots FAILED:"; grep "\[camera\]" "$OUT/client-camera.log" || true; }
 grep "\[feedback\]" "$OUT/client-feedback.log" || true
 [ $feedback_fail -eq 0 ] || { echo "feedback check FAILED"; fail=1; }
-for f in login.png world.png world-night.png controls.png toast-xp.png world-low.png camera.png camera-hill.png; do
+for f in login.png world.png world-night.png controls.png toast.png world-low.png camera.png camera-hill.png; do
   [ -s "$OUT/$f" ] || { echo "missing screenshot $f"; fail=1; }
 done
 if [ $fail -eq 0 ]; then
@@ -98,7 +98,7 @@ if [ $fail -eq 0 ]; then
   cat "$OUT/brightness.log"
   "$GODOT" --headless --path "$REPO/game" -s tests/client_smoke/style_check.gd -- \
     --shot=noon="$OUT/world.png" --shot=night="$OUT/world-night.png" --shot=low="$OUT/world-low.png" \
-    --shot=controls="$OUT/controls.png" --shot=toast="$OUT/toast-xp.png" \
+    --shot=controls="$OUT/controls.png" --shot=toast="$OUT/toast.png" \
     --out="$OUT/style_stats.json" --sheet="$OUT/contact_sheet.html" > "$OUT/style.log" 2>&1 || fail=1
   grep "\[style\]" "$OUT/style.log" || true
 fi

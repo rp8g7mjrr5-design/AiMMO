@@ -1,14 +1,13 @@
 class_name PlayersPanel
 extends PanelContainer
 ## The players panel (O, or the "Players" button top right): who is in the valley right now,
-## each with their total level (every skill's level added up), you marked in ember orange.
+## you marked in ember orange.
 ## It replaces typing "/who" in chat (owner direction 1: chat is for talking). Opening it
 ## frees the cursor like any other window; O, Esc or Close shut it.
 ##
 ## Fed only by the server's s2c_roster (`on_roster`), which comes right after login and again
-## whenever anyone joins, leaves or levels up. A row for someone who just arrived glows gold
-## and says "just arrived"; a row whose total level went up glows gold with "+N", so a burst
-## across the meadow can be put to a name. The very first roster after login never glows.
+## whenever anyone joins or leaves. A row for someone who just arrived glows gold and says
+## "just arrived". The very first roster after login never glows.
 ## The "Players" button carries the live count ("Players 5"), so the valley's size reads at a
 ## glance without opening anything.
 ##
@@ -22,7 +21,7 @@ const LIST_HEIGHT := 330.0 ## about eleven rows; more scroll
 const ROW_HEIGHT := 30.0 ## one row plus its gap, for sizing the list to the roster
 const HALF_HEIGHT := 90.0 ## the panel's resting half-height; it grows to fit its rows
 const ACCENT := HudStyle.EMBER ## ember orange, as the other windows: your own row
-const GOLD := HudStyle.XP ## the "this just changed" glow, the XP meter's gold
+const GOLD := HudStyle.GLOW ## the "this just changed" glow, the HUD's warm gold
 const DIM := HudStyle.TEXT_DIM
 const FLASH_SECONDS := 1.6 ## how long a row that just changed glows
 const ARRIVED_TEXT := "just arrived"
@@ -31,16 +30,16 @@ var my_id := 0
 var entries: Array = [] ## the last roster, cleaned by `rows`
 var _known := false ## false until the first roster after login (that one never glows)
 var _flash := {} ## peer id -> seconds of glow left
-var _note := {} ## peer id -> "+N" or ARRIVED_TEXT while it glows
+var _note := {} ## peer id -> ARRIVED_TEXT while it glows
 var _header: Label
 var _list: VBoxContainer
 var _scroll: ScrollContainer
-var _row_nodes := {} ## peer id -> {name: Label, level: Label, note: Label}
+var _row_nodes := {} ## peer id -> {name: Label, note: Label}
 
 
-## The server's roster as rows: [{id, name, level, you}], in the server's order (sorted by
-## name). Anything malformed or a second row for one id is skipped, so a bad entry never
-## breaks the panel; a missing level shows as 0.
+## The server's roster as rows: [{id, name, you}], in the server's order (sorted by name).
+## Anything malformed or a second row for one id is skipped, so a bad entry never breaks the
+## panel. An older server's `level` is ignored.
 static func rows(roster: Array, me: int) -> Array:
 	var out: Array = []
 	var seen := {}
@@ -51,7 +50,7 @@ static func rows(roster: Array, me: int) -> Array:
 		if seen.has(id):
 			continue
 		seen[id] = true
-		out.append({"id": id, "name": str(e.get("name", "?")), "level": int(e.get("level", 0)), "you": id == me})
+		out.append({"id": id, "name": str(e.get("name", "?")), "you": id == me})
 	return out
 
 
@@ -67,26 +66,17 @@ static func button_text(count: int) -> String:
 	return "Players" if count <= 0 else "Players %d" % count
 
 
-## "Total level 12"
-static func level_text(level: int) -> String:
-	return "Total level %d" % level
-
-
-## What changed between two rosters (both from `rows`): {joined: [ids], levelled: {id: +N}}.
-## Someone who left is simply gone; a level that went down (never on the server) is ignored.
+## What changed between two rosters (both from `rows`): {joined: [ids]}. Someone who left
+## is simply gone.
 static func changes(old_rows: Array, new_rows: Array) -> Dictionary:
 	var before := {}
 	for r in old_rows:
-		before[int(r.id)] = int(r.level)
+		before[int(r.id)] = true
 	var joined: Array = []
-	var levelled := {}
 	for r in new_rows:
-		var id := int(r.id)
-		if not before.has(id):
-			joined.append(id)
-		elif int(r.level) > int(before[id]):
-			levelled[id] = int(r.level) - int(before[id])
-	return {"joined": joined, "levelled": levelled}
+		if not before.has(int(r.id)):
+			joined.append(int(r.id))
+	return {"joined": joined}
 
 
 func setup(theme_res: Theme) -> void:
@@ -130,13 +120,8 @@ func setup(theme_res: Theme) -> void:
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_list)
 	var foot := HBoxContainer.new()
+	foot.alignment = BoxContainer.ALIGNMENT_END
 	box.add_child(foot)
-	var hint := Label.new()
-	hint.text = "Total level is every skill's level added up."
-	hint.add_theme_font_size_override("font_size", 13)
-	hint.modulate = DIM
-	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	foot.add_child(hint)
 	var done := Button.new()
 	done.text = "Close"
 	done.focus_mode = Control.FOCUS_NONE
@@ -153,7 +138,7 @@ func set_me(id: int) -> void:
 	_rebuild()
 
 
-## s2c_roster: everyone online. Rows that joined or levelled since the last roster glow.
+## s2c_roster: everyone online. Rows that joined since the last roster glow.
 func on_roster(roster: Array) -> void:
 	var fresh := rows(roster, my_id)
 	if _known:
@@ -163,13 +148,6 @@ func on_roster(roster: Array) -> void:
 				continue
 			_flash[int(id)] = FLASH_SECONDS
 			_note[int(id)] = ARRIVED_TEXT
-		for id in ch.levelled:
-			# A second level-up while the first still glows adds to its "+N".
-			var prev := 0
-			if _flash.has(int(id)) and str(_note.get(int(id), "")).begins_with("+"):
-				prev = str(_note[int(id)]).substr(1).to_int()
-			_flash[int(id)] = FLASH_SECONDS
-			_note[int(id)] = "+%d" % (prev + int(ch.levelled[id]))
 	for id in _flash.keys():
 		var still := false
 		for r in fresh:
@@ -211,13 +189,8 @@ func _rebuild() -> void:
 		note.add_theme_color_override("font_color", GOLD)
 		note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(note)
-		var lv := Label.new()
-		lv.text = level_text(int(r.level))
-		lv.modulate = DIM
-		lv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(lv)
 		_list.add_child(row)
-		_row_nodes[int(r.id)] = {"name": nm, "level": lv, "note": note, "you": bool(r.you)}
+		_row_nodes[int(r.id)] = {"name": nm, "note": note, "you": bool(r.you)}
 	_paint()
 
 
@@ -248,19 +221,19 @@ func flash_of(id: int) -> float:
 	return clampf(float(_flash.get(id, 0.0)) / FLASH_SECONDS, 0.0, 1.0)
 
 
-## The note a row shows right now ("+1", "just arrived" or ""), for tests.
+## The note a row shows right now ("just arrived" or ""), for tests.
 func note_of(id: int) -> String:
 	var n: Dictionary = _row_nodes.get(id, {})
 	return str(n.note.text) if not n.is_empty() else ""
 
 
-## The rows on screen as "Name  (you)|Total level 9", for tests.
+## The rows on screen as "Name  (you)", for tests.
 func shown() -> Array:
 	var out: Array = []
 	for r in entries:
 		var n: Dictionary = _row_nodes.get(int(r.id), {})
 		if not n.is_empty():
-			out.append("%s|%s" % [n.name.text, n.level.text])
+			out.append(str(n.name.text))
 	return out
 
 

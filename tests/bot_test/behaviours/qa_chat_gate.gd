@@ -42,7 +42,6 @@ func setup(net: Node) -> void:
 	net.inventory_changed.connect(_on_pack)
 	net.gather_begun.connect(func(_p, node_id, _s): fail("a gather started on node %d with dev commands off" % node_id))
 	net.gather_result.connect(func(item_id, count): fail("got %d %s with dev commands off" % [count, item_id]))
-	net.xp_gained.connect(func(skill, gained, _t): fail("got %d %s XP with dev commands off" % [gained, skill]))
 	net.node_state.connect(func(node_id, depleted): if depleted: fail("node %d was emptied with dev commands off" % node_id))
 	net.nodes_depleted.connect(_on_depleted)
 	bot.command_sent.connect(_on_sent)

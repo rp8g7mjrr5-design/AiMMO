@@ -178,7 +178,7 @@ def scenario_contents(image: str, work: Path) -> list:
 
 def scenario_boots_plays_stops(image: str, work: Path) -> list:
     """One container for boots, plays and stops: booting it costs ~10-20 s each time."""
-    # The bots type /time, /who and /skills, which are dev commands: off by default since
+    # The bots type /time and /who, which are dev commands: off by default since
     # gameplay's chat gate (#139), so this one container switches them on the way an operator
     # would, with the env var (the image's CMD takes no flags). The frozen container keeps the
     # image's default. AIMMO_GLOAM=0 keeps the world quiet for the bots' scripted checks, as

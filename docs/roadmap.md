@@ -32,7 +32,11 @@ client).
 **Done when:** a new player can gather and craft with keys and windows only, no chat command
 anywhere, through the over-the-shoulder camera.
 
-## Milestone 1: The long road begins (skills and XP) (done 2026-11-24)
+## Milestone 1: The long road begins (skills and XP) (done 2026-11-24; removed 2026-11-26)
+**Removed (owner, 2026-11-26: "get rid of the leveling system and just work on the basics").**
+The skills, XP, level-ups and the skills window are gone; tier-2 nodes now need an axe or a
+pickaxe, and recipes only materials and the bench (design bible direction 5). Old XP stays in
+saves untouched. Kept below as history.
 **Goal:** every gather and craft visibly moves you toward a level, every level gives you
 something, and there is always a next unlock in view.
 - Four skills to start, with our own names: **Felling** (ash and pine), **Quarrying**
@@ -55,14 +59,14 @@ first level-up.
 
 ## Phase 1: A kingdom from a seed ← current
 **Goal:** every world is a new, generated stretch of the fallen kingdom, and what we already
-built (gathering, crafting, skills, combat basics) works in it.
+built (gathering, crafting and tools, combat basics) works in it.
 - The live Railway world stays up the whole time (owner, 2026-11-24: friends drop in any time),
   capped at 8 players (`MAX_PLAYERS`) until the load test proves more (Phase 5).
 - The generator takes a map size (small, medium, large: about 1.5, 3 and 4 km) so it is ready
   for bigger servers; medium is the default.
 - A world config (seed, size, generator version) the server sends at login; today's 512 m
   Ashgrove stays as version 0 until the Railway world moves to a generated map, in one announced
-  step where characters keep skills, items and pack and arrive at the new spawn.
+  step where characters keep their items and pack and arrive at the new spawn.
 - The generator v1: land, rivers, biomes, the king's roads, and **ruin sites** with grades,
   resource nodes and the spawn point placed from the seed.
 - Terrain, props and ruins built in chunks around the player, inside the render budget.
@@ -74,7 +78,6 @@ budget; the world builds in under 3 s.
 
 ## Phase 2: Survive the first night (in rounds)
 **Goal:** staying alive is the game, and nights are fought in rounds against the Zombai.
-- **One character level and the skill tree** (owner, 2026-11-25): today's four skills fold into character XP (add-only), the skills window becomes the tree window, and the first nodes of each branch.
 - **Health and stamina potions** brewed at the bench and found in ruins.
 - Hunger, thirst, warmth and rest on top of today's vitals, forgiving and readable; bandages and
   the first wounds.
@@ -127,7 +130,7 @@ and haul a cart of loot home.
 - A **load test** in CI at each cap step (24, 50, 100 bots, at least 3 minutes, scattered over
   the map), and the official world's cap stepping 8 → 24 → 50 → 100 as each passes.
 - **Server rules** as one data file sent at login and shown in a Rules panel: PvP, friendly
-  fire, claim protection, loot refills, day length, Zombai difficulty, what death costs, XP rate,
+  fire, claim protection, loot refills, day length, Zombai difficulty, what death costs, gather rate,
   map size, world reset.
 - **Factions** (shared claim, chests, doors, faction chat, map markers) and **nearby, faction and server
   chat**.

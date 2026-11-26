@@ -103,7 +103,7 @@ func test_tier2_ring_waits_round_the_kingdom_spawn() -> void:
 		var kinds := {}
 		for n in t2:
 			kinds[n.kind] = true
-			check_eq(n.min_level, 5, "a level gate")
+			check(Gathering.needs_tool(n), "a tool gate, not a level")
 			check(n.id >= WorldGen.node_spots().size(), "tier 2 is appended after every spot")
 			var d := _flat(n.pos, sp)
 			check(d >= ResourceNodes.TIER2_MIN_RADIUS - 0.01 and d < 140.0, "seed %d: tier 2 a short walk out (%.0f m)" % [seed, d])

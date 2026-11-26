@@ -4,7 +4,7 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## Only active when the bot is started with `--player-cap=N` (run_bot_test.py's player-cap
 ## phase boots a server with `--max-players=N`, fills it with N bots and then sends one more,
 ## see run_bot_test.run_player_cap). On a normal run it does nothing: the main bot-test server
-## has no cap, so its 8 bots plus the probe, pair, level-gate and haul bots all get in.
+## has no cap, so its 8 bots plus the probe, pair, tool-gate and haul bots all get in.
 ##
 ## Every bot checks it never shares the world with more than N players, counting itself (a
 ## snapshot with N or more others means the cap let one too many in). A bot turned away must

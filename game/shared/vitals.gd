@@ -42,7 +42,7 @@ const COMBAT_SECONDS := 6.0
 ## Health back per second out of combat, as a share of max (10%: full in 10 s).
 const HP_REGEN_SHARE := 0.10
 ## Fair failure (roadmap Milestone 2): at 0 health you are knocked down and come to at once
-## in Spawn Meadow, full, with everything you carried and every point of XP. No corpse run,
+## in Spawn Meadow, full, with everything you carried. No corpse run,
 ## no lost pack, no timer: losing costs the walk back, which is the lesson, not a punishment.
 const KNOCKED_DOWN_TEXT := "You were knocked down. You come to in Spawn Meadow with everything you carried."
 

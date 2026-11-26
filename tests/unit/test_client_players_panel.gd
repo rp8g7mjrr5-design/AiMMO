@@ -1,6 +1,6 @@
 extends TestCase
 ## The players panel (O key): rows from the server's roster, the texts, the gold glow on a
-## row that just arrived or levelled, and the O key in the F1 list.
+## row that just arrived, and the O key in the F1 list. There are no levels any more.
 
 
 func _roster() -> Array:
@@ -17,7 +17,7 @@ func test_rows_follow_the_roster() -> void:
 	check_eq(r.map(func(x): return str(x.name)), ["ash", "Bram", "wren"], "the server's order (by name)")
 	check(bool(r[1].you), "your own row is marked")
 	check(not bool(r[0].you) and not bool(r[2].you), "nobody else is you")
-	check_eq(int(r[1].level), 11)
+	check(not r[1].has("level"), "an older server's level is ignored")
 
 
 func test_rows_skip_bad_entries() -> void:
@@ -25,7 +25,6 @@ func test_rows_skip_bad_entries() -> void:
 	var r := PlayersPanel.rows(bad, 0)
 	check_eq(r.size(), 2, "a second row for one id, a non-Dictionary and a row with no id are skipped")
 	check_eq(str(r[0].name), "a")
-	check_eq(int(r[1].level), 0, "a missing level shows as 0")
 
 
 func test_texts() -> void:
@@ -34,28 +33,26 @@ func test_texts() -> void:
 	check_eq(PlayersPanel.header_text(5), "5 in the valley")
 	check_eq(PlayersPanel.button_text(0), "Players")
 	check_eq(PlayersPanel.button_text(3), "Players 3")
-	check_eq(PlayersPanel.level_text(12), "Total level 12")
 
 
 func test_changes() -> void:
 	var a := PlayersPanel.rows(_roster(), 7)
 	var more := _roster()
-	more[0].level = 6
 	more.append({"id": 9, "name": "Yew", "level": 4})
 	more.remove_at(2) # wren left
 	var ch := PlayersPanel.changes(a, PlayersPanel.rows(more, 7))
 	check_eq(ch.joined, [9])
-	check_eq(ch.levelled, {3: 2})
+	check(not ch.has("levelled"), "nothing levels")
 
 
-func test_panel_glows_on_join_and_level() -> void:
+func test_panel_glows_on_join() -> void:
 	ControlsOverlay.install_input()
 	var p := PlayersPanel.new()
 	p.setup(Theme.new())
 	p.set_me(7)
 	p.on_roster(_roster())
 	check_eq(p.header_shown(), "3 in the valley")
-	check_eq(p.shown(), ["ash|Total level 4", "Bram  (you)|Total level 11", "wren|Total level 6"])
+	check_eq(p.shown(), ["ash", "Bram  (you)", "wren"])
 	check_eq(p.flash_of(3), 0.0, "the first roster after login never glows")
 	var r := _roster()
 	r.append({"id": 9, "name": "Yew", "level": 4})
@@ -65,14 +62,10 @@ func test_panel_glows_on_join_and_level() -> void:
 	check_eq(p.flash_of(2), 0.0)
 	r[0].level = 5
 	p.on_roster(r)
-	check_eq(p.note_of(3), "+1")
-	p.step(0.2)
-	r[0].level = 6
-	p.on_roster(r)
-	check_eq(p.note_of(3), "+2", "a second level while still glowing adds up")
+	check_eq(p.note_of(3), "", "an older server's level going up shows nothing")
 	p.step(PlayersPanel.FLASH_SECONDS + 0.1)
-	check_eq(p.flash_of(3), 0.0, "the glow fades")
-	check_eq(p.note_of(3), "")
+	check_eq(p.flash_of(9), 0.0, "the glow fades")
+	check_eq(p.note_of(9), "")
 	r.remove_at(0)
 	p.on_roster(r)
 	check_eq(p.shown().size(), 3, "someone who left is gone")
@@ -100,7 +93,7 @@ func test_roster_before_login_answer_still_marks_you() -> void:
 	p.setup(Theme.new())
 	p.on_roster([{"id": 5, "name": "Me", "level": 4}])
 	p.set_me(5)
-	check_eq(p.shown(), ["Me  (you)|Total level 4"])
+	check_eq(p.shown(), ["Me  (you)"])
 	p.free()
 
 
