@@ -16,6 +16,9 @@ const DEFAULTS := {
 	## The chosen look (Appearance), {} until the player picks one. Stored as JSON text in
 	## characters.appearance (migration 0004); older saves have none and keep their seed look.
 	"look": {},
+	## The world (store.current_world id) this character was last on, for monthly wipes
+	## (WorldWipe, migration 0005). 0: before wipes, or a server that doesn't wipe.
+	"world_id": 0,
 }
 
 
@@ -59,6 +62,7 @@ static func from_pg_row(row: Dictionary) -> Dictionary:
 		"yaw": row.get("yaw"),
 		"appearance_seed": row.get("appearance_seed"),
 		"look": Appearance.from_json(row.get("appearance", "")),
+		"world_id": row.get("world_id"),
 	})
 
 
