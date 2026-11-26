@@ -20,6 +20,7 @@ var _last_sent := Vector2(INF, INF)
 var prediction := Prediction.new()
 
 var ui: CanvasLayer
+var shore_cover: ShoreCover ## "Washing ashore" over a big world's build (made on first use)
 var login_panel: PanelContainer
 var address_edit: LineEdit
 var name_edit: LineEdit
@@ -102,6 +103,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	_build_ui()
 	_build_audio()
 	world = WorldBuilder.build()
+	world.set_meta("world_config", WorldGen.config())
 	add_child(world)
 	grazers = GrazerFigures.new()
 	grazers.setup()
@@ -124,6 +126,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.chat_message.connect(_on_chat)
 	net.system_message.connect(_on_system)
 	net.world_time.connect(_on_world_time)
+	net.world_config.connect(_on_world_config)
 	net.gather_begun.connect(_on_gather_begun)
 	net.gather_ended.connect(_on_gather_ended)
 	net.gather_result.connect(_on_gather_result)
@@ -860,6 +863,45 @@ static func _now() -> float:
 
 ## The server's clock (at login and every WORLD_TIME_SYNC_SECONDS). DayNight keeps it and
 ## runs it on between syncs; the sky and the time dial both read it from there.
+## The server says which world it runs (s2c_world, right after the login answer). Today's
+## Ashgrove server sends Ashgrove's config, which this client already built, so nothing
+## happens. A different world (an island) is built now, before anything else about it
+## arrives: terrain streams in around you (TerrainStream), and avatars, herds and the
+## Zombai move over to the new world unchanged.
+## Worlds bigger than this (m) get the "Washing ashore" cover while they build.
+const COVER_OVER_M := 1000.0
+
+
+func _on_world_config(config: Dictionary) -> void:
+	var want := WorldGen.parse("") if config.is_empty() else config
+	WorldGen.apply(want)
+	if world != null and world.get_meta("world_config", {}) == WorldGen.config():
+		return
+	var t := Time.get_ticks_msec()
+	if WorldGen.size_m() > COVER_OVER_M:
+		if shore_cover == null:
+			shore_cover = ShoreCover.new()
+			add_child(shore_cover)
+		shore_cover.show_now()
+	var old := world
+	world = WorldBuilder.build()
+	world.set_meta("world_config", WorldGen.config())
+	if old != null:
+		for child in old.get_children():
+			if child == grazers or child == zombai_figures or avatars.values().any(func(a): return a.node == child):
+				child.reparent(world, false)
+		remove_child(old)
+		old.free() # now, not at the end of the frame: nothing outside it points into it any more
+	add_child(world)
+	_apply_settings(settings)
+	if logged_in and avatars.has(my_id):
+		var me: Node3D = avatars[my_id].node
+		prediction.place(Terrain.clamp_to_world(me.position))
+	if shore_cover != null:
+		shore_cover.done()
+	print("[client] built world %s in %d ms" % [str(WorldGen.config()), Time.get_ticks_msec() - t])
+
+
 func _on_world_time(world_seconds: float) -> void:
 	DayNight.set_world_seconds(world_seconds)
 	if time_dial and time_dial.visible:

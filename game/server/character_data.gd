@@ -16,6 +16,9 @@ const DEFAULTS := {
 	## The chosen look (Appearance), {} until the player picks one. Stored as JSON text in
 	## characters.appearance (migration 0004); older saves have none and keep their seed look.
 	"look": {},
+	## The world (store.current_world id) this character was last on, for monthly wipes
+	## (WorldWipe, migration 0005). 0: before wipes, or a server that doesn't wipe.
+	"world_id": 0,
 }
 
 
@@ -62,11 +65,15 @@ static func from_pg_row(row: Dictionary) -> Dictionary:
 		"yaw": row.get("yaw"),
 		"appearance_seed": row.get("appearance_seed"),
 		"look": Appearance.from_json(row.get("appearance", "")),
+		"world_id": row.get("world_id"),
 	})
 
 
+## A new character. On an island they wash up on one of its beach landings, picked by their
+## name so a crowd spreads over every beach; elsewhere it is the spawn point, as before.
 static func new_for(account: Dictionary) -> Dictionary:
-	var p := Terrain.clamp_to_world(WorldGen.spawn_point())
+	var key := hash(str(account.get("username_lc", account.get("username", "")))) & 0x7FFFFFFF
+	var p := Terrain.clamp_to_world(WorldGen.landing_for(key))
 	return normalize({
 		"account_id": account.id,
 		"name": account.username,

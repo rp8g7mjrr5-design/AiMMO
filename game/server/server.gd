@@ -29,6 +29,16 @@ var gathering := Gathering.new_state()
 ## no net every message goes to test_outbox instead of the network.
 var test_now := -1.0
 var test_outbox: Array = []
+## Unit tests only: when >= 0, now_unix() returns this (Unix seconds) instead of the real date.
+var test_unix := -1
+## Monthly wipes (WorldWipe): the rule (AIMMO_WIPE / --wipe, "never" unless set), the world
+## spec it rolls new worlds from, and the store's record of the world running now ({} with
+## wipes off, which is always the case on Ashgrove).
+var wipe_rule := WipeSchedule.NEVER
+var world_record := {}
+var _wipe_cfg := {}
+var _wipe_check := 0.0
+var _wipe_warned := {}
 ## Seconds until the next respawn sweep (see _respawn_nodes).
 var _respawn_timer := 0.0
 ## Messages the server already produces but the current protocol has no RPC for yet (see
@@ -92,6 +102,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 		get_tree().quit(2)
 		return
 	print("[server] storage ready: ", "postgres" if store is PgStore else "json (dev only)")
+	start_wipes(WipeSchedule.parse(CliArgs.setting(args, "wipe", "AIMMO_WIPE", "")), WorldGen.config())
 
 	var made := Transport.create_server(transport, port)
 	if made[1] != OK:
@@ -136,6 +147,81 @@ func use_world(cfg: Dictionary) -> void:
 	wildlife = Wildlife.new_state()
 	gloam = Gloam.new_state()
 	campfires = Campfires.new_state()
+
+
+## Turns monthly wipes on for world spec `cfg` when `rule` asks and the world is generated
+## (WorldWipe.enabled), and runs the store's current world, or a new one if it is due. Needs the
+## store open. Off, nothing changes.
+func start_wipes(rule: String, cfg: Dictionary) -> void:
+	wipe_rule = rule
+	world_record = {}
+	_wipe_warned.clear()
+	if not WorldWipe.enabled(rule, cfg):
+		print("[server] wipes: off" if rule == WipeSchedule.NEVER else "[server] wipes: off (Ashgrove never wipes; they need a generated world)")
+		return
+	_wipe_cfg = cfg.duplicate()
+	var rec := WorldWipe.choose(store, cfg, now_unix())
+	if rec.is_empty():
+		push_error("[server] wipes: could not read or record the world (%s); running without wipes" % store.last_error)
+		return
+	world_record = rec
+	use_world(WorldWipe.config_of(rec))
+	print("[server] wipes: %s, world %d (seed %d), next wipe %s" % [rule, int(rec.id), int(rec.seed), WipeSchedule.describe(int(rec.wipes_at))])
+
+
+## Unix seconds (UTC) now, for the wipe schedule.
+func now_unix() -> int:
+	return test_unix if test_unix >= 0 else int(Time.get_unix_time_from_system())
+
+
+## Warns everyone online at 60, 10 and 1 minutes, and wipes when the time comes.
+func _tick_wipe(now: int) -> void:
+	if world_record.is_empty():
+		return
+	var left := int(world_record.wipes_at) - now
+	if left <= 0:
+		wipe_now(now)
+		return
+	var say := 0
+	for m in WipeSchedule.WARN_MINUTES:
+		if left <= m * 60 and not _wipe_warned.has(m):
+			_wipe_warned[m] = true
+			say = m
+	if say > 0:
+		_broadcast_system(WipeSchedule.warning(say))
+
+
+## The wipe: saves everyone, sends them off with a line saying why, and rolls the next world
+## (new seed). Their packs are emptied when they come back (WorldWipe.on_login); the old world's
+## record and everything they had stay in the store.
+func wipe_now(now: int) -> void:
+	print("[server] wipe: world %d ends, saving and sending everyone off" % int(world_record.id))
+	_save_all()
+	for id in sessions.keys():
+		if sessions.has(id) and sessions[id].logged_in:
+			_send(id, "s2c_system", [WIPE_TEXT])
+			_on_peer_disconnected(id)
+			if net != null and multiplayer.multiplayer_peer != null:
+				multiplayer.multiplayer_peer.disconnect_peer(id)
+	var rec := WorldWipe.roll(store, _wipe_cfg, now, false)
+	if rec.is_empty():
+		push_error("[server] wipe: could not record the new world (%s); trying again in an hour" % store.last_error)
+		world_record.wipes_at = now + 3600
+		return
+	world_record = rec
+	_wipe_warned.clear()
+	use_world(WorldWipe.config_of(rec))
+	print("[server] wipe: new world %d, %s; next wipe %s" % [int(rec.id), describe_world(), WipeSchedule.describe(int(rec.wipes_at))])
+
+
+const WIPE_TEXT := "The island is wiped. Log back in to wash up on a new one."
+const WASHED_UP_TEXT := "A new island. You wash up with nothing."
+
+
+func _broadcast_system(text: String) -> void:
+	for id in sessions:
+		if sessions[id].logged_in:
+			_send(id, "s2c_system", [text])
 
 
 ## Whether walkers rise on their own: `--gloam` (or `--gloam=0/1`) wins, then AIMMO_GLOAM
@@ -208,6 +294,10 @@ func _process(delta: float) -> void:
 		_clock_sync_timer = 0.0
 		_broadcast_world_time()
 	_stop_check += delta
+	_wipe_check += delta
+	if _wipe_check >= 5.0:
+		_wipe_check = 0.0
+		_tick_wipe(now_unix())
 	if _stop_file != "" and _stop_check >= 0.5:
 		_stop_check = 0.0
 		if FileAccess.file_exists(_stop_file):
@@ -519,6 +609,9 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 	if not sessions.has(id):
 		return # disconnected while we were talking to the database
 	s.logged_in = true
+	var washed := WorldWipe.on_login(store, ch, world_record)
+	if washed and not store.save_character(ch):
+		push_error("[server] could not save %s after the wipe: %s" % [ch.name, store.last_error])
 	place_on_this_world(ch)
 	s.character = ch
 	s.yaw = ch.yaw
@@ -529,6 +622,10 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 	_send(id, "s2c_world_time", [world_seconds()])
 	_send_vitals(id) # the bar starts right, before anything changes it
 	_send_world_state(id)
+	if washed and not is_new:
+		_send(id, "s2c_system", [WASHED_UP_TEXT])
+	if not world_record.is_empty():
+		_send(id, "s2c_system", [WipeSchedule.notice(int(world_record.wipes_at), now_unix())])
 	# Tell the newcomer about everyone already here, and everyone about the newcomer.
 	for other in sessions:
 		var o: Dictionary = sessions[other]

@@ -22,11 +22,20 @@ const LABELS := {
 	"fallen_castle": "The Fallen Castle",
 	"toll_bridge": "Toll Bridge",
 	"drowned_village": "The Drowned Village",
+	"market_town": "Market Town",
+	"garrison_fort": "Garrison Fort",
+	"barber_surgeon": "Barber-Surgeon's House",
+	"watermill": "Watermill",
+	"shepherds_fold": "Shepherd's Fold",
+	"fishers_hut": "Fisher's Hut",
+	"old_meadow": "The Old Meadow",
+	"wrecked_cart": "Wrecked Cart",
 }
 
 
-## Every ruin site: [{id, kind, grade, grade_name, label, pos: Vector3, radius}], in WorldGen's
-## order (the castle first, then by grade). Empty on Ashgrove.
+## Every ruin site: [{id, kind, grade, grade_name, label, pos: Vector3, radius, layout_seed,
+## rot}], in WorldGen's order (the castle first, then by grade). `layout_seed` and `rot` vary
+## a set piece's layout per site (0 on a version 1 kingdom). Empty on Ashgrove.
 static func all() -> Array:
 	var out: Array = []
 	for s in WorldGen.ruin_sites():
@@ -34,6 +43,7 @@ static func all() -> Array:
 		out.append({
 			"id": int(s.id), "kind": str(s.kind), "grade": g, "grade_name": grade_name(g),
 			"label": label(str(s.kind)), "pos": s.pos, "radius": float(s.radius),
+			"layout_seed": int(s.get("layout_seed", 0)), "rot": float(s.get("rot", 0.0)),
 		})
 	return out
 

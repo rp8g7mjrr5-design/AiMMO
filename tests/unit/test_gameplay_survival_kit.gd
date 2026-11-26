@@ -135,3 +135,25 @@ func test_old_saves_turn_ember_items_into_plain_ones() -> void:
 	var again := inv.duplicate()
 	check(Inventory.convert_retired(again).is_empty(), "nothing left to convert")
 	check_eq(again, inv)
+
+
+func test_every_island_landing_has_the_first_kit_close_by() -> void:
+	# The island (generator v2): wherever you wash up, the wood for a wooden axe and pickaxe and
+	# a scrub patch for fibre (bandages, torches, stone-tool bindings) are in your starter ring.
+	for seed in [1, 2]:
+		WorldGen.configure(seed, 3000.0, WorldGen.ISLAND)
+		var landings := WorldGen.landings()
+		var total := {}
+		for n in ResourceNodes.all():
+			total[n.kind] = total.get(n.kind, 0) + 1
+		check(total.get("scrub", 0) >= 20, "seed %d: scrub across the island (%d)" % [seed, total.get("scrub", 0)])
+		for i in landings.size():
+			var kinds := {}
+			for n in WorldGen.node_spots():
+				if n.starter and Vector2(n.pos.x, n.pos.z).distance_to(landings[i]) < 80.0:
+					kinds[n.kind] = true
+			for k in ["ash", "pine", "scrub"]:
+				check(kinds.has(k), "seed %d landing %d has %s close by" % [seed, i, k])
+		check_eq(Crafting.check({"ash_wood": 2, "pine_wood": 2}, "wooden_pickaxe", Vector3(landings[0].x, 0, landings[0].y)), "",
+			"seed %d: a wooden pickaxe is made right on the beach" % seed)
+	WorldGen.reset()

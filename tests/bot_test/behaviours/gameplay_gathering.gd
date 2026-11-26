@@ -136,7 +136,7 @@ func _on_system(text: String) -> void:
 	_waiting = false
 	if text.begins_with("You gather"):
 		gathered += 1
-		var item := str(ResourceNodes.kind_info(ResourceNodes.get_by_id(_target).kind).item)
+		var item := str(ResourceNodes.info_by_id(_target).item)
 		var m := RegEx.create_from_string("\\((\\d+) in your pack\\)").search(text)
 		if m == null:
 			fail("gather reply without a pack count: %s" % text)

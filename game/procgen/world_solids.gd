@@ -21,6 +21,7 @@ const KIND := "deco"
 const CELL := 16.0 ## grid cell for near(): about the camera's reach, so a query reads a few cells
 
 static var _all: Array = []
+static var _built_for: Dictionary = {} ## the WorldGen config `_all` was built for
 static var _grid: Dictionary = {}
 static var _max_reach := 0.0
 static var _verts: Dictionary = {} # mesh instance id -> PackedVector3Array (unique vertices)
@@ -29,7 +30,7 @@ static var _profiles: Dictionary = {} # mesh instance id -> [r_xz, y_min, y_max]
 
 ## Every decorative solid, built once (deterministic: the same world on every machine).
 static func all() -> Array:
-	if _all.is_empty():
+	if _all.is_empty() or _built_for != WorldGen.config():
 		_build()
 	return _all
 
@@ -37,7 +38,7 @@ static func all() -> Array:
 ## Solids whose columns come within `radius` of `pos` in x/z (height is ignored, like
 ## `ResourceNodes.near`).
 static func near(pos: Vector3, radius: float) -> Array:
-	if _all.is_empty():
+	if _all.is_empty() or _built_for != WorldGen.config():
 		_build()
 	var out: Array = []
 	var reach := radius + _max_reach
@@ -157,6 +158,8 @@ static func _add(s: Dictionary) -> void:
 
 
 static func _build() -> void:
+	_built_for = WorldGen.config()
+	_all = []
 	_grid = {}
 	_max_reach = 0.0
 	var scatter_meshes := WorldBuilder.scatter_meshes()
