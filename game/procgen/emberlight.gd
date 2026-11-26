@@ -10,10 +10,13 @@ class_name Emberlight
 ##   painted planes of light and shade.
 ## - Warm light, cool shadow: the lit side leans gold, the side turned away leans `SHADE`.
 ## - A soft rim on silhouettes when you look towards the light.
-## - "Brush noise": a slow, world-position value noise that varies the paint a few percent,
-##   so big flat faces never look like bare untextured blocks.
-## - "Low-res paint": a grain of small square texels from the mesh's own position (hashed,
-##   no texture), so surfaces read like a low-resolution painted texture, not flat plastic.
+## - "Brush noise": a slow, broad world-position value noise that varies the paint a few
+##   percent, so big faces get a soft mottling instead of one dead flat colour.
+## - "Low-res paint": an optional grain of small square texels from the mesh's own position
+##   (hashed, no texture). Off by default since 2026-11-26: the world is clean flat colour
+##   like the carved characters that live in it (art bible section 1).
+## - "Carved facets": each triangle is lit as one flat plane (its normal from screen-space
+##   derivatives, so no mesh is rebuilt and no vertex is added): clean carved low poly.
 ## - Colour from vertex colours (MultiMesh instance colours multiply in), including the
 ##   baked ambient occlusion from `bake()` and the terrain builder.
 ## - Ember veins (glow variant): vertex alpha below 1 marks a vein, vein strength = 1 - alpha.
@@ -51,11 +54,16 @@ static func material(variant: String = "solid", name: String = "") -> ShaderMate
 
 ## The shared "solid" material painted with SurfaceTex `kind` detail (bark, stone, wood): one
 ## material per kind, so every tree trunk shares one and every rock another.
+## The detail is OFF (mix 0) since the world was matched to the clean carved characters
+## (owner, 2026-11-26: "make sure the map now fits with our new characters", then "B clean
+## carved real proportions"): the characters are crisp flat-coloured planes, and grain or
+## texture noise on the world beside them read as two games. The kinds stay, so bark and stone keep their own shared materials (and a later look
+## can turn a kind back on here, in one place).
 const PAINT := {
-	"bark": {"tpm": 1.2, "mix": 0.7},
-	"stone": {"tpm": 0.9, "mix": 0.65},
-	"wood": {"tpm": 1.6, "mix": 0.6},
-	"ground": {"tpm": 0.6, "mix": 0.7},
+	"bark": {"tpm": 1.2, "mix": 0.0},
+	"stone": {"tpm": 0.9, "mix": 0.0},
+	"wood": {"tpm": 1.6, "mix": 0.0},
+	"ground": {"tpm": 0.6, "mix": 0.0},
 }
 
 
@@ -265,9 +273,10 @@ global uniform float ember_night; // 0 by day, 1 at full night: the paint drains
 uniform float shade_strength = 0.30; // how far the turned-away side leans towards SHADE
 uniform float warmth = 0.10; // how far the lit side leans gold
 uniform float rim_strength = 0.35; // soft rim on silhouettes when looking towards the light
-uniform float brush = 0.07; // world-position paint variation, +- this fraction
+uniform float brush = 0.035; // world-position paint variation, +- this fraction: a soft, broad mottling, never noise
 uniform float texel_size = 0.055; // metres per "texel" of the low-res paint grain, in the mesh's own space
-uniform float texel_grain = 0.09; // how far each texel's paint varies, +- this fraction (0 = off)
+uniform float texel_grain = 0.0; // how far each texel's paint varies, +- this fraction (0 = off: the world matches the clean carved characters, 2026-11-26)
+uniform float facets = 1.0; // 1: every triangle lit as one flat carved plane (clean carved low poly, 2026-11-26); 0: smooth normals
 uniform float night_desat = 0.55; // at full night the paint keeps only this much less of its colour
 uniform float night_shade = 1.4; // extra SHADE blue in the shadows at full night: the moonlit side of a figure turned away from the moon (never a black hole)
 uniform vec3 emission_color : source_color = vec3(1.0, 0.42, 0.14);
@@ -330,7 +339,14 @@ void vertex() {
 }
 
 void fragment() {
-	float n = value_noise(world_pos.xz * 0.35) * 0.65 + value_noise(world_pos.xz * 1.7 + world_pos.y) * 0.35;
+	if (facets > 0.5) {
+		// Carved: the face's own normal (view space), so every triangle is one clean plane.
+		// Screen y runs opposite ways on Vulkan and OpenGL, so the cross product's sign isn't
+		// fixed: turn it to the side the mesh's own normal faces.
+		vec3 face = normalize(cross(dFdx(VERTEX), dFdy(VERTEX)));
+		NORMAL = dot(face, NORMAL) < 0.0 ? -face : face;
+	}
+	float n = value_noise(world_pos.xz * 0.12) * 0.75 + value_noise(world_pos.xz * 0.45 + world_pos.y * 0.3) * 0.25;
 	ALBEDO = COLOR.rgb * (1.0 + (n - 0.5) * 2.0 * brush);
 	// Low-res paint (art bible section 1): the colour breaks into small square texels, like a
 	// hand-painted texture shown with nearest-neighbour filtering, but computed from the mesh's

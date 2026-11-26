@@ -121,7 +121,10 @@ func test_pulse_parameter_registered() -> void:
 func test_painted_materials_are_shared_and_tiny() -> void:
 	check_eq(Emberlight.painted("bark"), Emberlight.painted("bark"), "one bark material")
 	check(Emberlight.painted("bark") != Emberlight.painted("stone"), "bark and stone differ")
-	check(float(Emberlight.painted("stone").get_shader_parameter("paint_mix")) > 0.0, "stone shows its detail")
+	# The world matches the smooth, grain-free folk (2026-11-26): the detail is laid on but off.
+	check_eq(float(Emberlight.painted("stone").get_shader_parameter("paint_mix")), 0.0, "stone is smooth flat colour like the folk")
+	for k in Emberlight.PAINT:
+		check_eq(float(Emberlight.PAINT[k].mix), 0.0, "%s detail is off" % k)
 	check_eq(TerrainMesh.material().get_shader_parameter("paint_tex"), SurfaceTex.get_texture("ground"), "the ground is painted")
 	for k in SurfaceTex.KINDS:
 		var t := SurfaceTex.get_texture(k)
@@ -140,3 +143,25 @@ func test_painted_materials_are_shared_and_tiny() -> void:
 				hi = maxf(hi, v)
 		check_near(total / (im.get_width() * im.get_height()), 0.5, 0.03, "%s averages mid grey" % k)
 		check(hi - lo > 0.2, "%s has visible detail" % k)
+
+
+func test_world_is_clean_carved_like_the_characters() -> void:
+	# Owner, 2026-11-26: "make sure the map now fits with our new characters", then "B clean
+	# carved real proportions". The world is crisp flat-lit planes in flat colour: no texel
+	# grain, no painted noise, every triangle one carved facet.
+	for v in Emberlight.VARIANTS:
+		var src := Emberlight.source(v)
+		check(src.contains("uniform float texel_grain = 0.0"), "%s: no texel grain by default" % v)
+		check(src.contains("uniform float facets = 1.0"), "%s: carved facets by default" % v)
+		check(src.contains("cross(dFdx(VERTEX), dFdy(VERTEX))") and src.contains("dot(face, NORMAL) < 0.0"), "%s: each face lit as one plane, facing out on every renderer" % v)
+	check(TerrainMesh.material().get_shader_parameter("texel_grain") == null, "the ground keeps the default: no grain")
+	check(TerrainMesh.material().get_shader_parameter("paint_mix") == 0.0, "no painted detail on the ground")
+	# Grass blades are clean shapes, not single-pixel lines: wide enough to filter smoothly.
+	var im := Grass.blade_image()
+	var widest := 0
+	for y in im.get_height():
+		var run := 0
+		for x in im.get_width():
+			run = run + 1 if im.get_pixel(x, y).a > 0.5 else 0
+			widest = maxi(widest, run)
+	check(widest >= 5, "blades are several texels wide at the root (%d)" % widest)

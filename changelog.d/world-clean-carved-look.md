@@ -1,0 +1,1 @@
+- **A cleaner island.** The world now matches the new clean, carved look of the characters: the grainy speckle is gone from the ground, trees, rocks and props, every surface catches the light as crisp carved planes, and the grass grows in clean pointed blades instead of fuzzy pixel lines. Same colours, same sunny days and moody nights, just sharper.

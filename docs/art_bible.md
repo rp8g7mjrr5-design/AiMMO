@@ -45,8 +45,19 @@ kingdom under a clear sun and cool blue shadows, with a faint ember glow pulsing
 everything the old warmth under the land still touches, and the cold grey of the Dimming where
 it has drained away.
 
-**Low-res paint** (owner direction, 2026-11-24: "less blocky and more low res actual"). Two
-things carry it. Shapes are *organic low poly*: smooth, rounded silhouettes with real
+**Clean carved, no grain** (owner direction, 2026-11-26: "make sure the map now fits with
+our new characters", then "B clean carved real proportions"). The characters are clean carved
+low poly: crisp flat-lit planes in flat colour at real proportions. The world beside them is
+the same: the texel grain and the painted surface detail (`SurfaceTex`) are **off** by default
+on every Emberlight material, every triangle is lit as one flat carved plane (Emberlight's
+`facets`, from screen-space derivatives, so no mesh changes and no triangle is added), and the
+grass is a few straight-edged tapering blades per tuft instead of pixel-thin lines. What
+stays: the muted palette, warm light and cool shadow, darker at the base, the ember accent, a
+broad soft brush mottling, and real-world scale. The paragraph below is the 2026-11-24
+direction it replaces, kept as history.
+
+**Low-res paint** (owner direction, 2026-11-24: "less blocky and more low res actual";
+superseded 2026-11-26 above). Two things carried it. Shapes are *organic low poly*: smooth, rounded silhouettes with real
 anatomy and few polygons, never boxes. Surfaces carry a *low-res texel grain*: the colour
 breaks into small square texels, like a low-resolution hand-painted texture shown with
 nearest-neighbour filtering. The grain is computed in the shared shader from each mesh's own
@@ -404,7 +415,8 @@ reintroduces them.
 | Teal, green-lit nights | Neither moonlit nor dark | **Improved 2026-11-24**: navy and blue-grey, moon-blue fill. Next: check dark cloth reads on a real GPU (CI renders in software) |
 | Bold outlined yellow floaters and banners | Mobile-game shouting | **To do** (client): section 9 |
 | Thin black lamp posts with red boxes | Reads as a street lamp, not a wilderness lantern | **To do** (world): timber posts, iron and horn lanterns |
-| Uniform flat terrain facets at noon | No sense of ground cover | **Fixed 2026-11-24**: the low-res grain breaks the ground into 40 cm texels, and seeded moss, dry grass and bare earth patches break up the meadow and forest floor (#189) |
+| Uniform flat terrain facets at noon | No sense of ground cover | **Fixed 2026-11-24**: the low-res grain breaks the ground into 40 cm texels, and seeded moss, dry grass and bare earth patches break up the meadow and forest floor (#189). **Revised 2026-11-26**: the grain is off; the moss, straw and earth patches and the carved facets carry the ground |
+| A grainy world around clean carved characters (owner, 2026-11-26: "make sure the map now fits with our new characters") | Pixel grain on every surface, painted texture noise and pixel-thin grass blades beside crisp flat-coloured characters read as two different games | **Fixed 2026-11-26**: grain and surface detail off, every face lit as one carved plane, clean straight-edged grass blades |
 
 ## 12. Checklist for any PR that changes what is on screen
 1. Before and after screenshots at noon, golden hour and night (the client smoke shots plus

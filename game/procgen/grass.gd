@@ -210,29 +210,33 @@ static func mesh() -> ArrayMesh:
 
 
 ## The blade sheet: RGBA, alpha cut. Brightness only (the colour comes from the ground): dark
-## roots, lighter tips, about 28 blades of different heights and leans across 64 x 32 texels.
+## roots, lighter tips. Clean carved blades (2026-11-26, the world matched to the clean carved
+## characters): about 16 straight-edged tapering blades across 128 x 64, read with linear
+## filtering, so a tuft is a few crisp low-poly leaves instead of a spray of pixel-thin lines.
 static func blade_image() -> Image:
-	var w := 64
-	var h := 32
+	var w := 128
+	var h := 64
 	var im := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	# Image.create starts all zero: fully transparent.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 14
-	for b in 28:
-		var x0 := rng.randf_range(2.0, w - 3.0)
-		var lean := rng.randf_range(-0.45, 0.45)
-		var top := rng.randi_range(h / 3, h - 1)
-		var tip := rng.randf_range(0.8, 0.95)
+	for b in 16:
+		var x0 := rng.randf_range(8.0, w - 9.0)
+		var lean := rng.randf_range(-0.45, 0.45) # straight blades: a constant lean, no curl
+		var top := rng.randi_range(h / 3, h - 2)
+		var half_w := rng.randf_range(2.6, 4.2)
+		var tip := rng.randf_range(0.78, 0.9)
 		for k in top:
 			var t := float(k) / top
-			var x := int(x0 + lean * k * (0.6 + 0.4 * t))
+			var v := lerpf(0.5, tip, t) # dark at the root, lighter to the tip, like the ground it grows from
+			var cx := x0 + lean * k
+			var hw := half_w * (1.0 - t) + 0.5 # a straight taper to the point: a long thin triangle
 			var y := h - 1 - k
-			if x < 0 or x >= w:
-				continue
-			var v := lerpf(0.5, tip, t)
-			im.set_pixel(x, y, Color(v, v, v, 1.0))
-			if t < 0.45 and x + 1 < w: # blades are two texels wide at the root
-				im.set_pixel(x + 1, y, Color(v * 0.85, v * 0.85, v * 0.85, 1.0))
+			for x in range(int(floor(cx - hw)), int(ceil(cx + hw)) + 1):
+				if x < 0 or x >= w or absf(x - cx) > hw:
+					continue
+				var shade := v * (0.9 if x < cx else 1.0) # two planes per blade, like a folded leaf
+				im.set_pixel(x, y, Color(shade, shade, shade, 1.0))
 	im.generate_mipmaps()
 	return im
 
@@ -266,7 +270,7 @@ render_mode cull_disabled, specular_disabled;
 
 global uniform float ember_night;
 
-uniform sampler2D blades : filter_nearest_mipmap, hint_default_white;
+uniform sampler2D blades : filter_linear_mipmap, hint_default_white;
 uniform vec3 center = vec3(0.0); // the grass centre (Grass sets it every frame)
 uniform float range_end = 24.0;
 uniform float fade = 7.0;
