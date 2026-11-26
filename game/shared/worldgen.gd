@@ -8,6 +8,9 @@ class_name WorldGen
 ## - `gen_version` 0 is Ashgrove, the hand-tuned 512 m valley the live world runs on. It
 ##   ignores `seed` and `size_m` and is bit-identical to the terrain before this file existed
 ##   (Terrain.height keeps its own code path for it). It stays the default.
+## - `gen_version` 2 is the island (`IslandGen`, owner 2026-11-26): sea all round, 1.5 to 4 km
+##   (3 km by default), beach landings instead of a spawn plot, and locations rolled from a
+##   pool with their own layout seeds. It reuses this file's helpers through the same `_L`.
 ## - `gen_version` 1 is a generated stretch of the fallen kingdom, about 1 to 1.5 km across:
 ##   a rim of hills (or hills and a coast), a river to the sea or a lake, lakes, forest, moor,
 ##   wild farmland and stone hills, the king's roads between graded ruin sites, and a flat
@@ -22,7 +25,8 @@ class_name WorldGen
 
 const ASHGROVE := 0
 const KINGDOM := 1
-const LATEST := KINGDOM
+const ISLAND := 2 ## the island (IslandGen), owner 2026-11-26
+const LATEST := ISLAND
 
 const ASHGROVE_SIZE := 512.0
 const KINGDOM_SIZE_MIN := 800.0
@@ -107,6 +111,9 @@ static func configure(seed: int, size_m: float, gen_version: int) -> void:
 	if gen == ASHGROVE:
 		_seed = GameConfig.WORLD_SEED
 		_size = ASHGROVE_SIZE
+	elif gen == ISLAND:
+		_seed = seed
+		_size = clampf(size_m, IslandGen.SIZE_MIN, IslandGen.SIZE_MAX)
 	else:
 		_seed = seed
 		_size = clampf(size_m, KINGDOM_SIZE_MIN, KINGDOM_SIZE_MAX)
@@ -139,21 +146,32 @@ static func parse(spec: String) -> Dictionary:
 	var gen := clampi(int(parts[1]), ASHGROVE, LATEST)
 	if gen == ASHGROVE:
 		return out
-	var size := KINGDOM_SIZE_DEFAULT
+	var island := gen == ISLAND
+	var sizes: Dictionary = IslandGen.SIZES if island else SIZES
+	var size: float = IslandGen.SIZE_DEFAULT if island else KINGDOM_SIZE_DEFAULT
 	if parts.size() >= 3:
 		if parts[2].is_valid_float():
 			size = float(parts[2])
-		elif SIZES.has(parts[2]):
-			size = SIZES[parts[2]]
-	return {"seed": int(parts[0]), "size_m": clampf(size, KINGDOM_SIZE_MIN, KINGDOM_SIZE_MAX), "gen_version": gen}
+		elif sizes.has(parts[2]):
+			size = sizes[parts[2]]
+	if island:
+		size = clampf(size, IslandGen.SIZE_MIN, IslandGen.SIZE_MAX)
+	else:
+		size = clampf(size, KINGDOM_SIZE_MIN, KINGDOM_SIZE_MAX)
+	return {"seed": int(parts[0]), "size_m": size, "gen_version": gen}
 
 
 static func gen_version() -> int:
 	return _gen
 
 
+## True on every generated world (version 1 and up): the callers that ask mean "not Ashgrove".
 static func is_kingdom() -> bool:
-	return _gen == KINGDOM
+	return _gen >= KINGDOM
+
+
+static func is_island() -> bool:
+	return _gen == ISLAND
 
 
 static func size_m() -> float:
@@ -175,7 +193,7 @@ static func water_level() -> float:
 ## Ground height in metres on the kingdom. Terrain.height is the public entry point.
 static func height(x: float, z: float) -> float:
 	_ensure()
-	var h := _land(x, z)
+	var h := IslandGen.land(_L, x, z) if _gen == ISLAND else _land(x, z)
 	return _pads(x, z, h)
 
 
@@ -188,6 +206,8 @@ static func biome_at(x: float, z: float) -> String:
 ## biome_at() for a point whose height you already have (map painting, placement passes).
 static func biome_for(x: float, z: float, h: float) -> String:
 	_ensure()
+	if _gen == ISLAND:
+		return IslandGen.biome_for(_L, x, z, h)
 	if h < KINGDOM_WATER - 0.2:
 		return "water"
 	if h < KINGDOM_WATER + 1.0:
@@ -239,7 +259,43 @@ static func rivers() -> Array:
 	if _gen == ASHGROVE:
 		return []
 	_ensure()
+	if _gen == ISLAND:
+		return _L.rivers
 	return [_L.river]
+
+
+## Where new characters wash up: beach spots round an island's coast (Vector2 x, z), the first
+## being spawn_point(). A version 1 kingdom has one: its spawn plot. Empty on Ashgrove.
+static func landings() -> Array:
+	if _gen == ASHGROVE:
+		return []
+	_ensure()
+	if _gen == ISLAND:
+		return _L.landings
+	return [_L.spawn]
+
+
+## A landing picked by `key` (an account's name hash, a respawn roll), on the ground. Spreads
+## a crowd over every beach. Ashgrove and version 1 always give spawn_point().
+static func landing_for(key: int) -> Vector3:
+	var all := landings()
+	if all.size() <= 1:
+		return spawn_point()
+	var p: Vector2 = all[absi(key) % all.size()]
+	return Vector3(p.x, height(p.x, p.y), p.y)
+
+
+## "king" or "track" for each of roads(), in the same order. Version 1's are all king's roads.
+static func road_kinds() -> Array:
+	if _gen == ASHGROVE:
+		return []
+	_ensure()
+	if _gen == ISLAND:
+		return _L.road_kinds
+	var out: Array = []
+	for r in _L.roads:
+		out.append("king")
+	return out
 
 
 ## Lakes: [{center: Vector2, radius}]. Empty on Ashgrove.
@@ -275,6 +331,7 @@ static func placement() -> Dictionary:
 	return {
 		"config": config(), "spawn": spawn_point(), "ruins": ruin_sites(), "roads": roads(),
 		"rivers": rivers(), "lakes": lakes(), "nodes": node_spots(), "rim": rim(),
+		"landings": landings(), "road_kinds": road_kinds(),
 	}
 
 
@@ -334,6 +391,9 @@ static func _build_layout() -> void:
 	L.roads = []
 	L.ruins = []
 	L.spawn = Vector2.ZERO
+	if _gen == ISLAND:
+		IslandGen.build(L, _seed, _size)
+		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _seed * 7919 + 17
 	# 1. The rim: a coast on one side (most worlds) or hills all round.
@@ -689,15 +749,18 @@ static func _place_nodes() -> Array:
 	var out: Array = []
 	var grid := {}
 	var sp: Vector2 = _L.spawn
-	# The starter ring, on the spawn plot's edge.
-	for i in STARTER_KINDS.size():
-		for attempt in 30:
-			var a := TAU * float(i) / STARTER_KINDS.size() + rng.randf_range(-0.25, 0.25)
-			var p := sp + Vector2.from_angle(a) * rng.randf_range(STARTER_MIN, STARTER_MAX)
-			if _crowded(grid, p):
-				continue
-			_add_spot(out, grid, STARTER_KINDS[i], p, rng, true)
-			break
+	if _gen == ISLAND:
+		_place_landing_rings(out, grid, rng)
+	else:
+		# The starter ring, on the spawn plot's edge.
+		for i in STARTER_KINDS.size():
+			for attempt in 30:
+				var a := TAU * float(i) / STARTER_KINDS.size() + rng.randf_range(-0.25, 0.25)
+				var p := sp + Vector2.from_angle(a) * rng.randf_range(STARTER_MIN, STARTER_MAX)
+				if _crowded(grid, p):
+					continue
+				_add_spot(out, grid, STARTER_KINDS[i], p, rng, true)
+				break
 	# The wild: a jittered grid; each biome grows its own mix at its own density.
 	var half := half_size()
 	var step := 12.0
@@ -726,7 +789,11 @@ static func _spot_ok(p: Vector2, sp: Vector2) -> bool:
 	var half := half_size()
 	if maxf(absf(p.x), absf(p.y)) > half - 8.0:
 		return false
-	if p.distance_to(sp) < SPAWN_CLEAR + STARTER_MAX:
+	if _gen == ISLAND:
+		for q in _L.landings:
+			if p.distance_to(q) < SPAWN_CLEAR + STARTER_MAX:
+				return false
+	elif p.distance_to(sp) < SPAWN_CLEAR + STARTER_MAX:
 		return false
 	if _sample(_L.road_d, p.x, p.y) < ROAD_HALF_WIDTH + 2.5:
 		return false
@@ -767,3 +834,20 @@ static func _add_spot(out: Array, grid: Dictionary, kind: String, p: Vector2, rn
 		"kind": kind, "pos": Vector3(p.x, height(p.x, p.y), p.y),
 		"rot": rng.randf() * TAU, "scale": rng.randf_range(0.85, 1.2), "starter": starter,
 	})
+
+
+## An island's starter rings: two of each basic kind and a seep just inland of every landing,
+## so whoever washes up can start gathering at once.
+static func _place_landing_rings(out: Array, grid: Dictionary, rng: RandomNumberGenerator) -> void:
+	for q in _L.landings:
+		var lp: Vector2 = q
+		var inward := ((_L.center as Vector2) - lp).angle()
+		for i in STARTER_KINDS.size():
+			for attempt in 30:
+				var a := inward + (float(i) / (STARTER_KINDS.size() - 1) - 0.5) * PI * 1.1 + rng.randf_range(-0.2, 0.2)
+				var p := lp + Vector2.from_angle(a) * rng.randf_range(STARTER_MIN, STARTER_MAX + attempt)
+				var h := height(p.x, p.y)
+				if h < KINGDOM_WATER + 1.0 or h > SNOW_LINE or _crowded(grid, p):
+					continue
+				_add_spot(out, grid, STARTER_KINDS[i], p, rng, true)
+				break

@@ -1,7 +1,7 @@
 class_name WorldMap
-## Paints a generated kingdom (WorldGen, gen_version 1) as a small top-down map: relief from
+## Paints a generated world (WorldGen, gen_version 1 or the island, 2) as a small top-down map: relief from
 ## the height field lit from the north-west, ground by biome, water, the river, the king's
-## roads, ruin sites marked by grade and the spawn plot. Pure Image maths, no textures; the
+## roads, ruin sites marked by grade, and the spawn plot or the island's beach landings. Pure Image maths, no textures; the
 ## client's map window (client backlog, Phase 1 part 3) can show it as it is, and world uses
 ## it to look at seeds before they get a 3D view.
 
@@ -44,6 +44,8 @@ static func paint(px: int = 256) -> Image:
 	if kingdom:
 		for s in WorldGen.ruin_sites():
 			_mark(img, s.pos, half, mpp, maxf(3.0, s.radius / mpp), Palette.MAP_GRADE[int(s.grade) - 1])
+		for q in WorldGen.landings():
+			_mark(img, Vector3(q.x, 0.0, q.y), half, mpp, 3.5, Palette.EMBER_CORE)
 		_mark(img, WorldGen.spawn_point(), half, mpp, 4.0, Palette.EMBER_CORE)
 	return img
 
