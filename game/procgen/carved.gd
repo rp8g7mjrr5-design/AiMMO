@@ -166,8 +166,8 @@ static func parts(st: Dictionary) -> Array:
 		# A pack and a bedroll: what the camera sees from behind all game.
 		_box(out, "Chest", W.Chest + Vector3(0, 0.02, -0.13 * B - 0.06), Vector3(0.26, 0.3, 0.12), leather, Vector3(0.05, 0, 0))
 		_cyl(out, "Chest", W.Chest + Vector3(0, 0.2, -0.13 * B - 0.07), 0.065, 0.065, 0.34, Palette.BEDROLL, 7, Vector3(0, 0, PI * 0.5))
-		for x in [-1.0, 1.0]: # straps over the shoulders
-			_box(out, "Chest", W.Chest + Vector3(0.085 * x, 0.12, 0.118 * B), Vector3(0.03, 0.26, 0.012), dark)
+		for x in [-1.0, 1.0]: # pack straps: from the top of the shoulder down to the bottom of the ribs, lying on the chest
+			_box(out, "Chest", W.Chest + Vector3(0.09 * x * B, 0.02, 0.126 * B), Vector3(0.03, 0.3, 0.012), dark, Vector3(0.07, 0, 0))
 	if z:
 		_box(out, "Chest", W.Chest + Vector3(-0.07, 0.03, 0.118 * B), Vector3(0.08, 0.1, 0.02), Palette.SOOT.lerp(Palette.SMOULDER, 0.3), Vector3(0, 0, 0.3)) # the wound
 	# --- neck and head: angular ---
