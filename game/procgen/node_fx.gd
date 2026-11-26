@@ -2,7 +2,7 @@ class_name NodeFx
 extends Node3D
 ## Gathering feedback on resource nodes: the soft glow on the node in reach, and the little
 ## reaction each gather gets (an ash or pine shudders and sheds a few leaves or needles, an
-## outcrop throws stone chips, a seep's pool bobs and splashes glowing droplets).
+## outcrop throws stone chips, a scrub patch shivers and sheds a few dry stalks).
 ##
 ## NodeProps.build() adds one of these as the "Fx" child of the "ResourceNodes" node. Call it
 ## through NodeProps.set_highlight() and NodeProps.play_hit(), not directly.
@@ -17,16 +17,15 @@ const SHELL_SLOTS := 10 ## parts per layer the shell can hold (a node has at mos
 const HIGHLIGHT := Color(1.0, 0.74, 0.40) ## warm ember gold, the same for every kind
 const FADE_IN := 0.15 ## seconds for the glow to come up (and go down)
 
-const SHAKE_TIME := {"ash": 0.6, "pine": 0.6, "stone": 0.35, "ember_sap": 0.5}
-## Layers that move when hit. The sap seep's rim stones stay still; only its pool bobs.
-const SHAKE_LAYERS := {"ember_sap": ["NodeSapPools"]}
+const SHAKE_TIME := {"ash": 0.6, "pine": 0.6, "stone": 0.35, "scrub": 0.5}
+## Layers that move when hit (a kind not listed moves all of its layers).
+const SHAKE_LAYERS := {}
 
 const BIT_POOL := 64 ## flying bits shared by every node; the oldest is reused when full
-const BITS := {"ash": 7, "pine": 7, "stone": 6, "ember_sap": 8}
+const BITS := {"ash": 7, "pine": 7, "stone": 6, "scrub": 8}
 const GRAVITY := 9.8
 const LEAF_FALL := 1.4 ## m/s, leaves drift down instead of dropping
 const CHIP := Color(0.66, 0.63, 0.58)
-const DROPLET := Color(1.0, 0.62, 0.25)
 
 var _root: Node3D
 var _hl_id := -1
@@ -64,10 +63,10 @@ static func shake(kind: String, t: float, axis_angle: float = 0.0) -> Transform3
 			var j := 0.025 * sin(t * 70.0) * fade
 			var sq := 1.0 - 0.03 * fade
 			return Transform3D(Basis.from_scale(Vector3(1.0 / sq, sq, 1.0 / sq)), Vector3(j * cos(axis_angle), 0.0, j * sin(axis_angle)))
-		"ember_sap":
-			# The pool swells up and settles, like something stirring underneath.
-			var y := 1.0 + 0.35 * sin(t / dur * PI) * fade
-			return Transform3D(Basis.from_scale(Vector3(1.0, y, 1.0)), Vector3.ZERO)
+		"scrub":
+			# A quick rustle: the mounds shiver side to side, low and fast.
+			var axis := Vector3(cos(axis_angle), 0.0, sin(axis_angle))
+			return Transform3D(Basis(axis, 0.06 * sin(t * 40.0) * fade), Vector3.ZERO)
 	return Transform3D.IDENTITY
 
 
@@ -117,15 +116,14 @@ static func spawn_bits(node: Dictionary, hit_no: int = 0) -> Array:
 				if old: # gold flecks fly off a rich seam
 					b.color = NodeProps.RICH_FLECK if i < 2 else NodeProps.RICH_STONE.lightened(rng.randf() * 0.1)
 					b.glow = 0.4 if i < 2 else 0.0
-			"ember_sap":
-				b.p0 = base + dir * rng.randf_range(0.0, 0.3) * s + Vector3.UP * 0.35 * s
-				b.v = dir * rng.randf_range(0.3, 1.0) + Vector3.UP * rng.randf_range(2.0, 3.4)
-				b.life = rng.randf_range(0.6, 0.85)
-				b.fall = "arc"
-				var d := rng.randf_range(0.07, 0.11)
-				b.size = Vector3(d, d * 1.3, d)
-				b.color = DROPLET.lightened(rng.randf() * 0.2)
-				b.glow = 1.6
+			"scrub":
+				# Dry stalks and bits of leaf, tossed up a little and drifting down.
+				b.p0 = base + dir * rng.randf_range(0.3, 0.8) * s + Vector3.UP * rng.randf_range(0.5, 0.8) * s
+				b.v = dir * rng.randf_range(0.3, 0.8)
+				b.life = rng.randf_range(1.0, 1.5)
+				b.fall = "drift"
+				b.size = Vector3(0.05, 0.03, 0.24)
+				b.color = (Palette.SCRUB_DRY if i % 2 == 0 else Palette.SCRUB_LEAF).lightened(rng.randf() * 0.1)
 		out.append(b)
 	return out
 

@@ -185,7 +185,12 @@ def scenario_boots_plays_stops(image: str, work: Path) -> list:
     # run_bot_test.py's --gloam=0 does: walkers rise on their own by default since 2026-11-25,
     # and one grabbing a bot mid-check (15 health) failed gameplay_vitals' "/hurt 30 from full"
     # (PR #228 CI).
-    c = Container(image, work, "plays", extra_env={"AIMMO_DEV_COMMANDS": "1", "AIMMO_GLOAM": "0"})
+    # AIMMO_WORLD and AIMMO_WIPE empty: the bots' scripted behaviours (the meadow, the bench, the
+    # tier-2 ring) are written for Ashgrove, as in run_bot_test.py, so this container plays Ashgrove.
+    # The image's own default (the 3 km island with monthly wipes, 2026-11-26) is checked on the
+    # frozen container, which keeps the image's settings.
+    c = Container(image, work, "plays", extra_env={"AIMMO_DEV_COMMANDS": "1", "AIMMO_GLOAM": "0",
+                                                   "AIMMO_WORLD": "", "AIMMO_WIPE": ""})
     problems = []
     try:
         c.server_pid()
@@ -262,6 +267,10 @@ def scenario_frozen(image: str, work: Path) -> list:
         for line in c.log().splitlines():
             if line.startswith("[server] dev commands:"):
                 print(f"  frozen: image default {line[len('[server] '):]}")
+            if line.startswith("[server] world:") or line.startswith("[server] wipes:"):
+                print(f"  frozen: image default {line[len('[server] '):]}")
+        if "(gen 2)" not in c.log() or "[server] wipes: monthly" not in c.log():
+            problems.append("the image's default world is not the island with monthly wipes")
         r = docker("exec", c.name, "bash", "-c", f"kill -STOP {pid}")
         if r.returncode != 0:
             return [f"frozen: could not freeze the server: {r.stderr.strip()}"]

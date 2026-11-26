@@ -21,7 +21,7 @@ func test_styles_per_kind() -> void:
 	check_eq(GatherSwing.style_for("ash"), "chop")
 	check_eq(GatherSwing.style_for("pine"), "chop")
 	check_eq(GatherSwing.style_for("stone"), "mine")
-	check_eq(GatherSwing.style_for("ember_sap"), "collect")
+	check_eq(GatherSwing.style_for("scrub"), "collect")
 	check_eq(GatherSwing.style_for("mystery"), "chop", "unknown kinds still swing")
 	for k in ResourceNodes.KIND_ORDER:
 		check(GatherSwing.KIND_STYLE.has(k), "every node kind has a style: %s" % k)
@@ -82,7 +82,7 @@ func test_blends_out_and_unturns() -> void:
 
 func test_on_top_of_the_node_does_not_spin() -> void:
 	var swing := GatherSwing.new()
-	_run(swing, {"kind": "ember_sap", "pos": Vector3(0.05, 0, 0.05)}, Vector3.ZERO, 0.0, 0.5)
+	_run(swing, {"kind": "scrub", "pos": Vector3(0.05, 0, 0.05)}, Vector3.ZERO, 0.0, 0.5)
 	check_near(swing.turn, 0.0, 0.0001, "no direction to face, no turn")
 	check(swing.weight > 0.9, "still swings")
 

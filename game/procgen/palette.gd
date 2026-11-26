@@ -97,6 +97,12 @@ const MAP_GRADE := [
 
 
 ## Travelling gear (characters): what is worn over the dyed cloth.
+## Grounded survival kit (owner direction, 2026-11-26: wood and stone tools, bandages, no magic).
+const FIBRE := Color(0.55, 0.53, 0.36) ## pulled plant fibre: dry nettle and flax stems, straw going olive
+const SCRUB_LEAF := Color(0.33, 0.37, 0.23) ## low scrub bushes: dull olive, darker than MEADOW so a patch reads
+const SCRUB_DRY := Color(0.48, 0.43, 0.29) ## the dead, tawny stems in a scrub patch, and a picked-over one
+const LINEN := Color(0.78, 0.73, 0.62) ## a bandage roll: undyed, slightly grubby linen, never hospital white
+const WORKED_WOOD := Color(0.52, 0.38, 0.24) ## a carved wooden tool head or club: darker than a fresh cut
 const LEATHER := Color(0.40, 0.29, 0.20) ## packs, pouches, bracers: oiled brown leather
 const LEATHER_DARK := Color(0.22, 0.17, 0.14) ## belts, straps, boots: old, dark leather
 const WOOL := Color(0.47, 0.43, 0.37) ## undyed wool: mantles and hoods

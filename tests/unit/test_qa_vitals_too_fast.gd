@@ -10,7 +10,7 @@ const BotScript := preload("res://tests/bot_test/bot.gd")
 
 const HURT := "You take 30 damage. Health 70/100, stamina 100/100, in combat."
 const HIT := "Health 70/100, stamina 100/100, in combat."
-const HEALED := "Health 100/100, stamina 100/100, out of combat."
+const HEALED := "Health 70/100, stamina 100/100, out of combat." ## held: natural healing stops at half
 
 
 func _pair() -> Array:

@@ -19,7 +19,7 @@ signal craft_requested(recipe_id: String)
 const WIDTH := 600.0 ## room for a part icon before each "Ash wood 2/3"
 const HEIGHT := 600.0 ## fits a 720p screen with the HUD around it
 ## The recipe list scrolls inside this height, so the title and Close stay on screen
-## however many recipes the bench gets (six since the ember tools).
+## however many recipes the bench gets (eleven since the wood and stone tools).
 const LIST_HEIGHT := 410.0
 const REPLY_TIMEOUT := 3.0 ## seconds to wait for craft_result before the buttons light again
 const CLOSE_SLACK := 1.0 ## m past BENCH_RANGE before walking away closes the window

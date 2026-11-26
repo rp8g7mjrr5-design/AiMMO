@@ -38,7 +38,7 @@ func test_shake_rings_down_and_returns_to_rest() -> void:
 			var m := NodeFx.shake(kind, t, 1.0)
 			# Keep it subtle: the top of a 6 m tree moves at most ~30 cm, nothing lifts off.
 			var top := m * Vector3(0, 6, 0)
-			check(top.distance_to(Vector3(0, 6, 0)) < 0.35 or kind == "ember_sap", "%s shake is gentle at %.2f" % [kind, t])
+			check(top.distance_to(Vector3(0, 6, 0)) < 0.35 or kind == "scrub", "%s shake is gentle at %.2f" % [kind, t])
 			check((m * Vector3.ZERO).y >= -0.001, "%s base stays on the ground" % kind)
 			if not m.is_equal_approx(Transform3D.IDENTITY):
 				moved = true
@@ -56,9 +56,9 @@ func test_each_kind_throws_its_own_bits() -> void:
 		for b in bits:
 			check(b.p0.y >= b.ground, "%s bit starts above ground" % kind)
 			check(Vector2(b.p0.x - n.pos.x, b.p0.z - n.pos.z).length() < 2.5 * n.scale, "%s bit starts at its node" % kind)
-	check(colors.ash != colors.pine and colors.pine != colors.stone and colors.stone != colors.ember_sap, "leaves, needles, chips and droplets look different")
-	var sap: Array = NodeFx.spawn_bits(_first_of("ember_sap"), 0)
-	check(sap.all(func(b): return b.glow > 0.5), "sap droplets glow")
+	check(colors.ash != colors.pine and colors.pine != colors.stone and colors.stone != colors.scrub, "leaves, needles, chips and stalks look different")
+	var stalks: Array = NodeFx.spawn_bits(_first_of("scrub"), 0)
+	check(stalks.all(func(b): return b.glow == 0.0), "scrub stalks never glow (no magic)")
 
 
 func test_bits_fly_land_and_vanish() -> void:

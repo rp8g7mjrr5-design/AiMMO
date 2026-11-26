@@ -130,6 +130,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.nodes_depleted.connect(_on_nodes_depleted)
 	net.node_state.connect(_on_node_state)
 	net.craft_result.connect(_on_craft_result)
+	net.place_result.connect(_on_place_result)
 	net.roster_changed.connect(_on_roster)
 	net.unstuck_result.connect(_on_unstuck)
 	net.wildlife_changed.connect(_on_wildlife)
@@ -277,7 +278,7 @@ func _screenshot_later(path: String, wait: float) -> void:
 		# Test hook (--show-notice): a centre-screen refusal notice, just before the shot.
 		await get_tree().create_timer(maxf(0.0, wait - 0.4)).timeout
 		var words = _args["show-notice"]
-		notice_line.show_notice(words if words is String and words != "" else "This ember ash is spent; it comes back in about 3 minutes. The nearest ember ash is 23 m to the north-east.")
+		notice_line.show_notice(words if words is String and words != "" else "This ash is spent; it comes back in about 3 minutes. The nearest ash is 23 m to the north-east.")
 		await get_tree().create_timer(0.4).timeout
 	elif _args.has("show-vitals"):
 		# Test hook (--show-vitals=hp:stamina, default 34:20): the health and stamina bar just
@@ -389,6 +390,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
 			chat_feed.wake()
 			chat_edit.grab_focus()
+			get_viewport().set_input_as_handled()
+		elif event.is_action("use_bandage"):
+			# Put a bandage on (Server.use_bandage, carried by c2s_place). The health bar
+			# filling is the answer; only a refusal says anything.
+			net.play.c2s_place.rpc_id(1, Vitals.BANDAGE_ITEM)
 			get_viewport().set_input_as_handled()
 		elif event.is_action("swap_shoulder"):
 			settings.shoulder_right = not settings.shoulder_right
@@ -968,6 +974,18 @@ func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
 	if str(r.crafted) != "":
 		gather_prompt.show_toast(CraftWindow.toast_text(str(r.crafted)), str(r.crafted))
 		sfx_craft.play()
+
+
+## The answer to c2s_place (a bandage put on, from H). Success is told by the sound and the
+## health bar filling (a clean fight: no words); a refusal says why, centre screen.
+func _on_place_result(item: String, ok: bool, _reason: String, text: String) -> void:
+	if ok:
+		if item == Vitals.BANDAGE_ITEM:
+			sfx_craft.play()
+		return
+	if text != "":
+		notice_line.show_notice(text, true)
+	sfx_nope.play()
 
 
 func _on_inventory(items: Dictionary) -> void:

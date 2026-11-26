@@ -1,6 +1,7 @@
 class_name ResourceNodes
-## Where the gatherable things in Ashgrove are: ember ash trees, pines, stone outcrops and
-## ember-sap seeps. This is the one list of resource nodes. The server will own each node's
+## Where the gatherable things in Ashgrove are: ash trees, pines, stone outcrops and patches
+## of scrub (plant fibre; they were glowing ember-sap seeps until the grounded-tools pass,
+## owner direction 2026-11-26, and stand at the very same spots). This is the one list of resource nodes. The server will own each node's
 ## state (depleted or not) and the world stream draws a node prop at each position, so both
 ## read the same list from here and always agree.
 ##
@@ -18,25 +19,30 @@ const PLACEMENT_SEED_OFFSET := 101 ## rng seed = WORLD_SEED + this (Props uses +
 ## `night_only` nodes can only be gathered at night (used by the gathering system, see
 ## WorldClock.is_night). Amounts and timers are first guesses, tuned once gathering exists.
 const KINDS := {
-	"ash": {"label": "Ember ash", "item": "ash_wood", "amount": 2, "respawn": 180.0, "night_only": false},
+	"ash": {"label": "Ash", "item": "ash_wood", "amount": 2, "respawn": 180.0, "night_only": false},
 	"pine": {"label": "Pine", "item": "pine_wood", "amount": 2, "respawn": 180.0, "night_only": false},
-	"stone": {"label": "Stone outcrop", "item": "stone", "amount": 2, "respawn": 240.0, "night_only": false},
-	"ember_sap": {"label": "Ember-sap seep", "item": "ember_sap", "amount": 1, "respawn": 600.0, "night_only": true},
+	"stone": {"label": "Stone outcrop", "item": "stone", "amount": 2, "respawn": 240.0, "night_only": false, "needs_tool": true},
+	"scrub": {"label": "Scrub", "item": "plant_fibre", "amount": 2, "respawn": 240.0, "night_only": false},
 }
-const KIND_ORDER := ["ash", "pine", "stone", "ember_sap"]
+const KIND_ORDER := ["ash", "pine", "stone", "scrub"]
 
-## Tier 2: richer nodes a short walk past the meadow that only open to the right tool (there
+## Stone needs a pickaxe (`needs_tool`, owner direction 2026-11-26: "wooden pick and axe
+## first, then stone"): bare hands can't break rock, so your first craft is a wooden pickaxe.
+##
+## Tier 2: richer nodes a short walk past the meadow that only open to a stone tool (there
 ## are no levels, owner direction 2026-11-26). A tier-2 node keeps its `kind` (so world draws
 ## it as the old ash or the rich seam, NodeProps keys its look on kind + "tier") and these
-## values replace the kind's own (KINDS) for it. `needs_tool`: bare hands can't work it; you
-## need one of Gathering.TOOLS[kind] (any axe for the old ash, any pickaxe for the seam).
+## values replace the kind's own (KINDS) for it. `needs_tool`: you need one of
+## Gathering.TOOLS[kind] of at least `min_tool_tier` (Gathering.TOOL_TIER: 1 wood, 2 stone),
+## so a stone axe for the old ash and a stone pickaxe for the seam. They give the plain
+## material, more of it per blow (the ember heartwood and veinstone they gave are retired).
 ## `seconds_scale` stretches the gather bar (GatherChannel) a little: a bigger tree, a harder
 ## rock. `charges` replaces Gathering.CHARGES.
 const TIER2 := {
-	"ash": {"label": "Old ember ash", "item": "ember_heartwood", "amount": 2, "respawn": 300.0,
-		"night_only": false, "needs_tool": true, "charges": 4, "seconds_scale": 1.2},
-	"stone": {"label": "Rich stone seam", "item": "veinstone", "amount": 2, "respawn": 360.0,
-		"night_only": false, "needs_tool": true, "charges": 4, "seconds_scale": 1.2},
+	"ash": {"label": "Old ash", "item": "ash_wood", "amount": 5, "respawn": 300.0,
+		"night_only": false, "needs_tool": true, "min_tool_tier": 2, "charges": 4, "seconds_scale": 1.2},
+	"stone": {"label": "Rich stone seam", "item": "stone", "amount": 5, "respawn": 360.0,
+		"night_only": false, "needs_tool": true, "min_tool_tier": 2, "charges": 4, "seconds_scale": 1.2},
 }
 ## The tier-2 ring: alternating old ashes and rich seams around the meadow, past the starter
 ## ring and the first wild nodes, so the first goal after your first axe or pickaxe is a
@@ -49,7 +55,7 @@ const TIER2_SPACING := 8.0 ## world asked for room: the old ash is 3 m in radius
 
 ## How many of each kind the wild placement pass aims for (it stops early if the terrain
 ## runs out of suitable spots, which the tests check doesn't happen).
-const TARGETS := {"ash": 140, "pine": 110, "stone": 110, "ember_sap": 30}
+const TARGETS := {"ash": 140, "pine": 110, "stone": 110, "scrub": 30}
 
 const GATHER_RANGE := 3.0 ## metres from a player to a node's centre to gather it
 const MIN_SPACING := 6.0 ## no two nodes closer than this
@@ -60,9 +66,9 @@ const EDGE_MARGIN := 6.0 ## keep nodes this far inside the world border
 const MAX_HEIGHT := 22.0 ## nothing grows on the snowy peaks
 const CELL := 32.0 ## spatial index cell size in metres
 
-## The starter ring around Spawn Meadow: two of every kind (one ember-sap seep) so a new
+## The starter ring around Spawn Meadow: two of every kind (one patch of scrub) so a new
 ## player finds everything near spawn and gathers alongside other new players.
-const STARTER_KINDS := ["ash", "pine", "stone", "ash", "pine", "stone", "ember_sap"]
+const STARTER_KINDS := ["ash", "pine", "stone", "ash", "pine", "stone", "scrub"]
 
 static var _nodes: Array = []
 static var _grid: Dictionary = {}
@@ -200,8 +206,8 @@ static func _place_starter_ring(rng: RandomNumberGenerator, out: Array, grid: Di
 			break
 
 
-## Pass 2: the wild. Kind follows the land: ash in the warm lowlands (with the odd ember-sap
-## seep among them), pine on higher flat ground, stone on steep slopes and ridges.
+## Pass 2: the wild. Kind follows the land: ash in the warm lowlands (with the odd patch of
+## scrub among them), pine on higher flat ground, stone on steep slopes and ridges.
 static func _place_wild(rng: RandomNumberGenerator, out: Array, grid: Dictionary) -> void:
 	var placed := {}
 	var want := 0
@@ -311,7 +317,7 @@ static func _kind_for(y: float, slope: float, roll: float) -> String:
 	if y > 6.0:
 		return "pine" if roll < 0.85 else "stone"
 	if roll < 0.12:
-		return "ember_sap"
+		return "scrub"
 	return "ash" if roll < 0.9 else "pine"
 
 

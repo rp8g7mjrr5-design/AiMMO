@@ -24,7 +24,8 @@ func test_trees_and_outcrops_get_close_up_detail() -> void:
 	check_eq(_detail(_first_of("stone")).size(), 6, "outcrop: 6 seam studs")
 	check(_detail(_first_of("stone")).all(func(p): return p.color.r > 0.75), "seam studs are pale quartz")
 	check_eq(_detail(_first_of("stone"), true).size(), 0, "rubble has no seam")
-	check_eq(_detail(_first_of("ember_sap")).size(), 0, "seeps need no detail boxes")
+	check_eq(_detail(_first_of("scrub")).size(), 6, "scrub: six stems")
+	check_eq(_detail(_first_of("scrub"), true).size(), 3, "picked over: three stubs")
 	for kind in ResourceNodes.KIND_ORDER:
 		var per_layer := {}
 		for depleted in [false, true]:
@@ -38,7 +39,7 @@ func test_older_parts_are_unchanged() -> void:
 	# Detail is appended after every older part, and ember veins after the detail, so the
 	# first parts are the old ones in the old order, on the old layers. Spot-check the old
 	# counts per kind.
-	var old := {"ash": 3, "pine": 5, "stone": 4, "ember_sap": 9}
+	var old := {"ash": 3, "pine": 5, "stone": 4, "scrub": 3}
 	for kind in old:
 		var parts := NodeProps.parts(_first_of(kind))
 		for i in old[kind]:

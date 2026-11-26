@@ -33,9 +33,11 @@ func test_workbench_sits_in_open_meadow() -> void:
 
 func test_parse_recipe() -> void:
 	check_eq(Crafting.parse_recipe(""), "")
-	check_eq(Crafting.parse_recipe("axe"), "stone_axe")
+	check_eq(Crafting.parse_recipe("axe"), "wooden_axe")
 	check_eq(Crafting.parse_recipe("Stone Axe"), "stone_axe")
-	check_eq(Crafting.parse_recipe("a pickaxe"), "stone_pickaxe")
+	check_eq(Crafting.parse_recipe("a pickaxe"), "wooden_pickaxe")
+	check_eq(Crafting.parse_recipe("bandages"), "bandage")
+	check_eq(Crafting.parse_recipe("club"), "wooden_club")
 	check_eq(Crafting.parse_recipe("stone-pick"), "stone_pickaxe")
 	check_eq(Crafting.parse_recipe("torches"), "torch")
 	check_eq(Crafting.parse_recipe("fire"), "campfire")
@@ -43,43 +45,43 @@ func test_parse_recipe() -> void:
 
 
 func test_check_reasons_in_order() -> void:
-	var inv := {"ash_wood": 3, "stone": 2}
+	var inv := {"wooden_axe": 1, "stone": 3, "plant_fibre": 2}
 	check_eq(Crafting.check(inv, "sword", AT_BENCH), "unknown")
 	check_eq(Crafting.check(inv, "stone_axe", FAR), "bench")
 	check_eq(Crafting.check(inv, "stone_axe", AT_BENCH), "")
-	check_eq(Crafting.check({"ash_wood": 2, "stone": 2}, "stone_axe", AT_BENCH), "missing")
-	check_eq(Crafting.check({"ash_wood": 3, "stone": 2, "stone_axe": 1}, "stone_axe", AT_BENCH), "owned", "one axe is enough")
-	check_eq(Crafting.check({"pine_wood": 1, "ember_sap": 1}, "torch", FAR), "", "torches need no bench")
-	check_eq(Crafting.check({"pine_wood": 1, "ember_sap": 1, "torch": Inventory.MAX_STACK - 1}, "torch", FAR), "full")
+	check_eq(Crafting.check({"wooden_axe": 1, "stone": 2, "plant_fibre": 2}, "stone_axe", AT_BENCH), "missing")
+	check_eq(Crafting.check({"stone": 3, "plant_fibre": 2, "stone_axe": 1}, "stone_axe", AT_BENCH), "owned", "one axe is enough")
+	check_eq(Crafting.check({"pine_wood": 1, "plant_fibre": 1}, "torch", FAR), "", "torches need no bench")
+	check_eq(Crafting.check({"pine_wood": 1, "plant_fibre": 1, "torch": Inventory.MAX_STACK - 1}, "torch", FAR), "full")
 	check_eq(Crafting.missing({"ash_wood": 1}, "campfire"), {"ash_wood": 1, "pine_wood": 2, "stone": 4})
 
 
 func test_replies() -> void:
-	var r := Crafting.refusal("missing", {"ash_wood": 1}, "stone_axe", AT_BENCH)
-	check_eq(r, "You need 2 ash wood and 2 stone more to make a stone axe.")
+	var r := Crafting.refusal("missing", {"ash_wood": 1}, "wooden_axe", AT_BENCH)
+	check_eq(r, "You need 2 ash wood more to make a wooden axe.")
 	r = Crafting.refusal("bench", {}, "campfire", Vector3(3.0, 0.0, 30.0))
 	check(r.begins_with("A campfire needs the workbench. The workbench is 32 m to the north"), r)
 	check(Crafting.refusal("owned", {}, "stone_pickaxe", AT_BENCH).begins_with("You already carry a stone pickaxe"), "line 59")
 	check_eq(Crafting.needs_text({"stone": 4, "ash_wood": 2, "pine_wood": 2}), "2 ash wood, 2 pine wood and 4 stone", "pack order, joined nicely")
-	var list := Crafting.recipes_text({"pine_wood": 1, "ember_sap": 1, "stone_axe": 1})
+	var list := Crafting.recipes_text({"pine_wood": 1, "plant_fibre": 1, "stone_axe": 1})
 	check(list.begins_with("Recipes"), list)
-	check(list.contains("stone axe: 3 ash wood and 2 stone, at the workbench (have it)"), list)
-	check(list.contains("3 torches: 1 pine wood and 1 ember sap, anywhere (ready)"), list)
+	check(list.contains("wooden axe: 3 ash wood, anywhere (have it)"), list)
+	check(list.contains("2 torches: 1 pine wood and 1 plant fibre, anywhere (ready)"), list)
 	check(not list.contains("campfire: 2 ash wood, 2 pine wood and 4 stone, at the workbench (ready)"), list)
-	check(Crafting.success("torch", 3, {"torch": 5}).contains("You craft 3 torches (5 in your pack)"), "line 66")
-	check(Crafting.success("stone_axe", 1, {"stone_axe": 1}).begins_with("You craft a stone axe."), "line 67")
+	check(Crafting.success("torch", 2, {"torch": 5}).contains("You craft 2 torches (5 in your pack)"), "line 66")
+	check(Crafting.success("wooden_axe", 1, {"wooden_axe": 1}).begins_with("You craft a wooden axe."), "line 67")
 
 
 ## The same steps the server runs (check, then take each ingredient, then give), on a plain
 ## Dictionary, so the bookkeeping is proven without a network.
 func test_craft_uses_up_exactly_the_recipe() -> void:
-	var inv := {"ash_wood": 5, "stone": 3, "pine_wood": 1}
+	var inv := {"wooden_axe": 1, "stone": 4, "plant_fibre": 2, "pine_wood": 1}
 	check_eq(Crafting.check(inv, "stone_axe", AT_BENCH), "")
 	var r: Dictionary = Crafting.RECIPES.stone_axe
 	for item in r.needs:
 		check(Inventory.remove(inv, item, int(r.needs[item])), "took %s" % item)
 	check_eq(Inventory.add(inv, "stone_axe", int(r.makes)), 1)
-	check_eq(inv, {"ash_wood": 2, "stone": 1, "pine_wood": 1, "stone_axe": 1})
+	check_eq(inv, {"wooden_axe": 0, "stone": 1, "plant_fibre": 0, "pine_wood": 1, "stone_axe": 1})
 	check_eq(Crafting.check(inv, "stone_axe", AT_BENCH), "owned")
 
 
@@ -92,20 +94,20 @@ func test_tools_help_gathering() -> void:
 	check_eq(Gathering.tool_for("ash", axe), "stone_axe")
 	check_eq(Gathering.tool_for("stone", axe), "", "an axe doesn't mine")
 	check_eq(Gathering.tool_for("stone", pick), "stone_pickaxe")
-	check_eq(Gathering.tool_for("ember_sap", {"stone_axe": 1, "stone_pickaxe": 1}), "", "sap is by hand")
+	check_eq(Gathering.tool_for("scrub", {"stone_axe": 1, "stone_pickaxe": 1}), "", "fibre is by hand")
 	check_eq(Gathering.tool_for("pine", {"stone_axe": 0}), "", "a 0 row is not carrying it")
 	var base := int(ResourceNodes.kind_info("pine").amount)
 	check_eq(Gathering.amount_for("pine", bare), base)
 	check_eq(Gathering.amount_for("pine", axe), base + Gathering.TOOL_EXTRA)
-	check_eq(Gathering.cooldown_for("stone", bare), Gathering.COOLDOWN)
-	check(Gathering.cooldown_for("stone", pick) < Gathering.COOLDOWN, "faster with a pickaxe")
+	check_eq(Gathering.cooldown_for("pine", bare), Gathering.COOLDOWN)
+	check(Gathering.cooldown_for("pine", axe) < Gathering.COOLDOWN, "faster with an axe")
 	# check() honours the shorter cooldown.
 	var st := Gathering.new_state()
-	var n: Dictionary = ResourceNodes.near(Vector3.ZERO, 200.0, "stone")[0]
+	var n: Dictionary = ResourceNodes.near(Vector3.ZERO, 200.0, "pine")[0]
 	var t := 50.0
 	var since := Gathering.COOLDOWN * 0.75
 	check_eq(Gathering.check(st, n.id, n.pos, t, 0.0, t - since), "cooldown", "bare hands still busy")
-	check_eq(Gathering.check(st, n.id, n.pos, t, 0.0, t - since, Gathering.cooldown_for("stone", pick)), "", "pickaxe ready")
+	check_eq(Gathering.check(st, n.id, n.pos, t, 0.0, t - since, Gathering.cooldown_for("pine", axe), axe), "", "axe ready")
 	check(Gathering.success(n.id, 3, 3, false, "stone_pickaxe").contains("with your stone pickaxe (3 in your pack)"), "line 106")
 
 

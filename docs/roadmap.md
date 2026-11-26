@@ -115,8 +115,9 @@ base fits the render budget.
 **Goal:** the map's risk ladder: go further, risk more, come back stronger.
 - All four ruin grades (the mine, the drowned village, the abbey, the fallen castle and its
   crypt), each with its own Zombai (soldiers, the Bell-wight) and loot tables.
-- Signet keys and vaults; smithing, iron and the first armour; bows and crossbows; ember
-  weapons; potions and single-use scrolls from ruins and vaults; base upgrades from
+- Signet keys and vaults; smithing, iron and the first armour; bows and crossbows; fire
+  weapons (pitch torches, fire arrows); medicine (splints, salves) from ruins and vaults; no
+  magic (owner direction 11, 2026-11-26); base upgrades from
   ruin loot (iron-bound walls, a gatehouse, traps, arrow slits).
 - **Horses and carts:** wild horses and ruined stables, taming, feeding, stabling, riding; a cart
   to haul a ruin's loot home.

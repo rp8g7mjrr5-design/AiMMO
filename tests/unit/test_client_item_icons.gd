@@ -117,8 +117,8 @@ func test_workbench_rows_show_icons() -> void:
 		check(icon.texture == shelf.texture(id, IconShelf.ROW_SIZE), "%s row shows its product" % id)
 	var needs: RichTextLabel = w._rows["stone_axe"].needs
 	var text := needs.get_parsed_text()
-	check(text.contains("Ash wood 2/3"), "axe needs text: %s" % text)
-	check(text.contains("Stone 2/2"), "axe needs text: %s" % text)
+	check(text.contains("Stone 2/3"), "axe needs text: %s" % text)
+	check(text.contains("Wooden axe 0/1"), "axe needs text: %s" % text)
 	w.reset()
 	w.refresh()
 	check(w._rows["stone_axe"].needs.get_parsed_text().contains("..."), "unknown pack shows dots")

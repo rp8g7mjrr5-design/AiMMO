@@ -18,34 +18,50 @@ const BENCH_RANGE := 6.0 ## metres from the bench's centre to use it
 
 ## Recipe and item ids are PERMANENT: products are stored in inventory_items.item.
 ## `needs`: item id -> quantity used up. `makes`: how many you get. `bench`: needs the
-## workbench (a torch can be twisted together anywhere). `upgrades`: the tool this one
-## replaces; it is used up by the recipe, and once you carry the better tool the old one
-## counts as owned too. There are no levels (owner direction, 2026-11-26): a recipe is
-## gated only by its materials, the tools it eats and the bench. The ember tools are gated
-## by heartwood and veinstone, which only an axe or a pickaxe can get out of the old ashes
-## and the rich seams (ResourceNodes.TIER2 `needs_tool`).
+## workbench (wooden things, a bandage and a torch are made in your hands anywhere).
+## `upgrades`: the tool or weapon this one replaces; it is used up by the recipe, and once
+## you carry the better one the old one counts as owned too. `tool`: you only ever carry one
+## (tools and weapons; Inventory.ONE_ONLY). There are no levels (owner direction,
+## 2026-11-26): a recipe is gated only by its materials, the tools it eats and the bench.
+##
+## The progression (owner direction, 2026-11-26: "wooden pick and axe first, then stone",
+## Minecraft's tiers in our own grounded world): wood you can pull by hand makes the wooden
+## axe, pickaxe, club and spear on the spot; the wooden pickaxe opens stone; stone and plant
+## fibre (from scrub) at the bench turn each wooden one into its stone version. Plant fibre
+## also makes bandages and torches.
 const RECIPES := {
-	"stone_axe": {"label": "stone axe", "needs": {"ash_wood": 3, "stone": 2}, "makes": 1, "bench": true, "tool": true},
-	"stone_pickaxe": {"label": "stone pickaxe", "needs": {"pine_wood": 3, "stone": 3}, "makes": 1, "bench": true, "tool": true},
-	"torch": {"label": "torch", "needs": {"pine_wood": 1, "ember_sap": 1}, "makes": 3, "bench": false, "tool": false},
+	"wooden_axe": {"label": "wooden axe", "needs": {"ash_wood": 3}, "makes": 1, "bench": false, "tool": true},
+	"wooden_pickaxe": {"label": "wooden pickaxe", "needs": {"ash_wood": 2, "pine_wood": 2}, "makes": 1, "bench": false, "tool": true},
+	"wooden_club": {"label": "wooden club", "needs": {"ash_wood": 3}, "makes": 1, "bench": false, "tool": true},
+	"wooden_spear": {"label": "wooden spear", "needs": {"pine_wood": 3}, "makes": 1, "bench": false, "tool": true},
+	"bandage": {"label": "bandage", "needs": {"plant_fibre": 3}, "makes": 1, "bench": false, "tool": false},
+	"torch": {"label": "torch", "needs": {"pine_wood": 1, "plant_fibre": 1}, "makes": 2, "bench": false, "tool": false},
+	"stone_axe": {"label": "stone axe", "needs": {"wooden_axe": 1, "stone": 3, "plant_fibre": 2}, "makes": 1, "bench": true, "tool": true,
+		"upgrades": "wooden_axe"},
+	"stone_pickaxe": {"label": "stone pickaxe", "needs": {"wooden_pickaxe": 1, "stone": 3, "plant_fibre": 2}, "makes": 1, "bench": true, "tool": true,
+		"upgrades": "wooden_pickaxe"},
+	"stone_maul": {"label": "stone maul", "needs": {"wooden_club": 1, "stone": 4, "plant_fibre": 2}, "makes": 1, "bench": true, "tool": true,
+		"upgrades": "wooden_club"},
+	"stone_spear": {"label": "stone spear", "needs": {"wooden_spear": 1, "stone": 2, "plant_fibre": 2}, "makes": 1, "bench": true, "tool": true,
+		"upgrades": "wooden_spear"},
 	"campfire": {"label": "campfire", "needs": {"ash_wood": 2, "pine_wood": 2, "stone": 4}, "makes": 1, "bench": true, "tool": false},
-	"ember_axe": {"label": "ember axe", "needs": {"ember_sap": 1, "ember_heartwood": 4, "stone_axe": 1}, "makes": 1, "bench": true, "tool": true,
-		"upgrades": "stone_axe"},
-	"ember_pickaxe": {"label": "ember pickaxe", "needs": {"ember_sap": 1, "veinstone": 4, "stone_pickaxe": 1}, "makes": 1, "bench": true, "tool": true,
-		"upgrades": "stone_pickaxe"},
-	"ember_lantern": {"label": "ember lantern", "needs": {"ash_wood": 3, "pine_wood": 3, "stone": 2, "ember_sap": 1}, "makes": 1, "bench": true, "tool": false},
 }
-const RECIPE_ORDER := ["stone_axe", "stone_pickaxe", "torch", "campfire", "ember_lantern", "ember_axe", "ember_pickaxe"]
+const RECIPE_ORDER := ["wooden_axe", "wooden_pickaxe", "wooden_club", "wooden_spear", "bandage", "torch",
+	"stone_axe", "stone_pickaxe", "stone_maul", "stone_spear", "campfire"]
 
-## Plain words players type, to recipe ids.
+## Plain words players type, to recipe ids. A bare "axe" or "pickaxe" means the wooden one.
 const WORDS := {
-	"axe": "stone_axe", "stone_axe": "stone_axe", "hatchet": "stone_axe",
-	"pickaxe": "stone_pickaxe", "pick": "stone_pickaxe", "stone_pickaxe": "stone_pickaxe", "stone_pick": "stone_pickaxe",
+	"axe": "wooden_axe", "wooden_axe": "wooden_axe", "wood_axe": "wooden_axe", "hatchet": "wooden_axe",
+	"pickaxe": "wooden_pickaxe", "pick": "wooden_pickaxe", "wooden_pickaxe": "wooden_pickaxe", "wooden_pick": "wooden_pickaxe", "wood_pickaxe": "wooden_pickaxe",
+	"stone_axe": "stone_axe", "stone_hatchet": "stone_axe",
+	"stone_pickaxe": "stone_pickaxe", "stone_pick": "stone_pickaxe",
+	"club": "wooden_club", "wooden_club": "wooden_club",
+	"spear": "wooden_spear", "wooden_spear": "wooden_spear",
+	"maul": "stone_maul", "stone_maul": "stone_maul",
+	"stone_spear": "stone_spear",
+	"bandage": "bandage", "bandages": "bandage",
 	"torch": "torch", "torches": "torch",
 	"campfire": "campfire", "fire": "campfire", "camp_fire": "campfire",
-	"ember_axe": "ember_axe", "ember_hatchet": "ember_axe",
-	"ember_pickaxe": "ember_pickaxe", "ember_pick": "ember_pickaxe",
-	"lantern": "ember_lantern", "ember_lantern": "ember_lantern", "lanterns": "ember_lantern",
 }
 
 
@@ -95,7 +111,7 @@ static func missing(inv: Dictionary, id: String) -> Dictionary:
 
 
 ## The tool you carry that makes crafting `id` pointless: `id` itself, or a better tool
-## that upgrades it (an ember axe means you never need a stone axe again). "" for none.
+## that upgrades it (a stone axe means you never need a wooden axe again). "" for none.
 static func owned_tool(inv: Dictionary, id: String) -> String:
 	if not makes_tool(id):
 		return ""
@@ -174,14 +190,24 @@ static func success(id: String, made: int, inv: Dictionary) -> String:
 	if made > 1:
 		return "You craft %d %ses (%d in your pack)." % [made, r.label, Inventory.count(inv, id)]
 	match id:
+		"wooden_axe":
+			return "You craft a wooden axe. Ash and pine come quicker with it in your pack."
+		"wooden_pickaxe":
+			return "You craft a wooden pickaxe. Now you can break stone."
 		"stone_axe":
-			return "You craft a stone axe. Ash and pine give more, and faster, with it in your pack."
+			return "You lash a stone head onto your axe: a stone axe. Wood comes faster, and the old ashes open to you."
 		"stone_pickaxe":
-			return "You craft a stone pickaxe. Stone gives more, and faster, with it in your pack."
-		"ember_axe":
-			return "You harden your axe in ember sap: an ember axe! Every chop is quicker and gives more."
-		"ember_pickaxe":
-			return "You harden your pickaxe in ember sap: an ember pickaxe! Every strike is quicker and gives more."
+			return "You lash a stone head onto your pick: a stone pickaxe. Stone comes faster, and the rich seams open to you."
+		"wooden_club":
+			return "You craft a wooden club. You swing it now instead of your fists."
+		"wooden_spear":
+			return "You craft a wooden spear. Long reach: keep them at arm's length."
+		"stone_maul":
+			return "You weight your club with stone: a stone maul. Slow, wide and heavy."
+		"stone_spear":
+			return "You knap a stone point onto your spear: a stone spear."
+		"bandage":
+			return "You twist a bandage from plant fibre (%d in your pack). Press H to use one when you're hurt." % Inventory.count(inv, id)
 	return "You craft %s %s (%d in your pack)." % [article(id), r.label, Inventory.count(inv, id)]
 
 

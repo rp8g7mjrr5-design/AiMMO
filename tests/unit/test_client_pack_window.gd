@@ -38,7 +38,9 @@ func test_texts() -> void:
 	check(PackWindow.tooltip_text("stone", Inventory.MAX_STACK).contains("(full)"), "full stack says so")
 	check(not PackWindow.tooltip_text("stone", Inventory.MAX_STACK - 1).contains("(full)"), "one short is not full")
 	check(PackWindow.tooltip_text("torch", 3).count("\n") == 1, "a torch is used in nothing yet: two lines")
-	check(PackWindow.tooltip_text("stone_axe", 1).contains("Used in: ember axe"), "axe upgrades")
+	check(PackWindow.tooltip_text("wooden_axe", 1).contains("Used in: stone axe"), "the wooden axe upgrades")
+	check(PackWindow.tooltip_text("stone_maul", 1).contains("A weapon"), "weapons say so")
+	check(PackWindow.tooltip_text("bandage", 1).contains("Press H"), "the bandage says how")
 	for item in Inventory.ITEM_ORDER:
 		check(PackWindow.tooltip_text(item, 1) != "", item)
 

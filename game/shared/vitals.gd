@@ -19,10 +19,12 @@ class_name Vitals
 ## - **Readable blocks.** A block takes most of a hit and pays for it in stamina; a block
 ##   that runs the bar dry still holds for that hit (no surprise guard break mid-swing) and
 ##   leaves you winded, which is the fair telegraph that the next one won't.
-## - **Health comes back on its own** once you are out of combat, quickly, so after a fight
-##   you are back to gathering in seconds, not sitting at a campfire.
+## - **Health is worth something** (owner direction, 2026-11-26: "a full zombie survival.
+##   Bandages and other things like that"). Out of combat it only trickles back, and only to
+##   half (HP_REGEN_CAP); above that, a bandage (BANDAGE_HEAL over BANDAGE_SECONDS) is what
+##   patches you up. It was 10 s from empty to full, which made a medkit pointless.
 ##
-## A state is {hp, max_hp, stamina, max_stamina, spent_at, hit_at, winded_until}. Times
+## A state is {hp, max_hp, stamina, max_stamina, spent_at, hit_at, winded_until, heal_left}. Times
 ## (`now`) are real seconds on the server's monotonic clock, like GatherChannel.
 
 const MAX_HP := 100.0
@@ -39,8 +41,23 @@ const BLOCK_SHARE := 0.75
 const BLOCK_COST := 0.8
 ## In combat for this long after the last hit taken or dealt; health regenerates only outside it.
 const COMBAT_SECONDS := 6.0
-## Health back per second out of combat, as a share of max (10%: full in 10 s).
-const HP_REGEN_SHARE := 0.10
+## Health back per second out of combat, as a share of max (0.5%: empty to half in 100 s),
+## and only while under HP_REGEN_CAP of max: past that, it takes a bandage.
+const HP_REGEN_SHARE := 0.005
+const HP_REGEN_CAP := 0.5
+## A bandage (Inventory "bandage", applied with Server.use_item) heals this much over
+## BANDAGE_SECONDS, in combat or out, up to full. One at a time.
+const BANDAGE_HEAL := 35.0
+const BANDAGE_SECONDS := 4.0
+const BANDAGE_ITEM := "bandage"
+## What a player is told about a bandage (use_check's reasons, and success).
+const BANDAGE_TEXTS := {
+	"": "You bind your wounds with a bandage.",
+	"full": "You're not hurt.",
+	"busy": "Your last bandage is still doing its work.",
+	"dead": "",
+	"no_item": "You have no bandage. Twist one from 3 plant fibre (scrub).",
+}
 ## Fair failure (roadmap Milestone 2): at 0 health you are knocked down and come to at once
 ## in Spawn Meadow, full, with everything you carried. No corpse run,
 ## no lost pack, no timer: losing costs the walk back, which is the lesson, not a punishment.
@@ -50,7 +67,7 @@ const KNOCKED_DOWN_TEXT := "You were knocked down. You come to in Spawn Meadow w
 ## A fresh, full state.
 static func full(max_hp: float = MAX_HP, max_stamina: float = MAX_STAMINA) -> Dictionary:
 	return {"hp": max_hp, "max_hp": max_hp, "stamina": max_stamina, "max_stamina": max_stamina,
-		"spent_at": -INF, "hit_at": -INF, "winded_until": -INF}
+		"spent_at": -INF, "hit_at": -INF, "winded_until": -INF, "heal_left": 0.0}
 
 
 static func is_cost(action: String) -> bool:
@@ -154,8 +171,39 @@ static func tick(v: Dictionary, now: float, dt: float) -> void:
 		return
 	if now - float(v.spent_at) >= REGEN_DELAY:
 		v.stamina = minf(float(v.stamina) + REGEN * dt, float(v.max_stamina))
-	if not in_combat(v, now):
-		v.hp = minf(float(v.hp) + float(v.max_hp) * HP_REGEN_SHARE * dt, float(v.max_hp))
+	var cap := float(v.max_hp) * HP_REGEN_CAP
+	if not in_combat(v, now) and float(v.hp) < cap:
+		v.hp = minf(float(v.hp) + float(v.max_hp) * HP_REGEN_SHARE * dt, cap)
+	var left := float(v.get("heal_left", 0.0))
+	if left > 0.0:
+		var h := minf(left, BANDAGE_HEAL / BANDAGE_SECONDS * dt)
+		v.hp = minf(float(v.hp) + h, float(v.max_hp))
+		v.heal_left = 0.0 if float(v.hp) >= float(v.max_hp) else left - h
+
+
+## Why a bandage can't go on now, or "" when it can: "dead", "full" (not hurt), "busy" (the
+## last one is still healing).
+static func bandage_check(v: Dictionary) -> String:
+	if is_dead(v):
+		return "dead"
+	if float(v.hp) >= float(v.max_hp):
+		return "full"
+	if float(v.get("heal_left", 0.0)) > 0.0:
+		return "busy"
+	return ""
+
+
+## Puts a bandage on: BANDAGE_HEAL is healed over the next BANDAGE_SECONDS (tick). Returns
+## bandage_check's reason; "" means it went on.
+static func apply_bandage(v: Dictionary) -> String:
+	var why := bandage_check(v)
+	if why == "":
+		v.heal_left = BANDAGE_HEAL
+	return why
+
+
+static func bandage_text(reason: String) -> String:
+	return str(BANDAGE_TEXTS.get(reason, ""))
 
 
 ## Health and stamina as 0..1, for a bar.

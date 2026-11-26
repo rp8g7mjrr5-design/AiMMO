@@ -88,12 +88,12 @@ static func haul(kind: String) -> AudioStreamWAV:
 				lp += (noise - lp) * 0.6
 				v = lp * exp(-t * 90.0) * 0.6
 				v += (sin(TAU * 1870.0 * t) * 0.5 + sin(TAU * 2960.0 * t) * 0.35) * exp(-t * 26.0) * 0.55
-			"ember_sap":
-				# Dark noise swelling and falling, with a wobbling pitch: a scoop of thick sap.
-				lp += (noise - lp) * 0.08
-				lp2 += (lp - lp2) * 0.15
-				var env := sin(PI * clampf(t / 0.22, 0.0, 1.0))
-				v = lp2 * env * 3.2 + sin(TAU * (240.0 + 90.0 * sin(TAU * 9.0 * t)) * t) * env * 0.18
+			"scrub":
+				# A dry rustle and a snap: bright noise in quick bursts as the stems tear.
+				lp += (noise - lp) * 0.55
+				lp2 += (lp - lp2) * 0.3
+				var env := sin(PI * clampf(t / 0.18, 0.0, 1.0)) * (0.6 + 0.4 * absf(sin(TAU * 23.0 * t)))
+				v = (lp - lp2) * env * 2.4 + noise * exp(-maxf(t - 0.12, 0.0) * 200.0) * float(t > 0.12) * 0.35
 			_:
 				# Wood: a low thunk with a burst of mid noise for the bite of the blade.
 				lp += (noise - lp) * 0.3
