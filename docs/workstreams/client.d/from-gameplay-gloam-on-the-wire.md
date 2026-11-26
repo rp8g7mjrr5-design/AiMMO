@@ -1,3 +1,0 @@
-Request (from gameplay, 2026-11-25): protocol v10 is in (ws/builder/gloam-on-the-wire), for "Basics 2: draw the Gloam walker":
-- [ ] `net.gloam_changed(entries)`: `Gloam.from_wire(entries)` gives `[{id, x, z, yaw, state, windup_left}]` for the walkers in view, 5 Hz, unreliable (smooth them like `HerdView`; an empty list means the last left view). State "grab" is the arms-up telegraph; `windup_left` is the seconds until it closes, so the pose and a cue can be timed to it.
-- [ ] `net.gloam_struck(peer, kind, walker_ids, downed)`: a blow landed on those walkers (flinch, smack); `downed` ones go down for good.

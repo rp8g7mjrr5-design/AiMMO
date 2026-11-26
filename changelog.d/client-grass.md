@@ -1,1 +1,0 @@
-- **Grass you can walk through.** Meadows and field edges now grow real tufts of grass around you, coloured by the ground they grow from: olive in the meadow, straw on the dry patches, thinner under the pines. It sways in the wind, goes moonlit-grey at night, and stays off roads, ruins, shores and cliffs. Low graphics draws half as much.

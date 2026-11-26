@@ -1387,3 +1387,97 @@ test runs only in CI.
 
 **Next run:** check this landed and the image test is green in CI. Then the bot-test hunt with
 swing metrics (backlog item 2), then the restart-in-the-middle check (part 2).
+
+## 2026-11-24 — swing-metrics
+**Swings, refusals, hits and kills in the fun metrics (ws/qa/swing-metrics).** Backlog item 2.
+The hunt half of the item was already on `main` (gameplay's `gameplay_hunt`, one hunter per
+long run, lures and downs a grazer and checks hide and raw meat), so this run did the metrics half.
+
+**Built (tests/ only):**
+- `fun_metrics.gd`: `swing()`, `swing_refused()`, `swing_landed(hit)` are feedback (the game
+  answering a press) and count `swings`, `swings_refused`, `swings_hit`; `kill()` counts
+  `kills`. `is_kill_drop(item)` is true for the first entry of any `Wildlife.drops(kind)`:
+  the server sends one `s2c_gather_result` per drop in that order, so the hide marks one kill
+  and its drops still count as rewards through the old path.
+- `qa_fun_metrics.gd` listens for `swing_begun` / `swing_landed` (ours only) and
+  `attack_refused`, and counts a kill from `_on_gather_result`.
+- `gameplay_first_swing.gd`: dropped `_tell_fun_metrics()` (gameplay's v7 workaround), since
+  the fun metrics now hear v7 themselves. `longest_wait_s` stayed at 0.12-0.2 s per bot in the
+  full run, so nothing lost an answer.
+- `fun_report.py`: combat totals (`swings`, `swings_refused`, `swings_hit`, `kills`,
+  `bots_swung`) in the summary JSON and a `combat:` line in the table. Reported, not gated.
+- Tests: 3 new unit tests in `test_qa_fun_metrics.gd` (feedback and counts, one kill per
+  grazer with 3 items of reward, no gather node's item looks like a kill drop, read from
+  `ResourceNodes.KINDS` and `TIER2`), 1 in `test_fun_report.py`.
+
+**Results:** unit 858/858 (Postgres), python 61+ OK. Full bot test 8 x 180 s WebSocket with
+fun and perf checks PASSED in 341 s: `combat: 18 swings by 8 bot(s), 2 struck, 16 more presses
+refused, 1 kill(s)`. ENet 45 s PASSED (16 swings, 0 kills: no hunt on short runs, as designed).
+
+**Why not gated yet:** the refusals are almost all `gameplay_first_swing`'s deliberate "busy"
+probe (a light pressed mid-haymaker, two per bot), and only bot `_2` hunts, so `kills` is 0 or 1
+depending on whether the hunt fit. A gate now would flake; follow-up after three CI runs.
+`swings_hit` is 0 for first_swing on purpose (it swings at air); only the hunter hits.
+
+**Perf note seen:** `cpu_ms_per_tick` 1.97 vs baseline 1.25 (note, not a failure). Generated
+kingdoms (#206/#207) landed today, plausibly the cause; worth watching with the perf re-baseline item.
+
+**Next run:** the restart-in-the-middle check (director part 2), or the smoke-shot hooks.
+
+**CI fix on this PR (gameplay_wildlife, tests/ only).** The PR's first CI run failed one check
+that this diff doesn't touch: `bot_1: [gameplay_wildlife] grazer 2 bolted but no herd-mate went
+with it`. `main` was green on its last 5 runs. The server only sends herd-mates within
+`Wildlife.HERD_RADIUS` (16 m) of the bolter running with it, and skips downed ones; since the
+hunt landed, bot `_2`'s `/lure` pulls the nearest grazer away from its herd and downs it, so the
+stalker can rush a grazer whose mates are all gone or out of reach. I couldn't confirm the herd
+from CI (the test-output artifact host is blocked here), so this is the likely cause, not a proven one.
+Fix: when the target bolts, the stalk checks the latest `s2c_wildlife` for a herd-mate clearly
+inside 16 m (2 m slack) or already fleeing. With one there, the old check holds unchanged; with
+none, it counts `herd_alone` and ends the stalk instead of failing. Re-run locally: PASSED in 339 s
+(`herd_bolts=1 herd_alone=0`). If `herd_alone` shows up often in CI, ask gameplay to have
+`/lure` prefer a grazer from a herd the stalker isn't near.
+
+## 2026-11-25 — night-walkers
+**What:** a fourth phase in long bot-test runs, `run_bot_test.run_night`. A server boots with
+`--gloam=1 --dev-commands=0 --clock-offset=<to midnight>` (`night_clock_offset` computes it from
+the same epoch, day length and start fraction as `WorldClock`; a unit test checks they match),
+and four bots run behaviour `qa_night_walkers` for 60 s each, with the usual reconnect in the
+middle. Each bot walks to its own post 55 m out (past `Gloam.SAFE_RADIUS`), throws a light swing
+at the air every 4 s to make noise, goes for the nearest walker in `s2c_gloam` within 45 m,
+faces it and throws heavy haymakers once it's within 1.6 m. The server log must show walkers on,
+night on the clock, at least one grab and at least one walker put down; every bot must see
+walkers; nothing on the wire may be non-finite or in an unknown state; a walker we downed must
+leave `s2c_gloam` within 1 s.
+
+**Why not `--gloam` on the main server (the item's literal wording):** the main run's gather,
+pair, tool-gate and persistence checks assume a quiet world, and a knock-down teleports a bot to
+Spawn Meadow mid-check. Making all of those tolerate walkers would touch `gameplay_vitals.gd` and
+the gather behaviours, which the owner's open survival-kit PR (#232) changes. A separate phase
+tests natural rising against a group, which is what the live world runs, without touching any of
+the owner's files. It also runs with dev commands off, like the public server.
+
+**What I saw locally (enet, 4 bots, 60 s):** each bot saw ~16 walkers rise; 11 walkers put down
+in total. On the first try with bots that always swing first, **nobody was grabbed at all**:
+bare-handed haymakers (9 damage, 4 to put one down) beat the grab every time. So each bot now
+lets the first walker of each login grab it once (or waits 6 s) before swinging back; with that,
+3 grabs per run. That is a fun signal, not just a test detail: a first night where you never get
+touched isn't scary. Passed on to gameplay as a request.
+
+**Cost:** about 70 s more on the CI bot test (the phase only runs in long runs; `--no-night`
+skips it).
+
+**Next self:** if the night phase flakes on "no walker grabbed anyone", raise `LET_GRAB_MAX` or
+let the first two walkers in; never drop the grab check. Knock-downs are counted, not required.
+
+## 2026-11-26 — look-answer-is-feedback
+`main` went red after PR 230 (no levels): `longest_wait_s_median` 6.36 s against 0.05 s
+(+2.0 slack). The metrics now name the press behind each bot's longest wait
+(`longest_wait_after`, `longest_wait_from_s`): every one was `c2s_set_look`, about 54 s in.
+The server does answer it (s2c_look naming us, which gameplay_looks_v8 checks), but the fun
+metrics never counted that as feedback. Before, the bots gathered until Felling 2 and the
+XP and level lines landed right after, so the wait closed by chance; with levels gone the
+bots stop after FARM_GATHERS and the wait ran until the next gather (up to 36 s locally,
+31 s on CI). Fix: s2c_look for us and s2c_place_result count as feedback. Local 8 x 180 s
+WebSocket + Postgres run: wait median 0.15 s, worst 0.16 s, PASSED. No baseline change.
+Note: a local run after PR 229 needs `godot --headless --path game --import` first, or
+TravellerBodies isn't in the class cache.

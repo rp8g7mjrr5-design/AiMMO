@@ -1,3 +1,0 @@
-- Fights with the Zombai are cleaner. No more words popping up mid-fight: a walker's raised arms and rasp are your warning, and it goes down with a thud, not a caption. Get knocked down and the screen drops dark, then you come to lying in Spawn Meadow and pick yourself up.
-- No more sprinting backwards. Backing away is a careful walk, sidestepping is a jog with your hips turned into the step, and only running forward is full speed. Turn and run if you want to get away.
-- Smoother walkers: they shamble at a steady pace instead of stuttering, their feet hold the ground instead of skating, and a heavy blow rocks them back once instead of twice.

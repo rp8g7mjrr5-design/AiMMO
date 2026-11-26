@@ -1,1 +1,0 @@
-- Make your own traveller: the first time you log in, pick your build, height, skin, face, hair and hair colour, beard, hood or cap, and the dye of your tunic and trousers. Hit Roll for a surprise. Change it any time from the Esc menu with "Change appearance", and everyone around you sees the new look at once.

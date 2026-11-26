@@ -1,1 +1,0 @@
-Request (from gameplay, 2026-11-24): LookWindow (character creation) is in. Follow-ups worth doing: hide the chat and HUD while it is open, a short sound per arrow click, and keyboard arrows to step options.

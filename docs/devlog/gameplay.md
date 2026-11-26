@@ -1446,3 +1446,235 @@ which makes the first crafted weapon matter.
   walker summoned, one grab of 15, down in 4 haymakers. The wildlife flake fix's second
   form (judge herd-mates from the send before the bolt, and count a herd-mate already
   running as following) gave `herd_bolts=1, herd_unchecked=0` on the last run.
+
+## 2026-11-24 — character-looks
+Owner-requested thread work (not a scheduled run), spanning gameplay, client and world files.
+
+What shipped:
+- `game/shared/appearance.gd` (Appearance): a look is a Dictionary of 10 small ints (body, height, skin, face, hair, hair_colour, beard, headwear, tunic, trousers). `check()` is strict (what the server accepts from a client), `normalize()` is forgiving (what loads from a save). Indices are permanent: add choices at the end only.
+- Migration 0004 adds `characters.appearance TEXT NOT NULL DEFAULT ''`. '' = never chosen, drawn from the seed exactly as before. CharacterData carries `look`; PgStore writes it in save_character; JsonStore keeps it as a dict.
+- Protocol v8 on Net/Play: `c2s_set_look(look)` and `s2c_look(peer_id, look)`. Frozen `net_v7.gd` / `net_play_v7.gd`. The server sends s2c_look right after each s2c_player_joined, and to everyone when a look is saved (saved to the store at once). LOOK_GAP 1 s per player.
+- AvatarBuilder.parts(seed, look) / build(..., look) / skinned(seed, look). An empty look gives byte-for-byte the old parts (unit tested). `head_gear()` and `dress()` are the only style-specific code: if the body style is redrawn, re-implement those two and keep the Appearance indices.
+- Client: LookWindow (opens at login while the look is unchosen, "Later" skips it for now) and "Change appearance" in the Esc menu. The camera swings in front of you while it is open; drag to orbit. Every arrow redraws your own avatar locally; nothing is sent until Set out / Save.
+- Bots: `gameplay_looks_v8` saves a random look, changes it once, checks the echo, checks every other player's look arrives, and checks the look survives the reconnect.
+
+Not done / next:
+- The owner asked for new body style drafts the same night. Height and build are deliberately simple (skeleton scale, x/z girth) so they carry over to any style.
+- No way yet to see another player's face up close except walking up to them.
+- No claim was taken: this session's git access is limited to its own branch, so it could not push `claim/*`.
+
+## 2026-11-24 — placed-campfires
+**Fun:** the first thing you make that stays in the world, and the first place the Gloam
+won't follow you at night. Today it is server-only (dev commands); it becomes playable when
+the bump, world's model and client's place key land.
+
+### What I built
+- `game/shared/campfires.gd` (`Campfires`): pure rules over `{fires, next_id}`. Placed
+  `PLACE_DISTANCE` 1.5 m in front (forward is (sin yaw, cos yaw), as in `Gloam.summon`) on the
+  ground; refused (with player-facing lines in `REFUSALS`) on water, near the world's edge, within
+  3 m of another fire, 2.5 m of a resource node or the bench, past 3 per player (owner is the
+  lower-case character name so it survives a reconnect) or 32 in the world. Burns
+  `BURN_WORLD_HOURS` 4 (400 real seconds, about a third of a night). `to_wire` gives
+  `[id, x, y, z, seconds_left]` per fire; `near`/`is_warm` (`WARM_RADIUS` 4 m, inside the 6 m
+  keepaway) are ready for cooking.
+- Server: `campfires` state (reset with the world), `place_request(id, item)` (only "campfire";
+  takes one from the pack only on success; what `c2s_place` will run), `_tick_campfires` every
+  tick (burned-out fires leave, the owner gets "Your campfire has burned down to ash."),
+  `_broadcast_campfires` on every change and the list in `_send_world_state` when any burn.
+  `gloam_fires()` now returns every lit fire, so the walkers' keepaway (already unit tested in
+  `Gloam`) works for real.
+- Hidden dev commands: `/place campfire` (from the pack) and `/kindle` (free, rules apply),
+  `/kindle status`.
+
+### Calls I made
+- **No flag.** The item asked for a flag or invisibility on the live world. Placing needs either
+  a dev command (off on Railway) or an RPC that doesn't exist until the bump, so players can't
+  place fires at all yet; a `--campfires` flag would guard nothing. `s2c_campfires` is skipped
+  by `_send` until the RPC exists (logged once: "not in protocol v7 yet").
+- **Not saved yet.** Saving needs an add-only table, and #197 holds migration 0004 while in
+  review; `test_migrations` wants sequential numbers, so a 0005 now would fail until #197 lands
+  and a 0004 would collide with it. A fire burns under seven real minutes, so a restart costs at
+  most one campfire. Follow-up filed for the migration after 0004.
+- **Refuse rather than put out the oldest** at the per-player cap: a crafted campfire is 8
+  materials, and silently burning one out would feel like a loss.
+
+### Tests
+- `test_gameplay_campfires.gd`, 11 tests: numbers hold together (burn time, warm radius inside
+  the keepaway), set down in front on the ground, every refusal and that it changes nothing,
+  per-player and world caps, burning down, the wire format, chat command names, the pack path
+  (no item, one taken, refusal free, only campfires), burn-down tells the owner and everyone,
+  newcomers get the list, the dev commands (and none on a player server), and the walker that
+  comes at you across your fire stops at the ring's edge and never grabs.
+- Bot behaviour `gameplay_campfires.gd` (bot *_5, once, 20 s into its first login, borrowing
+  itself between gathers): `/place campfire` must be refused "no campfire", `/kindle` must catch
+  (spot refusals walk on and retry), `/kindle status` must read that fire back.
+
+### Next run
+- If #197 has landed: the bump (world config + stance events + `s2c_gloam` + campfires'
+  `c2s_place`/`s2c_campfires`), or hunger and cooking (`Campfires.is_warm`) if the bump is held.
+
+### Test runs
+- Unit tests: 887 pass (with Postgres).
+- Bot test (8 bots, 180 s, WebSocket): passed first time. Bot *_5: `refused_no_item=1`,
+  `spot_refusals=1` (it stood on a bad spot, walked on, tried again), `kindled=1`, `status_ok=1`.
+- Client smoke test: passed.
+
+## 2026-11-24 — protocol-v9
+**Fun:** none on its own yet; it unblocks two things players will feel. The client can now
+build the world the server names (the step before the live world moves to a generated
+kingdom with ruins), and it can place campfires and draw everyone's fires (world's model is
+already on `main`), which makes the first warm place at night playable.
+
+### What I built
+- `GameConfig.PROTOCOL_VERSION` 9. Frozen `tests/protocol/net_v8.gd` / `net_play_v8.gd`.
+- Net/Play, all new names (Net's own list untouched, so old clients still get "out of date"):
+  - `s2c_world(config)`: `WorldGen.config()` ({seed, size_m, gen_version}), sent right after
+    `s2c_login_result` and before world time, vitals, pack and nodes, so a client can
+    `WorldGen.apply` it before building anything. Ashgrove sends gen 0, a no-op to apply.
+  - `c2s_place(item)` -> `Server._on_place` -> `place_request` (same rules as `/place`), behind
+    the usual per-player play gap; answers `s2c_place_result(item, ok, reason, text)` to the
+    placer only. reason is "" or a `Campfires.REFUSALS` key; text is the line to show.
+  - `s2c_campfires(PackedFloat32Array)`: already produced since placed-campfires; now actually
+    sent (at login when any burn, to everyone on every light and burn-down, empty when none).
+- Signals `world_config`, `place_requested`, `place_result`, `campfires_changed` on Net.
+
+### Calls I made
+- **A new RPC for the config, not the login reply.** Changing `s2c_login_result`'s arguments
+  would change what old clients receive in the reply that tells them to update; the
+  protocol-compat test forbids it, rightly. `s2c_world` right after it is just as early.
+- **World config plus campfires, nothing else.** The director said keep the world-config bump
+  small; workstreams.md says put every ready protocol change into the bump. Campfires were the
+  only other change already built and tested server-side, so they ride along. Stance events,
+  `s2c_gloam` and dodge are not built yet and wait for v10.
+- **A result RPC for placing**, rather than an `s2c_system` line, so the client's ghost
+  preview can react to the reason (shake on "crowded", grey on "no_item") without parsing text.
+
+### Tests
+- `test_gameplay_protocol_v9.gd` (7): Play = v8 Play + 4 and Net unchanged since v8; RPCs
+  re-emit; login sends exactly one `s2c_world` second in line on Ashgrove and on a kingdom;
+  Ashgrove's config applies as a no-op; a kingdom's config round-trips to the same spawn;
+  `c2s_place` refusal and success (fire reaches both players), flooding dropped, nothing
+  before login.
+- Bot behaviour `gameplay_world_v9.gd`: every login gets `s2c_world` within 4 s and it
+  survives `WorldGen.apply`; every `s2c_campfires` is whole fires with sane time left; bot *_6
+  sends one `c2s_place` and must get a valid answer; the fire bot *_5 kindles must reach it.
+
+### Next run
+- v10 bump: stance events (client's request), `s2c_gloam` walkers, `c2s_dodge`, and the
+  "You enter the Burned Farmstead" ruin notice, whichever are built. Or hunger and cooking
+  (`Campfires.is_warm`), which needs no bump to start.
+- Saving fires: migration 0005 `world_campfires` (0004 is taken by looks and has landed).
+
+### Test runs
+- Unit tests: 938 pass (with Postgres).
+- Protocol test (WebSocket): passed; v1 to v8 clients and v8/v10 numbers are told to update.
+- Bot test (8 bots, 180 s, WebSocket, fun and perf checks): every behaviour passed. Every bot
+  got `s2c_world` on both logins and heard bot *_5's kindled fire; bot *_6's `c2s_place` was
+  answered "no_item". The run reported 3 perf problems, all "bandwidth not measured": this
+  container has no `ss` (iproute2), which the bandwidth sampler shells out to. CPU, memory and
+  tick rate were measured and within budget. CI has `ss` and measures it for real.
+- Client smoke test: passed.
+
+## 2026-11-25 — gloam-on-the-wire
+Protocol v10: the Gloam walkers on the wire (builder, ws/builder/gloam-on-the-wire)
+
+What shipped:
+- `s2c_gloam(PackedFloat32Array)` on Net/Play, unreliable_ordered like `s2c_wildlife`: 6 floats
+  per walker in view, `[id, x, z, yaw, state_index, windup_left]` (`Gloam.to_wire_near`,
+  `Gloam.from_wire`, `Gloam.WIRE_STRIDE`). `windup_left` is the seconds until a raised grab
+  closes (state "grab"), else 0: the client gets the telegraph's timing, not just the state.
+  Same 5 Hz beat and the same 3 empty goodbyes as wildlife (`_send_gloam`, `s.gloam_bye`).
+  Nothing goes out while nobody has a walker in view, so the live world (no `--gloam`) sends none.
+- `s2c_gloam_hits(peer, kind, walker_ids, downed)`: everyone in view, swinger included, right
+  after `s2c_swing_hits`, only when a walker was struck. Decided against changing
+  `s2c_swing_hits`'s signature: a separate RPC left every v7 test and the client's existing
+  `swing_landed` handlers untouched, and `downed` gives the client its "put down" moment.
+- Signals on Net: `gloam_changed`, `gloam_struck`. Frozen `net_v9.gd` / `net_play_v9.gd`.
+- Unit tests `test_gameplay_protocol_v10.gd`; `gameplay_gloam` bot behaviour now also checks its
+  walker shows in `s2c_gloam`, the windup shows before the grab, every connecting haymaker comes
+  back in `s2c_gloam_hits` and the last one lists it as downed. Local 130 s bot test passed
+  (wire_seen=32, windup_seen, wire_hits=4, downed). Protocol test passed.
+
+Left out of this bump on purpose (sized for one run): `c2s_dodge`, walkers rising at ruins (no
+ruins on `main` yet) and turning `--gloam` on in the main bot test (qa). Campfires already went
+out in v9, and `gloam_fires()` still returns [] until placed fires feed in.
+
+Also this run: fixed #225's red CI. `gameplay_skills_v4` counted a hunt's drops (which arrive
+as `s2c_gather_result` since the first hunt) as gathers owed gathering XP; it now skips
+`Wildlife.drops` items. Flaky on main too, only when a bot lands a kill.
+
+## 2026-11-26 — no-levels
+The owner: "We should get rid of the leveling system and just work on the basics. a survival
+zombie game right now." Design bible direction 5 is now "Progress you can hold: tools, gear and
+the base, no levels"; the vision's "Never" list forbids levels, XP and skill trees.
+
+What went:
+- `game/shared/skills.gd`, the XP meter, the level-up banner and burst, the skills window (K),
+  the skill icons and badge colours, the level-up sound, the on-screen "Next: Felling 5" goal,
+  `/skills`, the server's award_xp and friends, the roster's `level` and the players panel's
+  "+N" glow, weapon mastery damage, and every level wall (Crafting `level`/`xp_scale`,
+  `min_level` on tier-2 nodes, the "level" refusal).
+- Bot behaviours client_level_up, client_level_walls, client_skills_window, client_xp_meter,
+  gameplay_skills, gameplay_skills_v4, gameplay_bench_sense, and their unit tests. Fun metrics
+  lost the level numbers (first_level_up_s and friends) and the baseline their limits.
+
+What replaced it:
+- Tier-2 nodes have `needs_tool: true`; any tool in `Gathering.TOOLS[kind]` opens them
+  (refusal reason "tool": "You need an axe to work this old ember ash."). The ember tools are
+  still gated by heartwood and veinstone, which only an axe or pickaxe can gather, so the tool
+  ladder stays: bare hands -> stone tools -> tier-2 materials -> ember tools.
+- Gather speed and yield come only from tools (`seconds_for(kind, inv)`, `amount_at(id, inv)`).
+- A gather on a full stack is refused up front ("full"): with no XP, a bar that pays nothing
+  would be pure dead time.
+- `qa_level_gate` became `qa_tool_gate` (`--tool-gate=fresh|veteran`); the veteran is seeded
+  with the tool and old XP, and `verify_store` checks the old XP is still there exactly.
+
+Saves: nothing deleted. `CharacterData.skills` and the `character_skills` table still load and
+save through `RetiredSkills.normalize` (keeps every id, clamps to ints >= 0); nothing reads
+them. The upsert keeps GREATEST, so a save without XP never lowers it (save-compat test).
+
+Wire: no protocol bump. The four v4 RPCs stay on Net/Play with empty bodies so every later
+RPC keeps its number and an old server's messages are swallowed. The roster drops `level`; an
+old client reads `.get("level", 0)` and shows 0, nothing breaks.
+
+Notes to next run: if a future system seems to need a bar that fills by repetition, use a tool,
+station or place instead (direction 5, "Don't bring it back sideways"). The old XP could feed a
+one-off thank-you item for veteran characters some day; only with the owner's say.
+
+## 2026-11-26 — survival-kit
+The owner, looking at the ember recipes: remove them, go for basic zombie-survival tools, wood
+then stone ("copy minecraft" read as the tier idea only), a wooden club, bandages, no magic.
+
+What changed:
+- Items: retired ember_axe, ember_pickaxe, ember_lantern, ember_heartwood, veinstone and
+  ember_sap. `Inventory.RETIRED` maps each to a grounded item and `Inventory.convert_retired`
+  runs in `CharacterData.normalize` and `PgStore._with_inventory`. It is idempotent and
+  generous: a one-only tool is given only if none is carried, stacks cap at MAX_STACK.
+- New items: plant_fibre, wooden_axe, wooden_pickaxe, wooden_club, wooden_spear, stone_maul,
+  stone_spear (renamed from ash_spear, same numbers), bandage. Hand recipes (no bench):
+  wooden tools and weapons, bandage, torch. Bench recipes upgrade the wooden one (it is used up)
+  with stone and fibre.
+- Tool tiers: `Gathering.TOOL_TIER` (wood 1, stone 2) and `min_tier(node)`; tier-2 nodes need
+  tier 2. Stone nodes have `needs_tool`: bare hands are refused ("You need a pickaxe ...").
+  Wooden tools: 0.75x time, +0. Stone tools: 0.5x, +1.
+- The ember_sap node kind is now `scrub` (same ids and positions, so the node fingerprint pins
+  changed; the tests check the old pins by mapping scrub back). It gives plant_fibre, day and
+  night. No glow, no motes, no seep lights; a low mound of leaves and fibre stems.
+- Healing: natural regen stops at 50% (`Vitals.HP_REGEN_CAP`). A bandage heals 35 over 4 s
+  (`heal_left`). Used with H, sent through the existing v9 `c2s_place("bandage")` so there is no
+  protocol bump; the answer comes back as `s2c_place_result` with item "bandage".
+- Weapons: `Weapons.ORDER` is wooden_spear, wooden_club, stone_spear, stone_maul; the server
+  swings the best one carried, as before.
+
+Tried and changed: the first wooden icons were the stone shapes in another tint, and the
+distinctness test (silhouette diff > 0.08) failed, so the wooden tools are drawn mirrored.
+Wooden weapons at first missed the "1.4x fists" check; light damage went up to 8 (spear) and
+11 (club).
+
+Notes to next self / known gaps:
+- The craft window still opens only at the bench; hand recipes can be made there or by /craft.
+  A "craft anywhere" pack tab would make the first minute smoother.
+- Held weapons and tools are not drawn in the hand yet.
+- The ember veins on trees and stone and the old ash's glowing pods are still there (world).
+- Iron/metal tier from ruins next; cloth as a step between fibre and bandage if bandages feel
+  too cheap.

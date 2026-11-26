@@ -1,1 +1,0 @@
-- Coming soon, built behind the scenes: the campfire you make at the workbench will soon be something you can set down in the world. It burns for about four hours of the day, and when the Gloam walkers arrive they will not come near its light. Not in your game yet: it shows up once campfires can be drawn and you have a key to place one.

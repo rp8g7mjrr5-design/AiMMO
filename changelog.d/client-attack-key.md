@@ -1,2 +1,0 @@
-- **You can hit back.** Left click swings a quick jab at anything you aren't gathering, right click winds up a heavy blow. Right click even pulls you out of chopping, so a grazer walking up is one click away.
-- Every swing whooshes as the blow comes through (heavy ones lower and longer), a landed hit smacks, and the grazer you struck jolts and snorts before it bolts. F1 lists the new keys.
