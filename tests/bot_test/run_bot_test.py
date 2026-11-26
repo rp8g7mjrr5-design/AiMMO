@@ -55,6 +55,14 @@ leaves for good, and the ninth must get in after that, never before, while the s
 play on undisturbed (nobody inside is kicked, nobody sees a ninth player). Skip it with
 --no-player-cap.
 
+Long runs also run the night phase (basics 2, zombie survival): a fourth server boots with
+`--gloam=1` and a `--clock-offset` that puts it at midnight, the way the live world runs after
+dark, and four bots (behaviour qa_night_walkers) walk out of Spawn Meadow to their own posts,
+call walkers in with loud swings and fight the ones that rise on their own bare-handed. Every
+bot must see walkers rise near it; together they must be grabbed and put walkers down (the
+server log says both), with no error line, a knock-down just sends a bot back out. Skip it
+with --no-night.
+
 Every run also samples the server process while the bots play (tests/bot_test/perf_report.py):
 CPU milliseconds per tick, ticks per second the bots saw, peak memory and its growth, and on
 WebSocket runs the bytes per second to and from each player, measured on the wire with `ss`.
@@ -104,6 +112,15 @@ CAP_PLAYERS = 8
 CAP_LEAVER_PLAY = 22.0
 CAP_INSIDE_PLAY = 55.0
 CAP_WAITER_PLAY = 30.0
+# Night phase (basics 2): bots out past Spawn Meadow at midnight on a server where the Zombai
+# rise on their own. How many, how long they play (a reconnect falls in the middle), and the
+# world clock it runs at (keep equal to game/shared/world_clock.gd; a unit test checks).
+NIGHT_BOTS = 4
+NIGHT_PLAY = 60.0
+WORLD_EPOCH_UNIX = 1795154400.0
+DAY_SECONDS = 2400.0
+START_FRACTION = 0.25
+NIGHT_AT_FRACTION = 0.0  # midnight: night runs from 0.78 to 0.22, so the phase never sees dawn
 
 REPO = Path(__file__).resolve().parents[2]
 GAME = REPO / "game"
@@ -365,6 +382,70 @@ def run_player_cap(base_env: dict, transport: str, work: Path, run_tag: str) -> 
     return [f"player cap: {p}" for p in problems]
 
 
+def night_clock_offset(now_unix: float, at_fraction: float = NIGHT_AT_FRACTION) -> float:
+    """The --clock-offset (world seconds, >= 0) that puts the server's clock at `at_fraction` of the day now."""
+    frac = ((now_unix - WORLD_EPOCH_UNIX) / DAY_SECONDS + START_FRACTION) % 1.0
+    return ((at_fraction - frac) % 1.0) * DAY_SECONDS
+
+
+def night_log_problems(text: str) -> list:
+    """What the night server's log must say: walkers on, night on the clock, and a real fight."""
+    problems = []
+    if "[server] gloam: on" not in text:
+        problems.append("the night server did not start with walkers rising")
+    if not re.search(r"^\[server\] world clock: .*\(night\)$", text, re.M):
+        problems.append("the night server's clock is not at night")
+    if not re.search(r"^\[gloam\] walker \d+ grabbed ", text, re.M):
+        problems.append("no walker grabbed anyone all night")
+    if not re.search(r"^\[gloam\] \S+ put walker \d+ down", text, re.M):
+        problems.append("nobody put a walker down all night")
+    return problems
+
+
+def run_night(base_env: dict, transport: str, work: Path, run_tag: str) -> list:
+    """The night phase: a server at midnight with natural rising, NIGHT_BOTS bots fighting walkers."""
+    night = work / "night"
+    night.mkdir()
+    port = free_port()
+    stop_file = night / "stop"
+    env = dict(base_env)
+    env.update({"AIMMO_PORT": str(port), "AIMMO_STOP_FILE": str(stop_file), "AIMMO_DATA_DIR": str(night / "data")})
+    log = night / "server.log"
+    offset = night_clock_offset(time.time())
+    server = start_server(env, log, "--dev-commands=0", "--gloam=1", f"--clock-offset={offset:.0f}")
+    if server is None:
+        return ["night: server did not start"]
+    procs = []
+    for i in range(NIGHT_BOTS):
+        name = f"bot{run_tag}_night{i + 1}"
+        result, blog = night / f"{name}.json", night / f"{name}.log"
+        cmd = bot_cmd(name, port, transport, NIGHT_PLAY, result, "--only-behaviour=qa_night_walkers", "--night-walkers")
+        procs.append((name, subprocess.Popen(cmd, stdout=open(blog, "w"), stderr=subprocess.STDOUT, env=env), result, blog))
+        time.sleep(0.3)
+    problems = []
+    for name, p, _, _ in procs:
+        try:
+            p.wait(timeout=NIGHT_PLAY + 90)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            problems.append(f"{name}: hung and was killed")
+    problems += stop_server(server, log, stop_file, "night server")
+    problems += night_log_problems(log.read_text(errors="replace"))
+    for name, _, result, blog in procs:
+        problems += scan_log(blog, name)
+        try:
+            r = json.loads(result.read_text())
+        except (OSError, ValueError):
+            problems.append(f"{name}: no result file")
+            continue
+        problems += [f"{name}: {f}" for f in r["failures"]]
+        n = r["stats"].get("behaviours", {}).get("qa_night_walkers", {})
+        print(f"[bot-test] night {name}: seen={n.get('seen')} hunted={n.get('hunted')} heavies={n.get('heavies')} "
+              f"hits={n.get('hits')} downs={n.get('downs')} grabs={n.get('grabs')} "
+              f"knockdowns={n.get('knockdowns')} refusals={n.get('refusals')}")
+    return [f"night: {p}" for p in problems]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--bots", type=int, default=8)
@@ -381,6 +462,7 @@ def main() -> int:
     ap.add_argument("--no-craft-haul", action="store_true", help="skip the craft-haul check (crafting at the bench)")
     ap.add_argument("--no-chat-gate", action="store_true", help="skip the chat-gate phase (dev commands off)")
     ap.add_argument("--no-player-cap", action="store_true", help="skip the player-cap phase (a full world of 8)")
+    ap.add_argument("--no-night", action="store_true", help="skip the night phase (walkers rising on their own)")
     a = ap.parse_args()
 
     work = Path(tempfile.mkdtemp(prefix="aimmo-bot-test-"))
@@ -602,6 +684,8 @@ def main() -> int:
         problems += run_chat_gate(env, a.transport, work, run_tag)
     if a.duration >= gather_report.LONG_RUN and not a.no_player_cap:
         problems += run_player_cap(env, a.transport, work, run_tag)
+    if a.duration >= gather_report.LONG_RUN and not a.no_night:
+        problems += run_night(env, a.transport, work, run_tag)
 
     if fun_rows:
         summary = fun_report.summarise(fun_rows)
