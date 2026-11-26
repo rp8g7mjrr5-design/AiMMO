@@ -99,6 +99,7 @@ func start(p_net: Node, p_args: Dictionary) -> void:
 
 	net.login_result.connect(_on_login_result)
 	net.snapshot.connect(_on_snapshot)
+	net.world_config.connect(func(c): WorldGen.apply(c)) # the server's world, as the client does
 	net.chat_message.connect(_on_chat)
 	net.player_joined.connect(func(id, _n, _s): _others[id] = true)
 	net.player_left.connect(func(id): _others.erase(id))
@@ -185,7 +186,7 @@ func _on_snapshot(t: int, entries: Array) -> void:
 		var p := Vector3(entries[i + 1], entries[i + 2], entries[i + 3])
 		if not (is_finite(p.x) and is_finite(p.y) and is_finite(p.z)):
 			_fail("non-finite position for peer %d" % id)
-		elif absf(p.x) > GameConfig.WORLD_HALF_SIZE + 0.01 or absf(p.z) > GameConfig.WORLD_HALF_SIZE + 0.01:
+		elif absf(p.x) > WorldGen.half_size() + 0.01 or absf(p.z) > WorldGen.half_size() + 0.01:
 			_fail("peer %d outside world: %s" % [id, p])
 		elif absf(p.y - Terrain.height(p.x, p.z)) > 0.01:
 			_fail("desync: peer %d at height %.3f but terrain says %.3f" % [id, p.y, Terrain.height(p.x, p.z)])
