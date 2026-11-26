@@ -84,7 +84,6 @@ var herd := HerdView.new() ## the grazers in view (protocol v6), smoothed
 var grazers: GrazerFigures ## draws them, in the world
 var zombai := ZombaiView.new() ## the Zombai walkers in view (protocol v10), smoothed
 var zombai_figures: ZombaiFigures ## draws them and gives them voices, in the world
-var bodies: TravellerBodies ## sculpts each look's body off the main thread and puts it on the avatars
 var _args := {} ## command-line test hooks
 
 
@@ -96,9 +95,6 @@ func start(p_net: Node, args: Dictionary) -> void:
 	# full Medium world and thinning it afterwards (qa's request, 2026-11-23).
 	Quality.use(settings.graphics_quality)
 	icon_shelf.start() # draws while you're on the login screen, so the first toast never hitches
-	bodies = TravellerBodies.new()
-	bodies.name = "TravellerBodies"
-	add_child(bodies)
 	_setup_input()
 	_build_ui()
 	_build_audio()
@@ -303,14 +299,6 @@ func _screenshot_later(path: String, wait: float) -> void:
 		await get_tree().create_timer(0.4).timeout
 	else:
 		await get_tree().create_timer(wait).timeout
-	# A shot shows the finished sculpted bodies, not whichever were still being made (the first
-	# run on a fresh install sculpts them; later runs read them from the disk cache).
-	var waited := 0.0
-	while bodies != null and bodies.busy() and waited < 30.0:
-		await get_tree().create_timer(0.25).timeout
-		waited += 0.25
-	if waited > 0.0:
-		await get_tree().create_timer(0.2).timeout
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(path)
 	print("[client] screenshot saved to ", path)
@@ -1049,7 +1037,7 @@ func _on_chat_submitted(text: String) -> void:
 
 
 func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, yaw: float, look: Dictionary = {}) -> void:
-	var node := wrap_avatar(AvatarBuilder.build(player_name, appearance_seed, id == my_id, look))
+	var node := wrap_avatar(Toon.build(player_name, appearance_seed, id == my_id, look))
 	node.position = pos
 	node.rotation.y = yaw
 	if id == my_id:
@@ -1058,9 +1046,9 @@ func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, ya
 			tag.visible = false
 	world.add_child(node)
 	var anim := AvatarAnimator.new()
+	anim.leg_scale = Toon.LEG_SCALE
 	anim.clock = float(posmod(appearance_seed, 997)) * 0.731 # friends standing together never sway in step
 	avatars[id] = {"node": node, "body": node.get_node("Body"), "skel": node.get_node("Body/Skeleton"), "anim": anim, "target": pos, "yaw": yaw, "name": player_name, "seed": appearance_seed, "look": look}
-	bodies.dress(avatars[id].skel, look, appearance_seed, id == my_id) # the sculpted body, now or in a moment
 
 
 ## Redraws avatar `id` in `look` (Appearance; {} = their seed look) where it stands, keeping
@@ -1071,18 +1059,16 @@ func _restyle(id: int, look: Dictionary) -> void:
 	var a: Dictionary = avatars[id]
 	var node: Node3D = a.node
 	var old: Node3D = a.body
-	var body := AvatarBuilder.build(str(a.name), int(a.seed), id == my_id, look)
+	var body := Toon.build(str(a.name), int(a.seed), id == my_id, look)
 	for tag in body.find_children("*", "Label3D", false, false):
 		body.remove_child(tag)
 		tag.free()
 	body.name = "Body"
-	TravellerBodies.carry(a.skel, body.get_node("Skeleton")) # keep the sculpted body on screen while the new one is made
 	node.remove_child(old)
 	old.queue_free()
 	node.add_child(body)
 	a.body = body
 	a.skel = body.get_node("Skeleton")
-	bodies.dress(a.skel, look, int(a.seed), id == my_id)
 
 
 ## s2c_look (v8): peer_id saved a look, or this is the look of someone who just came into the

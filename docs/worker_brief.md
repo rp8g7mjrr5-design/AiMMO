@@ -12,7 +12,7 @@ surviving on servers of up to about 100 players, each with its own rules. One-ti
 
 ## The current goal: the basics first (design bible, owner direction 9)
 Until these four play end to end in a real session, they come before any polish:
-1. **Character customization** on the sculpted body: every saved Appearance choice shows,
+1. **Character customization** on the cartoon body (goofy folk, owner 2026-11-26): every saved Appearance choice shows,
    and a new player picks a look before they play.
 2. **Zombie survival:** the Zombai walker on screen and in the fight, hunger, the first night.
 3. **A generated map** from a seed (roadmap Phase 1), big enough to explore, fast to load.
@@ -48,7 +48,9 @@ blend, feet hold the ground, nothing plays twice or snaps.
 ## The look (art bible sections 0, 11, 12)
 Grounded, not cute: real proportions, muted earthy colours (naturals under about 0.45
 saturation), the ember glow only on fire and things you can use (no magic), clear sunny days and real nights,
-restrained effects and UI. Everything procedural (`game/procgen/`), colours from
+restrained effects and UI. The exception is the characters: survivors and the Zombai are
+goofy cartoon folk (`Toon`; big heads, googly eyes, short legs) in the same muted colours
+(owner, 2026-11-26; art bible section 3). Everything procedural (`game/procgen/`), colours from
 `palette.gd`, inside the render budget. Nothing named, shaped or laid out after another game.
 If your change shows something on screen, read art bible sections 0, 11 and 12 before you
 start, and put before/after shots in the PR.
