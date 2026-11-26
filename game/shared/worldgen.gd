@@ -50,6 +50,7 @@ const SPAWN_FLAT := 22.0 ## metres of dead-flat plot around spawn
 const SPAWN_BLEND := 70.0 ## metres over which the plot blends back into the land
 const SPAWN_CLEAR := 12.0 ## no nodes this close to spawn (same as Ashgrove)
 const NODE_SPACING := 6.0 ## no two node spots closer than this (ResourceNodes.MIN_SPACING)
+const PAD_CELL := 64.0 ## metres per cell of an island's pad lookup grid
 const RASTER_CELL := 4.0 ## metres per cell of the baked river and road distance fields
 const RIVER_CAP := 140.0 ## river distances past this are stored as this
 const ROAD_CAP := 40.0 ## road distances past this are stored as this
@@ -680,6 +681,15 @@ static func _land(x: float, z: float) -> float:
 
 ## Flattens the spawn plot and the ruin pads (each to the height its centre had).
 static func _pads(x: float, z: float, h: float) -> float:
+	if _L.has("pad_grid"): # an island: only the pads that reach this cell, in the same order
+		var cell: Vector2i = Vector2i(int(floor(x / PAD_CELL)), int(floor(z / PAD_CELL)))
+		for i in _L.pad_grid.get(cell, []):
+			var pad: Dictionary = _L.pads[i]
+			var d: float = Vector2(x, z).distance_to(pad.c)
+			var k := 1.0 - smoothstep(pad.r, pad.r + pad.blend, d)
+			if k > 0.0:
+				h = lerpf(h, pad.h, k)
+		return h
 	for pad in _L.pads:
 		var d: float = Vector2(x, z).distance_to(pad.c)
 		var k := 1.0 - smoothstep(pad.r, pad.r + pad.blend, d)
@@ -851,3 +861,20 @@ static func _place_landing_rings(out: Array, grid: Dictionary, rng: RandomNumber
 					continue
 				_add_spot(out, grid, STARTER_KINDS[i], p, rng, true)
 				break
+
+
+## A lookup grid of which pads reach each PAD_CELL cell (pad indices in order), so height()
+## reads two or three pads instead of every one. Built once the layout's pads are final.
+static func _index_pads(L: Dictionary) -> void:
+	var grid := {}
+	for i in L.pads.size():
+		var pad: Dictionary = L.pads[i]
+		var reach: float = pad.r + pad.blend
+		var c: Vector2 = pad.c
+		for cz in range(int(floor((c.y - reach) / PAD_CELL)), int(floor((c.y + reach) / PAD_CELL)) + 1):
+			for cx in range(int(floor((c.x - reach) / PAD_CELL)), int(floor((c.x + reach) / PAD_CELL)) + 1):
+				var key := Vector2i(cx, cz)
+				if not grid.has(key):
+					grid[key] = []
+				grid[key].append(i)
+	L.pad_grid = grid

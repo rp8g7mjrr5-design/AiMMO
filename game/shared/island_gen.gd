@@ -96,6 +96,7 @@ static func build(L: Dictionary, seed: int, size: float) -> void:
 	_place_locations(L, rng, size)
 	_place_roads(L, rng, size)
 	_place_carts(L, rng, size)
+	WorldGen._index_pads(L)
 
 
 ## Smooth noise around the coast: sample it at (cos a, sin a) for angle a.
