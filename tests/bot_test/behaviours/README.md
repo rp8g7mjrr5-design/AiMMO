@@ -38,6 +38,13 @@ with `--retry-when-full`: it must read exactly "The world is full (8 / 8). Try a
 keep knocking, and get in only after one of the eight leaves; no bot may ever see more than 8
 players, and nobody inside is dropped. See `run_bot_test.run_player_cap`.
 
+`qa_night_walkers.gd` only acts on bots started with `--night-walkers` (basics 2, zombie
+survival). After a long run the harness boots a fourth server with `--gloam=1` and a
+`--clock-offset` that puts it at midnight, and four such bots walk out to their own posts past
+Spawn Meadow, call walkers in with loud swings, let the first one of each login grab them, and
+fight the walkers that rise on their own bare-handed. Each bot must see walkers rise; the group
+must be grabbed and put walkers down. See `run_bot_test.run_night`.
+
 `qa_tool_gate.gd` only acts on bots started with `--tool-gate=fresh|veteran` (tier-2 nodes
 refuse bare hands; there are no levels since 2026-11-26). Before a long run's server starts,
 `../seed_veteran.gd` saves a character carrying the tool the tier-2 node nearest spawn needs,

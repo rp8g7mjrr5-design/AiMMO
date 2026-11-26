@@ -1,0 +1,1 @@
+- **Every update now survives a night out.** Before anything reaches the world, a squad of test players walks out past Spawn Meadow at midnight, gets grabbed by the Zombai that rise around them and fights back with bare fists. If a walker misbehaves, the update doesn't ship.
