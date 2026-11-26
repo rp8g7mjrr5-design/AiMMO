@@ -77,8 +77,8 @@ func load_or_create_character(account: Dictionary) -> Dictionary:
 
 func save_character(ch: Dictionary) -> bool:
 	var r: Variant = _q(
-		"UPDATE characters SET pos_x = $2, pos_y = $3, pos_z = $4, yaw = $5, appearance = $6, updated_at = now() WHERE id = $1",
-		[ch.id, ch.x, ch.y, ch.z, ch.yaw, Appearance.to_json(ch.get("look", {}))])
+		"UPDATE characters SET pos_x = $2, pos_y = $3, pos_z = $4, yaw = $5, appearance = $6, world_id = $7, updated_at = now() WHERE id = $1",
+		[ch.id, ch.x, ch.y, ch.z, ch.yaw, Appearance.to_json(ch.get("look", {})), int(ch.get("world_id", 0))])
 	if r == null:
 		return false
 	if not _save_inventory(int(ch.id), Inventory.normalize(ch.get("inventory", {}))):
@@ -155,6 +155,42 @@ func _save_inventory(character_id: int, inv: Dictionary) -> bool:
 		"INSERT INTO inventory_items (character_id, item, qty, updated_at) VALUES %s ON CONFLICT (character_id, item) DO UPDATE SET qty = EXCLUDED.qty, updated_at = now()" % ", ".join(values),
 		params)
 	return r != null
+
+
+func current_world() -> Dictionary:
+	var rows: Variant = _q("SELECT id, seed, gen_version, size_m, wipes_at FROM worlds ORDER BY id DESC LIMIT 1")
+	if rows == null or rows.is_empty():
+		return {}
+	return _world(rows[0])
+
+
+func begin_world(cfg: Dictionary, wipes_at: int) -> Dictionary:
+	if _q("UPDATE worlds SET wiped_at = now() WHERE wiped_at IS NULL") == null:
+		return {}
+	var rows: Variant = _q("INSERT INTO worlds (seed, gen_version, size_m, wipes_at) VALUES ($1, $2, $3, $4) RETURNING id, seed, gen_version, size_m, wipes_at",
+		[int(cfg.get("seed", 0)), int(cfg.get("gen_version", 0)), float(cfg.get("size_m", 0.0)), wipes_at])
+	if rows == null or rows.is_empty():
+		return {}
+	return _world(rows[0])
+
+
+func archive_wipe(ch: Dictionary, world_id: int) -> bool:
+	return _q("INSERT INTO wipe_archive (character_id, world_id, pos_x, pos_y, pos_z, inventory) VALUES ($1, $2, $3, $4, $5, $6)",
+		[ch.id, world_id, ch.x, ch.y, ch.z, JSON.stringify(Inventory.normalize(ch.get("inventory", {})))]) != null
+
+
+func wipe_archive(character_id: int) -> Array:
+	var rows: Variant = _q("SELECT world_id, pos_x, pos_y, pos_z, inventory FROM wipe_archive WHERE character_id = $1 ORDER BY id", [character_id])
+	if rows == null:
+		return []
+	var out: Array = []
+	for r in rows:
+		out.append({"world_id": int(r.world_id), "x": float(r.pos_x), "y": float(r.pos_y), "z": float(r.pos_z), "inventory": Inventory.normalize(JSON.parse_string(str(r.inventory)))})
+	return out
+
+
+func _world(row: Dictionary) -> Dictionary:
+	return {"id": int(row.id), "seed": int(row.seed), "gen_version": int(row.gen_version), "size_m": float(row.size_m), "wipes_at": int(row.wipes_at)}
 
 
 func _account(row: Dictionary) -> Dictionary:
