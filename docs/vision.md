@@ -224,7 +224,7 @@ another game's names for its zombies).
   back; anyone else who kills it gets them instead. It is shown on your map for a while, and it
   crumbles to a sack after a few in-game days. The days-survived counter resets.
 - **Character creation is looks only** (owner, 2026-11-25): body, face, skin, hair, beard and
-  cloth on the cartoon body. No backgrounds or starting classes: what you become comes from
+  cloth on the carved body. No backgrounds or starting classes: what you become comes from
   what you find, make and build.
 - **Carry weight**, not a grid.
 

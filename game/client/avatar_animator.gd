@@ -57,7 +57,7 @@ var stepped := false
 var foot := 0 ## 0 left, 1 right
 
 var speed := 0.0
-## The body's legs against AvatarSkeleton's (Toon.LEG_SCALE for the cartoon folk). The gait is
+## The body's legs against AvatarSkeleton's (1 for every body today). The gait is
 ## drawn at speed / leg_scale, so short legs take quicker steps and a planted foot still holds
 ## still, and the pose's root offset is scaled by it in `apply`.
 var leg_scale := 1.0
@@ -386,7 +386,7 @@ func apply(sk: Skeleton3D) -> void:
 
 
 ## Puts pose `p` on `sk`. `root_scale` scales the root's offset for legs of another length
-## (Toon.LEG_SCALE): a crouch or a fall is the same share of the hip height.
+## (leg_scale): a crouch or a fall is the same share of the hip height.
 static func apply_pose(sk: Skeleton3D, p: Dictionary, root_scale: float = 1.0) -> void:
 	for i in sk.get_bone_count():
 		var bone := sk.get_bone_name(i)

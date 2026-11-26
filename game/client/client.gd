@@ -1037,7 +1037,7 @@ func _on_chat_submitted(text: String) -> void:
 
 
 func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, yaw: float, look: Dictionary = {}) -> void:
-	var node := wrap_avatar(Toon.build(player_name, appearance_seed, id == my_id, look))
+	var node := wrap_avatar(Carved.build(player_name, appearance_seed, id == my_id, look))
 	node.position = pos
 	node.rotation.y = yaw
 	if id == my_id:
@@ -1046,7 +1046,6 @@ func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, ya
 			tag.visible = false
 	world.add_child(node)
 	var anim := AvatarAnimator.new()
-	anim.leg_scale = Toon.LEG_SCALE
 	anim.clock = float(posmod(appearance_seed, 997)) * 0.731 # friends standing together never sway in step
 	avatars[id] = {"node": node, "body": node.get_node("Body"), "skel": node.get_node("Body/Skeleton"), "anim": anim, "target": pos, "yaw": yaw, "name": player_name, "seed": appearance_seed, "look": look}
 
@@ -1059,7 +1058,7 @@ func _restyle(id: int, look: Dictionary) -> void:
 	var a: Dictionary = avatars[id]
 	var node: Node3D = a.node
 	var old: Node3D = a.body
-	var body := Toon.build(str(a.name), int(a.seed), id == my_id, look)
+	var body := Carved.build(str(a.name), int(a.seed), id == my_id, look)
 	for tag in body.find_children("*", "Label3D", false, false):
 		body.remove_child(tag)
 		tag.free()

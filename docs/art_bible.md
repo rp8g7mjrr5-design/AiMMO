@@ -23,8 +23,8 @@ or a toy box, it is wrong for ZombAi.
 ### The five pillars
 1. **Grounded before cute.** Real proportions, real materials, real weight. Nothing is round
    because round is friendly; things are the shape their job and their age made them.
-   **Except the characters** (owner, 2026-11-26: "we can make them funny"): people and the
-   Zombai are goofy cartoon folk in the world's muted colours (section 3, "Characters").
+   Characters too: clean carved figures with real proportions (owner, 2026-11-26, after
+   trying a goofy cartoon; section 3, "Characters").
 2. **Mood comes from light.** Atmosphere is built with light, not with brighter colours: clear
    sunny days with a strong sun and real shadows, rose dawns and dusks, and real night. No haze
    over the land. A good screenshot could be a painting of a bright, quiet day in an old
@@ -121,52 +121,44 @@ Rules of thumb:
   silhouette alone at 30 m. Tools and weapons are about 1.2x real size so they read in hand.
 
 ### Characters
-**Goofy cartoon folk** (owner direction, 2026-11-26). The sculpted grounded traveller shipped,
-and the owner said "this doesnt look good at all we need to rework our character entirely",
-then "we can make them funny" and "would it be easier for ai to make everything super small?".
-Three directions were rendered in the game (small and chunky, clean carved, goofy cartoon) and
-the owner picked the **goofy cartoon**. So the characters are the one place the game is
-allowed to be funny: the **world stays grounded** (pillars 2 to 5 still hold everywhere, and
-pillar 1 holds for everything that is not a person or a Zombai). Funny comes from shape and
-face, never from colour: the clothes, skin and hair keep the muted `Palette` dyes.
+**Clean carved, real proportions** (owner direction, 2026-11-26). The sculpted grounded body
+shipped and the owner said "this doesnt look good at all we need to rework our character
+entirely". Three directions were rendered in the game (small and chunky, clean carved, goofy
+cartoon). The goofy cartoon shipped first (#238); after seeing it in game the owner said "Now
+that i look at it i want to go with B clean carved real proportions". So characters are
+grounded again, carved instead of sculpted.
 
-**The look** (`Toon`):
-- **A big round head on short legs**, about 1.6 m tall (times the look's height), hips at
-  0.68 m. A pear-shaped body: a round belly under a smaller chest, belted.
-- **A face that reads from the game camera:** googly eyes (bone-white `Palette.EYE_WHITE`
-  with dark pupils that look a little apart, a little different per person), bushy brows in
-  the hair's colour (heavy on "Strong brow"), a long droopy nose, ears, a small smile line.
-  Beards are real round mass on the jaw; moustaches a fat sausage.
-- **Noodle arms, big hands:** thin arms with a rounded shoulder, a leather cuff at the wrist,
-  and a big hand with three chunky fingers and a thumb. Short legs in big round boots.
-- **Back first:** a little leather pack with a bedroll on top, or the hood's long tail and a
-  wool cloak for the hooded. Hair styles are big simple shapes (a mop, a knot, a curtain, two
-  braids); a felt cap has a brim.
-- **Smooth toy shapes, flat colour, no grain.** Each part is a simple ball, capsule or
-  cylinder with smooth shading, one flat dye per part plus the usual darker-toward-the-feet
-  shade. The shared "folk" Emberlight material turns the texel grain and brush OFF: on a face
-  the grain read as pixel noise (owner's screenshot, 2026-11-26).
-- **The Zombai are the same folk, dead:** ash-grey flesh (`ZombaiBody.flesh`, never green),
-  clothes drained of colour, blank eyes with a pinprick pupil, a slack open mouth and the
-  wound they died of. The living read warm and the dead read cold at a glance.
+**The look** (`Carved`):
+- **Real adult proportions** on `AvatarSkeleton` (never move its joints): about 1.78 m
+  (times the look's height), hips at 0.92 m, shoulders at 1.42 m, hands to mid-thigh, a head
+  about 0.24 m tall. A broad chest over a narrower waist, flatter front to back.
+- **Carved from a few dozen low-poly solids:** tapered 6- and 7-sided prisms for the body and
+  limbs, faceted balls for the skull, deltoids and hair, blocks for the jaw, hands, boots
+  and gear. **Flat shading**: every facet is one plane of light, like a carved and painted
+  wooden figure. No smoothing, no sculpt blobs.
+- **Faces read at 10 m, quiet up close:** a faceted skull and a block jaw (four face shapes),
+  a wedge nose, a brow ridge, small dark eye blocks (never googly, never cut sockets),
+  eyebrows in a darker shade of the hair, flat ears, a thin mouth line. Beards are real mass
+  on the jaw; stubble is a tinted jaw.
+- **Hands are hands:** a palm, a curled block of fingers and a thumb. Never mittens.
+- **Layers that say "lives out here":** dyed tunic with a flared skirt, a leather jerkin with
+  its lacing gap, a belt with an iron buckle, a pouch and a knife, bracers, boots with a
+  turned-down cuff. From behind: a pack, a bedroll and its straps, or for the hooded a hood
+  set back from the face, a cowl on the shoulders and a wool cloak.
+- **Flat colour, no grain.** One flat dye per part plus the darker-toward-the-feet shade, on
+  the shared "carved" Emberlight material with the texel grain and brush OFF: on a face the
+  grain read as pixel noise (owner's screenshot, 2026-11-26).
+- **The Zombai are the same carved folk, dead:** ash-grey flesh (`ZombaiBody.flesh`, never
+  green), clothes drained of colour, pale dead eyes, a slack mouth and the wound they died
+  of, no pack. The living read warm and the dead read cold at a glance.
 
-**Never:** bright or candy colours, glowing eyes, outlines, cartoon stars or effects, gore
-played for laughs, or anything copied from another game's characters (section 6). Goofy, not
-childish: they still live outdoors in a fallen kingdom.
+**Cost:** one skinned mesh per figure on the shared carved material: 1 draw call, about 1,100
+to 1,200 triangles for a survivor and about 1,000 for a walker (at most 3,000). A figure
+builds in about 3 ms of GDScript, so there is no thread or cache.
 
-**Skeleton:** the traveller's 18 bones and names (`AvatarSkeleton`), so every `AvatarClips`
-pose plays unchanged, at the toon's proportions. The leg chain is `AvatarSkeleton`'s scaled
-by `Toon.LEG_SCALE` (0.74), so the clips' leg IK still plants the feet: the animator draws the
-gait at speed / LEG_SCALE (short legs take quick little steps) and scales the root's offset
-by LEG_SCALE.
-
-**Cost:** one skinned mesh per figure on the shared folk material: 1 draw call, about 4,000
-triangles for a survivor (at most 5,000) and about 2,100 for a walker (up to 24 at night).
-A figure builds in about 15 ms of GDScript, so there is no sculpting thread or disk cache.
-
-**Animation** is its own piece of work (the owner asked for it on 2026-11-24): weighty, with
-the weight on the planted foot, swings that wind up before they land, nothing snaps. The
-cartoon body can take a little more bounce later, never floaty.
+**Animation** is its own piece of work (the owner asked for it on 2026-11-24): the same
+skeleton, weighty and grounded. Weight shifts onto the planted foot, swings wind up before
+they land, nothing snaps.
 
 **Creatures** are animals first: real gaits, real proportions, muted coats (the grazers'
 build is right; keep tails and markings understated).
@@ -395,8 +387,8 @@ reintroduces them.
 | Bright cyan and primary tunics | Toy colours | **Fixed 2026-11-24**: `Palette.CLOTH` dyes |
 | Big bald orange head, black button eyes | About 3.5 heads tall, a doll's face | **Fixed 2026-11-24**: hair or a hood on every head, natural skin, a nose and quiet eyes |
 | Blocky mannequin bodies ("less blocky, more low res actual") | Boxes and cylinders, plastic flat colour | **Fixed 2026-11-24**: smooth lofted bodies and the low-res texel grain on everything (section 1) |
-| Fat, barrel-shaped bodies ("our dudes look fat and silly") | A 0.64 m wide capsule on short stubby legs | **Fixed 2026-11-24 (character overhaul)**: lean 7-head adults, tapered chest, long legs, layered survival gear. **Superseded 2026-11-26**: the owner chose goofy cartoon folk on purpose (section 3, "Characters"); the colour rules still hold |
-| Pixel-noise faces and a hood that swallows the head (owner's screenshot, 2026-11-26) | The texel grain on a small face; a sculpted hood over the brow | **Fixed 2026-11-26**: the cartoon folk on a no-grain material, big readable faces |
+| Fat, barrel-shaped bodies ("our dudes look fat and silly") | A 0.64 m wide capsule on short stubby legs | **Fixed 2026-11-24 (character overhaul)**: lean 7-head adults, tapered chest, long legs, layered survival gear. Grounded proportions kept by the clean carved figures (2026-11-26, section 3) |
+| Pixel-noise faces and a hood that swallows the head (owner's screenshot, 2026-11-26) | The texel grain on a small face; a sculpted hood over the brow | **Fixed 2026-11-26**: clean carved figures on a no-grain material, a hood set back from the face |
 | Skull faces | Hollow cheeks and cut eye sockets go black under low light | **Direction set 2026-11-24**: full jaw and cheeks, painted eye slits and brows, real beards (section 3, "Characters"); lands with the sculpted body |
 | Saw-tooth clothing edges and sack-shaped coats | Colour picked per triangle; long garments as rounded tubes | **Direction set 2026-11-24**: straight hems at set heights, flat-cut lower edges, layers sculpted proud; lands with the sculpted body |
 | Postcard-cyan noon sky | Bright and flat, no mood | **Fixed 2026-11-24**: dusty blue. **Revised 2026-11-25**: a clean, deep sky blue with no haze (owner approved the test-camp look); still never flat cyan |

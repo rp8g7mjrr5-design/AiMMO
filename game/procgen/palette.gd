@@ -111,7 +111,6 @@ const BEDROLL := Color(0.58, 0.52, 0.42) ## a rolled canvas blanket
 const IRON := Color(0.42, 0.40, 0.36) ## a belt buckle and fittings: dull worn iron, never shiny steel
 const EYE := Color(0.13, 0.10, 0.08) ## painted eyes: a dark slit under the brow, never black, never a cut socket
 const COAT := Color(0.30, 0.27, 0.22) ## a long travelling coat: oiled wool, darker than the shirt under it
-const EYE_WHITE := Color(0.86, 0.84, 0.78) ## the cartoon folk's googly eyes (Toon): old bone, never paper white
 const MOUTH := Color(0.27, 0.13, 0.12) ## a smile line, an open mouth: dark red-brown, never black
 const NAME_TAG := Color.WHITE ## name tags over other players
 const NAME_TAG_SELF := Color(1.0, 0.95, 0.7) ## ... and over your own (warmer)
