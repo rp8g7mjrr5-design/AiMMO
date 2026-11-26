@@ -107,14 +107,14 @@ static func _box(out: Array, bone: String, pos: Vector3, size: Vector3, c: Color
 
 
 ## A prism of `sides` sides (a cone when rt is 0), squashed front to back by `depth`.
-static func _cyl(out: Array, bone: String, pos: Vector3, rt: float, rb: float, h: float, c: Color, sides := 7, rot := Vector3.ZERO, depth := 1.0) -> void:
+static func _cyl(out: Array, bone: String, pos: Vector3, rt: float, rb: float, h: float, c: Color, sides := 7, rot := Vector3.ZERO, depth := 1.0, width := 1.0) -> void:
 	var m := CylinderMesh.new()
 	m.top_radius = rt
 	m.bottom_radius = rb
 	m.height = h
 	m.radial_segments = sides
 	m.rings = 0
-	out.append([bone, _prim("cyl%d/%.3f/%.3f/%.3f" % [sides, rt, rb, h], m), c, Transform3D(Basis.from_euler(rot) * Basis.from_scale(Vector3(1, 1, depth)), pos)])
+	out.append([bone, _prim("cyl%d/%.3f/%.3f/%.3f" % [sides, rt, rb, h], m), c, Transform3D(Basis.from_euler(rot) * Basis.from_scale(Vector3(width, 1, depth)), pos)])
 
 
 ## A tapered limb segment from a (radius r1) to b (radius r2).
@@ -176,8 +176,12 @@ static func parts(st: Dictionary) -> Array:
 	var face: int = st.face
 	var hr: Vector3 = FACES[face][0]
 	var jaw: float = FACES[face][1]
-	_ball(out, "Head", hc, hr, skin, 7, 5)
-	_box(out, "Head", hc + Vector3(0, -0.062, 0.036), Vector3(jaw, 0.07, 0.092), skin, Vector3(0.25, 0, 0)) # jaw
+	_ball(out, "Head", hc, hr, skin, 9, 6)
+	# The lower face: a jaw that tapers to the chin, cheekbones, a chin.
+	_cyl(out, "Head", hc + Vector3(0, -0.062, 0.03), jaw * 0.55, jaw * 0.34, 0.085, skin, 7, Vector3(0.2, 0, 0), 0.9)
+	_ball(out, "Head", hc + Vector3(0, -0.1, 0.07), Vector3(0.034, 0.026, 0.03), skin, 6, 4) # chin
+	for x in [-1.0, 1.0]:
+		_ball(out, "Head", hc + Vector3(0.05 * x, -0.018, hr.z - 0.052), Vector3(0.028, 0.017, 0.024), skin, 6, 4) # cheekbone
 	_cyl(out, "Head", hc + Vector3(0, -0.012, hr.z - 0.006), 0.0, 0.024, 0.06, skin.darkened(0.05), 4, Vector3(0.35, 0, 0), 0.85) # nose
 	var ridge := 0.03 if face == 3 else 0.02
 	_box(out, "Head", hc + Vector3(0, 0.03, hr.z - 0.022), Vector3(hr.x * 1.25, ridge, 0.03), skin) # brow ridge
@@ -194,7 +198,7 @@ static func parts(st: Dictionary) -> Array:
 	# --- beard (None, Stubble, Short beard, Full beard, Moustache) ---
 	match int(st.beard):
 		1:
-			_box(out, "Head", hc + Vector3(0, -0.064, 0.037), Vector3(jaw + 0.006, 0.072, 0.094), skin.lerp(hair, 0.4), Vector3(0.25, 0, 0))
+			_cyl(out, "Head", hc + Vector3(0, -0.064, 0.032), jaw * 0.56, jaw * 0.36, 0.084, skin.lerp(hair, 0.4), 7, Vector3(0.2, 0, 0), 0.92)
 		2:
 			_ball(out, "Head", hc + Vector3(0, -0.08, 0.05), Vector3(jaw * 0.6, 0.06, 0.065), hair, 6, 4)
 		3:
@@ -231,6 +235,7 @@ static func parts(st: Dictionary) -> Array:
 		var g := sqrt(B)
 		_ball(out, s + "UpperArm", sh + Vector3(0, -0.02, 0), Vector3(0.066, 0.072, 0.066) * g, sleeve, 6, 4) # deltoid
 		_seg(out, s + "UpperArm", sh, el, 0.06 * g, 0.05 * g, sleeve)
+		_ball(out, s + "LowerArm", el, Vector3(0.05, 0.05, 0.05) * g, sleeve, 6, 4) # elbow
 		_seg(out, s + "LowerArm", el, wr, 0.05 * g, 0.038 * g, skin if z else leather.darkened(0.1)) # bracer
 		var dn := (wr - el).normalized()
 		_box(out, s + "Hand", wr + dn * 0.045 + Vector3(0, 0, 0.005), Vector3(0.032, 0.08, 0.072), skin, Vector3(0, 0, -0.09 * x)) # palm
@@ -244,10 +249,14 @@ static func parts(st: Dictionary) -> Array:
 		var g := sqrt(B)
 		_seg(out, s + "UpperLeg", hj + Vector3(0, 0.04, 0), kn, 0.088 * g, 0.062 * g, trousers)
 		_seg(out, s + "LowerLeg", kn, an + Vector3(0, 0.3, 0), 0.062 * g, 0.054 * g, trousers)
+		_ball(out, s + "LowerLeg", kn + Vector3(0, 0, 0.006), Vector3(0.064, 0.06, 0.066) * g, trousers, 6, 4) # knee
 		_seg(out, s + "LowerLeg", an + Vector3(0, 0.32, 0), an, 0.066 * g, 0.056, dark) # boot shaft
 		_cyl(out, s + "LowerLeg", an + Vector3(0, 0.3, 0), 0.075 * g, 0.072 * g, 0.045, leather, 6) # turned-down cuff
-		_box(out, s + "Foot", an + Vector3(0, -0.028, 0.05), Vector3(0.095, 0.062, 0.24), dark) # foot
-		_box(out, s + "Foot", an + Vector3(0, -0.05, 0.05), Vector3(0.102, 0.02, 0.25), dark.darkened(0.25)) # sole
+		# A boot, not a block: a heel, an instep that narrows to a rounded toe, and a sole that
+		# follows the foot's outline.
+		_box(out, s + "Foot", an + Vector3(0, -0.03, -0.012), Vector3(0.078, 0.06, 0.07), dark) # heel
+		_ball(out, s + "Foot", an + Vector3(0, -0.022, 0.08), Vector3(0.047, 0.042, 0.105), dark, 8, 5) # instep and toe
+		_cyl(out, s + "Foot", an + Vector3(0, -0.05, 0.062), 0.122, 0.125, 0.02, dark.darkened(0.3), 9, Vector3.ZERO, 1.0, 0.42) # sole
 	return out
 
 
