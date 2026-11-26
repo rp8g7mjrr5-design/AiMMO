@@ -182,7 +182,7 @@ func test_tier_one_is_untouched() -> void:
 			for i in mini(a.size(), b.size()):
 				check(a[i].xform.is_equal_approx(b[i].xform) and a[i].layer == b[i].layer, "%s part %d unchanged" % [kind, i])
 	# Kinds without a tier-2 look keep theirs, with the extra veins.
-	for kind in ["pine", "ember_sap"]:
+	for kind in ["pine", "scrub"]:
 		var n: Dictionary = _first_of(kind).duplicate()
 		n["tier"] = 2
 		check_eq(NodeProps.tier_of(n), 1, "%s has no tier-2 look yet" % kind)

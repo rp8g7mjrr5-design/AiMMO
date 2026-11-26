@@ -1,7 +1,8 @@
 class_name NodeProps
-## The props players gather from: an ember ash, a pine, a stone outcrop and an ember-sap
-## seep at every position in ResourceNodes.all(), each with a "depleted" look (a stump,
-## rubble, a dried-out seep) for when gathering empties it.
+## The props players gather from: an ash, a pine, a stone outcrop and a patch of scrub at
+## every position in ResourceNodes.all(), each with a "depleted" look (a stump, rubble, a
+## picked-over patch) for when gathering empties it. The scrub stands where the glowing
+## ember-sap seeps stood until the grounded-tools pass (owner direction, 2026-11-26: no magic).
 ##
 ## Resource nodes are drawn bigger and brighter than the decorative trees and rocks from
 ## Props.scatter, so players can tell at a glance what can be gathered.
@@ -33,15 +34,18 @@ const DETAIL_LAYER := "NodeDetail"
 ## beat with the valley's heartbeat. Richer tiers (node "tier", default 1) get more cracks.
 const VEIN_LAYER := "NodeVeins"
 const VEIN := Color(0.95, 0.65, 0.26, 0.0) ## alpha 0: all vein (Emberlight glow reads 1 - alpha)
-const VEIN_CRACKS := {"ash": 3, "pine": 2, "stone": 2, "ember_sap": 3} ## at tier 1
+const VEIN_CRACKS := {"ash": 3, "pine": 2, "stone": 2, "scrub": 0} ## at tier 1; scrub is plain growth
 const MAX_VEIN_PARTS := 10 ## NodeFx's glow shell holds 10 parts per layer
 
-## Seep light: each live ember-sap seep throws a small warm pool on its rim stones and the
+## Seep light (retired with the seeps, 2026-11-26: the scrub that replaced them throws no
+## light, so SEEP_LIGHTS is built empty; kept so Lamps and old callers find the node). It was:
+## each live ember-sap seep threw a small warm pool on its rim stones and the
 ## ground round it at night, like a banked fire, so it reads as a light in the dark and not
 ## only a glowing sticker. One shadowless OmniLight per seep (no draw call in Forward+);
 ## `Lamps.apply_glow` sets its energy from the night glow and `Lamps.flicker_lights` swells it
 ## with the heartbeat. Far seeps fade out (distance fade) so they cost nothing off in the hills.
 const SEEP_LIGHTS := "SeepLights"
+const LIT_KINDS: Array[String] = [] ## node kinds that get a seep light: none since the seeps went
 const SEEP_LIGHT_HEIGHT := 0.7 ## m above the seep's ground: just over the shards
 const SEEP_LIGHT_RANGE := 6.0
 const SEEP_LIGHT_ENERGY := 1.6 ## at full night
@@ -54,8 +58,6 @@ const PINE_NODE := Color(0.17, 0.31, 0.23)
 const STONE_NODE := Color(0.54, 0.52, 0.49)
 const STONE_VEIN := Color(0.80, 0.76, 0.66) ## a pale quartz seam: "this rock is worth hitting"
 const SAP_GLOW := Color(1.0, 0.55, 0.18)
-const SAP_RIM := Color(0.30, 0.24, 0.20)
-const SAP_DRY := Color(0.22, 0.19, 0.17)
 const STUMP_CUT := Color(0.74, 0.60, 0.42) ## the pale cut face on top of a stump
 const SEAM_STUD := Color(0.84, 0.80, 0.70) ## quartz studs along the outcrop's seam
 
@@ -83,7 +85,7 @@ const SOLID_COLUMNS := {
 	"ash": [[0.8, 0.0, 0.4], [0.42, 0.0, 2.0], [1.45, 2.0, 2.5], [1.92, 2.5, 5.0], [1.6, 5.0, 5.55]],
 	"pine": [[0.8, 0.0, 0.4], [0.42, 0.0, 1.15], [1.62, 1.15, 2.2], [1.3, 2.2, 3.25], [0.98, 3.25, 4.3], [0.66, 4.3, 6.8]],
 	"stone": [[1.95, 0.0, 0.85], [1.15, 0.85, 1.56]],
-	"ember_sap": [[1.3, 0.0, 0.45], [0.42, 0.45, 1.32]],
+	"scrub": [[1.35, 0.0, 1.15]],
 	"ash:2": [[1.15, 0.0, 0.25], [0.62, 0.0, 2.65], [3.05, 2.65, 5.1], [1.8, 5.1, 6.2], [1.25, 6.2, 7.1]],
 	"stone:2": [[2.4, 0.0, 0.9], [1.65, 0.9, 1.75], [0.8, 1.75, 2.9]],
 }
@@ -167,27 +169,27 @@ static func parts(node: Dictionary, depleted: bool = false) -> Array:
 				put.call("NodeStones", Vector3(1.2, 0.3, 0.5), Vector3(1.2, 1.0, 1.0), STONE_NODE.darkened(0.08), 0.9)
 				put.call("NodeStones", Vector3(-1.0, 0.25, 0.7), Vector3(0.95, 0.8, 0.9), STONE_NODE.darkened(0.04 + rng.randf() * 0.06), 2.1)
 				put.call("NodeStones", Vector3(0.2, 1.35, -0.3), Vector3(1.0, 0.35, 0.6), STONE_VEIN, 0.4)
-		"ember_sap":
-			# A ring of dark stones around a shallow pool. Live, the pool glows ember orange and
-			# a few glowing shards poke up so the seep reads from a distance (and at night).
-			for i in 5:
-				var a := TAU * i / 5.0 + rng.randf() * 0.4
-				rim_angles.append(a)
-				put.call("NodeStones", Vector3(cos(a) * 0.95, 0.15, sin(a) * 0.95), Vector3(0.6, 0.5, 0.55), SAP_RIM, a)
+		"scrub":
+			# A low patch of scrub (nettle, flax and bramble gone wild): three squat olive
+			# mounds and a stand of stems, some dead and tawny. Picked over: flattened dry
+			# stalks and a few stubs.
 			if depleted:
-				put.call("NodeStumps", Vector3(0, 0.05, 0), Vector3(2.0, 0.1, 2.0), SAP_DRY)
+				put.call("NodeStumps", Vector3(0, 0.05, 0), Vector3(2.4, 0.1, 2.4), Palette.SCRUB_DRY.darkened(0.15))
 			else:
-				put.call("NodeSapPools", Vector3(0, 0.2, 0), Vector3(1.4, 0.3, 1.4), SAP_GLOW)
 				for i in 3:
-					var a := TAU * i / 3.0 + rng.randf() * 0.8
-					var tall := 0.8 + rng.randf() * 0.5
-					put.call("NodeSapPools", Vector3(cos(a) * 0.3, tall * 0.5, sin(a) * 0.3), Vector3(0.18, tall, 0.18), SAP_GLOW.lightened(0.15), a)
+					var a := TAU * i / 3.0 + rng.randf() * 0.7
+					var w := 0.40 + rng.randf() * 0.10
+					var h := 0.30 + rng.randf() * 0.08
+					put.call("NodePineTiers", Vector3(cos(a) * 0.42, h * 1.25, sin(a) * 0.42), Vector3(w, h, w),
+						Palette.SCRUB_LEAF.lightened(rng.randf() * 0.08), a)
 	match "" if look_tier >= 2 else node.kind:
 		"ash", "pine":
 			var bark: Color = Palette.TRUNK if node.kind == "ash" else Palette.TRUNK.darkened(0.2)
 			_roots(put_detail, drng, bark)
 			if not depleted:
 				_bark_ridges(put_detail, drng, bark, node.kind == "ash")
+		"scrub":
+			_scrub_stems(put_detail, drng, depleted)
 		"stone":
 			if not depleted:
 				_seam_studs(put_detail, drng, node.rot)
@@ -200,6 +202,19 @@ static func parts(node: Dictionary, depleted: bool = false) -> Array:
 			out.append({"layer": VEIN_LAYER, "xform": Transform3D(b, origin + turn * (local_pos * s)), "color": VEIN})
 		_veins(put_vein, vrng, str(node.kind), node.rot, vein_cracks(str(node.kind), int(node.get("tier", 1))), rim_angles, look_tier)
 	return out
+
+
+## The stems of a scrub patch: upright fibre stalks leaning out from the middle, a third of
+## them dead and tawny; picked over, a few short stubs.
+static func _scrub_stems(put_detail: Callable, drng: RandomNumberGenerator, depleted: bool) -> void:
+	var n := 3 if depleted else 6
+	for i in n:
+		var a := TAU * i / float(n) + drng.randf_range(-0.3, 0.3)
+		var r := drng.randf_range(0.1, 0.75)
+		var tall := drng.randf_range(0.12, 0.2) if depleted else drng.randf_range(0.55, 0.95)
+		var lean := Basis(Vector3.UP, a) * Basis(Vector3.RIGHT, drng.randf_range(0.05, 0.3))
+		var col: Color = Palette.SCRUB_DRY if (depleted or i % 3 == 0) else Palette.FIBRE.darkened(0.1)
+		put_detail.call(lean, Vector3(cos(a) * r, tall * 0.5, sin(a) * r), Vector3(0.045, tall, 0.045), col)
 
 
 ## A node's tier: 1 unless its data says more. Only ash and stone have a tier-2 look so far
@@ -301,6 +316,8 @@ static func trunk_radius(y: float, tier: int = 1) -> float:
 
 ## How many ember cracks a live node of `kind` and `tier` shows: richer tiers glow more.
 static func vein_cracks(kind: String, tier: int = 1) -> int:
+	if int(VEIN_CRACKS.get(kind, 0)) <= 0:
+		return 0 # plain growth (scrub) never glows, at any tier
 	return VEIN_CRACKS.get(kind, 0) + maxi(tier - 1, 0)
 
 
@@ -348,29 +365,6 @@ static func _veins(put_vein: Callable, rng: RandomNumberGenerator, kind: String,
 					var normal := Vector3(d.x / half.x, d.y / half.y, d.z / half.z).normalized()
 					pts.append([unturn * surf + Vector3(0, cy, 0), unturn * normal])
 				budget -= _crack(put_vein, pts, 0.06, 0.035)
-		"ember_sap":
-			# A crack over the top of some rim stones, running in towards the glowing pool.
-			# Each rim stone is a world-axis ellipsoid, half sizes (0.3, 0.25, 0.275).
-			var half := Vector3(0.3, 0.25, 0.275)
-			var unturn := Basis(Vector3.UP, -rot)
-			for c in mini(cracks, rim_angles.size()):
-				if budget < 2:
-					break
-				var a: float = rim_angles[(c * 2) % rim_angles.size()]
-				var centre := Vector3(cos(a) * 0.95, 0.15, sin(a) * 0.95)
-				var inward := -(Basis(Vector3.UP, rot) * Vector3(cos(a), 0.0, sin(a))) # towards the pool, world axes
-				var base_phi := atan2(inward.x, inward.z)
-				var pts: Array = []
-				for k in 3:
-					var ph := base_phi + PI + lerpf(-0.6, 0.6, k / 2.0) * 0.5 + rng.randf_range(-0.1, 0.1)
-					var th: float = [0.55, 1.2, 0.55][k] + rng.randf_range(-0.05, 0.05)
-					if k == 2:
-						ph = base_phi + rng.randf_range(-0.2, 0.2) # down the pool side
-					var d := Vector3(sin(ph) * cos(th), sin(th), cos(ph) * cos(th))
-					var surf := Vector3(half.x * d.x, half.y * d.y, half.z * d.z)
-					var normal := Vector3(d.x / half.x, d.y / half.y, d.z / half.z).normalized()
-					pts.append([unturn * surf + centre, unturn * normal])
-				budget -= _crack(put_vein, pts, 0.04, 0.025)
 
 
 ## One crack: a thin box between each pair of neighbouring surface points ([point, normal],
@@ -518,7 +512,7 @@ static func _seep_lights(nodes: Array) -> Node3D:
 	var lights := Node3D.new()
 	lights.name = SEEP_LIGHTS
 	for n in nodes:
-		if n.kind != "ember_sap":
+		if not LIT_KINDS.has(str(n.kind)):
 			continue
 		var omni := OmniLight3D.new()
 		omni.name = "Seep%d" % n.id
@@ -677,8 +671,8 @@ static func highlighted(root: Node3D) -> int:
 
 
 ## One gather's reaction on node `id`: an ash or pine shudders and sheds a few leaves or
-## needles, an outcrop jolts and throws stone chips, a seep's pool swells and splashes
-## glowing droplets. Call it once per gather result (for anyone's gather nearby). Returns
+## needles, an outcrop jolts and throws stone chips, a scrub patch shakes and sheds a few
+## stalks. Call it once per gather result (for anyone's gather nearby). Returns
 ## false for an unknown id.
 static func play_hit(root: Node3D, id: int) -> bool:
 	var fx := root.get_node_or_null("Fx") as NodeFx

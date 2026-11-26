@@ -39,10 +39,10 @@ func test_remove_is_all_or_nothing() -> void:
 
 
 func test_normalize_repairs_and_keeps_unknown_items() -> void:
-	var inv := Inventory.normalize({"ash_wood": "4", "stone": 2.0, "ember_sap": -3, "pine_wood": NAN, "old_relic": 1, "": 5, 7: 2})
+	var inv := Inventory.normalize({"ash_wood": "4", "stone": 2.0, "plant_fibre": -3, "pine_wood": NAN, "old_relic": 1, "": 5, 7: 2})
 	check_eq(inv.ash_wood, 4, "text quantity from Postgres")
 	check_eq(inv.stone, 2, "float from JSON")
-	check_eq(inv.ember_sap, 0, "negative floored")
+	check_eq(inv.plant_fibre, 0, "negative floored")
 	check_eq(inv.pine_wood, 0, "NaN floored")
 	check_eq(inv.old_relic, 1, "unknown (retired) item kept, never silently lost")
 	check(not inv.has(""), "blank id dropped")
@@ -78,7 +78,7 @@ func test_bag_command() -> void:
 	check(empty.begins_with("Your pack is empty."), "empty pack: " + empty)
 	var r := ChatCommands.run("/inventory", {"inventory": {"stone": 2, "ash_wood": 4, "pine_wood": 0}})
 	check_eq(r, "Your pack: 4 ash wood, 2 stone.", "lists held items in order")
-	check_eq(ChatCommands.run("/i", {"inventory": {"ember_sap": 1}}), "Your pack: 1 ember sap.", "alias /i")
+	check_eq(ChatCommands.run("/i", {"inventory": {"plant_fibre": 1}}), "Your pack: 1 plant fibre.", "alias /i")
 
 
 func test_json_store_keeps_pack() -> void:
@@ -115,18 +115,18 @@ func test_pg_store_keeps_pack() -> void:
 	check_eq(ch.inventory, {}, "new character, empty pack")
 	check(s.save_character(ch), "saving an empty pack is fine: " + s.last_error)
 	Inventory.add(ch.inventory, "ash_wood", 4)
-	Inventory.add(ch.inventory, "ember_sap", 1)
+	Inventory.add(ch.inventory, "plant_fibre", 1)
 	check(s.save_character(ch), "save: " + s.last_error)
 	var back := s.load_or_create_character(acct)
 	check_eq(Inventory.count(back.inventory, "ash_wood"), 4, "ash kept")
-	check_eq(Inventory.count(back.inventory, "ember_sap"), 1, "sap kept")
+	check_eq(Inventory.count(back.inventory, "plant_fibre"), 1, "fibre kept")
 	check(Inventory.remove(back.inventory, "ash_wood", 4), "use it all")
-	Inventory.add(back.inventory, "ember_sap", 2)
+	Inventory.add(back.inventory, "plant_fibre", 2)
 	check(s.save_character(back), "save again: " + s.last_error)
 	var again := s.find_character_by_name(uname)
 	check_eq(Inventory.count(again.inventory, "ash_wood"), 0, "used-up wood stays used up")
-	check_eq(Inventory.count(again.inventory, "ember_sap"), 3, "sap stacked")
-	check_eq(Inventory.held(again.inventory), ["ember_sap"], "only sap held")
+	check_eq(Inventory.count(again.inventory, "plant_fibre"), 3, "fibre stacked")
+	check_eq(Inventory.held(again.inventory), ["plant_fibre"], "only fibre held")
 	s.close()
 
 
@@ -147,7 +147,7 @@ func test_week00_pack_loads() -> void:
 	var ch := store.load_or_create_character(acct)
 	check_eq(ch.name, "Pack_Carrier")
 	check_eq(Inventory.count(ch.inventory, "ash_wood"), 7, "ash wood kept")
-	check_eq(Inventory.count(ch.inventory, "ember_sap"), 2, "ember sap kept")
+	check_eq(Inventory.count(ch.inventory, "plant_fibre"), 2, "old ember sap is plant fibre now")
 	check_eq(Inventory.count(ch.inventory, "stone"), 0, "used-up stone stays used up")
 	check_eq(Inventory.count(ch.inventory, "retired_relic"), 1, "unknown item not lost")
 	check(store.save_character(ch), "saves back: " + store.last_error)

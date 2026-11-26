@@ -83,7 +83,7 @@ func test_two_bare_handed_blows_bring_a_grazer_down() -> void:
 	check(heavy < hp, "a haymaker alone isn't enough")
 	check(heavy + light >= hp, "a haymaker and a jab are")
 	check(2.0 * light < hp and 3.0 * light >= hp, "three jabs are")
-	check(Weapons.damage("ash_spear", "heavy") >= hp, "a spear's lunge downs one outright")
+	check(Weapons.damage("stone_spear", "heavy") >= hp, "a spear's lunge downs one outright")
 
 
 func test_a_wounded_grazer_limps_slower_than_you_walk() -> void:
@@ -252,7 +252,7 @@ func test_the_drops_are_drawn_items_in_pack_order() -> void:
 		check(ItemIcons.has_icon(item), "%s has its own icon for the toast" % item)
 	check(ItemIcons.tint("hide") != ItemIcons.tint("raw_meat"), "the two toasts read apart")
 	var held := Inventory.held({"stone_axe": 1, "raw_meat": 2, "hide": 1, "ash_wood": 3})
-	check_eq(held, ["ash_wood", "stone_axe", "hide", "raw_meat"], "the haul sits after the ordered stacks, hide first")
+	check_eq(held, ["ash_wood", "hide", "raw_meat", "stone_axe"], "the haul sits with the raw materials, hide first")
 
 
 func test_a_downed_grazer_is_gone_from_the_server_wire() -> void:

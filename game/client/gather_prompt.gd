@@ -1,10 +1,10 @@
 class_name GatherPrompt
 extends Control
 ## Gathering as a game action, on protocol v3's timed gather: when you stand within reach of
-## a tree, rock or seep, a small prompt above the chat says "[E] Chop Ember Ash". Press (or
+## a tree, rock or scrub, a small prompt above the chat says "[E] Chop Ash". Press (or
 ## hold) E and the client sends c2s_gather_start(node_id) for that very node. The server
 ## answers s2c_gather_begin with how long it takes, a bar fills over exactly that time
-## ("Chopping Ember Ash"), and s2c_gather_result pops a "+2 Ash wood  (6)" toast. Keep E held
+## ("Chopping Ash"), and s2c_gather_result pops a "+2 Ash wood  (6)" toast. Keep E held
 ## and the next gather starts the moment one ends (no dead time); press E again or walk off
 ## and it stops. A refusal ("pack full", "spent") shows as a short centre-screen notice.
 ##
@@ -16,9 +16,9 @@ const WIDTH := 380.0 ## room for "Rich Stone Seam · needs a pickaxe" and the lo
 const BAR_WIDTH := 150.0
 const HEIGHT := 64.0
 const KEY_LABEL := "E"
-## The action word per node kind, as in the design bible ("[E] Chop Ember Ash").
-const VERBS := {"ash": "Chop", "pine": "Chop", "stone": "Mine", "ember_sap": "Collect"}
-const DOING := {"Chop": "Chopping", "Mine": "Mining", "Collect": "Collecting", "Gather": "Gathering"}
+## The action word per node kind, as in the design bible ("[E] Chop Ash").
+const VERBS := {"ash": "Chop", "pine": "Chop", "stone": "Mine", "scrub": "Pull"}
+const DOING := {"Chop": "Chopping", "Mine": "Mining", "Pull": "Pulling", "Collect": "Collecting", "Gather": "Gathering"}
 ## A start the server hasn't answered yet is asked again after this many seconds.
 const ASK_TIMEOUT := 1.5
 const TOAST_SECONDS := 2.2
@@ -34,7 +34,7 @@ const ICON_GAP := 6.0 ## px between a toast's icon and its text
 const NOTICES := {
 	"full": "Your pack is full",
 	"depleted": "Nothing left here for now",
-	"day": "Ember sap only seeps at night",
+	"day": "Only at night",
 	"far": "Out of reach",
 	"unknown": "Nothing to gather there",
 	"tool": "You need the right tool", ## notice_for() names it ("Needs an axe") when it can
@@ -68,7 +68,7 @@ var _miss_age := INF
 ## given: the camera's eye and look direction), else the nearest live one in reach. With
 ## only spent nodes in reach it names the nearest one, greyed out. {} for nothing in reach.
 ## A tier-2 node your pack (`inv`) has no tool for shows what it needs, greyed:
-## "Old Ember Ash · needs an axe".
+## "Old Ash · needs a stone axe", "Stone Outcrop · needs a pickaxe".
 ## {id, kind, label, can: bool (false for a spent node, a seep in daylight or a node you have
 ## no tool for), needs_tool: bool, aimed: bool (the reticle is on it, so a left-click takes
 ## it; false for the nearest-node fallback), text, doing}.
@@ -106,21 +106,21 @@ static func target(pos: Vector3, world_seconds: float, eye := Vector3.ZERO, look
 	}
 
 
-## "Old Ember Ash · needs an axe" for a node your pack has no tool for, so the prompt is a
+## "Old Ash · needs a stone axe" for a node your pack has no tool for, so the prompt is a
 ## goal rather than a wall. "" when `inv` may work `node`.
 static func need_text(node: Dictionary, inv: Dictionary) -> String:
 	if Gathering.can_work(node, inv):
 		return ""
 	var info := ResourceNodes.info(node)
-	return "%s · needs %s" % [_what(str(node.kind), str(info.get("label", node.kind))), Gathering.tool_word(str(node.kind))]
+	return "%s · needs %s" % [_what(str(node.kind), str(info.get("label", node.kind))), Gathering.tool_word(str(node.kind), Gathering.min_tier(node))]
 
 
-## The node's name as the prompt shows it: "Old Ember Ash", "Ember Sap".
+## The node's name as the prompt shows it: "Old Ash", "Scrub".
 static func _what(kind: String, label: String) -> String:
-	return "Ember Sap" if kind == "ember_sap" else label.capitalize()
+	return label.capitalize()
 
 
-## "Chopping Ember Ash", "Mining Stone Outcrop", "Collecting Ember Sap": the bar's caption
+## "Chopping Ash", "Mining Stone Outcrop", "Pulling Scrub": the bar's caption
 ## for a kind's tier-1 node. For one node (a tier-2 one has its own name) use doing_for().
 static func doing_text(kind: String) -> String:
 	var info := ResourceNodes.kind_info(kind)
@@ -129,7 +129,7 @@ static func doing_text(kind: String) -> String:
 	return "%s %s" % [DOING.get(VERBS.get(kind, "Gather"), "Gathering"), _what(kind, str(info.label))]
 
 
-## "Chopping Old Ember Ash": the bar's caption for one node.
+## "Chopping Old Ash": the bar's caption for one node.
 static func doing_for(node: Dictionary) -> String:
 	var info := ResourceNodes.info(node)
 	if info.is_empty():
@@ -194,12 +194,12 @@ static func notice_text(reason: String) -> String:
 	return str(NOTICES.get(reason, ""))
 
 
-## notice_text, but a "tool" refusal on a known node names what it needs: "Needs an axe".
+## notice_text, but a "tool" refusal on a known node names what it needs: "Needs a pickaxe".
 static func notice_for(reason: String, node_id: int) -> String:
 	if reason == "tool":
 		var n := ResourceNodes.get_by_id(node_id)
 		if not n.is_empty() and Gathering.needs_tool(n):
-			return "Needs %s" % Gathering.tool_word(str(n.kind))
+			return "Needs %s" % Gathering.tool_word(str(n.kind), Gathering.min_tier(n))
 	return notice_text(reason)
 
 
@@ -229,7 +229,7 @@ static func full_toast_text(item: String, in_pack: int) -> String:
 	return "Pack full: %s (%d)" % [label.left(1).to_upper() + label.substr(1), in_pack]
 
 
-## Reads the server's success line ("You gather 2 ash wood from the ember ash (6 in your
+## Reads the server's success line ("You gather 2 ash wood from the ash (6 in your
 ## pack).", see Gathering.success) into {qty, item, label, in_pack}, or {} for any other line.
 ## The workbench's pack mirror uses it; toasts come from s2c_gather_result.
 static func parse_gain(text: String) -> Dictionary:

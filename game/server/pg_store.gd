@@ -137,6 +137,7 @@ func _with_inventory(ch: Dictionary) -> Dictionary:
 	for r in rows:
 		inv[r.item] = r.qty
 	ch.inventory = Inventory.normalize(inv)
+	Inventory.convert_retired(ch.inventory) # ember items -> grounded ones (Inventory.RETIRED)
 	return ch
 
 

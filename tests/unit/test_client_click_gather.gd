@@ -60,6 +60,7 @@ func test_widget_click_gathers() -> void:
 	var day := _a_day()
 	var w := GatherPrompt.new()
 	w.setup(Theme.new())
+	w.pack = {"wooden_pickaxe": 1} # stone needs a pickaxe (2026-11-26)
 	var now := 50.0
 	check_eq(w.update(0.05, n.pos, day, now, false, false, false, a[0], a[1], true, true), {"op": "start", "node": int(n.id)}, "click at the outcrop starts it")
 	w.on_begun(n.id, 2.4, now)

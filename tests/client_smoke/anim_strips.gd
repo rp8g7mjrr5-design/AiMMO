@@ -163,7 +163,7 @@ func _drive(clip: String, t: float, dt: float, state: Dictionary) -> Dictionary:
 		"mine":
 			ctx.gather = {"kind": "stone", "pos": Vector3(0, 0, 1.2)}
 		"collect":
-			ctx.gather = {"kind": "ember_sap", "pos": Vector3(0, 0, 1.0)}
+			ctx.gather = {"kind": "scrub", "pos": Vector3(0, 0, 1.0)}
 		"craft":
 			if not state.has("fired"):
 				anim.craft()

@@ -16,42 +16,61 @@ class_name Inventory
 const MAX_STACK := 999
 
 ## Every item that exists. Ids are PERMANENT: they are stored in inventory_items.item.
-## The four raw materials match ResourceNodes.KINDS[*].item; the rest are made with
-## Crafting.RECIPES (whose ids are the same as the item they make).
+## The raw materials match ResourceNodes.KINDS[*].item (plant fibre from the scrub) and the
+## creatures' drops (Wildlife.KINDS); the rest are made with Crafting.RECIPES (whose ids are
+## the same as the item they make).
+##
+## Grounded zombie survival (owner direction, 2026-11-26, design bible direction 11): no magic.
+## Tools go wood, then stone (an axe and a pickaxe of each); the first weapons are a wooden
+## club and spear, then a stone maul and spear; a bandage is the first medicine.
 const ITEMS := {
 	"ash_wood": {"label": "ash wood"},
 	"pine_wood": {"label": "pine wood"},
 	"stone": {"label": "stone"},
-	"ember_sap": {"label": "ember sap"},
-	"ember_heartwood": {"label": "ember heartwood"},
-	"veinstone": {"label": "veinstone"},
-	"stone_axe": {"label": "stone axe"},
-	"stone_pickaxe": {"label": "stone pickaxe"},
-	"ember_axe": {"label": "ember axe"},
-	"ember_pickaxe": {"label": "ember pickaxe"},
-	"torch": {"label": "torch"},
-	"campfire": {"label": "campfire"},
-	"ember_lantern": {"label": "ember lantern"},
-}
-const ITEM_ORDER := ["ash_wood", "pine_wood", "stone", "ember_sap", "ember_heartwood", "veinstone", "stone_axe", "stone_pickaxe", "ember_axe", "ember_pickaxe", "torch", "campfire", "ember_lantern"]
-## Items that are drawn (world's ItemIcons has them) but not moved into ITEMS yet. The
-## tier-2 materials waited here until PR #108. The first hunt's hide and raw meat wait here
-## now (2026-11-24, world drew them in #200): they are real, toasted and saved, and the pack
-## shows them after the ITEM_ORDER stacks. They move into ITEMS and ITEM_ORDER (after
-## veinstone) once client's pack-window test no longer hard-codes how many items exist
-## (request filed with client); moving them is a one-line change with no save impact.
-## tests/unit/test_world_item_icons checks every id here has its own icon.
-const NEW_ITEMS := {
+	"plant_fibre": {"label": "plant fibre"},
 	"hide": {"label": "hide"},
 	"raw_meat": {"label": "raw meat"},
+	"wooden_axe": {"label": "wooden axe"},
+	"wooden_pickaxe": {"label": "wooden pickaxe"},
+	"stone_axe": {"label": "stone axe"},
+	"stone_pickaxe": {"label": "stone pickaxe"},
+	"wooden_club": {"label": "wooden club"},
+	"wooden_spear": {"label": "wooden spear"},
+	"stone_maul": {"label": "stone maul"},
+	"stone_spear": {"label": "stone spear"},
+	"bandage": {"label": "bandage"},
+	"torch": {"label": "torch"},
+	"campfire": {"label": "campfire"},
 }
+const ITEM_ORDER := ["ash_wood", "pine_wood", "stone", "plant_fibre", "hide", "raw_meat",
+	"wooden_axe", "wooden_pickaxe", "stone_axe", "stone_pickaxe",
+	"wooden_club", "wooden_spear", "stone_maul", "stone_spear",
+	"bandage", "torch", "campfire"]
+## Items that are drawn (world's ItemIcons has them) but not moved into ITEMS yet. Empty
+## today: the first hunt's hide and raw meat waited here until the grounded-tools pass
+## (2026-11-26) moved them into ITEMS. Kept as the waiting room for the next one.
+const NEW_ITEMS := {}
 ## Items that are real (crafted, saved, named) before world has drawn their icon. A client
-## shows them with the fallback bundle until then. When ItemIcons draws one, gameplay moves
-## it into ITEMS and ITEM_ORDER. Ids are PERMANENT like ITEMS'. Empty today: the ember
-## tools moved into ITEMS (after the stone tools) once world drew them (#118's run, world's
-## ember tool icons). The first hunt's drops waited here until world drew them (#200); they
-## are in NEW_ITEMS now. Kept as the waiting room for the next undrawn item.
+## shows them with the fallback bundle until then. Ids are PERMANENT like ITEMS'. Empty today.
 const UNDRAWN := {}
+## Items that no longer exist: the ember (magic) items, retired by owner direction on
+## 2026-11-26 ("we don't need magic"). A saved pack that still holds one is converted once,
+## when it loads (convert_retired, from CharacterData.normalize), into its grounded
+## equivalent, so nobody loses what they earned: `into` gets `per` for each one held (a tool
+## only if you don't already carry one). The retired id is left at 0, which the next save
+## writes. These ids must never be reused for something else.
+const RETIRED := {
+	"ember_axe": {"into": "stone_axe", "per": 1},
+	"ember_pickaxe": {"into": "stone_pickaxe", "per": 1},
+	"ember_lantern": {"into": "torch", "per": 3},
+	"ember_heartwood": {"into": "ash_wood", "per": 2},
+	"veinstone": {"into": "stone", "per": 2},
+	"ember_sap": {"into": "plant_fibre", "per": 1},
+}
+## Items you only ever carry one of (they never wear out): Crafting refuses a second, and
+## convert_retired never gives a second.
+const ONE_ONLY := ["wooden_axe", "wooden_pickaxe", "stone_axe", "stone_pickaxe",
+	"wooden_club", "wooden_spear", "stone_maul", "stone_spear"]
 
 
 static func is_item(item: String) -> bool:
@@ -89,6 +108,24 @@ static func normalize(src: Variant) -> Dictionary:
 				n = (v as String).to_int()
 		out[key] = maxi(n, 0)
 	return out
+
+
+## Turns every retired item in `inv` into its grounded equivalent (RETIRED) and leaves the
+## retired id at 0. Idempotent. Returns {retired id: how many were converted}. Mutates `inv`.
+static func convert_retired(inv: Dictionary) -> Dictionary:
+	var done := {}
+	for old in RETIRED:
+		var n := count(inv, old)
+		if n <= 0:
+			continue
+		var into := str(RETIRED[old].into)
+		var give := n * int(RETIRED[old].per)
+		if into in ONE_ONLY:
+			give = 0 if count(inv, into) > 0 else 1
+		inv[into] = mini(count(inv, into) + give, MAX_STACK)
+		inv[old] = 0
+		done[old] = n
+	return done
 
 
 static func count(inv: Dictionary, item: String) -> int:

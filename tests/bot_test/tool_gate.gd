@@ -3,10 +3,10 @@ extends RefCounted
 ## run_bot_test.py's gate phase), split out so tests/unit/test_qa_tool_gate.gd can drive
 ## them without a server.
 ##
-## The check: tier-2 nodes (the old ember ashes and rich stone seams) refuse bare hands, and
-## only that. There are no levels (owner direction, 2026-11-26); the gate is the tool. A fresh
-## player walks to a tier-2 node and presses E: refused "tool", the "You need an axe to work
-## this old ember ash." line, nothing paid, no charge used. A veteran carrying the right tool
+## The check: tier-2 nodes (the old ashes and rich stone seams) refuse bare hands, and only
+## that. There are no levels (owner direction, 2026-11-26); the gate is the tool (a stone one
+## for tier 2). A fresh player walks to a tier-2 node and presses E: refused "tool", the "You
+## need a stone axe to work this old ash." line, nothing paid, no charge used. A veteran carrying the right tool
 ## then works the same node until it is empty: every charge pays, so the refusal took none.
 ## Both reconnect: the veteran keeps its tool, the fresh one is still refused.
 ##
@@ -27,7 +27,7 @@ static func gate_node(empty: Dictionary, from: Vector3) -> int:
 	var best := -1
 	var best_d := INF
 	for n in ResourceNodes.all():
-		if not Gathering.needs_tool(n) or empty.has(int(n.id)):
+		if int(n.get("tier", 1)) < 2 or not Gathering.needs_tool(n) or empty.has(int(n.id)):
 			continue
 		var d := Vector2(n.pos.x - from.x, n.pos.z - from.z).length()
 		if d < best_d:
@@ -49,9 +49,13 @@ static func veteran_spot(id: int, from: Vector3) -> Vector3:
 ## The veteran's pack: the plainest tool that opens node `id` (a stone axe for an old ash, a
 ## stone pickaxe for a rich seam), nothing else.
 static func veteran_pack(id: int) -> Dictionary:
-	var kind := str(ResourceNodes.get_by_id(id).get("kind", ""))
-	var tools: Array = Gathering.TOOLS.get(kind, [])
-	return {str(tools[tools.size() - 1]): 1} if not tools.is_empty() else {}
+	var node := ResourceNodes.get_by_id(id)
+	var tools: Array = Gathering.TOOLS.get(str(node.get("kind", "")), [])
+	for i in range(tools.size() - 1, -1, -1):
+		var pack := {str(tools[i]): 1}
+		if Gathering.can_work(node, pack):
+			return pack
+	return {}
 
 
 ## What the fresh player's refusal must say for node `id` with bare hands.

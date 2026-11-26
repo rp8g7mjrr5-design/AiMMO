@@ -208,9 +208,10 @@ func s2c_world(config: Dictionary) -> void:
 	_net().world_config.emit(config)
 
 
-## Set `item` down in front of you (today only "campfire", from the pack). The server places
-## it Campfires.PLACE_DISTANCE ahead of where it has you standing, facing your last yaw, and
-## answers with s2c_place_result; on success everyone also gets s2c_campfires.
+## Use `item` from your pack: "campfire" is set down in front of you, "bandage" is put on
+## (Server.use_bandage, servers from 2026-11-26). For a campfire the server places it
+## Campfires.PLACE_DISTANCE ahead of where it has you standing, facing your last yaw, and on
+## success everyone also gets s2c_campfires. Either way it answers with s2c_place_result.
 @rpc("any_peer", "call_remote", "reliable")
 func c2s_place(item: String) -> void:
 	_net().place_requested.emit(_sender(), item)
@@ -218,7 +219,8 @@ func c2s_place(item: String) -> void:
 
 ## The answer to c2s_place: ok, or why not. reason is "" on success, else a Campfires.REFUSALS
 ## key ("no_item", "water", "edge", "crowded", "node", "bench", "too_many", "world_full",
-## "down", "unknown"); text is the line to show as a notice either way.
+## "down", "unknown") or, for a bandage, a Vitals.BANDAGE_TEXTS key ("no_item", "full",
+## "busy", "dead"); text is the line to show as a notice either way.
 @rpc("authority", "call_remote", "reliable")
 func s2c_place_result(item: String, ok: bool, reason: String, text: String) -> void:
 	_net().place_result.emit(item, ok, reason, text)

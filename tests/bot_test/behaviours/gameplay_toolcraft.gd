@@ -1,17 +1,18 @@
 extends "res://tests/bot_test/bot_behaviour.gd"
-## Bot behaviour (gameplay): the ember axe is gated by things, never a level (owner, 2026-11-26).
+## Bot behaviour (gameplay): the stone axe is gated by things, never a level (owner, 2026-11-26).
 ##
-## Once per login the bot asks for an ember axe with the hidden dev command "/craft ember
-## axe". No bot carries heartwood and veinstone in a 3-minute run, so the server must refuse,
-## wherever the bot stands, in the words players see: the bench ("An ember axe needs the
-## workbench. ...") or the materials ("You need ... more to make an ember axe."), and never a level or a skill.
-## The real craft (stone axe used up, ember axe in the pack, faster gathers) is proven by
+## Once per login the bot asks for a stone axe with the hidden dev command "/craft stone
+## axe". The stone axe is a bench upgrade of the wooden axe (stone and plant fibre), so the
+## server must refuse, wherever the bot stands, in the words players see: the bench ("A stone
+## axe needs the workbench. ..."), the materials ("You need ... more to make a stone axe."), or
+## an axe already carried (the tool-gate veteran), and never a level or a skill. The real craft
+## (wooden axe used up, stone axe in the pack, faster gathers) is proven by
 ## tests/unit/test_gameplay_toolcraft.gd.
 
 const FIRST_DELAY := 8.0 ## after gameplay_crafting's own /craft lines
 const RETRY_AFTER := 2.0 ## an unanswered line is sent again
 const MAX_TRIES := 4
-const PREFIX := "An ember axe needs "
+const PREFIX := "A stone axe needs "
 const NEVER := ["Toolcraft", "level", "Level", "XP"]
 
 var _waiting := false
@@ -42,19 +43,20 @@ func on_play(_delta: float) -> void:
 		return
 	_tries += 1
 	_next_at = bot.elapsed + RETRY_AFTER
-	bot.send_command("/craft ember axe")
+	bot.send_command("/craft stone axe")
 
 
 func _on_system(text: String) -> void:
 	var bench := text.begins_with(PREFIX + "the workbench")
-	var materials := text.begins_with("You need ") and text.ends_with(" to make an ember axe.")
-	if not bench and not materials:
-		if text.begins_with("An ember axe"):
-			fail("ember axe refused for the wrong reason: %s" % text)
+	var materials := text.begins_with("You need ") and text.ends_with(" to make a stone axe.")
+	var owned := text.begins_with("You already carry a stone axe")
+	if not bench and not materials and not owned:
+		if text.begins_with("A stone axe"):
+			fail("stone axe refused for the wrong reason: %s" % text)
 		return
 	for word in NEVER:
 		if text.contains(word):
-			fail("ember axe refused on a level: %s" % text)
+			fail("stone axe refused on a level: %s" % text)
 			return
 	if _waiting:
 		refusals += 1
@@ -65,4 +67,4 @@ func on_finish() -> void:
 	stat("refusals", refusals)
 	stat("unanswered_logins", unanswered_logins)
 	if refusals < 1:
-		fail("never got a bench or materials refusal for /craft ember axe")
+		fail("never got a bench, materials or owned refusal for /craft stone axe")

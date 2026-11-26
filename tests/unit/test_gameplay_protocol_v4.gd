@@ -97,8 +97,8 @@ func test_gathering_and_crafting_send_no_skills_messages() -> void:
 		_run(srv, 2.3)
 	srv.sessions[1].character.x = Crafting.workbench_pos().x
 	srv.sessions[1].character.z = Crafting.workbench_pos().z
-	srv.sessions[1].character.inventory = {"ash_wood": 3, "stone": 2}
-	check(srv.craft_request(1, "stone_axe").ok, "crafts")
+	srv.sessions[1].character.inventory = {"ash_wood": 3}
+	check(srv.craft_request(1, "wooden_axe").ok, "crafts")
 	for m in srv.test_outbox:
 		check(not str(m[1]) in V4_RPCS, "never sends %s" % m[1])
 	check_eq(srv.sessions[1].character.skills, {"felling": 145, "old_skill": 9}, "old XP kept exactly, nothing earned")
@@ -144,9 +144,9 @@ func test_every_message_the_server_sends_has_a_matching_rpc() -> void:
 	# Craft at the bench (ok and refused) and a bad recipe id.
 	srv.sessions[2].character.x = Crafting.workbench_pos().x
 	srv.sessions[2].character.z = Crafting.workbench_pos().z
-	srv.sessions[2].character.inventory = {"ash_wood": 3, "stone": 2}
-	srv.craft_request(2, "stone_axe")
-	srv.craft_request(2, "stone_axe")
+	srv.sessions[2].character.inventory = {"ash_wood": 3}
+	srv.craft_request(2, "wooden_axe")
+	srv.craft_request(2, "wooden_axe")
 	srv.craft_request(2, "no_such_thing")
 	# v5: Return to Spawn Meadow (ok, then too soon), and someone joined, so the roster goes out.
 	srv._roster_dirty = true

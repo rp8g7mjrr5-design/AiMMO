@@ -7,7 +7,8 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## login is enough. On the second login the pack must still hold what the server said was
 ## in it after the first gather, which checks gathered items are saved.
 ##
-## Ember-sap seeps are skipped: they only give at night and the bot test runs at any hour.
+## Only bare-hand wood is worked: stone needs a pickaxe the bots don't carry, and scrub's
+## plant fibre is spent by client_craft_window's torch presses, which would read as a loss.
 ## Nodes the server says are empty (s2c_nodes at login, s2c_node_state live) are skipped, and
 ## each next target is the nearest live one from where the bot stands, so a bot on the far
 ## side of spawn doesn't spend a 15 s login walking to nodes it already knows are spent.
@@ -61,7 +62,8 @@ func on_login(reconnect: bool, character: Dictionary) -> void:
 	var here := Vector3(character.x, character.y, character.z)
 	for n in ResourceNodes.near(here, SEARCH_RADIUS):
 		# Never a night-only seep, nor a tier-2 node (it needs a tool a new character lacks).
-		if not ResourceNodes.kind_info(n.kind).get("night_only", false) and int(n.get("tier", 1)) == 1:
+		var info := ResourceNodes.kind_info(n.kind)
+		if not info.get("night_only", false) and not info.get("needs_tool", false) and n.kind != "scrub" and int(n.get("tier", 1)) == 1:
 			_targets.append(n.id)
 	if _targets.size() > 1:
 		_first = int(_targets[rng.randi_range(0, mini(SPREAD, _targets.size()) - 1)])

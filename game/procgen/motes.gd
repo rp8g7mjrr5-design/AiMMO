@@ -31,7 +31,6 @@ const KINDS := {
 	# Ash motes start in a ring just outside the crown (radius ~1.9 m, 2.5 to 5.5 m up), so the
 	# leaves never hide them, and drift up past its top.
 	"ash": [2.0, 2.8, 0.8, 3.0, 4.5],
-	"ember_sap": [0.0, 0.7, 0.1, 0.4, 2.6], # off the glowing pool
 }
 const TIER2_SPREAD := 1.5 ## the old ember ash's crown is about this much wider
 const SIZE := Vector2(0.24, 0.38) ## quad size range in metres (the soft dot inside is about half that): a spark, not a firefly

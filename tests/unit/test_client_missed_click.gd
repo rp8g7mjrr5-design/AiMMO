@@ -42,6 +42,7 @@ func test_widget_flags_misses_for_one_frame() -> void:
 	var day := _a_day()
 	var w := GatherPrompt.new()
 	w.setup(Theme.new())
+	w.pack = {"wooden_pickaxe": 1} # stone needs a pickaxe (2026-11-26)
 	var now := 50.0
 	w.update(0.05, n.pos, day, now, false, false, false, a[0], Vector3.UP, true, true)
 	check(w.click_missed, "click at the sky next to an outcrop: a miss")

@@ -108,7 +108,7 @@ func test_play_rpcs_reemit_on_net() -> void:
 
 
 func test_press_e_gathers_and_letting_go_cancels() -> void:
-	var n := _first("stone")
+	var n := _first("pine")
 	var srv := _server({2: n.pos + Vector3(1.0, 0, 0)})
 	srv._on_gather_start(2, n.id)
 	var begin := _sent(srv, "s2c_gather_begin")
@@ -116,7 +116,7 @@ func test_press_e_gathers_and_letting_go_cancels() -> void:
 	srv._on_gather_cancel(2)
 	check_eq(_sent(srv, "s2c_gather_end"), [[2, [2, n.id, "stopped"]]], "c2s_gather_cancel stops it")
 	check_eq(int(srv.gathering.taken.get(n.id, 0)), 0, "no charge used")
-	check_eq(Inventory.count(srv.sessions[2].character.inventory, "stone"), 0, "nothing paid out")
+	check_eq(Inventory.count(srv.sessions[2].character.inventory, "pine_wood"), 0, "nothing paid out")
 	# Straight away again (a real key press later): a cancel spends no cooldown.
 	srv.test_outbox.clear()
 	srv.test_now += srv.PLAY_REQUEST_GAP + 0.01
@@ -125,7 +125,7 @@ func test_press_e_gathers_and_letting_go_cancels() -> void:
 	_run(srv, float(begin[0][1][2]) + 0.1)
 	check_eq(_sent(srv, "s2c_gather_end")[-1][1][2], "done")
 	check_eq(_sent(srv, "s2c_gather_result").size(), 1, "haul result for the toast")
-	check(Inventory.count(srv.sessions[2].character.inventory, "stone") > 0, "stone in the pack")
+	check(Inventory.count(srv.sessions[2].character.inventory, "pine_wood") > 0, "pine wood in the pack")
 	check_eq(_sent(srv, "s2c_inventory").size(), 1, "pack update")
 	srv.free()
 

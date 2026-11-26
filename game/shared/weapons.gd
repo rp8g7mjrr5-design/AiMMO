@@ -1,21 +1,24 @@
 class_name Weapons
-## The first crafted weapons (roadmap Milestone 2, "First blood"): the rules only, as data and
-## pure functions, so they are unit tested without a server. Since protocol v7 the server
-## swings with it (Server.attack_request: c2s_attack, stamina, the windup, targets_hit against
-## the grazers, which bolt when struck). There is no recipe or item yet, so everyone fights
-## bare-handed (Server.weapon_of) until the spear and maul can be made.
+## The crafted weapons (roadmap Milestone 2, "First blood"): the rules only, as data and pure
+## functions, so they are unit tested without a server. Since protocol v7 the server swings
+## with it (Server.attack_request: c2s_attack, stamina, the windup, targets_hit against the
+## grazers and the Gloam walkers). You swing the best weapon in your pack (Server.weapon_of,
+## ORDER: stone before wood), or bare hands.
 ##
-## Two weapons that play differently (design bible, "Weapons you made"), plus bare hands:
-## - **Ash spear**: long reach and quick, cheap thrusts in a narrow line. It hits only the
-##   first thing in front of it, so aim matters, and you fight from outside a creature's reach.
-## - **Stone maul**: short and slow, but a wide sweep that hits up to three things at once,
+## Grounded zombie survival (owner direction, 2026-11-26): wood first, then stone, as with
+## tools. Two shapes of weapon, each in wood and then in stone (design bible, "Weapons you
+## made"), plus bare hands:
+## - **Club, then stone maul**: short and slow, but a wide sweep that hits more than one thing,
 ##   and its heavy swing staggers. You commit to every swing and win by reading the moment.
+## - **Wooden spear, then stone spear**: long reach and quick, cheap thrusts in a narrow line.
+##   It hits only the first thing in front of it, so aim matters, and you fight from outside
+##   a walker's reach.
 ## - **Bare hands**: what you fight with before you make either. Weak on purpose: the first
-##   weapon you craft should feel like a real step up.
+##   weapon you craft should feel like a real step up, and the stone one another.
 ##
 ## Our take on what players love and hate (owner direction 6, see docs/devlog/gameplay.md,
 ## 2026-11-24): weapons with their own identity and no single "best" one (damage per stamina
-## of the two weapons stays within BALANCE_BAND of each other, checked in tests); a heavy swing
+## of the two shapes at each tier stays within BALANCE_BAND of each other, checked in tests); a heavy swing
 ## that is a real commitment but never a long lock (windup at most MAX_WINDUP); and you can
 ## always bail out of a windup with a dodge (`can_cancel`), so a misread never stuns you.
 ##
@@ -23,8 +26,11 @@ class_name Weapons
 ## (see Wildlife). Distances are flat (x, z), like VIEW_RANGE and gathering.
 
 const FISTS := "fists"
-## Display and crafting order.
-const ORDER := ["ash_spear", "stone_maul"]
+## Every weapon id (also its item id in Inventory), worst to best: Server.weapon_of swings the
+## last one you carry. Wood before stone; within a tier the shapes are equal, by design.
+const ORDER := ["wooden_spear", "wooden_club", "stone_spear", "stone_maul"]
+## The pairs of equal shapes at each tier (the balance test checks each pair).
+const TIERS := [["wooden_spear", "wooden_club"], ["stone_spear", "stone_maul"]]
 const ATTACKS := ["light", "heavy"]
 
 ## Per weapon: label, reach (m, from the attacker's centre to the target's edge), arc (degrees,
@@ -38,8 +44,18 @@ const WEAPONS := {
 		"light": {"damage": 4.0, "windup": 0.12, "active": 0.10, "recovery": 0.22, "stamina": 0.6, "lunge": 0.0, "stagger": false},
 		"heavy": {"damage": 9.0, "windup": 0.40, "active": 0.12, "recovery": 0.40, "stamina": 0.8, "lunge": 0.0, "stagger": false},
 	},
-	"ash_spear": {
-		"label": "Ash spear", "reach": 3.0, "arc": 30.0, "max_targets": 1,
+	"wooden_spear": {
+		"label": "Wooden spear", "reach": 2.7, "arc": 30.0, "max_targets": 1,
+		"light": {"damage": 8.0, "windup": 0.18, "active": 0.10, "recovery": 0.30, "stamina": 0.75, "lunge": 0.0, "stagger": false},
+		"heavy": {"damage": 16.0, "windup": 0.50, "active": 0.14, "recovery": 0.50, "stamina": 0.9, "lunge": 1.3, "stagger": false},
+	},
+	"wooden_club": {
+		"label": "Wooden club", "reach": 1.9, "arc": 90.0, "max_targets": 2,
+		"light": {"damage": 11.0, "windup": 0.28, "active": 0.12, "recovery": 0.40, "stamina": 1.1, "lunge": 0.0, "stagger": false},
+		"heavy": {"damage": 25.0, "windup": 0.75, "active": 0.16, "recovery": 0.60, "stamina": 1.25, "lunge": 0.0, "stagger": true},
+	},
+	"stone_spear": {
+		"label": "Stone spear", "reach": 3.0, "arc": 30.0, "max_targets": 1,
 		"light": {"damage": 9.0, "windup": 0.18, "active": 0.10, "recovery": 0.30, "stamina": 0.75, "lunge": 0.0, "stagger": false},
 		"heavy": {"damage": 21.0, "windup": 0.50, "active": 0.14, "recovery": 0.50, "stamina": 0.9, "lunge": 1.5, "stagger": false},
 	},
@@ -187,7 +203,7 @@ static func damage_per_second(id: String, kind: String) -> float:
 	return damage(id, kind) / t if t > 0.0 else 0.0
 
 
-## A one-line summary for players or logs: "Ash spear: reach 3.0 m, hits 1, light 9 / heavy 21".
+## A one-line summary for players or logs: "Stone spear: reach 3.0 m, hits 1, light 9 / heavy 21".
 static func describe(id: String) -> String:
 	var w := data(id)
 	return "%s: reach %.1f m, hits %d, light %d / heavy %d" % [w.label, float(w.reach), int(w.max_targets), int(damage(id, "light")), int(damage(id, "heavy"))]

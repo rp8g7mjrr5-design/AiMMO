@@ -28,9 +28,17 @@ loop ends in a payoff you can see, hear and use; no dead time; always one clear 
 
 ## No levels (design bible, owner direction 5, 2026-11-26)
 No levels, XP, skill trees, perk points, "mastery" or any bar that fills by repetition. You
-get stronger through tools (an axe opens the old ember ash, a pickaxe the rich seam), gear,
+get stronger through tools (a stone axe opens the old ash, a stone pickaxe the rich seam), gear,
 the base and what you know. Gate things by a material, a tool, a station or a place. Old XP
 in saves is kept untouched and never read; the old skills RPCs stay as do-nothing slots.
+
+## A grounded survival kit (design bible, owner direction 11, 2026-11-26)
+No magic: no ember tools, glowing sap or enchanted anything; only fire glows. Tools and weapons
+come in tiers: wood by hand (axe, pickaxe, club, spear), then stone at the bench (made from the
+wooden one plus stone and plant fibre), metal later. Bare hands can't break rock. Survival
+basics over spells: plant fibre from scrub, bandages (H) heal; natural healing stops at half.
+Retired items convert in saves, never vanish. The tier idea is the owner's; names, recipes and
+look are our own.
 
 ## A clean fight (design bible, owner direction 10)
 No text on screen in a fight: threats, blows, kills and knock-downs are told by motion and
@@ -39,7 +47,7 @@ blend, feet hold the ground, nothing plays twice or snaps.
 
 ## The look (art bible sections 0, 11, 12)
 Grounded, not cute: real proportions, muted earthy colours (naturals under about 0.45
-saturation), the ember glow only on things you can use, clear sunny days and real nights,
+saturation), the ember glow only on fire and things you can use (no magic), clear sunny days and real nights,
 restrained effects and UI. Everything procedural (`game/procgen/`), colours from
 `palette.gd`, inside the render budget. Nothing named, shaped or laid out after another game.
 If your change shows something on screen, read art bible sections 0, 11 and 12 before you

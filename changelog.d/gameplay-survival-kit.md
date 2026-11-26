@@ -1,0 +1,6 @@
+- **A grounded survival kit, no magic.** The ember tools and lantern are gone. Now you start with your hands and work up: knock together a **wooden axe** and a **wooden pickaxe** from a few logs anywhere, then upgrade each to **stone** at the workbench with stone and plant fibre. Each step is a big, felt speed-up.
+- **Rock needs a pickaxe.** Bare hands can't break stone any more, so your first wooden pickaxe matters.
+- **New weapons:** a wooden club (wide, staggers) and a wooden spear (long reach) by hand, and a stone maul and stone spear at the bench. You always swing the best one you carry.
+- **Scrub patches and plant fibre:** the glowing sap seeps have dried into scrub. Pull them for plant fibre for bindings, torches and bandages.
+- **Bandages:** make one from 3 plant fibre and press **H** to bind your wounds. Your health only creeps back to half on its own now, so carry a few.
+- **Your old gear is safe:** an ember axe becomes a stone axe, an ember pickaxe a stone pickaxe, an ember lantern 3 torches, and heartwood, veinstone and sap turn into ash wood, stone and plant fibre.

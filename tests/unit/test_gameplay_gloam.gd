@@ -68,7 +68,7 @@ func test_numbers_hold_together() -> void:
 	check(Gloam.NIGHT_SPEED > Gloam.DAY_SPEED, "quicker at night")
 	check(Gloam.NIGHT_SPEED < GameConfig.WALK_SPEED, "but still slower than you walk")
 	check(Gloam.max_hp("walker") > Wildlife.max_hp("grazer"), "tougher than a grazer")
-	check(Weapons.damage("ash_spear", "heavy") * 3.0 >= Gloam.max_hp("walker"), "three spear haymakers")
+	check(Weapons.damage("stone_spear", "heavy") * 3.0 >= Gloam.max_hp("walker"), "three stone-spear haymakers")
 	var fists := Weapons.damage(Weapons.FISTS, "heavy") * 3.0 + Weapons.damage(Weapons.FISTS, "light") * 2.0
 	check(fists >= Gloam.max_hp("walker"), "about five bare-handed swings")
 	check(Gloam.GRAB_WINDUP >= 0.6, "the grab's windup is a telegraph you can read")

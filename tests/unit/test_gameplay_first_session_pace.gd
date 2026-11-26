@@ -1,9 +1,10 @@
 extends TestCase
 ## First-session pace: the short loop that pays off (fun comes first). There are no levels
 ## (owner direction, 2026-11-26), so the payoff a new player feels is the first tool: a fresh
-## character walks out of Spawn Meadow bare-handed and has the 3 ash wood and 2 stone for a
-## stone axe within FIRST_AXE_LIMIT seconds of their first gather, and the axe then visibly
-## speeds the wood up. This plays a fresh character through the real server's timed gathers
+## character walks out of Spawn Meadow bare-handed and has the 2 ash wood and 2 pine wood for a
+## wooden pickaxe within FIRST_TOOL_LIMIT seconds of their first gather (wood first, then
+## stone: bare hands can't break rock), then the stone and fibre for its stone version within
+## STONE_TOOL_LIMIT more, and an axe then visibly speeds the wood up. This plays a fresh character through the real server's timed gathers
 ## (no network: fake clock `test_now`, messages in `test_outbox`) the way a new player does it:
 ## walk to the nearest node of a kind still needed, keep pressing E until it is empty or the
 ## goal is met, walk to the next. Walking uses GameConfig.WALK_SPEED in a straight line, every
@@ -17,9 +18,11 @@ extends TestCase
 const ServerScript := preload("res://server/server.gd")
 const PRESS_GAP := 0.3 ## seconds between a bar ending and the player's next press of E
 const START := 100.0
-const FIRST_AXE_LIMIT := 90.0 ## the stone axe's materials within 90 s of the first gather
-const AXE_GOAL := {"ash_wood": 3, "stone": 2}
-const KIND_OF := {"ash_wood": "ash", "pine_wood": "pine", "stone": "stone", "ember_sap": "ember_sap"}
+const FIRST_TOOL_LIMIT := 60.0 ## the wooden pickaxe's wood within 60 s of the first gather
+const FIRST_TOOL_GOAL := {"ash_wood": 2, "pine_wood": 2}
+const STONE_TOOL_LIMIT := 90.0 ## then a stone pickaxe's stone and fibre within 90 s more
+const STONE_TOOL_GOAL := {"stone": 3, "plant_fibre": 2}
+const KIND_OF := {"ash_wood": "ash", "pine_wood": "pine", "stone": "stone", "plant_fibre": "scrub"}
 
 
 func _server(pos: Vector3, inv: Dictionary) -> Node:
@@ -108,21 +111,31 @@ func _play(inv: Dictionary, goal: Dictionary, limit: float) -> Dictionary:
 	return out
 
 
-func test_the_first_axe_is_a_minute_away() -> void:
-	var r := _play({}, AXE_GOAL, FIRST_AXE_LIMIT * 2.0)
-	print("  pace first axe: materials at %.1f s, %d gathers, walked %.0f m" % [r.done, r.gathers, r.walked])
-	check(r.done >= 0.0 and r.done <= FIRST_AXE_LIMIT,
-		"bare-handed: a stone axe's materials within %d s of the first gather (took %.1f s)" % [FIRST_AXE_LIMIT, r.done])
+func test_the_first_tool_is_a_minute_away() -> void:
+	var r := _play({}, FIRST_TOOL_GOAL, FIRST_TOOL_LIMIT * 2.0)
+	print("  pace first tool: materials at %.1f s, %d gathers, walked %.0f m" % [r.done, r.gathers, r.walked])
+	check(r.done >= 0.0 and r.done <= FIRST_TOOL_LIMIT,
+		"bare-handed: a wooden pickaxe's wood within %d s of the first gather (took %.1f s)" % [FIRST_TOOL_LIMIT, r.done])
 	check(r.gathers >= 2, "it takes a few gathers, not one: it should feel earned")
+	check_eq(Crafting.check(r.pack, "wooden_pickaxe", Vector3(60, 0, 60)), "", "and it is made on the spot")
+
+
+func test_stone_tools_follow_soon_after() -> void:
+	var r := _play({"wooden_pickaxe": 1}, STONE_TOOL_GOAL, STONE_TOOL_LIMIT * 2.0)
+	print("  pace stone tool: materials at %.1f s, %d gathers, walked %.0f m" % [r.done, r.gathers, r.walked])
+	check(r.done >= 0.0 and r.done <= STONE_TOOL_LIMIT,
+		"with a wooden pickaxe: a stone pickaxe's stone and fibre within %d s (took %.1f s)" % [STONE_TOOL_LIMIT, r.done])
 
 
 func test_the_axe_pays_off_at_once() -> void:
 	var goal := {"ash_wood": 30}
 	var bare := _play({}, goal, 600.0)
+	var wood := _play({"wooden_axe": 1}, goal, 600.0)
 	var axe := _play({"stone_axe": 1}, goal, 600.0)
-	print("  pace 30 wood: bare-handed %.1f s, stone axe %.1f s" % [bare.done, axe.done])
-	check(bare.done > 0.0 and axe.done > 0.0, "both get there")
-	check(axe.done < bare.done * 0.75, "the axe is a big, felt step (%.1f s vs %.1f s)" % [axe.done, bare.done])
+	print("  pace 30 wood: bare-handed %.1f s, wooden axe %.1f s, stone axe %.1f s" % [bare.done, wood.done, axe.done])
+	check(bare.done > 0.0 and wood.done > 0.0 and axe.done > 0.0, "all get there")
+	check(wood.done < bare.done * 0.9, "the wooden axe is felt (%.1f s vs %.1f s)" % [wood.done, bare.done])
+	check(axe.done < bare.done * 0.75, "the stone axe is a big, felt step (%.1f s vs %.1f s)" % [axe.done, bare.done])
 
 
 func test_no_xp_is_ever_earned() -> void:

@@ -37,7 +37,7 @@ func test_every_node_has_a_live_and_a_depleted_look_on_its_spot() -> void:
 
 
 func test_every_node_has_its_close_up_detail_inside_its_columns() -> void:
-	var want := {"ash": 7, "pine": 7, "stone": 6, "ember_sap": 0}
+	var want := {"ash": 7, "pine": 7, "stone": 6, "scrub": 6}
 	var checked := 0
 	for n in ResourceNodes.all():
 		var detail := NodeProps.parts(n).filter(func(p): return p.layer == NodeProps.DETAIL_LAYER)

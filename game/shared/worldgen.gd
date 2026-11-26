@@ -77,15 +77,15 @@ const RUIN_GAP := 0.14 ## fraction of the half size between two ruins' edges
 const BIOMES := ["forest", "moor", "farmland", "stone_hills"]
 ## Which node kinds a biome grows, and how many spots per km² it aims for.
 const BIOME_NODES := {
-	"forest": {"ash": 0.45, "pine": 0.40, "stone": 0.10, "ember_sap": 0.05},
-	"farmland": {"ash": 0.50, "pine": 0.10, "stone": 0.36, "ember_sap": 0.04},
-	"moor": {"ash": 0.10, "pine": 0.33, "stone": 0.55, "ember_sap": 0.02},
-	"stone_hills": {"ash": 0.02, "pine": 0.25, "stone": 0.73, "ember_sap": 0.0},
+	"forest": {"ash": 0.45, "pine": 0.40, "stone": 0.10, "scrub": 0.05},
+	"farmland": {"ash": 0.50, "pine": 0.10, "stone": 0.36, "scrub": 0.04},
+	"moor": {"ash": 0.10, "pine": 0.33, "stone": 0.55, "scrub": 0.02},
+	"stone_hills": {"ash": 0.02, "pine": 0.25, "stone": 0.73, "scrub": 0.0},
 }
 const BIOME_DENSITY := {"forest": 1500.0, "farmland": 650.0, "moor": 700.0, "stone_hills": 900.0}
-const NODE_KINDS := ["ash", "pine", "stone", "ember_sap"]
+const NODE_KINDS := ["ash", "pine", "stone", "scrub"]
 ## The ring around spawn: two of every kind and a seep (ResourceNodes.STARTER_KINDS).
-const STARTER_KINDS := ["ash", "pine", "stone", "ash", "pine", "stone", "ember_sap"]
+const STARTER_KINDS := ["ash", "pine", "stone", "ash", "pine", "stone", "scrub"]
 const STARTER_MIN := 16.0
 const STARTER_MAX := 34.0
 

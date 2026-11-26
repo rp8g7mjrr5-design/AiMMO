@@ -19,6 +19,7 @@ const DEFAULT_BINDS := {
 	"move_left": [KEY_A, KEY_LEFT],
 	"move_right": [KEY_D, KEY_RIGHT],
 	"interact": [KEY_E],
+	"use_bandage": [KEY_H],
 	"free_look": [KEY_ALT],
 	"swap_shoulder": [KEY_V],
 	"toggle_controls": [KEY_F1],
@@ -50,6 +51,7 @@ const SECTIONS := [
 		["Gather what you look at", ["interact", "click_use"]],
 		["Swing (light, heavy)", ["click_use", "click_heavy"]],
 		["Use the workbench", ["interact"]],
+		["Put on a bandage", ["use_bandage"]],
 	]],
 	["Talking and menus", [
 		["Chat", ["=Enter"]],

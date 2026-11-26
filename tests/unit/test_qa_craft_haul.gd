@@ -19,7 +19,7 @@ func test_crafter_stands_at_the_bench_on_the_ground() -> void:
 
 func test_pack_is_exactly_both_recipes() -> void:
 	var inv := CraftHaul.pack()
-	check_eq(Inventory.count(inv, "ember_sap"), 1, "one sap for the torch")
+	check_eq(Inventory.count(inv, "plant_fibre"), 1, "one fibre for the torch")
 	check_eq(Inventory.count(inv, "pine_wood"), 3, "pine for the campfire and the torch")
 	check_eq(Inventory.count(inv, "ash_wood"), 2)
 	check_eq(Inventory.count(inv, "stone"), 4)
@@ -38,7 +38,7 @@ func test_both_crafts_leave_exactly_the_goods() -> void:
 			inv[item] = Inventory.count(inv, item) - int(Crafting.RECIPES[id].needs[item])
 		inv[id] = Inventory.count(inv, id) + int(Crafting.RECIPES[id].makes)
 	check_eq(Inventory.to_wire(Inventory.normalize(inv)), Inventory.to_wire(Inventory.normalize(CraftHaul.pack_after())))
-	check_eq(Inventory.count(CraftHaul.pack_after(), "torch"), 3, "a torch press makes three")
+	check_eq(Inventory.count(CraftHaul.pack_after(), "torch"), 2, "a torch press makes two")
 	check_eq(Crafting.check(Inventory.normalize(inv), "torch", p), "missing", "a later torch press is refused")
 
 

@@ -85,7 +85,7 @@ func test_gather_begin_and_done_reach_the_audience() -> void:
 
 
 func test_cancel_and_disconnect_end_for_everyone() -> void:
-	var n := _first("stone")
+	var n := _first("pine")
 	var srv := _server({2: n.pos + Vector3(1.0, 0, 0), 3: n.pos + Vector3(-1.0, 0, 0)})
 	check(srv.gather_request(2, n.id).ok, "2 started")
 	srv.sessions[2].character.z += 0.8
