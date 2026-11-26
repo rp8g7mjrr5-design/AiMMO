@@ -20,6 +20,7 @@ var _last_sent := Vector2(INF, INF)
 var prediction := Prediction.new()
 
 var ui: CanvasLayer
+var shore_cover: ShoreCover ## "Washing ashore" over a big world's build (made on first use)
 var login_panel: PanelContainer
 var address_edit: LineEdit
 var name_edit: LineEdit
@@ -861,12 +862,21 @@ static func _now() -> float:
 ## happens. A different world (an island) is built now, before anything else about it
 ## arrives: terrain streams in around you (TerrainStream), and avatars, herds and the
 ## Zombai move over to the new world unchanged.
+## Worlds bigger than this (m) get the "Washing ashore" cover while they build.
+const COVER_OVER_M := 1000.0
+
+
 func _on_world_config(config: Dictionary) -> void:
 	var want := WorldGen.parse("") if config.is_empty() else config
 	WorldGen.apply(want)
 	if world != null and world.get_meta("world_config", {}) == WorldGen.config():
 		return
 	var t := Time.get_ticks_msec()
+	if WorldGen.size_m() > COVER_OVER_M:
+		if shore_cover == null:
+			shore_cover = ShoreCover.new()
+			add_child(shore_cover)
+		shore_cover.show_now()
 	var old := world
 	world = WorldBuilder.build()
 	world.set_meta("world_config", WorldGen.config())
@@ -881,6 +891,8 @@ func _on_world_config(config: Dictionary) -> void:
 	if logged_in and avatars.has(my_id):
 		var me: Node3D = avatars[my_id].node
 		prediction.place(Terrain.clamp_to_world(me.position))
+	if shore_cover != null:
+		shore_cover.done()
 	print("[client] built world %s in %d ms" % [str(WorldGen.config()), Time.get_ticks_msec() - t])
 
 

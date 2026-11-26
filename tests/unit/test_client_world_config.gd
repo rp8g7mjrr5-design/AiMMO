@@ -27,6 +27,7 @@ func test_the_same_world_is_kept() -> void:
 	var before: Node3D = c.world
 	c._on_world_config(WorldGen.config())
 	check(c.world == before, "Ashgrove's server: the world built at start is kept")
+	check(c.shore_cover == null, "and no cover")
 	c.free()
 
 
@@ -49,6 +50,10 @@ func test_an_island_server_gets_its_island() -> void:
 	check(c.grazers.get_parent() == c.world and c.zombai_figures.get_parent() == c.world, "herds and the Zombai moved over")
 	check(avatar.get_parent() == c.world, "avatars moved over")
 	check(ms < 15000, "built in %d ms" % ms)
+	check(c.shore_cover != null and c.shore_cover.get_parent() == c, "the island got the washing-ashore cover")
+	check(c.shore_cover._fading > 0.0, "which fades out once the ground is built")
+	c.shore_cover._process(1.0)
+	check(not c.shore_cover.is_covering(), "and is gone after the fade")
 	print("[test] island world built in %d ms" % ms)
 	terrain.finish()
 	c.free()
