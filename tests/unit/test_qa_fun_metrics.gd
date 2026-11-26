@@ -60,6 +60,16 @@ func test_wait_runs_from_first_unanswered_action() -> void:
 	quiet.start_play(0.0)
 	quiet.stop_play(100.0)
 	check_near(quiet.result().longest_wait_s, 0.0, 0.001, "wandering without acting is not waiting")
+	var named := FunMetrics.new()
+	named.start_play(0.0)
+	named.act(5.0, "/time")
+	named.feedback(5.1)
+	named.act(30.0, "c2s_set_look")
+	named.act(31.0, "c2s_attack") # the wait still runs from the look
+	named.feedback(34.0)
+	var r := named.result()
+	check_eq(r.longest_wait_after, "c2s_set_look", "names the press that waited longest")
+	check_near(r.longest_wait_from_s, 30.0, 0.001)
 	check_near(quiet.result().longest_dead_s, 100.0, 0.001, "but it is dead time")
 
 
