@@ -15,6 +15,14 @@ const AO_LIGHT_MAX := 0.06 ## ridges and knolls catch a little more light
 ## per triangle) with ambient occlusion baked into each vertex, so hollows and valley floors
 ## sit darker and ridges lighter, and every face carries a gentle gradient (Emberlight).
 static func build_chunk(x0: float, z0: float, cells: int = CHUNK_CELLS, cell: float = CELL) -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, chunk_arrays(x0, z0, cells, cell))
+	return mesh
+
+
+## build_chunk's surface as plain arrays (Mesh.ARRAY_*), no RenderingServer involved, so a
+## background thread can work them out (TerrainStream) and the main thread only wraps them.
+static func chunk_arrays(x0: float, z0: float, cells: int = CHUNK_CELLS, cell: float = CELL) -> Array:
 	var m := AO_REACH
 	var side := cells + 1 + 2 * m
 	var hg := PackedFloat32Array()
@@ -47,7 +55,7 @@ static func build_chunk(x0: float, z0: float, cells: int = CHUNK_CELLS, cell: fl
 				_tri(st, a, d, c)
 				_tri(st, a, b, d)
 	st.generate_normals()
-	return st.commit()
+	return st.commit_to_arrays()
 
 
 ## Baked light at a vertex that sits `depth` metres below the average of its surroundings

@@ -102,23 +102,10 @@ static func _sun() -> DirectionalLight3D:
 	return sun
 
 
+## The ground: built whole on a small world, streamed around the camera on a big one
+## (TerrainStream).
 static func _terrain() -> Node3D:
-	var node := Node3D.new()
-	node.name = "Terrain"
-	var mat := TerrainMesh.material()
-	var span := TerrainMesh.CELL * TerrainMesh.CHUNK_CELLS
-	var half := WorldGen.half_size()
-	var z := -half
-	while z < half:
-		var x := -half
-		while x < half:
-			var mi := MeshInstance3D.new()
-			mi.mesh = TerrainMesh.build_chunk(x, z)
-			mi.material_override = mat
-			node.add_child(mi)
-			x += span
-		z += span
-	return node
+	return TerrainStream.make()
 
 
 static func _water() -> MeshInstance3D:

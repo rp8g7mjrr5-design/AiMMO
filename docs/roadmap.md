@@ -69,6 +69,9 @@ built (gathering, crafting and tools, combat basics) works in it.
   step where characters keep their items and pack and arrive at the new spawn.
 - The generator v1: land, rivers, biomes, the king's roads, and **ruin sites** with grades,
   resource nodes and the spawn point placed from the seed.
+- **The island, generator v2** (owner, 2026-11-26): sea all round, 3 km by default, beach
+  landings, the location pool rolled per world with a layout seed per site. The official world
+  moves onto an island, then **wipes monthly and automatically** (first Thursday, 19:00 UTC).
 - Terrain, props and ruins built in chunks around the player, inside the render budget.
 - The first two ruins as data-driven set pieces (a grade 1 burned farmstead, a grade 2 abandoned
   village), built from a procedural medieval kit (timber, stone, thatch, all weathered).

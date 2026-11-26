@@ -148,11 +148,25 @@ another game's names for its zombies).
   link the ruins, with the high-grade ones toward the centre or the far side from the spawn
   coast. Bigger maps get more ruins of each grade, so 100 players are spread over many places,
   not queued at one castle.
-- **Edges** (owner, 2026-11-25): one **coast** where everyone arrives by boat, and **mountains
-  and the grey wall of the Dimming** on the other sides. Danger and the ruin grades rise the
-  further you get from the coast.
-- **Spawns:** new characters come ashore at one of several landing points along the coast,
-  spread so a busy server doesn't drop everyone on one beach.
+- **An island** (owner, 2026-11-26: "Lets do an island", replacing the one-coast map of
+  2026-11-25). Sea all round, beaches and a few cliff coasts, meadows and farmland by the sea,
+  forest and moor in the middle, stone hills and snowy peaks at the heart. Danger and the
+  ruin grades rise the further inland you go. Generator v2 (`IslandGen`) makes it; 3 km is the
+  default size (owner: "if we can handle 3 km lets go big").
+- **Spawns** (owner, 2026-11-26): you **wash up on a random beach with nothing**, at one of 4 to
+  8 landings spread round the coast, each with a few trees and stones to start on. There is no
+  spawn meadow; **the old Spawn Meadow is one more place** in the location pool that may roll.
+- **Every place rolls random** (owner, 2026-11-26: "so it never looks the same"): which
+  locations a world gets, where they stand, and each site's own layout (a `layout_seed` and a
+  turn per site that its set piece builds from). The pool and its placement rules are data in
+  `IslandGen.LOCATIONS`; the map plan of 2026-11-26 lists them (farmstead, woodcutter's camp,
+  fisher's hut, wrecked cart, the old meadow, shepherd's fold, village, watermill, watchtower,
+  barber-surgeon's house, toll bridge, mine, abbey, garrison fort, market town, castle).
+- **Monthly wipes** (owner, 2026-11-26): the official world wipes itself automatically on the
+  **first Thursday of each month at 19:00 UTC**, once it runs on the island. A wipe rolls a new
+  seed (a new island), clears bases and packs, keeps each character's look and best days
+  survived, and archives the old world (never deletes it). The next wipe date is shown in the
+  server list and in game ahead of time.
 
 ## Surviving, building, getting stronger
 - **Needs:** hunger, thirst, warmth and rest. Each is a quiet icon that only shows when it
@@ -272,7 +286,7 @@ defaults.
 | Zombai difficulty | gentle, **normal**, hard; and night rounds on or off | Harder is a choice, never the default |
 | What death costs | **drop a couple of items from your pack**, drop the whole pack, or hardcore (start a new character) | Fair failure by default (owner, 2026-11-25) |
 | Gather rate | 0.5x to 3x, **1x** | How much each gather pays |
-| World reset | **never**, or on a schedule the server shows | Never on the official world without the owner |
+| World reset (wipe) | **monthly** (first Thursday, 19:00 UTC), never, or a custom schedule the server shows | A new island each wipe; the official world wipes monthly (owner, 2026-11-26) |
 
 New rules can be added as systems arrive; a rule is only added when the system it changes is on
 `main`, and every rule has a bot-test case for its default.
