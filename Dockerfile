@@ -25,7 +25,13 @@ RUN godot --headless --path /app/game --import >/dev/null 2>&1 || true \
 # MAX_PLAYERS: the always-on world is for 2 to 8 friends (owner direction 8). A ninth login is
 # turned away politely ("The world is full (8 / 8)") and nobody inside is kicked. The bot test's
 # player-cap phase plays exactly this cap (tests/bot_test/run_bot_test.py, CAP_PLAYERS).
-ENV AIMMO_TRANSPORT=websocket \
+# AIMMO_WORLD / AIMMO_WIPE: the official world is a 3 km island (gen 2) that wipes itself on the
+# first Thursday of every month at 19:00 UTC (owner, 2026-11-26: "Lets do an island", "lets do
+# monthly", and "yes" to moving the live world). 1126 is only the first island's seed; every wipe
+# after rolls a new one (WorldWipe). Unset both to go back to Ashgrove.
+ENV AIMMO_WORLD=1126:2:3000 \
+    AIMMO_WIPE=monthly \
+    AIMMO_TRANSPORT=websocket \
     AIMMO_PORT=7777 \
     AIMMO_MIGRATIONS_DIR=/app/db/migrations \
     AIMMO_DATA_DIR=/app/data \
