@@ -7,7 +7,8 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## --fun-check holds them to tests/bot_test/fun_baseline.json.
 ##
 ## Every bot-test account is new, so every bot is a fresh player. Numbers come from the
-## protocol v3/v7 messages (gather bar, haul, craft result, swings, kills)
+## protocol v3/v5/v7/v8/v9 messages (gather bar, haul, craft result, Return to Spawn Meadow,
+## swings, kills, the saved-look echo, a campfire set down)
 ## and from the text answers to dev commands; see fun_metrics.gd for how the two are kept from double counting.
 
 const FunMetrics := preload("res://tests/bot_test/fun_metrics.gd")
@@ -19,9 +20,9 @@ var _last_play := -1.0 ## bot.elapsed on the last frame this bot was playing
 func setup(net: Node) -> void:
 	net.system_message.connect(_on_system)
 	# Hooked on the send itself: on localhost the answer can arrive before the next frame.
-	bot.command_sent.connect(func(_text: String): m.act(bot.elapsed))
+	bot.command_sent.connect(func(text: String): m.act(bot.elapsed, text))
 	# Pressing E, walking a cancel, pressing Craft (protocol v3) are actions too.
-	bot.play_sent.connect(func(_method: String, _args: Array): m.act(bot.elapsed))
+	bot.play_sent.connect(func(method: String, _args: Array): m.act(bot.elapsed, method))
 	# Our gather bar starting or stopping is the game answering; also times the gathering.
 	net.gather_begun.connect(func(peer: int, _node: int, _secs: float):
 		if peer == bot.my_id:
@@ -35,6 +36,15 @@ func setup(net: Node) -> void:
 	net.craft_result.connect(_on_craft_result)
 	# Return to Spawn Meadow (protocol v5): its answer is the game responding to the press.
 	net.unstuck_result.connect(func(_ok: bool, _text: String, _wait: float): m.feedback(bot.elapsed))
+	# Saving a look (protocol v8) is answered by s2c_look naming us; setting a campfire down
+	# (protocol v9) by s2c_place_result. Both are the game answering the press. Until
+	# 2026-11-26 the XP and level lines of the bots' long gathering covered these by chance;
+	# with levels gone the bots stop sooner and a look saved after the gathering looked like
+	# a press nobody answered (CI on c810000: 31 s).
+	net.look_changed.connect(func(peer: int, _look: Dictionary):
+		if peer == bot.my_id:
+			m.feedback(bot.elapsed))
+	net.place_result.connect(func(_item: String, _ok: bool, _reason: String, _text: String): m.feedback(bot.elapsed))
 	# Combat (protocol v7): a swing beginning, refused, or its blow landing (the swinger
 	# always hears back, hit or miss) answers the press; a kill is counted from its drops.
 	net.swing_begun.connect(func(peer: int, _weapon: String, _kind: String, _secs: float):

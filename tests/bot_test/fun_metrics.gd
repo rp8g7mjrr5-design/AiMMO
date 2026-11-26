@@ -43,6 +43,9 @@ var _play_time := 0.0
 var _play_started := 0.0
 var _act_since := -1.0 ## first unanswered action since the last feedback, or -1
 var _longest_wait := 0.0
+var _act_what := "" ## what opened the unanswered action, for the report
+var _longest_wait_after := "" ## what the player did before the longest wait
+var _longest_wait_at := 0.0
 var _gather_since := -1.0 ## when our running timed gather started, or -1
 var _gather_time := 0.0
 var rewards := 0
@@ -89,9 +92,10 @@ func feedback(t: float) -> void:
 
 
 ## The player did something that should get an answer (sent a command, pressed E).
-func act(t: float) -> void:
+func act(t: float, what: String = "") -> void:
 	if _playing and _act_since < 0.0:
 		_act_since = t
+		_act_what = what
 
 
 func reward(t: float, count: int) -> void:
@@ -185,8 +189,10 @@ func _close_gap(t: float) -> void:
 
 
 func _close_wait(t: float) -> void:
-	if _act_since >= 0.0:
-		_longest_wait = maxf(_longest_wait, t - _act_since)
+	if _act_since >= 0.0 and t - _act_since > _longest_wait:
+		_longest_wait = t - _act_since
+		_longest_wait_after = _act_what
+		_longest_wait_at = _act_since
 	_act_since = -1.0
 
 
@@ -203,6 +209,8 @@ func result() -> Dictionary:
 		"longest_dead_s": snappedf(_longest_dead, 0.01),
 		"longest_dead_from_s": snappedf(_longest_dead_at - maxf(_first_login, 0.0), 0.01),
 		"longest_wait_s": snappedf(_longest_wait, 0.01),
+		"longest_wait_after": _longest_wait_after,
+		"longest_wait_from_s": snappedf(_longest_wait_at - maxf(_first_login, 0.0), 0.01),
 		"rewards": rewards,
 		"rewards_per_min": snappedf(rewards / minutes, 0.01) if minutes > 0.0 else 0.0,
 		"loops_completed": loops,
