@@ -206,11 +206,9 @@ Emberlight is **grounded first**: read the art bible's section 0 (pillars) and s
 - **Grounded painted low-poly:** real proportions (never chibi), muted earthy naturals (no
   lime, no candy colours), weathered materials, big confident facets; colour painted into
   vertices and gradients by one shared shader, never photographic textures.
-- **Except the characters: goofy cartoon folk** (owner, 2026-11-26: "we can make them funny",
-  then picked the goofy cartoon of three directions shown in game). Big heads, googly eyes,
-  droopy noses, pear bodies, noodle arms and big hands, short legs in big boots, in the same
-  muted dyes; the Zombai are the same folk, dead and ash-grey. The world around them stays
-  grounded (art bible section 3, "Characters").
+- **Characters are clean carved figures** (owner, 2026-11-26: "B clean carved real
+  proportions"): real proportions, faceted low-poly solids with flat shading and flat dyes,
+  no paint grain; the Zombai are the same figures, dead and ash-grey (art bible section 3).
 - **Clear, sunny days and moody nights** (owner, 2026-11-25, approving the test-camp look): a
   clean blue sky and a strong sun with real shadows by day, no haze over the land; the mood
   comes from dawn, dusk and real night, and from the ruins and the Dimming.
@@ -263,7 +261,7 @@ design is `docs/vision.md`. Standing rules:
 The owner, tuning each worker one at a time: "we need to start with the basics: character
 customization and zombie survival, with a randomly generated map and landmarks and stuff for loot."
 Until those four work end to end in a real session, they come before any polish, in every stream:
-1. **Character customization** on the cartoon body (art bible section 3): every saved
+1. **Character customization** on the carved body (art bible section 3): every saved
    Appearance choice shows on the new body, and a new player picks a look before they play.
 2. **Zombie survival:** the Zombai walker on screen and in the fight, hunger and the first night.
 3. **A generated map:** every world from a seed (Phase 1), big enough to explore and fast to load.
@@ -405,6 +403,7 @@ The goal is survival, with no story endgame (owner, 2026-11-24).
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 01 (2026-11-26, clean carved characters):** After seeing the goofy cartoon folk (#238) in game the owner said: "Now that i look at it i want to go with B clean carved real proportions". Direction 7's character line now reads clean carved figures with real proportions (`Carved`: faceted solids, flat shading, no grain); the cartoon exception is gone, so "real proportions (never chibi)" holds for characters again. `Toon` is retired; art bible section 3 is rewritten.
 - **Week 01 (2026-11-26, goofy cartoon characters):** The owner, on the sculpted traveller in game: "this doesnt look good at all we need to rework our character entirely", then "we can make them funny" and "would it be easier for ai to make everything super small?". Three directions were rendered in the meadow (small and chunky, clean carved low poly, goofy cartoon) and the owner picked the **goofy cartoon**. Direction 7 now carves the characters out of "real proportions (never chibi)": survivors and the Zombai are goofy cartoon folk (`Toon`) in the world's muted colours, with no paint grain; the world itself stays grounded. The sculpted body (`Traveller`, `SculptField`, `TravellerBodies`) is retired; art bible section 3 is rewritten.
 - **Week 01 (2026-11-26, a grounded survival kit):** The owner asked to remove the ember (magic) tools and go for basic zombie-survival tools in wood then stone tiers, a wooden club, bandages and the like ("We dont need magic"). Added owner direction 11. Removed the ember axe, ember pickaxe, ember lantern, heartwood, veinstone and ember sap; old saves convert them on load to their grounded counterparts. Added the wooden axe, wooden pickaxe, wooden club, wooden spear, stone pickaxe, stone maul, stone spear, plant fibre and bandage. The glowing sap seeps became scrub patches at the same places (node ids unchanged). Stone now needs a pickaxe. Natural healing caps at half health; bandages heal the rest. The ember glow left on trees and stone is a visual follow-up for the world stream.
 - **Week 01 (2026-11-26, the island map):** The owner, after reading the map plan: "Lets do an island. if we can handle 3 km lets go big ... wash up on a random beach with nothing. Remove the spawn meadow but you can leave it in the game as a random place ... make sure the areas all roll random too so it never looks the same", then "lets do monthly" for wipes, automatic. `docs/vision.md` "The map" now says island (sea all round) instead of one coast and the Dimming wall, beach landings instead of a spawn meadow, a location pool where every site rolls its own layout, and monthly automatic wipes (first Thursday, 19:00 UTC) that keep looks and best days survived and archive the old world. Generator v2 (`IslandGen`) builds it; version 1 stays frozen.

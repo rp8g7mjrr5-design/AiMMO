@@ -39,7 +39,7 @@ var poses := {} ## id -> the pose last drawn (tests)
 func setup() -> void:
 	name = "Zombai"
 	for v in ZombaiBody.VARIANTS:
-		_meshes.append(Toon.zombai_mesh(v))
+		_meshes.append(Carved.zombai_mesh(v))
 	for v in Sfx.GROAN_VARIANTS:
 		_groans.append(Sfx.groan(v))
 	_rasp = Sfx.rasp()
@@ -89,14 +89,11 @@ func sync(view: ZombaiView, now: float, delta: float) -> void:
 		f.speed = lerpf(float(f.speed), measured, 1.0 - exp(-SPEED_RATE * delta))
 		# Short dragging steps, as many a metre as the legs' gait needs for a planted foot to
 		# hold still on the ground (no skating, at a day shuffle or a night hunt).
-		# The toon's short legs (Toon.LEG_SCALE) are drawn at the speed long legs would need, and
-		# take that many more steps a metre.
-		var gs := float(f.speed) / Toon.LEG_SCALE
-		f.phase = fposmod(float(f.phase) + moved * ZombaiBody.strides_per_metre(gs) / Toon.LEG_SCALE, 1.0)
+		f.phase = fposmod(float(f.phase) + moved * ZombaiBody.strides_per_metre(float(f.speed)), 1.0)
 		f.t = float(f.t) + delta
 		f.last = pos
 		var sd := ZombaiBody.lean_side(id)
-		var target := pose_for(st, f.phase, gs, f.t, view.windup(id, now), view.since_stagger(id, now),
+		var target := pose_for(st, f.phase, f.speed, f.t, view.windup(id, now), view.since_stagger(id, now),
 			view.since_flinch(id, now), view.since_down(id, now), sd)
 		var rate := GRAB_RATE if st in ["grab", "down"] else POSE_RATE
 		f.pose = target if (f.pose as Dictionary).is_empty() else AvatarClips.blend(f.pose, target, 1.0 - exp(-rate * delta))
@@ -104,7 +101,7 @@ func sync(view: ZombaiView, now: float, delta: float) -> void:
 		var node: Node3D = f.node
 		node.position = pos
 		node.rotation = Vector3(0.0, view.facing(id, now), 0.0)
-		AvatarAnimator.apply_pose(f.sk, f.pose, Toon.LEG_SCALE)
+		AvatarAnimator.apply_pose(f.sk, f.pose)
 		if st == "down" and not bool(f.thudded) and view.since_down(id, now) >= AvatarClips.KNOCKDOWN * 0.7:
 			f.thudded = true
 			_say(f, _thud, 0.55, -4.0)
@@ -146,7 +143,7 @@ func _make(id: int, pos: Vector3, now: float) -> Dictionary:
 	var node := Node3D.new()
 	node.name = "Walker%d" % id
 	node.scale = Vector3.ONE * ZombaiBody.size_of(id)
-	var sk := Toon.rig(_meshes[ZombaiBody.variant_of(id)])
+	var sk := Carved.rig(_meshes[ZombaiBody.variant_of(id)])
 	node.add_child(sk)
 	var voice := AudioStreamPlayer3D.new()
 	voice.name = "Voice"
