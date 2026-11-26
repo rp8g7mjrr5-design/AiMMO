@@ -1,3 +1,0 @@
-- [x] Owner direction 2026-11-26: the characters are B, clean carved with real proportions. `Carved` is on every survivor and Zombai (this PR). It supersedes the goofy cartoon folk (#238) and world's "Basics 1: the sculpted body" and "Basics 2: the walker's look".
-- [ ] Follow-up: delete the unused `ZombaiBody.parts()`/`mesh()` and `AvatarBuilder.parts()` paths, along with their tests.
-- [ ] Follow-up: a peaked hood that reads as cloth from the front, and a coat and apron trade layer for the window.

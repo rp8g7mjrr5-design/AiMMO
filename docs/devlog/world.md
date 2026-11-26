@@ -825,3 +825,170 @@ How I found it: installed `mesa-vulkan-drivers` here, which gives a working **Fo
 **Tip for next runs:** `apt-get install -y mesa-vulkan-drivers` gives Forward+ here (`--rendering-method forward_plus --rendering-driver vulkan`). Compare against it before trusting an opengl3 shot.
 
 **Next run.** The ember-ash night saturation follow-up is small; then part 2 (chunks) or the material merge before the ruin kit, per the director's order.
+
+## 2026-11-24 — campfire-model
+**What:** `CampfireProps` (`game/procgen/campfire_props.gd`), the look of gameplay's placed
+campfires (#213), and the `cooked_meat` icon drawn ahead. Gameplay's follow-up asked for "the
+placed campfire model (lit, embers, burned-out ash)"; the director's backlog had it as
+"Phase 2 build-ahead: the campfire and the cooked meal". Picked it ahead of client's quiet-HUD
+beam request because it finishes a feature that is on the server but not yet playable (the
+director's priority 1) and this was the stream's last PR of the budget week; the beam request
+is next.
+
+**Fun:** the first warm place in a dark world. A fire you set down is a camp: a pool of
+orange light on the grass at night, flames that never sit still, and you can read from
+across a clearing whether a fire is burning, dying (low flames, slumped logs, dim light) or
+cold (charred stubs in grey ash).
+
+**How:**
+- Three looks from the time left (`state()`): lit, low (the last 15% of the burn), ash.
+  `parts(fire, state)` is pure data: 8 field stones (seeded size, lean, two shades of soot), an
+  ash bed, 4 split logs leaned into a low cone (or 3 charred stubs), 5 coals and 3 flame
+  tongues. Tallest flame 0.58 m: a cooking fire, not a bonfire.
+- Pooled (art bible 7): WorldBuilder adds one hidden "Campfires" node with three MultiMesh
+  layers sized for `Campfires.MAX_FIRES` (32) using `visible_instance_count`, all on the
+  existing Emberlight `solid` and `glow` materials (glow in instance alpha, like NodeFx's hit
+  bits). No new material (`test_world_emberlight_everything` still passes), no shadows (low
+  to the ground), and with no fire the node is hidden and draws nothing, so the smoke test's
+  draw calls don't move.
+- Lights: a pool of 3 omni lights (`LIGHT_POOL`) on the nearest burning fires; faint by day,
+  2.3 at night (lanterns 2.6), half for a low fire, flickering twice as deep as a lantern via
+  `Lamps.flicker`. `Lamps.apply_glow` and `Lamps.flicker_lights` drive it, so DayNight needed
+  no change.
+- `sync(node, fires, near)` takes `from_wire(s2c_campfires)`; a fire that leaves the list after
+  it had turned low stays as ash for 120 s, one that vanishes while lit (a restart) just goes.
+  `animate()` flickers the flames every frame and re-checks lit -> low -> ash on the local clock
+  every 0.5 s (the server only sends on change).
+
+**What didn't work / gotchas:**
+- The headless renderer doesn't keep MultiMesh instance transforms (`get_instance_transform`
+  returns identity), so the flicker test checks `flicker_xform()` maths and the bookkeeping,
+  not the buffer. `visible_instance_count` does round-trip headless.
+- My first shot script passed a fake `now` to `sync()` while `animate()` uses the engine clock,
+  so fires flipped state on the first refresh. Only ever pass `now` in tests that never call
+  `animate()`.
+- First pass looked toy-like: the logs carried 12% vein glow and read bright orange at noon,
+  and the flames were thin white spikes hidden in the logs. Logs are now 4% glow (just a hint
+  at night), flames are 40% wider, stones squatter and more tilted.
+- **Compatibility renderer:** at Spawn Meadow a fire's light pool can be missing on opengl3
+  because GLES3 caps lights per mesh at 8 (`rendering/limits/opengl/max_lights_per_object`) and
+  the meadow's terrain chunk already has the 8 lanterns plus the bench. Forward+ (lavapipe) shows
+  the pool fine. Away from the meadow it works on both. Flames and coals glow either way.
+
+**Screenshots:** `/mnt/project-files/world/campfire/` (noon, golden hour, night on Forward+ and
+Compatibility, before/after; the raw vs cooked meat icon).
+
+**Next run:**
+- Client's quiet-HUD request (`world.d/from-client-quiet-hud.md`): a dimmer or shorter level-up
+  beam at noon so the calm banner reads.
+- Client hook for the fires is filed (`client.d/from-world-campfire-model.md`).
+- A few sparks rising off a lit fire (pooled, `Quality.motes_scale()`), and smoke later.
+
+## 2026-11-25 — island-generator
+The owner picked an island over the one-coast map, 3 km, beach landings, the Spawn Meadow as a
+random place, every place rolling its own layout, and monthly automatic wipes. This PR is the
+generator only; nothing changes for players until the official world moves onto an island.
+
+What shipped:
+- `game/shared/island_gen.gd` (`IslandGen`), `gen_version` 2. WorldGen still owns the config
+  and API and hands the layout to IslandGen, which fills the same `_L` keys so WorldGen's pads,
+  rasters, roads and node spots work unchanged. Version 1 is untouched (all its tests pass).
+- New API on WorldGen: `is_island()`, `landings()`, `landing_for(key)`, `road_kinds()`;
+  `rivers()` gives every river. `Ruins.all()` carries `layout_seed` and `rot` per site.
+- `CharacterData.new_for` puts a new character on a landing picked by their name hash
+  (`landing_for`); Ashgrove and v1 still give `spawn_point()`.
+- `WorldMap` marks every landing. Map sheet of six seeds:
+  `/mnt/project-files/world/map-design/island-6-seeds.png`.
+- `tests/unit/test_world_island.gd`: sea at the border, landings dry and by the water and
+  spread out, must-haves present, grades rise inland, flat pads, no overlaps, unique layout
+  seeds, nodes on land and a starter ring at every landing, every place reachable on foot.
+
+Numbers (3 km, this container): layout 0.12 to 0.3 s; node spots 1.7 to 2.1 s (about 4,100
+spots); 30 to 38 locations; 7 landings; 2 rivers. A 4 km layout is still well under 2 s.
+
+Tried and changed:
+- First landing search rejected every beach: the beach band sits at 0.9 m and the check wanted
+  1.0 m. Then a ray that crossed a river stopped there; it now walks over inland water and
+  only stops at the sea, and gives up on cliff stretches.
+- Mountains at the heart first read as a white starfish on the map (ridge noise at full
+  strength); the ridge height now follows the uplift noise, so peaks vary.
+
+Known gaps and notes to next time:
+- The client still builds terrain for the whole map at once: a 3 km island is ~2,200 chunk
+  meshes. Chunk streaming (world backlog, "a generated map that loads fast") must land before
+  the official world moves.
+- Roads cross rivers as fords (no bridges yet). Toll bridges sit beside a river, not on a road
+  crossing.
+- Node spots cost ~2 s at 3 km on the server and again on the client; cache or move to chunks.
+- Set pieces should read `layout_seed` and `rot` from `Ruins.all()` so the same kind looks
+  different on every site.
+
+## 2026-11-25 — terrain-stream
+The second step toward the island going live: a big map must open at once.
+
+Measured on a 3 km island in this container (headless), before -> after:
+- Terrain: 29.2 s -> 0.29 s. `TerrainStream` builds the chunks within 160 m of the start up
+  front and streams the rest on one background thread out to 680 m (camera far 600 m plus half
+  a chunk diagonal), nearest first, and frees chunks past 820 m. The thread only runs
+  `TerrainMesh.chunk_arrays` (maths, no RenderingServer); the main thread wraps at most 4
+  finished chunks a frame.
+- `Props.scatter` is cached per world: it was worked out three times (world, flora, camera
+  solids), 1.7 s each on an island. Props build 1.8 s -> 0.17 s, solids 2.1 s -> 0.21 s.
+- Ashgrove (64 chunks) is still built whole, in the same order, same props tree for tree.
+
+Still slow on a 3 km island (about 8 s of pure data, all on the main thread today):
+node spots 1.9 s, `Props.scatter` 1.6 s, `Flora.spots` 3.4 s, flora meshes 1.2 s, node props 1.0 s.
+Next: the client follows `s2c_world` (it doesn't yet: `net.world_config` has no listener), works
+those out on a thread behind a short "washing ashore" cover, then builds the world.
+
+Gotcha: freeing a MeshInstance3D on the headless dummy renderer logs `Parameter "m" is null`
+once per mesh; tests that free terrain call `expect_error` for it (as the material-budget test does).
+
+Later the same day: `Terrain.height` on an island was 26 us a call, 11 us of it walking all ~40
+flat pads. An island now keeps a pad lookup grid (`WorldGen._index_pads`, 64 m cells, pads in
+their original order, so heights are identical): 8.7 us a call. That makes every placement pass
+3x cheaper on a 3 km island: node spots 1.9 -> 1.1 s, props scatter 1.6 -> 0.9 s, flora spots
+3.4 -> 1.7 s. Whole-world build data left: about 5.5 s (was about 42 s with whole terrain).
+Version 1 and Ashgrove don't use the grid (their code path is untouched).
+
+## 2026-11-26 — live-world-island
+Owner, 2026-11-26, "yes" to moving the live world onto the wiping island once it was ready.
+- `Dockerfile`: `AIMMO_WORLD=1126:2:3000`, `AIMMO_WIPE=monthly`. 1126 is only the first seed.
+  Unset both (or set them on Railway, which overrides the image) to go back to Ashgrove.
+- Protocol v11, with no new RPCs: clients from before #231 always drew Ashgrove whatever
+  `s2c_world` said, so they are told to update instead of walking on the wrong ground.
+  `net_v10.gd` and `net_play_v10.gd` are frozen.
+- Every existing character has `world_id` 0, so their pack is archived and emptied on their
+  first login on the island, and they wash up on a beach. The patch notes say so.
+- Checked a boot with the live settings locally: world 1 (seed 1126), 34 places, 4,198 nodes,
+  next wipe Thursday 3 December 19:00 UTC, clean stop.
+- The bot test and CI still run Ashgrove (no AIMMO_WORLD there). Next: bot coverage on an island.
+
+## 2026-11-26 — monthly-wipe
+Owner, 2026-11-26: "lets do monthly. Does this happen automatically?" Yes: a server started with
+`AIMMO_WIPE=monthly` (or `--wipe=monthly`) on a generated world wipes itself on the first
+Thursday of every month at 19:00 UTC.
+
+### How it works
+- `WipeSchedule` (shared): pure date maths on Unix seconds, so tests pick any date.
+- `WorldWipe` (server): at boot keeps the store's current world until its wipe time, else rolls
+  one. The first world takes the AIMMO_WORLD seed; every later one a fresh random seed (never the
+  one just played). Gen version and size follow AIMMO_WORLD.
+- Migration 0005 (add-only): `worlds` (every world kept forever, `wiped_at` set when it ends),
+  `characters.world_id`, `wipe_archive` (position + pack as JSON).
+- The wipe at runtime: warnings at 60, 10 and 1 minutes; at the time it saves everyone, sends
+  them off with a line, records the new world and calls `use_world` (no restart needed: the
+  client already rebuilds for a new `s2c_world`).
+- **Lazy per character.** Nothing is bulk-cleared. The first login on a world a character wasn't
+  on archives their pack and position, sets every item to qty 0 (rows kept), and washes them up
+  on a landing. Someone who never comes back is never touched. A server that was down at wipe
+  time wipes when it boots.
+
+### Notes to self
+- Off is exactly as before: `world_record` stays `{}` and every new path is a no-op. Ashgrove
+  refuses wipes even when asked.
+- Turning wipes on for a world whose characters have `world_id` 0 (everyone from before) wipes
+  them all on their next login. That's right for a move onto a new island, but it's a production
+  change: owner's go-ahead and an announcement first.
+- If archiving fails, the pack is left alone and the wipe is retried at their next login.
+- Tested on Postgres 16 locally (`test_postgres_keeps_worlds_and_archives`) and on the JSON store.

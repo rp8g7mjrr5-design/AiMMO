@@ -9,6 +9,9 @@ ZombAi: a grounded, third-person open-world zombie survival sandbox. A fallen me
 kingdom on generated maps with risk-graded ruins, the Zombai (our undead), building and
 surviving on servers of up to about 100 players, each with its own rules. One-time buy.
 **Not an MMO.** Today's live Railway world is one such server, capped at 8: never break it.
+Since 2026-11-26 it runs a 3 km generated island (`AIMMO_WORLD=1126:2:3000`) that wipes on the
+first Thursday of each month (`AIMMO_WIPE=monthly`); players wash up on a random beach. CI's
+bot test still plays Ashgrove, so test island paths yourself.
 
 ## The current goal: the basics first (design bible, owner direction 9)
 Until these four play end to end in a real session, they come before any polish:

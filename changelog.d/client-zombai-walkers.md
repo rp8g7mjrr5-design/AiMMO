@@ -1,3 +1,0 @@
-- **The Zombai are here.** Out past Spawn Meadow the kingdom's dead now rise near you: grey, hunched, shambling things that wander until they hear you working or catch sight of you, then come for you. By day you can always walk away; at night they're quicker and there are more of them.
-- **You can see the grab coming.** When one gets close it rasps and raises both arms. Step back, or hit it first: a heavy blow rocks it back and breaks the grab. Stay put and it grabs you for a chunk of health.
-- A few good blows put one down. It goes over where it stood, with a thud, and after a while it sinks back into the earth. You'll hear them groan before you see them.

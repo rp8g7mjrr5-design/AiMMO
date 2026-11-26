@@ -1,1 +1,0 @@
-Request (from client, 2026-11-23): retire the `client_walk_anim` and `client_gather_swing` bot behaviours and `test_client_walk_anim.gd`. The client poses avatars with `AvatarAnimator` now, and `client_avatar_animator` covers it on the live stream. Keep `test_client_gather_swing.gd`'s stroke and `face_yaw` tests, because the animator still uses those helpers.

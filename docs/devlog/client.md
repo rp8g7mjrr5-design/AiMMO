@@ -1679,3 +1679,253 @@ with the ground (about 1.9 m covered per step against 0.6 m of foot travel); at 
 reads as flight, but a knee bend (world split thigh and shin into separate pieces for exactly
 this) would make it read properly. That needs a knee pivot in `AvatarBuilder` (world owns it),
 so a request went to world. Not judged in motion by a human yet; tune by eye from the clip.
+
+## 2026-11-23 — animation-live
+Builds on the groundwork PR (skeleton, clips, `AvatarAnimator`), now that #171's traveller is on main.
+
+- `AvatarBuilder.build()` now returns the root with a posable "Skeleton" (one skinned mesh) and the name tag. `parts()`, `rig()` and `LIMB_PIVOTS` are unchanged, so every looks test and seed still holds. `AvatarBuilder.skinned(seed)` gives the skeleton alone.
+- Skinning (`AvatarSkeleton.skin_parts`): each vertex is weighted along its chain by where it sits at rest, blended across each joint over ±3.5 cm. That makes an elbow, a knee or the waist bend as one smooth piece. Head gear (anything centred above 1.57 m) rides the head whole, and the pack and bedroll ride the chest whole, so they never shear. The skeleton's forearm and hand joints follow #171's 0.09 rad arm splay, so elbows bend where the sleeves are.
+- **One draw call per traveller instead of five.** The client smoke test at spawn went from 251 to 243 draw calls at noon (two travellers in view).
+- `client.gd` steps an `AvatarAnimator` per avatar (with the gather node, as GatherSwing had) and applies it to the skeleton. `WalkAnim` and `GatherSwing` are no longer used by the client. GatherSwing's static helpers (stroke shapes, `face_yaw`, `style_for`) are still the source for the gather loop. `Footsteps` takes any animator with WalkAnim's interface.
+- New bot behaviour `client_avatar_animator`: runs the animator on the live snapshot stream for every avatar in view and cycles one avatar through down, getup, sit and stand. 8 bots × 180 s passed, with every body state reached.
+
+Not done yet:
+- Swings (v7) aren't hooked up, because #180 isn't merged.
+- Jump, rest and a visible knock-down wait on gameplay's v8 events (`docs/workstreams/gameplay.d/from-client-animation-events.md`).
+- No `height` is passed to the animator yet. Smoothing lag on a slope would read as "airborne", so pass it only for real server jumps.
+- The old `client_walk_anim` and `client_gather_swing` bot behaviours and their unit tests still test the retired classes. They're harmless; qa can retire them.
+
+## 2026-11-24 — livelier-idle
+**What:** the owner said "I think the problem is how stiff they look". The idle was a near-rest pose with millimetre breathing, so a standing traveller looked like a soldier at attention. `AvatarClips.idle` now stands at ease: the weight on one leg (`idle_weight`, shifting to the other leg every 8 s over about 1.5 s), the hips tilted 0.06 rad over the standing leg with the shoulders tilted against them, soft elbows (0.26 to 0.38 rad), hands turned in, the free foot resting 7 cm forward with a soft knee, and the head turned a little. `client.gd` starts each avatar's animator clock from its appearance seed, so friends standing together never sway in step.
+
+**Tried:** a 3 cm raised free heel read well in stills but fails the "ankles on the ground" check, and the sagittal leg IK can't bend one knee alone, so the free foot steps forward instead.
+
+**Known:** the sculpted-body test camp also gives each archetype its own stance (elder stoops, smith stands wide); that belongs in the idle once looks carry an archetype. Shots: `/mnt/project-files/art-direction/less-stiff/`.
+
+## 2026-11-24 — model-direction
+**What:** the owner liked the sculpted test-camp characters ("this is a way better start") and asked to "fine tune our models more, give them direction". Art bible section 3, "Characters", is rewritten as the model direction: one continuous sculpted body (round cones and ellipsoids blended in a distance field, surface nets, cut down with meshoptimizer), proportions on today's skeleton, build as one `bulk` number, faces, clothing layers with straight hems, four archetypes, colour, and a new cost of 1 draw call and at most 5,000 triangles. Two new rows in section 11 (skull faces, saw-tooth hems and sack coats).
+
+**What didn't work (in the scratch sculptor):** cut eye sockets went black and read as a skull; hollow cheeks did the same. Painting eyes and brows on a full jaw fixed it. Picking colour per triangle gave saw-tooth borders; slicing triangles along the hem planes and painting by position gave straight ones. A rounded coat skirt read as a sack around both legs; a flat cut (`ymin`) fixed it. Forearms melted into the belt and got painted as belt; forearms and hands are now their own blend group joined by a hard min, and own their surface.
+
+**Known:** the scratch body is about 16,000 to 18,000 triangles after slicing and takes about 28 s to build. The in-game version must paint before cutting down and cache built looks (backlog note).
+
+**Shots:** `/mnt/project-files/art-direction/overhaul/model-direction-sheet.png`.
+
+## 2026-11-24 — painted-surfaces
+**What:** first step of moving the owner-approved test-camp look into the game ("lets try it"), textures and lighting; grass and the new characters follow as their own PRs.
+- `SurfaceTex` (procgen): four 64 px brightness-only detail images made in code (ground, bark, stone, wood), mean 0.5 so they never shift a colour's brightness, mipmapped.
+- Emberlight: one optional `paint_tex` sampler, triplanar on the world normal, `paint_mix` 0 by default. `Emberlight.painted(kind)` gives one shared material per kind. Terrain is painted "ground"; scatter trunks, birch bark, node trunks and stumps "bark"; rocks, mossy rocks and node stones "stone". World materials 12 -> 14 (ceiling raised on purpose in render_baseline.json; same draw calls and primitives, +0.02 MB textures).
+- Light: sun energy by day 1.0 -> 1.3 (`SkyClock.DAY_LIGHT`), noon sky keys bluer with a cooler horizon, fog 0.006 -> 0.0045 (still ~93% solid at the 600 m draw distance), height haze 0.035 -> 0.02. SSAO (half resolution, low quality) on Medium and High via `Quality.ambient_occlusion()`; Compatibility ignores it.
+
+**Tried:** detail at 0.45 mix and 0.5 repeats/m was invisible on the CI (Compatibility) shot and barely there on Forward+; 0.7 / 0.6 reads. Plain nearest filtering shimmered in the distance, so the images are mipmapped (`filter_nearest_mipmap`).
+
+**Known:** the noon style check now notes warmth 0.051 vs baseline 0.123 (-0.072, under the 0.08 "big" limit): the noon frame is cooler and bluer on purpose. Golden hour is unchanged. Workbench and campfire wood/stone are not painted yet (follow-up). Shots: `/mnt/project-files/art-direction/in-game-look/` (Forward+ on lavapipe, before on top).
+
+## 2026-11-24 — quiet-hud
+**What:** the owner's top client ask (art bible sections 9 and 11, "Bold outlined yellow floaters and banners"). New `HudStyle` (`game/client/hud_style.gd`) holds the HUD's one look: `EMBER` (= `Palette.EMBER`) as the only accent, `XP` a calmer step of it, warm parchment `TEXT`, sage `OK` / brick `SHORT`, warm-grey `PANEL` at 0.82, `quiet_label()` (2 px edge at 60% warm-dark + 1 px shadow, no 5 to 8 px black outline) and `theme()` (warm buttons, fields, panels, separators, tooltip, progress bars in place of Godot's blue-grey). Every HUD piece now takes its colours from it: toast 18 -> 15 px, XP floater 16 -> 14, notice 20 -> 17, banner title 34 -> 24 with a 40 px badge, a 0.92 -> 1.0 ease-out settle instead of the 0.6 -> 1.08 bounce, notice pop 1.12 -> 1.04. Windows (workbench, pack, skills, players, F1) lost their ember frame for the warm-grey panel. Chat gets its own lighter, edgeless panel because it is always on screen.
+
+**What didn't work:** a soft blurred shadow (`shadow_outline_size` 2) looked nicest but broke canvas batching: the smoke render budget went from 265 to 471 draw calls at noon (+74%, over the 300 ceiling). Switched to a thin outline plus a plain offset shadow, back to 269 (main 265). Never use `shadow_outline_size` on HUD labels; the unit test now guards it.
+
+**Also (requests, as bug fixes):** `client_vitals_bar` resets `_full_for` on every vitals change (gameplay's hp-0 request), the pack window test counts slots with `PackWindow.slot_count(ITEM_ORDER.size() + 1)` (gameplay's hunt-toast request), and the workbench window and its bot use `Crafting.workbench_xz()` (gameplay's kingdom-placement request).
+
+**Known:** the level-up text on top of world's bright `LevelUpFx` beam at noon reads weaker than before, because the beam itself is very bright (art bible 11 already lists it as "next: subtler"); request sent to world. Banner `DURATION` stays 1.9 s (the art bible's "about 3 s" conflicts with the design bible's under-2-s level-up moment and the XP hold timing; left as is).
+
+**Shots:** `/mnt/project-files/client/quiet-hud/` (toast noon/night/golden, level-up noon/night, workbench, notice; before left, after right).
+
+**Next run:** the attack key (next item) builds its swing prompt and "winded" refusal on `HudStyle` from the start.
+
+## 2026-11-24 — zombai-downloads
+- CI now publishes `ZombAi-<os>.zip` and `ZombAi-<os>.pck` instead of `AiMMO-*`. The owner saw the old names on the release page and asked.
+- Safe for installed games: the updater fetches `files.<os>.name` from `update.json`, never a hard-coded name, and stores packs as `user://updates/<build>-<name>`, cleaning any other `.pck`. New unit test: a game cached on an `AiMMO-linux.pck` downloads `ZombAi-linux.pck`.
+- Not renamed: the executables inside (`AiMMO.exe`, `AiMMO.x86_64`, `AiMMO.zip` export path), guarded by `test_rename_keeps_player_data.gd`.
+- When a week's release already exists, CI uploads with `--clobber`, which never removes old names, so it now deletes the six `AiMMO-*` assets after uploading. Harmless no-op once they're gone; worth deleting that loop in a few weeks.
+
+## 2026-11-25 — attack-key
+**The attack key (builder, ws/builder/attack-key).** Protocol v7's swing was on the server and half on the client (the animation on `swing_begun`, the "winded" refusal); nothing sent `c2s_attack`. Now it does.
+
+- `game/client/attack_input.gd` (`AttackInput.decide`) is the whole "which click does what" table, pure and unit tested: left click on a gatherable node you aim at gathers (or keeps chopping), anywhere else it swings light; right click (new `click_heavy` action, `DEFAULT_MOUSE`) always swings heavy; a swing mid-gather sends `c2s_gather_cancel` first (unless E/moving already cancelled that frame). Clicks are dropped while your own swing plays (`_swing_until`, set from your own `s2c_swing`) and within `MIN_GAP` 0.15 s of the last send, so a mashed button never draws a stream of "busy".
+- Decision: a click on a node you **can't** gather (spent, or skill too low) now swings instead of ticking "miss". The miss tick still plays only when a click did nothing at all (throttled, mid-swing clicks are silent).
+- Yaw: `ActionCamera.facing_yaw(cam.move_yaw())`, the same heading `c2s_input` sends while moving, so you swing where the camera looks.
+- Sound: `Sfx.whoosh(heavy)` (band-passed noise sweeping down; heavy 0.26 s, light 0.16 s) played at the blow (`AttackInput.blow_delay`, the windup stretched like the animation), flat for you and a 3D "Whoosh" player on other avatars (falls off over `Footsteps.HEAR_RANGE`). `Sfx.thwack()` when your `s2c_swing_hits` has anyone in it.
+- Flinch: every grazer id in `s2c_swing_hits` gets `GrazerFigures.bolt()` at once (dust and a snort). The server's next `s2c_wildlife` also bolts it, which can puff dust a second time; it reads as one panicked burst, so left it.
+- Bot test: no new bot behaviour; the input is client-only and `gameplay_first_swing` already drives `c2s_attack` end to end on the wire. Unit tests: `test_client_attack_input.gd` (7 tests).
+
+**Not done / next:** no local prediction of your own swing: the animation and whoosh wait for the server's echo (one round trip; fine on one region, but over 100 ms on a far connection breaks the "answers within 100 ms" rule). Predicting needs the stamina check client side so a "winded" swing isn't shown. Holding right click doesn't repeat heavies (press only). No hit-stop or camera kick on a landed blow yet; worth a small follow-up once the walker is on screen.
+
+CI fix (next builder run, 2026-11-25): the PR's first bot test failed on
+`gameplay_skills_v4` ("14 gathers paid out but only 13 gathering s2c_xp"). Not this PR's code:
+a bot brought down a grazer, and since the first hunt (2026-11-24) a kill's drops come as
+`s2c_gather_result` with no gathering XP. The check now skips hunt drops (`Wildlife.drops`
+items) and still matches every timed gather against its XP. It only shows when a bot happens
+to land a kill, so it was flaky on main too.
+
+## 2026-11-25 — clean-fight
+Owner: "no silly text when a zombie chases you and you knock it down", "cleaner animations",
+"I shouldn't be able to run backwards".
+
+- Removed every centre notice from a fight: the first-grab hint, "Zombai down.", the winded/tired
+  swing refusal (the stamina bar flash and nope stay), and the knocked-down sentence. The
+  knock-down is now a dark shade that lifts on you lying there, then AvatarAnimator.get_up()
+  (new `lie_down()`; getting up is cut short if you walk off after GETUP_MIN).
+- Movement.limit_for_facing caps a move by its angle to the facing: 1.0 ahead, 0.75 sideways,
+  0.38 straight back (2.3 m/s, inside the gait's walk band). Client caps before predicting and
+  sending; the server caps every c2s_input again (idempotent, so prediction agrees).
+- AvatarAnimator: smoothed velocity gives the line of travel; past ~110 deg off the facing the
+  stride phase runs backwards (a backpedal, no moonwalk), with hysteresis; strafing turns the
+  Hips toward the travel and the Spine/Chest back so the shoulders stay square.
+  Your body also turns into a swing at once (it used to swing at the old heading).
+- ZombaiView: position blend is linear (smoothstep pulsed the pace 5x a second); facing keeps
+  the eased blend. A late s2c_gloam that says "hunt" within STAGGER_HOLD of a heavy blow no
+  longer cancels and restarts the stagger.
+- ZombaiFigures: stride phase per metre now comes from the gait's cadence at the leg speed
+  (ZombaiBody.strides_per_metre), so feet no longer skate at day (1.8) or night (3.4) pace.
+- anim_strips.gd: new `backpedal` and `strafe` clips and a checker floor.
+
+Didn't do: a hit-pause / camera kick on blows, a side view in the real-client recording (free
+look didn't hold the camera from a script). Next: walkers grab every ~1.3 s and can chain a
+knock-down quickly; worth a look at GRAB_RECOVER with the owner's feel in mind.
+- CI: the image test's play container now runs with AIMMO_GLOAM=0 like the bot test's --gloam=0; a walker rising on its own grabbed an image-test bot mid-check and failed gameplay_vitals' '/hurt 30 from full' (55/100 = 100 - 30 - 15).
+
+## 2026-11-25 — follow-the-server-world
+`net.world_config` (s2c_world, protocol v9) had no listener: the client always drew Ashgrove.
+`Client._on_world_config` now applies the config and, only if it differs from the world built
+at start, builds the new world, moves avatars, herds and the Zombai into it and frees the old
+one. Ashgrove's server sends Ashgrove's config, so nothing changes on the live world today.
+
+`WorldSolids` (the camera's decoration solids) now rebuilds when the world config changes; it
+used to keep the first world's solids forever.
+
+Joining a 3 km island takes about 6 s of building on the main thread in this container (no
+cover yet; the terrain itself streams). Next: work out node spots, props and flora on a thread
+behind a short "washing ashore" cover, then build. Test: `test_client_world_config.gd`.
+
+## 2026-11-25 — grass
+**What:** second step of moving the owner-approved test-camp look into the game (textures and lighting were #219; the new characters follow). `Grass` (procgen) is one MultiMesh of crossed-card tufts (4 triangles each) with an alpha-cut 64 x 32 blade sheet made in code, brightness only; the colour of each tuft is the ground colour under it (`Palette.ground_at`), a touch lighter and leaning straw.
+- Cells of 8 m; `Grass.cell(cx, cz, density)` is pure and deterministic (seeded by cell and world seed) and returns the MultiMesh buffer directly. Ground is sampled on a 1 m grid per cell (height, growth, colour) and tufts are interpolated between samples: about 0.8 ms a cell in GDScript on Ashgrove.
+- `_Field` follows a point 9 m ahead of the camera, keeps the cells within 24 m (+ a cell) built, 2 new cells a frame after the first fill, and joins them into the one buffer only when the set of cells changes. Tufts shrink into the ground over the last 7 m (shader, `center` uniform), so turning the camera grows grass in at the edge instead of popping it.
+- Grows where `Grass.growth()` says: above water + 1 m, slope < 0.45 (1 - normal.y), Ashgrove below the snowline with half density in the pine band; a kingdom by biome (farmland 1, moor 0.8, forest 0.45, stone hills 0.35, none on shore and snow) and off the roads. No turf where the ground colour is worn earth or sand (r > 1.12 g). A patch noise clumps it.
+- Material: its own shader (Emberlight's banded light and SHADE shadow, night green drain, Compatibility encode), normals forced up so blades light like the ground, no shadows. Graphics: `Flora.quality_density()` (Low 0.5), polled every 0.5 s.
+- Budget: +1 draw call, ~30k triangles (noon primitives 460k -> 491k, night 494k -> 524k), materials 14 -> 15. Ceilings raised on purpose: primitives 560k (art bible 600k), materials 15 (art bible 24). Baseline reset. Style baseline rewritten on purpose: the noon frame is greener (warmth 0.12 -> 0.04, still above the art bible floor of 0).
+- Also: `WorldBuilder` read `Quality.ambient_occlusion()` by class name from procgen; it now loads `res://client/quality.gd` by path like Flora does, so procgen keeps parsing where `client/` is left out. (`Motes` still references `Quality` by name: same follow-up.)
+
+**Tried:** the first blades were too pale (brightness x1.6, tips lightened 0.12-0.22): they read frosty white at night and bleached at noon. Now x1.15 with darker tips. Leaning harder on straw barely moved the style check's warmth (0.032 -> 0.036): the green is the grass itself.
+
+**Known:** the edge of the grass ring is visible as a soft line about 30 m ahead in open meadow. Players and grazers don't bend the grass yet. Grass can grow under a placed campfire. Shots: `/mnt/project-files/art-direction/in-game-look/grass-*.png` (Forward+ on lavapipe, before left).
+
+## 2026-11-25 — zombai-walkers
+The Zombai walkers in the game, end to end (owner ask, 2026-11-25: "we just need the Zombai and they need to work like zombies ... nothing fancy just the basics")
+
+What shipped:
+- `ZombaiView` (client/zombai_view.gd): HerdView's smoothing for `s2c_gloam`, plus windup timing
+  from the server's `windup_left` (arms reach the top exactly when the grab closes), blows from
+  `s2c_gloam_hits` (flinch, heavy = stagger at once), and bodies: a walker put down stays as a
+  body for LIE_SECONDS, sinks for SINK_SECONDS, then drops. A late `s2c_gloam` that still lists
+  a downed walker never stands it back up.
+- `ZombaiBody` (procgen/zombai_body.gd): the walker is the traveller's own body and skeleton,
+  drained (art bible: grounded, real proportions; vision: "the Zombai grey and ash-cold, the
+  living warm"). Ash-grey flesh from COLD_ASH and ROCK, dark sunken eyes, cloth desaturated and
+  darkened, pack and bedroll removed. 4 variants built once, shared by every walker. Poses as
+  AvatarClips poses: shamble (hunch, lolled head, one arm half reaching, one dead, hitch in the
+  step, on the traveller's planted-feet gait), grab(k) (both arms up by half the windup, lunge
+  in the last fifth), stagger, fall (the knock-down without breathing).
+- `ZombaiFigures` (client/zombai_figures.gd): one node + skinned mesh per walker in view (one
+  draw call each, at most Gloam.MAX_WALKERS); a voice each: a groan every few seconds (more
+  often once hunting), a rasp on the windup, a thud as a body lands. `Sfx.groan(variant)`,
+  `Sfx.rasp()`.
+- client.gd: `gloam_changed` / `gloam_struck` wired; your own connecting blow on a walker now
+  smacks (it never did: walker hits come in `s2c_gloam_hits`, not `s2c_swing_hits`); "Zombai
+  down." centre screen when yours goes down; the first raised grab within 3 m of you each
+  session explains itself ("Its arms are up: step back, or hit it first.").
+- Server: walkers now rise on their own by default (`parse_gloam`: unset is on;
+  `--gloam=0` / `AIMMO_GLOAM=0` turns them off). So the live Railway world has them as soon as
+  this deploys. Player-facing name is "Zombai" (`Gloam.KINDS.walker.label`, the /gloam reply);
+  the code keeps "Gloam".
+- Tests: `test_client_zombai.gd` (view, body, poses, figures' pose choice, sounds);
+  bot behaviour `client_zombai` (the client's view matches the wire, windups, bodies).
+  `gameplay_gloam` and `test_gameplay_gloam` updated for the new name and default.
+- Checked in the real client under xvfb (opengl3): /gloam, it shambles up, arms up with the
+  hint, three haymakers, it goes down and lies there. Shots in the project files under
+  `zombai/`. `tests/client_smoke/zombai_shots.gd` is the script (not in CI's run.sh).
+
+Not done / next:
+- No dodge key (gameplay has no `c2s_dodge` yet).
+- No death moment beyond the existing knock-down to Spawn Meadow.
+- Walkers are drawn without a distance fade; they only exist near players anyway.
+- Bodies are client-only: two players see the same body only because they both saw the blow.
+
+## 2026-11-26 — carved-characters
+**What:**
+- The goofy cartoon folk (#238) were in game for under an hour. Then the owner said: "Now that i look at it i want to go with B clean carved real proportions".
+- `Carved` (`game/procgen/carved.gd`) replaces `Toon` on survivors and Zombai.
+
+**How it's built:**
+- It runs on the real `AvatarSkeleton`, with no leg scaling. `AvatarAnimator.leg_scale` and `apply_pose(..., root_scale)` stay in, but are set to 1.
+- Parts are 6- and 7-sided tapered prisms, faceted 7x5 balls and blocks (`PrimitiveMesh.get_mesh_arrays()`, which works headless).
+- Each part rides one bone and all parts merge into one skinned mesh.
+- Normals are flat, one per face, oriented to the primitive's own normals.
+- It uses the "carved" Emberlight material with the grain and brush set to 0. This replaces "folk", so the material count stays at 16.
+
+**Numbers:**
+- About 1,100 to 1,200 triangles per survivor and about 1,000 per walker.
+- About 3 ms to build one.
+
+**Known:**
+- The hood is a faceted ball set back from the face, with a cowl on the shoulders and a cloak. From the front, in undyed wool, it can read close to hair. A peaked hood is a possible follow-up.
+- `ZombaiBody.parts()`/`mesh()` and `AvatarBuilder.parts()` are still only used by tests. The cleanup follow-up stands.
+- The island-look thread is turning on world-wide flat `facets` and turning the grain off by default in Emberlight. The carved figures already have flat normals and no grain, so either order of merge is fine.
+
+## 2026-11-26 — goofy-folk
+**What:** I replaced the sculpted traveller (#229) with `Toon` (`game/procgen/toon.gd`), on survivors and the Zombai. The owner saw the sculpted body in game and said it "doesnt look good at all", then "we can make them funny" and asked whether "super small" would be easier. I rendered three directions in the meadow with the game's lighting: A small and chunky, B clean carved low poly, C goofy cartoon. The scratch script was `zz_scratch/dirs.gd`, and the shots are in `/mnt/project-files/art-direction/character-directions/`. The owner picked **C**.
+
+**How:**
+- Each figure is made of primitive parts (ball, capsule, cylinder, from `PrimitiveMesh.get_mesh_arrays()`, so it works headless). Each part rides one bone rigidly, and the parts merge into one skinned mesh.
+- It uses smooth normals, one linear vertex colour per part, and the usual shade toward the feet.
+- It uses the "folk" Emberlight material with `texel_grain` and `brush` set to 0. The grain was the "pixel noise" in the owner's screenshot.
+- A survivor is about 4,100 to 4,300 triangles and a walker about 2,100. The walker builds with `ZOMBAI_DETAIL` 0.6, because up to 24 can be out at night.
+- A figure builds in about 15 ms, so the sculpting thread, the disk cache and `TravellerBodies` are gone. `Traveller` and `SculptField` are deleted.
+- On a player's machine, the old `user://travellers` cache folder stays on disk, unused and harmless. A future change could delete it on start.
+
+**Skeleton:**
+- `Toon.bones()` has `AvatarSkeleton`'s names and order with cartoon offsets.
+- The leg chain (hip height, hip drop, thigh, shin) is `AvatarSkeleton`'s scaled by `LEG_SCALE` 0.74. Because of that, the clips' two-bone leg IK, which is written for the 0.92 m hip, still plants feet when:
+  - the gait is drawn at `speed / LEG_SCALE`, and
+  - `root_pos` is multiplied by `LEG_SCALE`.
+- `AvatarAnimator.leg_scale` covers the first point and `apply_pose(..., root_scale)` the second. `ZombaiFigures` does the same for the shamble, and advances phase by `strides_per_metre(gs) / LEG_SCALE`.
+- Short legs therefore take quick little steps. This is in character.
+
+**What didn't work or was cut:**
+- The first `Toon` pass was over 5,000 triangles (5,300 to 5,500). I fixed this with a `_detail` scale on segment counts.
+- `_detail` is a static var set at the top of `parts()`. It is not thread-safe, which is fine for now because nothing builds off the main thread.
+- Hood: the ball sits behind the head, so from the front the hood shows mostly as a rim. It reads well from behind thanks to the tail and cloak.
+
+**Known:**
+- `ZombaiBody.parts()` and `ZombaiBody.mesh()`, which build the old kit-of-parts walker, are now unused by the game. `test_client_zombai` still checks them. Delete both together in a cleanup.
+- `AvatarBuilder.parts()` is likewise only used by tests and the bots' look checks.
+- The appearance window's camera (`look_camera`) still aims at 1.15 m. That frames the shorter figure's chest and head fine, but it is worth a check in the window.
+
+**Next:**
+- Give the cartoon body a little more bounce in the clips (squash on landing, a wobble in the belly) without going floaty.
+- Expressions: blink, and a surprised look when a Zombai grabs.
+
+## 2026-11-26 — new-characters
+**What:** the owner-approved test-camp bodies (art bible section 3, the model direction) replace the kit-of-parts traveller on every player avatar. Owner, 2026-11-26: "How come our new character models arnt in yet?"
+- `SculptField` (procgen): the camp's `Sculpt` ported and made about 15x faster. Shapes live in packed arrays; the sampling box is split into 4-cell buckets that each list only the shapes whose padded bounds touch them, so a sample evaluates ~3-7 shapes instead of ~66. Forearms and hands stay their own blend group. New: `set_ymin` (flat hems) and `set_clip` (a cut plane, used by the cloak). Taubin smoothing on CSR adjacency, meshoptimizer LODs via ImporterMesh.
+- `Traveller` (procgen): the camp's `Figure` anatomy, parametrised by an Appearance: build -> bulk [0.95, 1.03, 1.11, 1.2]; face (narrow, square, round, strong brow) moves jaw, cheeks and brow; hair (cropped, shaved, tied back, shoulder length, braid, bald); beard (none, stubble as paint, short, full, moustache); headwear (bare, hood + scout cloak, felt cap). Unchosen looks use `Appearance.from_seed`. `geometry()` is pure and thread-safe (~1.5-2 s), `paint()` colours it in ~3 ms, so dyes, skin, hair colour and height reuse one sculpt (`shape_key`).
+- Paint borders: hem and seam planes are cut into the mesh only where they matter (regions per cut), keeping a body at ~4,200 triangles (budget 5,000). Above the armpit the sleeve/body border is one straight seam at |x| = 0.19 x bulk, not the nearest shape (that zigzagged across the deltoid). The pouch is painted as a rectangle. Neckline cut at 1.44.
+- `TravellerBodies` (client): one low-priority thread sculpts shapes in order (your own first); the avatar keeps its old body until then, a restyle keeps the previous sculpted body on screen, and the new mesh drops in on the same `AvatarSkeleton`, so every clip (idle, gait, swings, knockdown, sit) poses it unchanged. Finished shapes go to `user://travellers/<key>.bin` (zstd), so a shape is sculpted once per install; `Traveller.VERSION` in the key invalidates old ones. Screenshot test hooks wait for pending bodies.
+- Palette: `IRON`, `EYE`, `COAT` (were literals in the camp).
+- Budget: about +8k primitives at night (the body is drawn in the camera and two shadow cascades), under the 560k ceiling grass set. Draw calls and materials unchanged.
+
+**Tried:** the first port took 34 s a body (every sample ran every shape). Buckets were empty at first because a PackedInt32Array taken out of an Array is a copy: append to a local and store it back. The cloak first had a hole: its back reached z = -0.285, past the sampling box (-0.26); the box now starts at -0.34. The hood's cowl covered the chin; it now sits below it.
+
+**Known:** paint borders are still per triangle, so a few small edges (pouch corners, the lacing's top) are a little jagged up close. The scout's cloak is skinned to the hips and spine, so a long stride's thigh passes through its lower edge. No pack on the new body yet (the old one had a pack and bedroll). The Zombai still use the old kit (follow-up). Shots: `/mnt/project-files/art-direction/new-characters/`.
+
+## 2026-11-26 — washing-ashore
+Joining an island server builds the 3 km world on the main thread (about 6 s of node spots,
+scatter and flora data). Until that moves onto a thread, `ShoreCover` puts a plain dark screen
+with "Washing ashore" over it, so the join reads as arriving, not as a freeze or a crash.
+It is drawn once with `RenderingServer.force_draw` before the build (the build holds the main
+thread, so a normal frame would never show it) and fades out over 0.6 s after. Worlds of 1 km
+or less (Ashgrove) never show it.
+
+Next: thread the data warm-up so the cover is up for a second, not six.

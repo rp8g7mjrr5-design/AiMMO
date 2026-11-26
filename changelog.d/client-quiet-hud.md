@@ -1,3 +1,0 @@
-- The HUD got quieter: haul toasts, XP pop-ups, notices and the level-up banner now use smaller, calmer type with a soft edge instead of thick black outlines, and one warm ember accent instead of bright yellow.
-- Windows, buttons and the chat box share one muted warm-grey look, so the Pack, Skills, Players and Workbench windows feel like one worn satchel instead of the engine's blue-grey.
-- Level-ups settle in proudly instead of bouncing: same badge, level and unlock, without the shouting.
