@@ -132,8 +132,10 @@ triangle count. The surface is smoothed before it is cut down (no lumps or creas
 blend) and shaded softly, with hard edges only at hems, belts and real folds (owner, 2026-11-24:
 "they need smoothing out a little"). The silhouette stays low-poly and firm; no seams at the
 shoulder or hip. Forearms and hands are their own blend
-group, so a hand hanging by the belt never melts into the hip. The test camp's sculptor
-(`Sculpt` and `Figure`, scratch today) is the reference until the in-game version lands.
+group, so a hand hanging by the belt never melts into the hip. In the game this is
+`Traveller` (the anatomy, paint rules and skinning) on `SculptField` (the soft shapes, surface
+nets, smoothing and cut-down), built off the main thread and cached by the client's
+`TravellerBodies` (2026-11-26).
 
 **Proportions** (the 18-bone `AvatarSkeleton` sets the joints; never move them):
 - **About 7 heads tall.** A 1.78 m adult with a 0.25 m head. Never chibi, never a doll,

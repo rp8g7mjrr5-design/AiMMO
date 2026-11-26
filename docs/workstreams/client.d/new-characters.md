@@ -1,0 +1,5 @@
+- [x] The sculpted traveller in the game: `Traveller` + `SculptField` (procgen), `TravellerBodies` (client), every look mapped (owner, 2026-11-26).
+- [ ] Follow-up: the Zombai on the same sculpted body with the ash-cold palette and torn layers (art bible section 3), replacing `ZombaiBody`'s kit parts.
+- [ ] Follow-up: a trade-layer choice in the appearance window (jerkin, coat, apron, cloak; `Traveller.style` already sculpts coat and apron), as a new Appearance key at the end of ORDER with a protocol bump.
+- [ ] Follow-up: a pack and bedroll on the new body's back (the old traveller had them; the back is what the camera sees).
+- [ ] Follow-up: sculpt the most common shapes ahead (from_seed looks) on the login screen so the first players you meet are already dressed.
