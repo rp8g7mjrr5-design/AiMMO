@@ -23,6 +23,8 @@ or a toy box, it is wrong for ZombAi.
 ### The five pillars
 1. **Grounded before cute.** Real proportions, real materials, real weight. Nothing is round
    because round is friendly; things are the shape their job and their age made them.
+   **Except the characters** (owner, 2026-11-26: "we can make them funny"): people and the
+   Zombai are goofy cartoon folk in the world's muted colours (section 3, "Characters").
 2. **Mood comes from light.** Atmosphere is built with light, not with brighter colours: clear
    sunny days with a strong sun and real shadows, rose dawns and dusks, and real night. No haze
    over the land. A good screenshot could be a painting of a bright, quiet day in an old
@@ -119,89 +121,52 @@ Rules of thumb:
   silhouette alone at 30 m. Tools and weapons are about 1.2x real size so they read in hand.
 
 ### Characters
-The owner's words (2026-11-24): "our dudes look fat and silly", then "less blocky", then "too
-sticky", then "this is a way better start" for the sculpted body in the test camp, and "fine
-tune our models more, give them direction". Characters are grounded adults who live
-outdoors: fit, weathered, dressed in layers that tell you their trade. This section is the
-**model direction**: every player, NPC, outfit and gear piece follows it.
+**Goofy cartoon folk** (owner direction, 2026-11-26). The sculpted grounded traveller shipped,
+and the owner said "this doesnt look good at all we need to rework our character entirely",
+then "we can make them funny" and "would it be easier for ai to make everything super small?".
+Three directions were rendered in the game (small and chunky, clean carved, goofy cartoon) and
+the owner picked the **goofy cartoon**. So the characters are the one place the game is
+allowed to be funny: the **world stays grounded** (pillars 2 to 5 still hold everywhere, and
+pillar 1 holds for everything that is not a person or a Zombai). Funny comes from shape and
+face, never from colour: the clothes, skin and hair keep the muted `Palette` dyes.
 
-**One sculpted body, not a kit of parts.** A character is one continuous surface, not boxes,
-cylinders or lofted segments stuck together. It is sculpted from soft shapes (round cones
-for limbs, ellipsoids for muscle and fat) blended so the joins melt, then cut down to a low
-triangle count. The surface is smoothed before it is cut down (no lumps or creases from the
-blend) and shaded softly, with hard edges only at hems, belts and real folds (owner, 2026-11-24:
-"they need smoothing out a little"). The silhouette stays low-poly and firm; no seams at the
-shoulder or hip. Forearms and hands are their own blend
-group, so a hand hanging by the belt never melts into the hip. In the game this is
-`Traveller` (the anatomy, paint rules and skinning) on `SculptField` (the soft shapes, surface
-nets, smoothing and cut-down), built off the main thread and cached by the client's
-`TravellerBodies` (2026-11-26).
+**The look** (`Toon`):
+- **A big round head on short legs**, about 1.6 m tall (times the look's height), hips at
+  0.68 m. A pear-shaped body: a round belly under a smaller chest, belted.
+- **A face that reads from the game camera:** googly eyes (bone-white `Palette.EYE_WHITE`
+  with dark pupils that look a little apart, a little different per person), bushy brows in
+  the hair's colour (heavy on "Strong brow"), a long droopy nose, ears, a small smile line.
+  Beards are real round mass on the jaw; moustaches a fat sausage.
+- **Noodle arms, big hands:** thin arms with a rounded shoulder, a leather cuff at the wrist,
+  and a big hand with three chunky fingers and a thumb. Short legs in big round boots.
+- **Back first:** a little leather pack with a bedroll on top, or the hood's long tail and a
+  wool cloak for the hooded. Hair styles are big simple shapes (a mop, a knot, a curtain, two
+  braids); a felt cap has a brim.
+- **Smooth toy shapes, flat colour, no grain.** Each part is a simple ball, capsule or
+  cylinder with smooth shading, one flat dye per part plus the usual darker-toward-the-feet
+  shade. The shared "folk" Emberlight material turns the texel grain and brush OFF: on a face
+  the grain read as pixel noise (owner's screenshot, 2026-11-26).
+- **The Zombai are the same folk, dead:** ash-grey flesh (`ZombaiBody.flesh`, never green),
+  clothes drained of colour, blank eyes with a pinprick pupil, a slack open mouth and the
+  wound they died of. The living read warm and the dead read cold at a glance.
 
-**Proportions** (the 18-bone `AvatarSkeleton` sets the joints; never move them):
-- **About 7 heads tall.** A 1.78 m adult with a 0.25 m head. Never chibi, never a doll,
-  never a barrel.
-- **A real build.** Shoulder joints 0.47 m apart with full deltoids over them, hips about 0.35 m, a chest
-  about 0.26 m deep. Upper arms about 13 cm thick, thighs about 20 cm. Mass sits in the chest,
-  shoulders, seat and calves; the waist stays narrower than the chest.
-- **Long legs, real arms.** Hips at half the height (0.92 m), shoulders at 1.42 m, hands
-  hanging to mid-thigh.
-- **Build is one number.** `bulk` scales girth, never height or joints: 0.95 is a lean scout,
-  1.05 is the default traveller, 1.15 to 1.2 is a woodcutter or smith. Body types in
-  customization are this number and nothing else, so every outfit fits every build.
+**Never:** bright or candy colours, glowing eyes, outlines, cartoon stars or effects, gore
+played for laughs, or anything copied from another game's characters (section 6). Goofy, not
+childish: they still live outdoors in a fallen kingdom.
 
-**Heads and faces read at 10 m, quiet up close:**
-- A full jaw and cheeks (no hollow cheeks: hollows read as a skull), a nose, a brow ridge,
-  ears that sit flat.
-- Eyes are two small dark slits under the brow, painted, not cut in (cut sockets go black
-  and read as a skull). Eyebrows are a thin painted band in a darker shade of the hair.
-- Beards are real mass on the jaw and chin, in the hair's colour, never a painted patch.
-- The hairline is a clean painted line across the forehead; hair is a cap with volume swept
-  back and over the ears. Every head has hair or a hood.
+**Skeleton:** the traveller's 18 bones and names (`AvatarSkeleton`), so every `AvatarClips`
+pose plays unchanged, at the toon's proportions. The leg chain is `AvatarSkeleton`'s scaled
+by `Toon.LEG_SCALE` (0.74), so the clips' leg IK still plants the feet: the animator draws the
+gait at speed / LEG_SCALE (short legs take quick little steps) and scales the root's offset
+by LEG_SCALE.
 
-**Clothing is layers, and hems are straight:**
-- Order from skin out: shirt (dyed `Palette.CLOTH`), trousers (`TROUSERS`), boots (`LEATHER_DARK`
-  with a turned-down cuff), then the trade layer (jerkin, coat, apron, hood and cloak), then
-  the belt (`LEATHER_DARK`, an iron buckle) with a pouch and a knife at the back hip.
-- Every layer that sits over another is sculpted slightly proud of it (a few millimetres to
-  a few centimetres), so it casts its own shading. Paint alone does not make a layer.
-- **Hems and colour borders are straight lines** at set heights: boot top 0.36 m, cuffs, belt
-  at 1.0 m, shirt hem 0.93 m, coat hem 0.6 m, apron hem 0.64 m, neckline 1.44 m. A garment's
-  lower edge is cut flat, never a rounded sack. Ragged, saw-tooth borders are a bug.
-- Sleeves: full to the wrist with a leather bracer, or rolled to the elbow for heavy trades.
-- Nothing is skin-tight: cloth hangs a little off the body and gathers at the belt.
+**Cost:** one skinned mesh per figure on the shared folk material: 1 draw call, about 4,000
+triangles for a survivor (at most 5,000) and about 2,100 for a walker (up to 24 at night).
+A figure builds in about 15 ms of GDScript, so there is no sculpting thread or disk cache.
 
-**Archetypes** (the reference lineup; customization and NPCs start from these):
-
-| Archetype | Build | Silhouette from behind | Layers |
-|---|---|---|---|
-| Woodcutter | 1.14 | broad shoulders, beard | dyed shirt, rolled sleeves, leather jerkin |
-| Scout | 0.96 | hood and a cloak to the knee | hood, cloak, bracers, no jerkin |
-| Elder | 1.06 | long coat to the knee, grey beard | coat over the shirt, belted |
-| Smith | 1.2 | heaviest build, apron front | pale shirt, rolled sleeves, long leather apron |
-
-**Colour and surface:**
-- Flat colour per region in vertex colour (converted to linear, as `Emberlight.paint` does),
-  plus a fine texel grain (about 1.8 cm) so cloth never looks like bare plastic.
-- Muted, earthy and slightly dirty: no bright primaries, no pure colours, no glow. Ember on a
-  character is reserved for gear that does something, later.
-- The Zombai use this same body with the art bible's ash-cold palette and torn layers, so the
-  living read warm and the dead read cold at a glance (`docs/vision.md`).
-
-**Silhouette, read from the back first** (the action camera sees the back all game): head
-covered by hair or a hood, a readable trade layer (jerkin, cloak, coat or apron), a belt with
-gear, and later a pack. Players should read "someone who lives out here" at 20 m. Nothing
-hangs where an arm or leg swings through it.
-
-**Cost:** one skinned mesh on the shared Emberlight material: 1 draw call for the body (plus
-1 for a held tool), at most 5,000 triangles. The sculpt and the paint happen once per look and
-are cached (a body takes seconds to build in GDScript, so it is never built in a frame). Paint
-borders are kept when the mesh is cut down, so the straight hems survive the budget. The old
-five-mesh traveller was 5 draw calls and 2,300 triangles; the new body spends a few more
-triangles and far fewer draw calls.
-
-**Animation** is its own piece of work (the owner asked for it on 2026-11-24): the same
-skeleton, weighty and grounded. Weight shifts onto the planted foot, swings wind up before
-they land, nothing snaps.
+**Animation** is its own piece of work (the owner asked for it on 2026-11-24): weighty, with
+the weight on the planted foot, swings that wind up before they land, nothing snaps. The
+cartoon body can take a little more bounce later, never floaty.
 
 **Creatures** are animals first: real gaits, real proportions, muted coats (the grazers'
 build is right; keep tails and markings understated).
@@ -430,7 +395,8 @@ reintroduces them.
 | Bright cyan and primary tunics | Toy colours | **Fixed 2026-11-24**: `Palette.CLOTH` dyes |
 | Big bald orange head, black button eyes | About 3.5 heads tall, a doll's face | **Fixed 2026-11-24**: hair or a hood on every head, natural skin, a nose and quiet eyes |
 | Blocky mannequin bodies ("less blocky, more low res actual") | Boxes and cylinders, plastic flat colour | **Fixed 2026-11-24**: smooth lofted bodies and the low-res texel grain on everything (section 1) |
-| Fat, barrel-shaped bodies ("our dudes look fat and silly") | A 0.64 m wide capsule on short stubby legs | **Fixed 2026-11-24 (character overhaul)**: lean 7-head adults, tapered chest, long legs, layered survival gear (section 3, "Characters") |
+| Fat, barrel-shaped bodies ("our dudes look fat and silly") | A 0.64 m wide capsule on short stubby legs | **Fixed 2026-11-24 (character overhaul)**: lean 7-head adults, tapered chest, long legs, layered survival gear. **Superseded 2026-11-26**: the owner chose goofy cartoon folk on purpose (section 3, "Characters"); the colour rules still hold |
+| Pixel-noise faces and a hood that swallows the head (owner's screenshot, 2026-11-26) | The texel grain on a small face; a sculpted hood over the brow | **Fixed 2026-11-26**: the cartoon folk on a no-grain material, big readable faces |
 | Skull faces | Hollow cheeks and cut eye sockets go black under low light | **Direction set 2026-11-24**: full jaw and cheeks, painted eye slits and brows, real beards (section 3, "Characters"); lands with the sculpted body |
 | Saw-tooth clothing edges and sack-shaped coats | Colour picked per triangle; long garments as rounded tubes | **Direction set 2026-11-24**: straight hems at set heights, flat-cut lower edges, layers sculpted proud; lands with the sculpted body |
 | Postcard-cyan noon sky | Bright and flat, no mood | **Fixed 2026-11-24**: dusty blue. **Revised 2026-11-25**: a clean, deep sky blue with no haze (owner approved the test-camp look); still never flat cyan |

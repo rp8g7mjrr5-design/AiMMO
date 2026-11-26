@@ -18,7 +18,7 @@ hate about it, and how ours improves on it. Everything on screen follows the art
 
 **The basics first (owner direction 9, 2026-11-25).** Phases stay in order, but four pieces are
 pulled to the front of every backlog until they work end to end: character customization on the
-sculpted body, the Zombai walker and the first night (from Phase 2), the generated map (Phase 1),
+cartoon body, the Zombai walker and the first night (from Phase 2), the generated map (Phase 1),
 and ruins as landmarks with loot to search (the loot itself is pulled forward from Phase 4, at
 grades 1 and 2 only). Polish waits until those are playable.
 

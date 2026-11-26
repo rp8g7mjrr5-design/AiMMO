@@ -57,6 +57,10 @@ var stepped := false
 var foot := 0 ## 0 left, 1 right
 
 var speed := 0.0
+## The body's legs against AvatarSkeleton's (Toon.LEG_SCALE for the cartoon folk). The gait is
+## drawn at speed / leg_scale, so short legs take quicker steps and a planted foot still holds
+## still, and the pose's root offset is scaled by it in `apply`.
+var leg_scale := 1.0
 var phase := 0.0 ## stride phase 0..1, the left foot strikes at 0
 var clock := 0.0 ## seconds alive, for idle breathing
 var body := "move"
@@ -160,7 +164,7 @@ func step(delta: float, ctx: Dictionary) -> void:
 	_actions(delta, ctx)
 	# Stride phase: advance with cadence, and only count footsteps while really moving.
 	var before := phase
-	var f := AvatarClips.cadence(speed) if speed > 0.05 else 0.0
+	var f := AvatarClips.cadence(speed / leg_scale) if speed > 0.05 else 0.0
 	phase = fposmod(phase + delta * f * (-1.0 if backward else 1.0), 1.0)
 	if body == "move" and speed >= FOOTSTEP_MIN:
 		if backward:
@@ -321,7 +325,7 @@ func body_pose() -> Dictionary:
 		"stand":
 			return AvatarClips.stand_up(body_t)
 	# move: idle blended into the gait as speed picks up.
-	var g := AvatarClips.gait(phase, speed)
+	var g := AvatarClips.gait(phase, speed / leg_scale)
 	var still := 1.0 - clampf(speed / 0.8, 0.0, 1.0)
 	if still > 0.0:
 		return AvatarClips.blend(g, AvatarClips.idle(clock), still)
@@ -378,16 +382,18 @@ func pose() -> Dictionary:
 
 ## Put the current pose on `sk` (a skeleton built by AvatarSkeleton).
 func apply(sk: Skeleton3D) -> void:
-	apply_pose(sk, pose())
+	apply_pose(sk, pose(), leg_scale)
 
 
-static func apply_pose(sk: Skeleton3D, p: Dictionary) -> void:
+## Puts pose `p` on `sk`. `root_scale` scales the root's offset for legs of another length
+## (Toon.LEG_SCALE): a crouch or a fall is the same share of the hip height.
+static func apply_pose(sk: Skeleton3D, p: Dictionary, root_scale: float = 1.0) -> void:
 	for i in sk.get_bone_count():
 		var bone := sk.get_bone_name(i)
 		var e: Vector3 = p.get(bone, Vector3.ZERO)
 		sk.set_bone_pose_rotation(i, Quaternion.from_euler(e))
 		var rest_pos := sk.get_bone_rest(i).origin
 		if bone == "Root":
-			sk.set_bone_pose_position(i, rest_pos + p.get("root_pos", Vector3.ZERO))
+			sk.set_bone_pose_position(i, rest_pos + (p.get("root_pos", Vector3.ZERO) as Vector3) * root_scale)
 		else:
 			sk.set_bone_pose_position(i, rest_pos)
