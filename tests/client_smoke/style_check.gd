@@ -3,7 +3,7 @@ extends SceneTree
 ##
 ##   godot --headless --path game -s tests/client_smoke/style_check.gd -- \
 ##     --shot=noon=/abs/world.png --shot=night=/abs/world-night.png [--shot=low=/abs/world-low.png] \
-##     [--shot=controls=/abs/controls.png --shot=toast=/abs/toast-xp.png] \
+##     [--shot=controls=/abs/controls.png --shot=toast=/abs/toast.png] \
 ##     --out=/abs/style_stats.json [--sheet=/abs/contact_sheet.html] [--write-baseline]
 ##
 ## Measures each shot's world area (the HUD bands are masked out) and compares it with
@@ -43,7 +43,7 @@ const MIN_NIGHT_SAT := 0.12 ## a grey night lost its moonlight blue and its embe
 ## spawn shot drawn cheaper, and the art bible says the look must hold on Low, so it is held to
 ## noon's numbers (a big move away from them fails like it would for noon).
 const SAME_AS := {"low": "noon"}
-## Shots with the HUD open (the F1 overlay, a haul toast with its XP floater): only the hard
+## Shots with the HUD open (the F1 overlay, a haul toast): only the hard
 ## rules apply (ember stays rare, the frame is not black). No baseline: what they show is the
 ## client's to change.
 const HARD_ONLY := ["controls", "toast"]

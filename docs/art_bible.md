@@ -88,7 +88,7 @@ accent. Ember is rare on purpose: that is why it reads.
 | `TRUNK` | `(0.32, 0.25, 0.20)` | Weathered bark |
 | `PINE` | `(0.15, 0.27, 0.21)` | Dark spruce: pines are the shadows of the forest |
 | `ASH_LEAF` / `ASH_LEAF_DRY` | `(0.62, 0.31, 0.17)` / `(0.66, 0.46, 0.25)` | Ember ash crowns, rust to dry ochre. The valley's calling card |
-| `EMBER` | `#F2A541` | **The signature.** Glow on anything you can use: gatherable nodes, interactables, magic, level-ups. Never on plain decoration |
+| `EMBER` | `#F2A541` | **The signature.** Glow on anything you can use: gatherable nodes, interactables, magic. Never on plain decoration |
 | `EMBER_CORE` | `#FFD27A` | The hot centre of a glow, sparks, the brightest pixel of an ember vein |
 | `SMOULDER` | `#B5432A` | Deep ember red: dying embers, danger, the edge of a vein |
 | `COLD_ASH` | `#6E7A86` | The Dimming (section 4): drained, blue-grey ash |
@@ -394,29 +394,26 @@ The HUD is the frame, not the picture. It should feel like a field journal and a
 leather satchel, our own, never like another game's menus.
 - **Quiet by default.** Small, calm type; muted panels (dark warm-grey, about 70 to 85%
   opaque); no big saturated buttons. Colour in the UI is information (an ember accent for
-  "ready", `SMOULDER` for danger, a skill's own muted badge colour), never decoration.
+  "ready", `SMOULDER` for danger), never decoration.
 - **One accent.** The UI's accent is `EMBER`, used sparingly (a title, a ready button, a
   progress fill). Never rainbow progress bars, never neon text.
 - **Text, not shouting.** Toasts and floaters are short and sit near what they describe; no
   thick black outlines on big bold yellow type; no exclamation marks except real milestones.
-- **Level-up banners** are proud, not loud: the skill badge, the new level, the unlock in one
-  line, on screen for about 3 s.
-- **Ours, not borrowed.** Our own layouts, our own procedural icons (`ItemIcons`,
-  `SkillIcons`), Godot's bundled font until we generate our own. See section 6.
+- **Ours, not borrowed.** Our own layouts, our own procedural icons (`ItemIcons`), Godot's bundled font until we generate our own. See section 6.
 
 ## 10. Effects: restraint
 Effects mark moments. If everything sparkles, nothing does.
 - **Small and short by default.** Gather hits: a few chips or leaves and a puff, gone in about
   half a second. Pickups: one quick motion into the pack.
 - **Translucent light, not solid shapes.** Glows, columns and rings are soft and see-through;
-  you can always see your character through an effect (the level-up column was a solid gold
-  tube that swallowed the avatar; it is now a translucent shaft with half the sparks).
+  you can always see your character through an effect (the old level-up column was a solid
+  gold tube that swallowed the avatar; levels are gone since 2026-11-26, the lesson stays).
 - **Ember, not rainbow.** Effects use `EMBER`, `EMBER_CORE` and `SMOULDER`, plus the
   material's own colour (wood chips, stone dust). No rainbow rings, no pure yellow, no
   confetti, no cartoon stars or hearts.
-- **Scale with importance.** A gather is a whisper, a craft is a word, a level-up is the one
-  loud moment (design bible "Level-ups are moments") and even that stays inside the frame:
-  about 2 s, readable from across the meadow by its light, not by covering the screen.
+- **Scale with importance.** A gather is a whisper, a craft is a word, a first ember tool or
+  a horde night is the loud moment, and even that stays inside the frame: about 2 s,
+  readable from across the meadow by its light, not by covering the screen.
 - **Cheap.** Pooled, capped by quality, no per-frame allocation (section 7).
 
 ## 11. What reads as cheesy, and its status
@@ -435,7 +432,7 @@ reintroduces them.
 | Skull faces | Hollow cheeks and cut eye sockets go black under low light | **Direction set 2026-11-24**: full jaw and cheeks, painted eye slits and brows, real beards (section 3, "Characters"); lands with the sculpted body |
 | Saw-tooth clothing edges and sack-shaped coats | Colour picked per triangle; long garments as rounded tubes | **Direction set 2026-11-24**: straight hems at set heights, flat-cut lower edges, layers sculpted proud; lands with the sculpted body |
 | Postcard-cyan noon sky | Bright and flat, no mood | **Fixed 2026-11-24**: dusty blue. **Revised 2026-11-25**: a clean, deep sky blue with no haze (owner approved the test-camp look); still never flat cyan |
-| Solid gold level-up tube and red crystal sparks | Swallowed the avatar; arcade effect | **Toned down 2026-11-24**: translucent, fewer sparks, dimmer light. Next: rounder ember sparks instead of hexagon shards, a subtler ground ring |
+| Solid gold level-up tube and red crystal sparks | Swallowed the avatar; arcade effect | **Gone 2026-11-26**: levels were removed (design bible direction 5) |
 | Teal, green-lit nights | Neither moonlit nor dark | **Improved 2026-11-24**: navy and blue-grey, moon-blue fill. Next: check dark cloth reads on a real GPU (CI renders in software) |
 | Bold outlined yellow floaters and banners | Mobile-game shouting | **To do** (client): section 9 |
 | Thin black lamp posts with red boxes | Reads as a street lamp, not a wilderness lantern | **To do** (world): timber posts, iron and horn lanterns |

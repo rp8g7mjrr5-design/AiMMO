@@ -110,27 +110,23 @@ func test_command_queue_spaces_lines_past_the_cooldown() -> void:
 	bot.free()
 
 
-func test_first_level_up_counts_gathering_seconds() -> void:
+func test_gathering_seconds() -> void:
 	var m := FunMetrics.new()
 	m.start_play(0.0)
 	m.gather_begun(10.0)
 	m.gather_ended(13.0) # 3 s
 	m.gather_begun(20.0)
 	m.gather_begun(22.0) # restarted: 2 s counted, new one runs
-	m.level_up(25.0) # 3 s into the running one: 3 + 2 + 3 = 8 s of gathering
+	check_near(m.gather_time(25.0), 8.0, 0.001, "a running gather counts up to now")
 	m.gather_ended(26.0)
-	m.level_up(40.0)
 	m.stop_play(60.0)
 	var r := m.result()
-	check_near(r.first_level_up_s, 25.0, 0.001, "from first login")
-	check_near(r.first_level_up_gather_s, 8.0, 0.001, "only time spent gathering")
 	check_near(r.gather_s, 9.0, 0.001, "all gathering")
-	check_eq(r.level_ups, 2)
-	check_near(r.levels_per_10_min, 20.0, 0.001, "2 levels in 1 minute of play")
-	check_eq(r.feedback_events, 2, "a level-up line is feedback")
+	for k in r:
+		check(not str(k).contains("level"), "no level numbers: %s" % k)
 
 
-func test_gather_stops_at_disconnect_and_never_levelled() -> void:
+func test_gather_stops_at_disconnect() -> void:
 	var m := FunMetrics.new()
 	m.start_play(0.0)
 	m.gather_begun(5.0)
@@ -138,57 +134,7 @@ func test_gather_stops_at_disconnect_and_never_levelled() -> void:
 	m.gather_ended(30.0) # offline: nothing more
 	m.start_play(40.0)
 	m.stop_play(50.0)
-	var r := m.result()
-	check_near(r.gather_s, 4.0, 0.001)
-	check_near(r.first_level_up_s, -1.0, 0.001, "never levelled")
-	check_near(r.first_level_up_gather_s, -1.0, 0.001)
-	check_eq(r.level_ups, 0)
-
-
-func test_gathering_is_timed_per_skill() -> void:
-	var m := FunMetrics.new()
-	m.start_play(0.0)
-	m.gather_begun(0.0, "felling")
-	m.gather_ended(10.0) # 10 s felling
-	m.gather_begun(12.0, "quarrying")
-	m.gather_begun(15.0, "felling") # restart on another node: 3 s quarrying counted
-	m.level_up(20.0, "felling") # 10 + 5 s of felling when it levelled
-	m.level_up(30.0, "felling") # second felling level: first one is kept
-	m.gather_ended(30.0)
-	m.gather_begun(31.0) # unknown skill: only the total
-	m.stop_play(33.0)
-	var r := m.result()
-	check_near(r.gather_s_felling, 25.0, 0.001, "10 + 15 s of felling")
-	check_near(r.gather_s_quarrying, 3.0, 0.001, "the replaced quarrying gather")
-	check_near(r.level_gather_s_felling, 15.0, 0.001, "seconds in felling at its first level")
-	check_near(r.level_gather_s_quarrying, -1.0, 0.001, "quarrying never levelled")
-	check_near(r.gather_s, 30.0, 0.001, "the total still has every second")
-	check(not r.has("gather_s_"), "no key for an unknown skill")
-
-
-func test_level_up_without_gathering_still_reports_the_skill() -> void:
-	var m := FunMetrics.new()
-	m.start_play(0.0)
-	m.level_up(5.0, "toolcraft") # crafting levels, no gathering
-	m.stop_play(10.0)
-	var r := m.result()
-	check_near(r.gather_s_toolcraft, 0.0, 0.001)
-	check_near(r.level_gather_s_toolcraft, 0.0, 0.001)
-
-
-func test_level_up_skill_from_the_line() -> void:
-	check_eq(FunMetrics.level_up_skill("Felling is now level 2! Your gathers are a little quicker."), "felling")
-	check_eq(FunMetrics.level_up_skill(Skills.level_up_text(Skills.gain({}, "quarrying", 200))), "quarrying")
-	check_eq(FunMetrics.level_up_skill("Dancing is now level 2!"), "", "not a skill")
-	check_eq(FunMetrics.level_up_skill("You gather 2 ash wood."), "")
-
-
-func test_level_up_lines() -> void:
-	check(FunMetrics.is_level_up("Felling is now level 2! Your gathers are a little quicker. Next: Felling 5, Old ember ash."), "the level-up line")
-	check(FunMetrics.is_level_up(Skills.level_up_text(Skills.gain({}, "toolcraft", 200))), "Skills' own text")
-	check(not FunMetrics.is_level_up("You gather 2 ash wood."), "a gather line isn't one")
-	check(not FunMetrics.is_level_up("bot_3: Felling is now level 2!"), "chat isn't a level-up")
-	check_eq(FunMetrics.items_in("Felling is now level 2!"), 0, "not a reward")
+	check_near(m.result().gather_s, 4.0, 0.001)
 
 
 func test_command_queue_is_bounded() -> void:
@@ -253,10 +199,10 @@ func test_echo_needs_same_kind_count_and_time() -> void:
 	m.start_play(0.0)
 	m.expect_echo("gather", 10.0, 2)
 	check(not m.echo("gather", 10.1, 3), "different count: a separate reward")
-	check(not m.echo("level", 10.1), "different kind")
+	check(not m.echo("craft", 10.1, 2), "different kind")
 	check(not m.echo("gather", 10.0 + FunMetrics.ECHO_WINDOW + 0.1, 2), "too late: a /gather of its own")
-	m.expect_echo("level", 20.0)
-	check(m.echo("level", 20.0), "level-up line after s2c_level_up")
+	m.expect_echo("craft", 20.0, 1)
+	check(m.echo("craft", 20.0, 1), "same kind and count")
 	m.expect_echo("gather", 30.0, 1)
 	m.expect_echo("gather", 31.0, 1) # the 30.0 one expires when this is added
 	check(m.echo("gather", 31.2, 1), "the newer one is still there")

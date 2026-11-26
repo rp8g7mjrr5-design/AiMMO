@@ -19,8 +19,7 @@ func test_every_weapon_has_both_attacks_and_sane_numbers() -> void:
 		check(Weapons.damage(id, "heavy") > Weapons.damage(id, "light"), "%s: heavy hits harder" % id)
 		check(Weapons.swing_seconds(id, "heavy") > Weapons.swing_seconds(id, "light"), "%s: heavy is slower" % id)
 	for id in Weapons.ORDER:
-		check(str(Weapons.data(id).mastery) != "", "%s has a mastery skill" % id)
-		check(not Skills.ORDER.has(Weapons.data(id).mastery), "masteries are not live skills yet")
+		check(not Weapons.data(id).has("mastery"), "%s has no mastery skill: there are no levels" % id)
 
 
 func test_unknown_ids_fight_bare_handed() -> void:
@@ -81,12 +80,9 @@ func test_a_dodge_cancels_only_the_windup() -> void:
 	check(not Weapons.can_cancel("stone_maul", "kick", 0.0), "no such attack")
 
 
-func test_mastery_adds_a_little_damage_per_level() -> void:
-	var base := Weapons.damage("ash_spear", "light")
-	check_eq(Weapons.damage("ash_spear", "light", 1), base)
-	check_eq(Weapons.damage("ash_spear", "light", 0), base, "below 1 counts as 1")
-	check_near(Weapons.damage("ash_spear", "light", 11), base * 1.10, 0.001, "level 11: +10%")
-	check(Weapons.damage("ash_spear", "light", 100) < base * 2.0, "level 100 is a badge, not a one-shot")
+func test_damage_is_the_weapons_own() -> void:
+	# No mastery levels: a spear hits as hard on day one as on day ninety.
+	check_eq(Weapons.damage("ash_spear", "light"), float(Weapons.attack("ash_spear", "light").damage))
 
 
 func test_reach_and_arc() -> void:

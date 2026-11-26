@@ -1,7 +1,7 @@
 extends "res://tests/bot_test/bot_behaviour.gd"
 ## Client: system notices centre screen on a real server (chat is for talking). Each bot
 ## runs the client's NoticeLine on every s2c_system it gets, in the client's order (the
-## level-up banner and the gather prompt's echoes first), and pairs it with its own
+## gather prompt's echoes first), and pairs it with its own
 ## s2c_gather_end refusals as the client does. It checks what the player would see:
 ## - join and leave lines stay in chat, and nothing else does except long dev answers;
 ## - every other line shows centre screen with a headline, or is dropped only because the
@@ -49,8 +49,6 @@ func _on_ended(peer: int, node_id: int, reason: String) -> void:
 
 
 func _on_system(text: String) -> void:
-	if text.contains(" is now level "):
-		return # the level-up banner's line (client_level_up checks that one)
 	if PromptScript.is_echo(text):
 		return # the gather bar and toast's line (client_gather_prompt checks those)
 	lines += 1

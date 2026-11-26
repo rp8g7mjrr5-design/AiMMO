@@ -66,14 +66,13 @@ func test_v5_rpcs_reemit_on_net() -> void:
 	net.free()
 
 
-func test_roster_lists_everyone_sorted_with_total_level() -> void:
+func test_roster_lists_everyone_sorted_by_name() -> void:
 	var srv := _server({3: "mira", 7: "Bram", 9: "Cole"})
-	srv.sessions[7].character.skills = {"felling": Skills.xp_for_level(5), "quarrying": Skills.xp_for_level(2)}
+	srv.sessions[7].character.skills = {"felling": 1700, "quarrying": 150}
 	srv.sessions[10] = {"logged_in": false, "character": {}}
 	var r: Array = srv.roster()
 	check_eq(r.map(func(e): return e.name), ["Bram", "Cole", "mira"], "sorted by name, any case; not-logged-in left out")
-	check_eq(r[0], {"id": 7, "name": "Bram", "level": 5 + 2 + 1 + 1}, "level is every skill's level added up")
-	check_eq(int(r[1].level), 4, "a new character is total level 4")
+	check_eq(r[0], {"id": 7, "name": "Bram"}, "just who they are: no levels, old XP or not")
 	srv.free()
 
 
@@ -86,19 +85,6 @@ func test_roster_goes_to_everyone_once_per_tick() -> void:
 	check_eq(_sent(srv, 1, "s2c_roster").size(), 1, "one roster to Ash")
 	check_eq(_sent(srv, 2, "s2c_roster").size(), 1, "one roster to Bram")
 	check_eq((_sent(srv, 1, "s2c_roster")[0][0] as Array).size(), 2)
-	srv.free()
-
-
-func test_level_up_refreshes_the_roster() -> void:
-	var srv := _server({1: "Ash", 2: "Bram"})
-	srv.award_xp(1, "felling", 5)
-	srv._tick()
-	check_eq(_sent(srv, 2, "s2c_roster").size(), 0, "XP without a level changes nobody's panel")
-	srv.award_xp(1, "felling", Skills.xp_for_level(2))
-	srv._tick()
-	var got := _sent(srv, 2, "s2c_roster")
-	check_eq(got.size(), 1, "a level-up sends the roster")
-	check_eq(int((got[0][0] as Array)[0].level), 5, "Ash shows total level 5")
 	srv.free()
 
 

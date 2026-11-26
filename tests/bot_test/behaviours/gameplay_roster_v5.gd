@@ -3,8 +3,8 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## "Return to Spawn Meadow".
 ##
 ## Roster (s2c_roster): after every login one must arrive that lists us (our id and name);
-## every roster is sorted by name (any case), has no id twice, and every level is at least 4
-## (four skills at level 1). With other bots expected, some roster must list more than us.
+## every roster is sorted by name (any case), has no id twice, and carries no level (the
+## leveling system is gone, 2026-11-26). With other bots expected, some roster must list more than us.
 ##
 ## Return to Spawn Meadow (c2s_unstuck), twice per bot:
 ##   1. a second after the first login, still in the meadow: the server must say we are
@@ -65,15 +65,15 @@ func _on_roster(entries: Array) -> void:
 	var names: Array = []
 	var me := false
 	for e in entries:
-		if typeof(e) != TYPE_DICTIONARY or not (e.has("id") and e.has("name") and e.has("level")):
+		if typeof(e) != TYPE_DICTIONARY or not (e.has("id") and e.has("name")):
 			fail("bad roster entry: %s" % [e])
 			return
 		if ids.has(int(e.id)):
 			fail("peer %d twice in the roster" % int(e.id))
 		ids[int(e.id)] = true
 		names.append(str(e.name))
-		if int(e.level) < Skills.ORDER.size():
-			fail("%s has total level %d" % [e.name, int(e.level)])
+		if e.has("level"):
+			fail("the roster still sends a level for %s (there are no levels)" % e.name)
 		if int(e.id) == bot.my_id:
 			me = true
 			if str(e.name) != str(bot.bot_name):

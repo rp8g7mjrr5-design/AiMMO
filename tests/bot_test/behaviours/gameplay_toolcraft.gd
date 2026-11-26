@@ -1,16 +1,18 @@
 extends "res://tests/bot_test/bot_behaviour.gd"
-## Bot behaviour (gameplay): Toolcraft unlocks (Milestone 1 part 4).
+## Bot behaviour (gameplay): the ember axe is gated by things, never a level (owner, 2026-11-26).
 ##
 ## Once per login the bot asks for an ember axe with the hidden dev command "/craft ember
-## axe". No bot reaches Toolcraft 5 in a 3-minute run, so the server must refuse on the
-## level, wherever the bot stands, in the words players see: "An ember axe needs Toolcraft
-## 5. You're Toolcraft N." with N below 5. The real craft at Toolcraft 5 (stone axe used up,
-## ember axe in the pack, faster gathers) is proven by tests/unit/test_gameplay_toolcraft.gd.
+## axe". No bot carries heartwood and veinstone in a 3-minute run, so the server must refuse,
+## wherever the bot stands, in the words players see: the bench ("An ember axe needs the
+## workbench. ...") or the materials ("You need ... more to make an ember axe."), and never a level or a skill.
+## The real craft (stone axe used up, ember axe in the pack, faster gathers) is proven by
+## tests/unit/test_gameplay_toolcraft.gd.
 
 const FIRST_DELAY := 8.0 ## after gameplay_crafting's own /craft lines
 const RETRY_AFTER := 2.0 ## an unanswered line is sent again
 const MAX_TRIES := 4
-const PREFIX := "An ember axe needs Toolcraft 5. You're Toolcraft "
+const PREFIX := "An ember axe needs "
+const NEVER := ["Toolcraft", "level", "Level", "XP"]
 
 var _waiting := false
 var _next_at := INF
@@ -44,14 +46,16 @@ func on_play(_delta: float) -> void:
 
 
 func _on_system(text: String) -> void:
-	if not text.begins_with("An ember axe"):
+	var bench := text.begins_with(PREFIX + "the workbench")
+	var materials := text.begins_with("You need ") and text.ends_with(" to make an ember axe.")
+	if not bench and not materials:
+		if text.begins_with("An ember axe"):
+			fail("ember axe refused for the wrong reason: %s" % text)
 		return
-	if not text.begins_with(PREFIX):
-		fail("ember axe refused for the wrong reason: %s" % text)
-		return
-	var level := text.substr(PREFIX.length()).trim_suffix(".").to_int()
-	if level < 1 or level >= 5:
-		fail("refused at Toolcraft %d: %s" % [level, text])
+	for word in NEVER:
+		if text.contains(word):
+			fail("ember axe refused on a level: %s" % text)
+			return
 	if _waiting:
 		refusals += 1
 		_waiting = false
@@ -61,4 +65,4 @@ func on_finish() -> void:
 	stat("refusals", refusals)
 	stat("unanswered_logins", unanswered_logins)
 	if refusals < 1:
-		fail("never got the Toolcraft 5 refusal for /craft ember axe")
+		fail("never got a bench or materials refusal for /craft ember axe")

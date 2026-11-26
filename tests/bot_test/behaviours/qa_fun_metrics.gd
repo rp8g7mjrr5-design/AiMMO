@@ -1,13 +1,13 @@
 extends "res://tests/bot_test/bot_behaviour.gd"
 ## Bot behaviour (qa): fun metrics. Watches what the server tells this bot while the other
 ## behaviours play the real loop (walk to a node, gather, craft), and records time to first
-## reward, longest dead time, rewards per minute, loops completed, and time (and seconds of
-## gathering) to the first level-up (see fun_metrics.gd).
+## reward, longest dead time, rewards per minute, loops completed and seconds of gathering
+## (see fun_metrics.gd).
 ## run_bot_test.py gathers every bot's numbers into a table and fun_metrics.json, and with
 ## --fun-check holds them to tests/bot_test/fun_baseline.json.
 ##
 ## Every bot-test account is new, so every bot is a fresh player. Numbers come from the
-## protocol v3/v4/v7 messages (gather bar, haul, craft result, XP, level-up, swings, kills)
+## protocol v3/v7 messages (gather bar, haul, craft result, swings, kills)
 ## and from the text answers to dev commands; see fun_metrics.gd for how the two are kept from double counting.
 
 const FunMetrics := preload("res://tests/bot_test/fun_metrics.gd")
@@ -22,25 +22,19 @@ func setup(net: Node) -> void:
 	bot.command_sent.connect(func(_text: String): m.act(bot.elapsed))
 	# Pressing E, walking a cancel, pressing Craft (protocol v3) are actions too.
 	bot.play_sent.connect(func(_method: String, _args: Array): m.act(bot.elapsed))
-	# Our gather bar starting or stopping is the game answering; also times the gathering
-	# for "first level-up within 90 s of gathering" (Milestone 1).
-	# The node's skill splits the timing per skill ("gathered N s of felling, never levelled it").
-	net.gather_begun.connect(func(peer: int, node: int, _secs: float):
+	# Our gather bar starting or stopping is the game answering; also times the gathering.
+	net.gather_begun.connect(func(peer: int, _node: int, _secs: float):
 		if peer == bot.my_id:
 			m.feedback(bot.elapsed)
-			m.gather_begun(bot.elapsed, str(ResourceNodes.info_by_id(node).get("skill", ""))))
+			m.gather_begun(bot.elapsed))
 	net.gather_ended.connect(func(peer: int, _node: int, _reason: String):
 		if peer == bot.my_id:
 			m.feedback(bot.elapsed)
 			m.gather_ended(bot.elapsed))
 	net.gather_result.connect(_on_gather_result)
 	net.craft_result.connect(_on_craft_result)
-	net.xp_gained.connect(func(_skill: String, _gained: int, _total: int): m.feedback(bot.elapsed))
 	# Return to Spawn Meadow (protocol v5): its answer is the game responding to the press.
 	net.unstuck_result.connect(func(_ok: bool, _text: String, _wait: float): m.feedback(bot.elapsed))
-	net.level_up.connect(func(skill: String, _level: int, _unlocks: Array):
-		m.level_up(bot.elapsed, skill)
-		m.expect_echo("level", bot.elapsed))
 	# Combat (protocol v7): a swing beginning, refused, or its blow landing (the swinger
 	# always hears back, hit or miss) answers the press; a kill is counted from its drops.
 	net.swing_begun.connect(func(peer: int, _weapon: String, _kind: String, _secs: float):
@@ -82,10 +76,6 @@ func _on_system(text: String) -> void:
 	if FunMetrics.is_notice(text):
 		return
 	var t: float = bot.elapsed
-	if FunMetrics.is_level_up(text):
-		if not m.echo("level", t):
-			m.level_up(t, FunMetrics.level_up_skill(text))
-		return
 	var items := FunMetrics.items_in(text)
 	if text.begins_with("You craft"):
 		m.crafted(t, items)

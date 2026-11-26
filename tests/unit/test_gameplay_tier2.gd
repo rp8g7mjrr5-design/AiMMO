@@ -1,15 +1,11 @@
 extends TestCase
-## Tier-2 nodes gated by level (roadmap Milestone 1 part 3): the old ember ashes and rich
-## stone seams past the meadow (ResourceNodes.TIER2), their placement, the "level" refusal
-## and its words, what they pay (item, XP, bar time), and the whole thing through the real
-## server functions (no network: messages land in test_outbox, fake clock test_now).
+## Tier-2 nodes gated by tools (there are no levels, owner direction 2026-11-26): the old ember
+## ashes and rich stone seams past the meadow (ResourceNodes.TIER2), their placement, the
+## "tool" refusal and its words, what they pay (item, bar time), and the whole thing through
+## the real server functions (no network: messages land in test_outbox, fake clock test_now).
 
 const ServerScript := preload("res://server/server.gd")
 const FIRST_TIER2_ID := 397 ## the list before pass 3 had 397 nodes; ids never move
-
-
-func _skills_at(skill: String, level: int) -> Dictionary:
-	return {skill: Skills.xp_for_level(level)}
 
 
 func _first_tier2(kind: String) -> Dictionary:
@@ -19,10 +15,10 @@ func _first_tier2(kind: String) -> Dictionary:
 	return {}
 
 
-func _server(id: int, pos: Vector3, skills: Dictionary) -> Node:
+func _server(id: int, pos: Vector3, inv: Dictionary) -> Node:
 	var srv: Node = ServerScript.new()
 	srv.test_now = 100.0
-	var ch := CharacterData.normalize({"name": "P%d" % id, "skills": skills})
+	var ch := CharacterData.normalize({"name": "P%d" % id, "inventory": inv})
 	ch.x = pos.x
 	ch.y = pos.y
 	ch.z = pos.z
@@ -57,11 +53,11 @@ func test_the_ring_is_appended_after_every_old_node() -> void:
 		check_eq(n.id, FIRST_TIER2_ID + i, "tier-2 ids follow the old list")
 		check_eq(n.kind, ResourceNodes.TIER2_RING[i], "kind follows the ring")
 		check_eq(n.tier, 2)
-		check_eq(n.min_level, 5, "level 5 to work it")
-		check_eq(n.skill, Skills.skill_for_kind(n.kind))
+		check(Gathering.needs_tool(n), "a tool to work it")
+		check(not n.has("min_level"), "no level on the node")
 	for n in ResourceNodes.all():
 		if n.id < FIRST_TIER2_ID:
-			check(n.tier == 1 and n.min_level == 1, "node %d stays tier 1, open to all" % n.id)
+			check(n.tier == 1 and not Gathering.needs_tool(n), "node %d stays tier 1, open to bare hands" % n.id)
 
 
 func test_a_short_walk_from_the_meadow_with_room_around() -> void:
@@ -95,22 +91,22 @@ func test_info_gives_the_tier2_values() -> void:
 		check(Inventory.ITEMS.has(item) and Inventory.ITEM_ORDER.has(item), "%s is in ITEMS now that world drew its icon" % item)
 
 
-func test_level_gate() -> void:
+func test_tool_gate() -> void:
 	var st := Gathering.new_state()
 	var ash := _first_tier2("ash")
 	var here: Vector3 = ash.pos + Vector3(1.0, 0, 0)
 	var far: Vector3 = ash.pos + Vector3(40.0, 0, 0)
-	check_eq(Gathering.check(st, ash.id, here, 0.0, 0.0, -INF), "level", "a new character can't")
-	check_eq(Gathering.check(st, ash.id, far, 0.0, 0.0, -INF), "level", "from afar, the level answer comes first")
-	check_eq(Gathering.check(st, ash.id, here, 0.0, 0.0, -INF, Gathering.COOLDOWN, _skills_at("felling", 4)), "level", "Felling 4 can't")
-	check_eq(Gathering.check(st, ash.id, here, 0.0, 0.0, -INF, Gathering.COOLDOWN, _skills_at("quarrying", 9)), "level", "the wrong skill doesn't count")
-	check_eq(Gathering.check(st, ash.id, here, 0.0, 0.0, -INF, Gathering.COOLDOWN, _skills_at("felling", 5)), "", "Felling 5 can")
-	check_eq(Gathering.check(st, ash.id, far, 0.0, 0.0, -INF, Gathering.COOLDOWN, _skills_at("felling", 5)), "far", "then reach still counts")
-	check_eq(Gathering.check(st, 0, ResourceNodes.get_by_id(0).pos, 0.0, 0.0, -INF), "" if not ResourceNodes.kind_info(ResourceNodes.get_by_id(0).kind).night_only else "day", "tier 1 is open to level 1")
-	var text := Gathering.refusal("level", st, ash.id, here, 0.0, 0.0, "", _skills_at("felling", 3))
-	check_eq(text, "Needs Felling 5. You're Felling 3.")
+	var axe := {"stone_axe": 1}
+	check_eq(Gathering.check(st, ash.id, here, 0.0, 0.0, -INF), "tool", "bare hands can't")
+	check_eq(Gathering.check(st, ash.id, far, 0.0, 0.0, -INF), "tool", "from afar, the tool answer comes first")
+	check_eq(Gathering.check(st, ash.id, here, 0.0, 0.0, -INF, Gathering.COOLDOWN, {"stone_pickaxe": 1}), "tool", "a pickaxe doesn't fell a tree")
+	check_eq(Gathering.check(st, ash.id, here, 0.0, 0.0, -INF, Gathering.COOLDOWN, axe), "", "a stone axe can")
+	check_eq(Gathering.check(st, ash.id, here, 0.0, 0.0, -INF, Gathering.COOLDOWN, {"ember_axe": 1}), "", "so can an ember axe")
+	check_eq(Gathering.check(st, ash.id, far, 0.0, 0.0, -INF, Gathering.COOLDOWN, axe), "far", "then reach still counts")
+	check_eq(Gathering.check(st, 0, ResourceNodes.get_by_id(0).pos, 0.0, 0.0, -INF), "" if not ResourceNodes.kind_info(ResourceNodes.get_by_id(0).kind).night_only else "day", "tier 1 is open to bare hands")
+	check_eq(Gathering.refusal("tool", st, ash.id, here, 0.0, 0.0), "You need an axe to work this old ember ash.")
 	var seam := _first_tier2("stone")
-	check_eq(Gathering.refusal("level", st, seam.id, seam.pos, 0.0, 0.0), "Needs Quarrying 5. You're Quarrying 1.")
+	check_eq(Gathering.refusal("tool", st, seam.id, seam.pos, 0.0, 0.0), "You need a pickaxe to work this rich stone seam.")
 
 
 func test_pick_and_hint_skip_what_you_cannot_work() -> void:
@@ -119,23 +115,17 @@ func test_pick_and_hint_skip_what_you_cannot_work() -> void:
 	var here: Vector3 = ash.pos + Vector3(0.5, 0, 0)
 	var picked := Gathering.pick_target(st, here, 0.0, 0.0, "ash")
 	check_eq(picked, ash.id, "pick still names it, so the refusal can explain")
-	check_eq(Gathering.pick_target(st, here, 0.0, 0.0, "ash", _skills_at("felling", 5)), ash.id, "Felling 5 picks it")
-	check(not Gathering.hint(st, here, 0.0, 0.0, "ash").contains("old ember ash"), "a level-1 hint never sends you to it")
-	check(Gathering.hint(st, here, 0.0, 0.0, "ash", _skills_at("felling", 5)).contains("old ember ash"), "a Felling 5 hint does")
+	check_eq(Gathering.pick_target(st, here, 0.0, 0.0, "ash", {"stone_axe": 1}), ash.id, "with an axe it picks it")
+	check(not Gathering.hint(st, here, 0.0, 0.0, "ash").contains("old ember ash"), "a bare-handed hint never sends you to it")
+	check(Gathering.hint(st, here, 0.0, 0.0, "ash", {"stone_axe": 1}).contains("old ember ash"), "an axe-carrier's hint does")
 
 
-func test_tier2_pays_more() -> void:
+func test_tier2_pays_in_new_materials() -> void:
 	var ash := _first_tier2("ash")
-	check_eq(Skills.gather_xp("ash", false, 2), 20, "an old ash pays 2x")
-	check_eq(Skills.gather_xp("stone", false, 2), 24, "a rich seam pays 2x")
-	check_eq(Skills.gather_xp("ash", true, 2), 25, "together bonus on top")
-	check_eq(Skills.gather_xp("ash"), 10, "tier 1 unchanged")
-	check_near(GatherChannel.seconds_at(ash.id, {}, 1), GatherChannel.seconds_for("ash", {}, 1) * 1.2, 0.0001, "a bigger tree takes a little longer")
-	check_eq(Gathering.amount_at(ash.id, {}, 5), 2)
-	check_eq(Gathering.amount_at(ash.id, {"stone_axe": 1}, 5), 3, "the axe helps here too")
-	var xp_rate_1 := Skills.gather_xp("ash") / GatherChannel.seconds_for("ash", {}, 5)
-	var xp_rate_2 := Skills.gather_xp("ash", false, 2) / GatherChannel.seconds_at(ash.id, {}, 5)
-	check(xp_rate_2 > xp_rate_1 * 1.5, "levels come about 1.7x as fast: %.2f vs %.2f XP/s" % [xp_rate_2, xp_rate_1])
+	var axe := {"stone_axe": 1}
+	check_near(GatherChannel.seconds_at(ash.id, axe), GatherChannel.seconds_for("ash", axe) * 1.2, 0.0001, "a bigger tree takes a little longer")
+	check_eq(Gathering.amount_at(ash.id, {}), 2)
+	check_eq(Gathering.amount_at(ash.id, axe), 3, "the axe helps here too")
 	var st := Gathering.new_state()
 	for i in 3:
 		check(not Gathering.take(st, ash.id, 0.0).depleted, "gather %d leaves some" % (i + 1))
@@ -145,29 +135,29 @@ func test_tier2_pays_more() -> void:
 	check_near(last.respawn, 300.0, 0.001)
 
 
-func test_server_refuses_below_the_level() -> void:
+func test_server_refuses_bare_hands() -> void:
 	var ash := _first_tier2("ash")
-	var srv := _server(2, ash.pos + Vector3(1.0, 0, 0), _skills_at("felling", 3))
+	var srv := _server(2, ash.pos + Vector3(1.0, 0, 0), {})
 	var r: Dictionary = srv.gather_request(2, ash.id)
 	check(not r.ok, "refused")
-	check_eq(r.reason, "level")
-	check_eq(_sent(srv, "s2c_gather_end"), [[2, ash.id, "level"]], "the client's bar hears why")
-	check(_sent(srv, "s2c_system").has(["Needs Felling 5. You're Felling 3."]), "and the words: %s" % [_sent(srv, "s2c_system")])
+	check_eq(r.reason, "tool")
+	check_eq(_sent(srv, "s2c_gather_end"), [[2, ash.id, "tool"]], "the client's bar hears why")
+	check(_sent(srv, "s2c_system").has(["You need an axe to work this old ember ash."]), "and the words: %s" % [_sent(srv, "s2c_system")])
 	check(_sent(srv, "s2c_gather_begin").is_empty(), "nobody sees a gather start")
-	check(srv.gather(2, "ash").begins_with("Needs Felling 5"), "/gather says the same: " + srv.gather(2, "ash"))
+	check(srv.gather(2, "ash").begins_with("You need an axe"), "/gather says the same: " + srv.gather(2, "ash"))
 	srv.free()
 
 
-func test_server_pays_out_at_the_level() -> void:
+func test_server_pays_out_with_the_tool() -> void:
 	var seam := _first_tier2("stone")
-	var srv := _server(2, seam.pos + Vector3(1.0, 0, 0), _skills_at("quarrying", 5))
+	var pick := {"stone_pickaxe": 1}
+	var srv := _server(2, seam.pos + Vector3(1.0, 0, 0), pick)
 	var r: Dictionary = srv.gather_request(2, seam.id)
-	check(r.ok, "Quarrying 5 starts it: %s" % r.reason)
-	check_near(r.seconds, GatherChannel.seconds_at(seam.id, {}, 5), 0.0001)
+	check(r.ok, "a pickaxe starts it: %s" % r.reason)
+	check_near(r.seconds, GatherChannel.seconds_at(seam.id, pick), 0.0001)
 	_run(srv, r.seconds + 0.2)
 	check_eq(_sent(srv, "s2c_gather_end").back(), [2, seam.id, "done"])
-	check_eq(_sent(srv, "s2c_gather_result"), [["veinstone", 2]], "a new material")
-	check_eq(int(srv.sessions[2].character.inventory.get("veinstone", 0)), 2, "in the pack")
-	var xp := _sent(srv, "s2c_xp")
-	check(not xp.is_empty() and xp[0][0] == "quarrying" and int(xp[0][1]) == 24, "24 Quarrying XP: %s" % [xp])
+	check_eq(_sent(srv, "s2c_gather_result"), [["veinstone", 3]], "a new material, +1 for the pickaxe")
+	check_eq(int(srv.sessions[2].character.inventory.get("veinstone", 0)), 3, "in the pack")
+	check(_sent(srv, "s2c_xp").is_empty(), "no XP: there are no levels")
 	srv.free()

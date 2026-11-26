@@ -6,7 +6,7 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ##   them is marked as us (our id), from the first roster after each login on;
 ## - the header and the button count match the row count;
 ## - what the panel lights gold is right: everyone it says "just arrived" is new since the
-##   last roster, and every "+N" equals that player's rise in total level.
+##   last roster.
 
 const PanelScript := preload("res://client/players_panel.gd")
 
@@ -14,7 +14,6 @@ var _rows: Array = []
 var _known := false
 var _rosters := 0
 var _arrivals := 0
-var _levels := 0
 var _most := 0
 
 
@@ -46,19 +45,11 @@ func _on_roster(entries: Array) -> void:
 		var ch: Dictionary = PanelScript.changes(_rows, fresh)
 		var before := {}
 		for r in _rows:
-			before[int(r.id)] = int(r.level)
+			before[int(r.id)] = true
 		for id in ch.joined:
 			if before.has(int(id)):
 				fail("panel says %d just arrived but they were already there" % int(id))
-		for id in ch.levelled:
-			var now := -1
-			for r in fresh:
-				if int(r.id) == int(id):
-					now = int(r.level)
-			if now - int(before.get(int(id), now)) != int(ch.levelled[id]) or int(ch.levelled[id]) <= 0:
-				fail("panel says +%d for %d, roster went %d -> %d" % [int(ch.levelled[id]), int(id), int(before.get(int(id), -1)), now])
 		_arrivals += ch.joined.size()
-		_levels += ch.levelled.size()
 	_most = maxi(_most, fresh.size())
 	_rows = fresh
 	_known = true
@@ -67,7 +58,6 @@ func _on_roster(entries: Array) -> void:
 func on_finish() -> void:
 	stat("rosters", _rosters)
 	stat("arrivals", _arrivals)
-	stat("level_glows", _levels)
 	stat("most_online", _most)
 	if _rosters == 0:
 		fail("no roster ever reached the players panel")

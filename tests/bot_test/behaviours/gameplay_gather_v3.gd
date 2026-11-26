@@ -17,9 +17,8 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## bots: every s2c_gather_begin from someone else must be followed by its s2c_gather_end, so
 ## no client is left showing a gather that never stops.
 ##
-## It works one skill (FOCUS_KINDS, Felling: ash and pine are the most common nodes near the
-## meadow) and keeps pressing E until that skill reaches LEVEL_GOAL, so most bots level up
-## inside a 180 s run and qa can time the first level-up (qa's request, 2026-11-23). Nodes
+## It works wood (FOCUS_KINDS: ash and pine are the most common nodes near the meadow) and
+## keeps pressing E for FARM_GATHERS gathers each login, like a player working a node. Nodes
 ## the server says are empty (s2c_nodes / s2c_node_state) are skipped, the next node is the
 ## nearest one from where the bot stands, and when every node in reach is empty it searches
 ## wider (SEARCH_RADII) and finally waits for a respawn instead of giving up. "Never started
@@ -30,11 +29,11 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## of a nearby herd after the reconnect, and only between gathers (ready_to_lend). While the bot meta "wildlife_stalking" is set this behaviour only keeps
 ## watching; afterwards it heads for the nearest node from wherever the stalk left it.
 ##
-## Tier-2 gate (Milestone 1 part 3): once per login, before its first node, the bot asks to
-## gather the nearest tier-2 node (an old ember ash or rich seam, level 5) from wherever it
-## stands. Below the level the server must refuse it with reason "level" and a system line
-## "Needs Felling 5. You're Felling N."; at or above it, it must not say "level". Tier-2
-## nodes the bot can't work are never picked as targets.
+## Tier-2 gate (tools, not levels: there are no levels since 2026-11-26): once per login,
+## before its first node, the bot asks to gather the nearest tier-2 node (an old ember ash or
+## rich seam) from wherever it stands. Without the right tool in the pack the server must
+## refuse it with reason "tool" and a system line "You need an axe to work this ...";
+## with one it must not say "tool". Tier-2 nodes the bot can't work are never picked.
 
 const SETTLE := 1.0
 const LONG_RUN := 120.0
@@ -44,8 +43,6 @@ const RESPAWN_WAIT := 5.0 ## every node in the widest search is empty: look agai
 ## gameplay_gathering steers first each login; go anyway if it hasn't let go after this.
 const WAIT_FIRST_MAX := 30.0
 const FOCUS_KINDS := ["ash", "pine"]
-const FOCUS_SKILL := "felling"
-const LEVEL_GOAL := 2
 const STOP_AT := 1.2
 const WALK_TIMEOUT := 20.0
 const ANSWER_TIMEOUT := 3.0 ## a start must be answered (begin or end) within this
@@ -62,9 +59,8 @@ const STILL := Vector2.ZERO
 const FARM_GATHERS := 4
 ## Don't press E in the last seconds before bot.gd's mid-run disconnect. bot.gd freezes the
 ## bot for 1.5 s before it drops the connection, without calling on_play, so a gather started
-## just before would pay its XP inside that freeze; client_xp_meter then checks that gain's
-## bar after the reconnect has cleared the meter and reads 0 (CI on PR #98). Longest gather
-## (2.4 s) plus the freeze plus slack. Client's request for the real fix is in its backlog.
+## just before would pay out inside that freeze, and the reconnect checks would see a pack
+## that changed while nobody was looking. Longest gather (2.4 s) plus the freeze plus slack.
 const QUIET_BEFORE_DISCONNECT := 5.0
 
 enum Step { WAIT_FIRST, GATE, GOTO, START, RUNNING, IDLE, WAIT_RESPAWN }
@@ -77,9 +73,7 @@ var _target := -1
 var _login_nodes := 0
 var _radius_i := 0
 var _empty := {} ## node id -> true while the server says it is depleted
-var _focus_level := 1
 var _live_refusals := 0 ## refusals for a reason other than an emptied node
-var levelled := 0
 var waited_respawn := 0
 var _since := 0.0
 var _next_at := 0.0
@@ -111,7 +105,6 @@ var acks := 0
 var _farmed := 0
 var farmed := 0
 var refusal_reasons := {}
-var _skills := {} ## skill id -> XP, as the server last told us
 var _gate_node := -1
 var _gate_text := false
 var gate_refused := 0
@@ -130,16 +123,7 @@ func setup(net: Node) -> void:
 			_empty[id] = true
 		else:
 			_empty.erase(id))
-	net.skills_changed.connect(func(skills: Dictionary):
-		_skills = skills.duplicate()
-		_focus_level = Skills.level_for(int(skills.get(FOCUS_SKILL, 0))))
-	net.xp_gained.connect(func(skill: String, _gained: int, total: int): _skills[skill] = total)
 	net.system_message.connect(_on_system)
-	net.level_up.connect(func(skill: String, level: int, _unlocks: Array):
-		if skill == FOCUS_SKILL:
-			if level >= LEVEL_GOAL and _focus_level < LEVEL_GOAL:
-				levelled += 1
-			_focus_level = maxi(_focus_level, level))
 	net.snapshot_ack.connect(_on_ack)
 
 
@@ -191,7 +175,7 @@ func _plan() -> void:
 	if t2.is_empty():
 		_next_node()
 		return
-	# The nearest tier-2 node: ask from here, whatever the distance (the level answer comes first).
+	# The nearest tier-2 node: ask from here, whatever the distance (the tool answer comes first).
 	var best: Dictionary = t2[0]
 	for n in t2:
 		if bot.my_pos.distance_to(n.pos) < bot.my_pos.distance_to(best.pos):
@@ -207,12 +191,12 @@ func _plan() -> void:
 func _fill_targets() -> void:
 	_targets.clear()
 	for n in ResourceNodes.near(bot.my_pos, SEARCH_RADII[_radius_i]):
-		if n.kind in FOCUS_KINDS and Gathering.can_work(n, _skills):
+		if n.kind in FOCUS_KINDS and Gathering.can_work(n, _pack):
 			_targets.append(n.id)
 
 
 func _on_system(text: String) -> void:
-	if _step == Step.GATE and text.begins_with("Needs "):
+	if _step == Step.GATE and text.begins_with("You need "):
 		_gate_text = true
 
 
@@ -388,19 +372,19 @@ func _on_ended(peer: int, node_id: int, reason: String) -> void:
 	match _step:
 		Step.GATE:
 			var node := ResourceNodes.get_by_id(_gate_node)
-			var below := not Gathering.can_work(node, _skills)
-			if below and reason != "level":
-				fail("tier-2 node %d (needs %s %d, we're %d) answered %s, not level" % [_gate_node, node.skill, node.min_level, Skills.level_of(_skills, node.skill), reason])
-			elif not below and reason == "level":
-				fail("tier-2 node %d refused for level at %s %d" % [_gate_node, node.skill, Skills.level_of(_skills, node.skill)])
-			if reason == "level":
+			var bare := not Gathering.can_work(node, _pack)
+			if bare and reason != "tool":
+				fail("tier-2 node %d (%s, no tool in %s) answered %s, not tool" % [_gate_node, node.kind, _pack, reason])
+			elif not bare and reason == "tool":
+				fail("tier-2 node %d refused for a tool we carry (%s)" % [_gate_node, _pack])
+			if reason == "tool":
 				gate_refused += 1
 				# The system line is sent right after the end; look for it a moment later.
 				bot.get_tree().create_timer(1.0).timeout.connect(func():
 					if _gate_text:
 						gate_lines += 1
 					else:
-						fail("tier-2 refusal without a \"Needs ...\" line"))
+						fail("tier-2 refusal without a \"You need ...\" line"))
 			bot.get_tree().create_timer(0.5).timeout.connect(func():
 				if _step == Step.GATE:
 					_next_node())
@@ -471,7 +455,7 @@ func _check_payout() -> void:
 	if _test == Test.FARM:
 		farmed += 1
 		_farmed += 1
-	# A full stack still finishes "done" and pays XP, but sends no result (nothing landed).
+	# A stack that filled mid-gather finishes "done" with no result (nothing landed).
 	if _result_count <= 0 and int(_pack.get(_item, 0)) < Inventory.MAX_STACK:
 		fail("gather done but no s2c_gather_result")
 	var item := _item
@@ -479,7 +463,7 @@ func _check_payout() -> void:
 	bot.get_tree().create_timer(1.0).timeout.connect(func():
 		if int(_pack.get(item, 0)) <= before and int(_pack.get(item, 0)) < Inventory.MAX_STACK:
 			fail("gather done but the pack never showed more %s (%d before, %s now)" % [item, before, _pack]))
-	if _farmed < FARM_GATHERS or _focus_level < LEVEL_GOAL:
+	if _farmed < FARM_GATHERS:
 		# Press E again straight away: same node, no cooldown (the bar is the pacing).
 		_test = Test.FARM
 		_step = Step.START
@@ -504,8 +488,6 @@ func on_finish() -> void:
 	stat("acks", acks)
 	stat("farmed", farmed)
 	stat("refusal_reasons", refusal_reasons)
-	stat("levelled", levelled)
-	stat("focus_level", _focus_level)
 	stat("gate_refused", gate_refused)
 	stat("gate_lines", gate_lines)
 	stat("waited_respawn", waited_respawn)

@@ -14,19 +14,8 @@ extends RefCounted
 ##   rewards_per_min  items received per minute of play
 ##   loops_completed  crafts that used gathered items (gather -> craft); "use" joins it once
 ##                    tools do something players can see
-##   first_level_up_s seconds from the first login to the first "<Skill> is now level N!"
-##                    line (Milestone 1, the long road), -1 if it never came
-##   first_level_up_gather_s  seconds this bot spent gathering (holding a timed gather, ours
-##                    only) before that first level-up: the roadmap promises level 2 inside
-##                    about a minute of gathering, and the report holds it to a limit
-##   gather_s         all seconds spent in timed gathers
-##   level_ups, levels_per_10_min  every level-up line, and per 10 minutes of play
-##   gather_s_<skill> seconds of timed gathering in that skill (felling, quarrying, ...), by
-##                    the node's skill (ResourceNodes.info_by_id)
-##   level_gather_s_<skill>  seconds gathered in that skill when it first levelled, -1 if
-##                    it never did. A bot's XP is split between skills by whichever nodes it
-##                    walks to, so "N s in one skill and never levelled it" is the fair
-##                    gate, not the bot's total (fun_report.py, skill_unlevelled_gather_s_worst)
+##   gather_s         all seconds spent in timed gathers (holding a timed gather, ours only)
+##                    (The level-up numbers went with the leveling system on 2026-11-26.)
 ##   swings, swings_refused, swings_hit, kills  combat (protocol v7): our own swings the
 ##                    server began (s2c_swing), refused (s2c_attack_refused), that struck
 ##                    something (s2c_swing_hits naming a creature), and creatures we brought
@@ -34,12 +23,11 @@ extends RefCounted
 ##                    first three is the game answering a press, so it is feedback too; a
 ##                    kill's drops are rewards like a gather's haul.
 ##
-## Where the numbers come from (protocol v3/v4): a press of E, a cancel and a Craft press
-## (bot.play_sent) are actions like a slash command; s2c_gather_begin/end for us, s2c_xp and a
-## failed s2c_craft_result are feedback; s2c_gather_result and an ok s2c_craft_result are
-## rewards; s2c_level_up is the level-up. The server also sends a text line for most of
-## these ("You gather 2 ash wood ...", "Felling is now level 2!"), right after the RPC, for
-## the chat feed. echo() drops that line so nothing is counted twice; the dev commands'
+## Where the numbers come from (protocol v3): a press of E, a cancel and a Craft press
+## (bot.play_sent) are actions like a slash command; s2c_gather_begin/end for us and a failed
+## s2c_craft_result are feedback; s2c_gather_result and an ok s2c_craft_result are rewards.
+## The server also sends a text line for most of these ("You gather 2 ash wood ..."), right
+## after the RPC, for the chat feed. echo() drops that line so nothing is counted twice; the dev commands'
 ## text-only answers (/gather, /craft) still count from the text.
 ##
 ## Other bots' chat and join/leave notices are not feedback here: they are bot chatter, and
@@ -57,12 +45,6 @@ var _act_since := -1.0 ## first unanswered action since the last feedback, or -1
 var _longest_wait := 0.0
 var _gather_since := -1.0 ## when our running timed gather started, or -1
 var _gather_time := 0.0
-var _gather_skill := "" ## the skill our running gather trains, or ""
-var _skill_gather := {} ## skill -> seconds gathered in it
-var _skill_level := {} ## skill -> seconds gathered in it when it first levelled
-var _first_level := -1.0
-var _first_level_gather := -1.0
-var level_ups := 0
 var rewards := 0
 var loops := 0
 var feedback_events := 0
@@ -129,49 +111,22 @@ func crafted(t: float, count: int) -> void:
 
 ## One of our timed gathers started (s2c_gather_begun for us). Only times the gathering;
 ## feedback is still counted from the server lines, as before, so the baseline holds.
-## `skill` is what the node trains ("" if unknown: only the total is timed).
-func gather_begun(t: float, skill: String = "") -> void:
+func gather_begun(t: float) -> void:
 	if _playing:
 		gather_ended(t) # a new start replaces a running one
 		_gather_since = t
-		_gather_skill = skill
 
 
 ## Our running gather stopped, for any reason (done, walked off, cancelled, disconnect).
 func gather_ended(t: float) -> void:
 	if _gather_since >= 0.0:
-		var secs := maxf(0.0, t - _gather_since)
-		_gather_time += secs
-		if _gather_skill != "":
-			_skill_gather[_gather_skill] = float(_skill_gather.get(_gather_skill, 0.0)) + secs
+		_gather_time += maxf(0.0, t - _gather_since)
 	_gather_since = -1.0
-	_gather_skill = ""
 
 
 ## Seconds spent gathering so far, a running gather included up to `t`.
 func gather_time(t: float) -> float:
 	return _gather_time + (maxf(0.0, t - _gather_since) if _gather_since >= 0.0 else 0.0)
-
-
-## Seconds gathered in one skill so far, a running gather in it included up to `t`.
-func skill_gather_time(skill: String, t: float) -> float:
-	var secs := float(_skill_gather.get(skill, 0.0))
-	if _gather_since >= 0.0 and _gather_skill == skill:
-		secs += maxf(0.0, t - _gather_since)
-	return secs
-
-
-## A "<Skill> is now level N!" line arrived (`skill` is its id, "" if unknown).
-func level_up(t: float, skill: String = "") -> void:
-	feedback(t)
-	if not _playing:
-		return
-	level_ups += 1
-	if _first_level < 0.0 and _first_login >= 0.0:
-		_first_level = t - _first_login
-		_first_level_gather = gather_time(t)
-	if skill != "" and not _skill_level.has(skill):
-		_skill_level[skill] = skill_gather_time(skill, t)
 
 
 ## Our swing began (s2c_swing for us): the game answered the press.
@@ -204,8 +159,8 @@ func kill(t: float) -> void:
 	feedback(t)
 
 
-## An RPC counted an answer the server will also send as text ("gather" with the item count,
-## "level"): remember it so echo() can drop that line.
+## An RPC counted an answer the server will also send as text ("gather" with the item
+## count): remember it so echo() can drop that line.
 func expect_echo(kind: String, t: float, count: int = 0) -> void:
 	_echoes = _echoes.filter(func(e: Array) -> bool: return t - float(e[1]) <= ECHO_WINDOW)
 	_echoes.append([kind, t, count])
@@ -253,26 +208,12 @@ func result() -> Dictionary:
 		"loops_completed": loops,
 		"feedback_events": feedback_events,
 		"play_s": snappedf(_play_time, 0.01),
-		"first_level_up_s": snappedf(_first_level, 0.01) if _first_level >= 0.0 else -1.0,
-		"first_level_up_gather_s": snappedf(_first_level_gather, 0.01) if _first_level >= 0.0 else -1.0,
 		"gather_s": snappedf(_gather_time, 0.01),
-		"level_ups": level_ups,
-		"levels_per_10_min": snappedf(level_ups / minutes * 10.0, 0.01) if minutes > 0.0 else 0.0,
 		"swings": swings,
 		"swings_refused": swings_refused,
 		"swings_hit": swings_hit,
 		"kills": kills,
 	}
-	# Flat keys (not a nested dict) so the per-bot key=value log line tools/fun_trend.py
-	# reads keeps working. Every skill the bot gathered in or levelled appears.
-	var skills := _skill_gather.keys()
-	for k in _skill_level:
-		if not skills.has(k):
-			skills.append(k)
-	skills.sort()
-	for k in skills:
-		out["gather_s_" + str(k)] = snappedf(float(_skill_gather.get(k, 0.0)), 0.01)
-		out["level_gather_s_" + str(k)] = snappedf(float(_skill_level[k]), 0.01) if _skill_level.has(k) else -1.0
 	return out
 
 
@@ -285,20 +226,6 @@ static func items_in(text: String) -> int:
 	if text.begins_with("You craft a"):
 		return 1
 	return 0
-
-
-## True for a level-up line ("Felling is now level 2! ..."; see Skills.level_up_text).
-static func is_level_up(text: String) -> bool:
-	return RegEx.create_from_string("^\\w+ is now level \\d+!").search(text) != null
-
-
-## The skill id a level-up line names ("Felling is now level 2!" -> "felling"), or "".
-static func level_up_skill(text: String) -> String:
-	var m := RegEx.create_from_string("^(\\w+) is now level \\d+!").search(text)
-	if m == null:
-		return ""
-	var id := m.get_string(1).to_lower()
-	return id if Skills.is_skill(id) else ""
 
 
 ## True when s2c_gather_result(item, ...) is the first drop of a kill: the server sends one

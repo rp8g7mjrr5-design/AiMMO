@@ -3,7 +3,7 @@ class_name ChatCommands
 ## answers only the sender with a system message and never broadcasts the line itself.
 ## Pure functions, so they are unit tested without a running server.
 ##
-## Commands: /help, /time, /who, /bag, /gather, /craft (and hidden /skills, /hurt, /vitals, /lure, /gloam, /place, /kindle). /gather and /craft change the world
+## Commands: /help, /time, /who, /bag, /gather, /craft (and hidden /hurt, /vitals, /lure, /gloam, /place, /kindle). /gather and /craft change the world
 ## or a pack, so the server handles them itself (see is_gather, is_craft); everything else
 ## is answered by run(). /craft is a debug and bot command only (owner direction: chat is
 ## for talking): it is never listed in HELP or patch notes. Players craft from a window at
@@ -146,8 +146,7 @@ static func _truthy(v: String) -> bool:
 
 ## Returns the reply for a command line (already cleaned by Validation.clean_chat).
 ## ctx keys: "world_seconds" (float), "online" (Array of character names),
-## "inventory" (the sender's Inventory Dictionary) and "skills" (the sender's Skills XP).
-## /skills is a hidden dev and bot command, never listed in HELP or patch notes.
+## and "inventory" (the sender's Inventory Dictionary).
 static func run(text: String, ctx: Dictionary) -> String:
 	var words := text.substr(1).strip_edges().split(" ", false)
 	var cmd := words[0].to_lower() if words.size() > 0 else "help"
@@ -160,9 +159,6 @@ static func run(text: String, ctx: Dictionary) -> String:
 			return who_reply(ctx.get("online", []))
 		"bag", "pack", "inventory", "inv", "i":
 			return Inventory.describe(Inventory.normalize(ctx.get("inventory", {})))
-		"skills", "xp", "levels":
-			# Hidden dev/bot command (owner direction 1): players get a skills window.
-			return Skills.describe(Skills.normalize(ctx.get("skills", {})))
 	return "Unknown command /%s. Try /help." % cmd.substr(0, 20)
 
 

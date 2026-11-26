@@ -28,23 +28,23 @@ const ORDER := ["ash_spear", "stone_maul"]
 const ATTACKS := ["light", "heavy"]
 
 ## Per weapon: label, reach (m, from the attacker's centre to the target's edge), arc (degrees,
-## the full width of the swing), max_targets per swing, the mastery skill that will level by
-## use (not in Skills.ORDER yet), and per attack: damage, windup (the telegraph, cancellable
+## the full width of the swing), max_targets per swing, and per attack (no levels or mastery:
+## a weapon hits as hard on day one as on day ninety): damage, windup (the telegraph, cancellable
 ## by a dodge), active (when it hits), recovery (after the hit), stamina (a scale on
 ## Vitals.COSTS[attack]), lunge (m added to reach on that attack) and stagger.
 const WEAPONS := {
 	"fists": {
-		"label": "Bare hands", "reach": 1.4, "arc": 70.0, "max_targets": 1, "mastery": "",
+		"label": "Bare hands", "reach": 1.4, "arc": 70.0, "max_targets": 1,
 		"light": {"damage": 4.0, "windup": 0.12, "active": 0.10, "recovery": 0.22, "stamina": 0.6, "lunge": 0.0, "stagger": false},
 		"heavy": {"damage": 9.0, "windup": 0.40, "active": 0.12, "recovery": 0.40, "stamina": 0.8, "lunge": 0.0, "stagger": false},
 	},
 	"ash_spear": {
-		"label": "Ash spear", "reach": 3.0, "arc": 30.0, "max_targets": 1, "mastery": "spearwork",
+		"label": "Ash spear", "reach": 3.0, "arc": 30.0, "max_targets": 1,
 		"light": {"damage": 9.0, "windup": 0.18, "active": 0.10, "recovery": 0.30, "stamina": 0.75, "lunge": 0.0, "stagger": false},
 		"heavy": {"damage": 21.0, "windup": 0.50, "active": 0.14, "recovery": 0.50, "stamina": 0.9, "lunge": 1.5, "stagger": false},
 	},
 	"stone_maul": {
-		"label": "Stone maul", "reach": 2.1, "arc": 110.0, "max_targets": 3, "mastery": "maulwork",
+		"label": "Stone maul", "reach": 2.1, "arc": 110.0, "max_targets": 3,
 		"light": {"damage": 13.0, "windup": 0.32, "active": 0.14, "recovery": 0.46, "stamina": 1.25, "lunge": 0.0, "stagger": false},
 		"heavy": {"damage": 34.0, "windup": 0.85, "active": 0.18, "recovery": 0.70, "stamina": 1.4, "lunge": 0.0, "stagger": true},
 	},
@@ -55,9 +55,6 @@ const MAX_WINDUP := 0.9
 ## Damage per point of stamina of every crafted weapon's attack stays within this ratio of
 ## the others' (no strictly best weapon).
 const BALANCE_BAND := 1.35
-## Each mastery level above 1 adds this share of damage (level 10: +9%). Small and visible,
-## like gathering's per-level speed gain; the named unlocks come with the mastery skills.
-const MASTERY_DAMAGE_PER_LEVEL := 0.01
 
 
 static func exists(id: String) -> bool:
@@ -82,12 +79,12 @@ static func attack(id: String, kind: String) -> Dictionary:
 	return data(id).get(kind, {}) if is_attack(kind) else {}
 
 
-## Damage of one hit, with the mastery bonus (level 1 = base).
-static func damage(id: String, kind: String, mastery_level: int = 1) -> float:
+## Damage of one hit.
+static func damage(id: String, kind: String) -> float:
 	var a := attack(id, kind)
 	if a.is_empty():
 		return 0.0
-	return float(a.damage) * (1.0 + MASTERY_DAMAGE_PER_LEVEL * float(maxi(mastery_level, 1) - 1))
+	return float(a.damage)
 
 
 ## Stamina this attack costs: Vitals' cost for the move, scaled by the weapon's weight.

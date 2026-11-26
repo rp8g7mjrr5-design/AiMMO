@@ -18,18 +18,18 @@ fairly (nobody turned away while one is left, nobody paid after the last, and a 
 the group's gathers matches what's left). Every saved character must hold exactly the pack the server last
 sent its bot.
 
-Long runs also run the level-gate check (behaviour qa_level_gate, tests/bot_test/level_gate.gd)
-next to the pair check: before the server starts, seed_veteran.gd saves a character at exactly
-the level the tier-2 node nearest spawn needs, a few metres from it. A fresh bot walks to that
-node and must be refused ("level", the "Needs <Skill> 5" line, nothing paid); the veteran then
-works it until it is empty (every charge pays, so the refusal took none); both reconnect, the
-veteran keeps its level and XP (checked in the save too) and the fresh bot is still refused.
-Skip it with --no-level-gate.
+Long runs also run the tool-gate check (behaviour qa_tool_gate, tests/bot_test/tool_gate.gd)
+next to the pair check: before the server starts, seed_veteran.gd saves a character carrying
+the tool the tier-2 node nearest spawn needs (and old XP from the retired leveling system), a
+few metres from it. A fresh bot walks to that node and must be refused ("tool", the "You need
+an axe ..." line, nothing paid); the veteran then works it until it is empty (every charge
+pays, so the refusal took none); both reconnect, the veteran keeps its tool and its old XP is
+still in the save, untouched, and the fresh bot is still refused. Skip it with --no-tool-gate.
 
 Long runs also run the craft-haul check (behaviour client_craft_window with --craft-haul,
 tests/bot_test/craft_haul.gd): seed_crafter.gd saves a character at the workbench holding
 exactly a campfire's and a torch's inputs; it presses Craft on the real client window and must
-make both, earn Toolcraft XP for each, and end with the goods and none of the inputs (also
+make both and end with the goods and none of the inputs (also
 checked in the save). Skip it with --no-craft-haul.
 
 Every run also prints the fun metrics (tests/bot_test/fun_report.py) and writes
@@ -90,9 +90,9 @@ MAX_PROBE_WAIT = 150.0
 PROBE_PLAY = 36.0
 # Pair bots' run length: pick, walk ~35 m, wait for each other, gather, reconnect.
 PAIR_PLAY = 50.0
-# Level-gate bots' run length (cut short by qa_level_gate once both checks are done): walk
+# Tool-gate bots' run length (cut short by qa_tool_gate once both checks are done): walk
 # ~50 m, refuse, hold, reconnect / walk 10 m, wait for the refusal, empty a 4-charge node, reconnect.
-LEVEL_GATE_PLAY = 90.0
+TOOL_GATE_PLAY = 90.0
 # Craft-haul bot's run length: two crafts at the bench in ~6 s, wander, reconnect, a refused press.
 CRAFT_HAUL_PLAY = 40.0
 # Chat-gate bots' run length: three commands per login, a reconnect, a couple of talk lines.
@@ -200,7 +200,7 @@ def seed_crafter(env: dict, work: Path, name: str) -> list:
 
 
 def seed_veteran(env: dict, work: Path, name: str):
-    """Saves the level-gate veteran before the server starts. Returns (node id, problems)."""
+    """Saves the tool-gate veteran before the server starts. Returns (node id, problems)."""
     log = work / "seed_veteran.log"
     r = subprocess.run([GODOT, "--headless", "--path", str(GAME), "-s", "tests/bot_test/seed_veteran.gd", "--",
                         f"--name={name}", f"--password=pw-{name}"],
@@ -208,7 +208,7 @@ def seed_veteran(env: dict, work: Path, name: str):
     text = log.read_text(errors="replace")
     m = re.search(r"^seed: node=(\d+)$", text, re.M)
     if r.returncode != 0 or m is None:
-        return -1, [f"level gate: could not seed the veteran:\n{text}"]
+        return -1, [f"tool gate: could not seed the veteran:\n{text}"]
     print("[bot-test] " + next(l for l in text.splitlines() if l.startswith("seed: ")))
     return int(m.group(1)), scan_log(log, "seed_veteran")
 
@@ -377,7 +377,7 @@ def main() -> int:
     ap.add_argument("--perf-check", action="store_true",
                     help="fail when server CPU, tick rate, memory or bandwidth break perf_budget.json")
     ap.add_argument("--perf-budget", default=str(perf_report.BUDGET), help="budget JSON for --perf-check")
-    ap.add_argument("--no-level-gate", action="store_true", help="skip the tier-2 level-gate check")
+    ap.add_argument("--no-tool-gate", action="store_true", help="skip the tier-2 tool-gate check")
     ap.add_argument("--no-craft-haul", action="store_true", help="skip the craft-haul check (crafting at the bench)")
     ap.add_argument("--no-chat-gate", action="store_true", help="skip the chat-gate phase (dev commands off)")
     ap.add_argument("--no-player-cap", action="store_true", help="skip the player-cap phase (a full world of 8)")
@@ -397,8 +397,8 @@ def main() -> int:
     run_tag = str(int(t0))[-5:]
     gate_node = -1
     problems = []
-    level_gate = a.duration >= gather_report.LONG_RUN and not a.no_level_gate
-    if level_gate:
+    tool_gate = a.duration >= gather_report.LONG_RUN and not a.no_tool_gate
+    if tool_gate:
         # Seeded while nothing else has storage open (the JSON store keeps the file in memory).
         gate_node, seed_problems = seed_veteran(env, work, f"bot{run_tag}_vet")
         problems += seed_problems
@@ -469,12 +469,12 @@ def main() -> int:
         gate_bots = []
         if gate_node >= 0:
             fresh = f"bot{run_tag}_gate"
-            for name, extra in ((fresh, ["--level-gate=fresh"]),
-                                (f"bot{run_tag}_vet", ["--level-gate=veteran", f"--gate-partner={fresh}"])):
+            for name, extra in ((fresh, ["--tool-gate=fresh"]),
+                                (f"bot{run_tag}_vet", ["--tool-gate=veteran", f"--gate-partner={fresh}"])):
                 result = work / f"{name}.json"
                 log = work / f"{name}.log"
-                cmd = bot_cmd(name, port, a.transport, LEVEL_GATE_PLAY, result, "--expect-peers=0",
-                              "--only-behaviour=qa_level_gate", f"--gate-node={gate_node}", *extra)
+                cmd = bot_cmd(name, port, a.transport, TOOL_GATE_PLAY, result, "--expect-peers=0",
+                              "--only-behaviour=qa_tool_gate", f"--gate-node={gate_node}", *extra)
                 gate_bots.append((name, subprocess.Popen(cmd, stdout=open(log, "w"), stderr=subprocess.STDOUT, env=env), result, log))
                 time.sleep(0.5)
         haul_bots = []
@@ -524,14 +524,14 @@ def main() -> int:
         problems += [f"gathering: {g}" for g in gather_report.check_pair(pair_rows)]
         for name, p, result, log in gate_bots:
             try:
-                p.wait(timeout=LEVEL_GATE_PLAY + 90)
+                p.wait(timeout=TOOL_GATE_PLAY + 90)
             except subprocess.TimeoutExpired:
                 p.kill()
                 problems.append(f"{name}: hung and was killed")
             bots.append((name, p, result, log))
             try:
-                g = json.loads(result.read_text())["stats"]["behaviours"]["qa_level_gate"].get("gate")
-                print(f"[bot-test] level gate (node {gate_node}): {name} {g}")
+                g = json.loads(result.read_text())["stats"]["behaviours"]["qa_tool_gate"].get("gate")
+                print(f"[bot-test] tool gate (node {gate_node}): {name} {g}")
             except (OSError, ValueError, KeyError):
                 pass
         for name, p, result, log in haul_bots:
@@ -582,11 +582,9 @@ def main() -> int:
             haul = s.get("behaviours", {}).get("client_craft_window", {}) or {}
             if "haul_pack" in haul and "pack" not in expected[name]:
                 expected[name]["pack"] = haul["haul_pack"]  # the crafted goods must be saved too
-            if "skills_floor" in ledger:
-                expected[name]["skills_floor"] = ledger["skills_floor"]
-            gate = s.get("behaviours", {}).get("qa_level_gate", {}) or {}
-            if "skills_floor" in gate:
-                expected[name]["skills_floor"] = gate["skills_floor"]
+            gate = s.get("behaviours", {}).get("qa_tool_gate", {}) or {}
+            if "old_xp_kept" in gate:
+                expected[name]["old_xp_kept"] = gate["old_xp_kept"]
 
     # Data-loss check: boot storage in a fresh process and compare saved positions.
     if expected:

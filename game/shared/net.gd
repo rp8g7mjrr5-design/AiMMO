@@ -45,20 +45,9 @@ signal nodes_depleted(depleted_ids: Array)
 signal node_state(node_id: int, depleted: bool)
 signal craft_result(recipe_id: String, ok: bool, text: String)
 
-# --- protocol v4, carried by Net/Play: skills and XP ---
-## At login: skill id -> total XP for every skill.
-signal skills_changed(skills: Dictionary)
-## You earned `gained` XP in `skill`, now `total_xp` (right after the gather/craft result).
-signal xp_gained(skill: String, gained: int, total_xp: int)
-## You reached `level` in `skill`; `unlocks` are the named unlocks reached ({level, name, text}).
-signal level_up(skill: String, level: int, unlocks: Array)
-## Another player in view (peer_id) reached `level` in `skill`: show the burst.
-signal level_up_seen(peer_id: int, skill: String, level: int)
-
 # --- protocol v5, carried by Net/Play: who is online, and getting home ---
-## Who is online, for the players panel: [{id, name, level}, ...] sorted by name, where
-## level is the total of every skill's level. Sent at login, when anyone joins or leaves,
-## and when anyone levels up.
+## Who is online, for the players panel: [{id, name}, ...] sorted by name. Sent at login and
+## when anyone joins or leaves. (Servers before 2026-11-26 also sent a total skill `level`.)
 signal roster_changed(entries: Array)
 ## A player asked to go back to Spawn Meadow (the Esc menu's "Return to Spawn Meadow").
 signal unstuck_requested(peer_id: int)

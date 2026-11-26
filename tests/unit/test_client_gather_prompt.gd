@@ -138,8 +138,8 @@ func test_parses_every_success_line() -> void:
 
 
 func test_full_stack_gather_gets_a_quiet_toast() -> void:
-	# A gather that ends on a full stack pays XP but no items (no s2c_gather_result). The
-	# server's line becomes a bottom toast with the item's icon, not a chat line or a refusal.
+	# A gather that ends on a full stack pays no items (no s2c_gather_result). The server's
+	# line becomes a bottom toast with the item's icon, not a chat line or a refusal.
 	for kind in ResourceNodes.KINDS:
 		for n in ResourceNodes.all():
 			if n.kind != kind:
@@ -150,7 +150,9 @@ func test_full_stack_gather_gets_a_quiet_toast() -> void:
 				check_eq(str(f.get("item", "?")), str(ResourceNodes.info(n).item), line)
 			break
 	check(GatherPrompt.parse_full("You gather 2 stone from the outcrop (4 in your pack).").is_empty(), "a haul is not full")
-	check_eq(GatherPrompt.full_toast_text("ash_wood", 99), "Pack full: Ash wood (99) · XP still counts")
+	check_eq(GatherPrompt.full_toast_text("ash_wood", 99), "Pack full: Ash wood (99)")
+	var old := "Your pack can't hold any more stone. You leave it, but the work still counts."
+	check_eq(str(GatherPrompt.parse_full(old).get("item", "?")), "stone", "an older server's line still reads")
 	var w := GatherPrompt.new()
 	w.setup(Theme.new())
 	w.pack = {"stone": Inventory.MAX_STACK}
@@ -270,7 +272,7 @@ func test_haul_sounds() -> void:
 	check(seen.size() >= 3, "wood, stone and sap sound different")
 
 
-# --- level requirements (tier-2 nodes) ---
+# --- tool requirements (tier-2 nodes; there are no levels) ---
 
 func _tier2(kind: String) -> Dictionary:
 	for n in ResourceNodes.tier2():
@@ -279,53 +281,48 @@ func _tier2(kind: String) -> Dictionary:
 	return {}
 
 
-func _skills_at(skill: String, level: int) -> Dictionary:
-	return {skill: Skills.xp_for_level(level)}
-
-
 func test_tier2_node_shows_what_it_needs() -> void:
 	var nd := _a_night_and_a_day()
 	var ash := _tier2("ash")
 	check(not ash.is_empty(), "there is an old ember ash")
 	var at: Vector3 = ash.pos + Vector3(0.5, 0, 0)
-	var low := GatherPrompt.target(at, nd[1], Vector3.ZERO, Vector3.ZERO, {}, _skills_at("felling", 3))
-	check_eq(int(low.id), int(ash.id), "targets the old ash")
-	check(not bool(low.can), "Felling 3 can't work it")
-	check(bool(low.needs_level), "flagged as a level wall")
-	var to_go := Skills.xp_for_level(5) - Skills.xp_for_level(3)
-	check_eq(low.text, "Old Ember Ash · Felling 5 (%s XP to go)" % SkillsWindow._grouped(to_go))
-	check_eq(GatherPrompt.decide(true, true, false, low, false, false, false), {}, "E does nothing below the level")
-	var ok := GatherPrompt.target(at, nd[1], Vector3.ZERO, Vector3.ZERO, {}, _skills_at("felling", 5))
-	check(bool(ok.can), "Felling 5 can")
-	check(not bool(ok.needs_level), "no wall at the level")
+	var bare := GatherPrompt.target(at, nd[1], Vector3.ZERO, Vector3.ZERO, {}, {})
+	check_eq(int(bare.id), int(ash.id), "targets the old ash")
+	check(not bool(bare.can), "bare hands can't work it")
+	check(bool(bare.needs_tool), "flagged as a tool wall")
+	check_eq(bare.text, "Old Ember Ash · needs an axe")
+	check_eq(GatherPrompt.decide(true, true, false, bare, false, false, false), {}, "E does nothing without the tool")
+	var ok := GatherPrompt.target(at, nd[1], Vector3.ZERO, Vector3.ZERO, {}, {"stone_axe": 1})
+	check(bool(ok.can), "an axe can")
+	check(not bool(ok.needs_tool), "no wall with the axe")
 	check_eq(ok.text, "[E] Chop Old Ember Ash", "names the old ash, not a plain ash")
 	check_eq(ok.doing, "Chopping Old Ember Ash")
 	check_eq(GatherPrompt.decide(false, true, false, ok, false, false, false), {"op": "start", "node": int(ash.id)})
 	var seam := _tier2("stone")
-	var s_low := GatherPrompt.target(seam.pos + Vector3(0.5, 0, 0), nd[1])
-	check(str(s_low.text).begins_with("Rich Stone Seam · Quarrying 5"), "seam needs Quarrying: %s" % s_low.text)
-	check_eq(GatherPrompt.need_text(seam, _skills_at("quarrying", 9)), "", "no need text once high enough")
+	var s_bare := GatherPrompt.target(seam.pos + Vector3(0.5, 0, 0), nd[1])
+	check_eq(s_bare.text, "Rich Stone Seam · needs a pickaxe")
+	check(GatherPrompt.need_text(seam, {"stone_axe": 1}) != "", "an axe doesn't open a seam")
+	check_eq(GatherPrompt.need_text(seam, {"ember_pickaxe": 1}), "", "any pickaxe does")
 
 
-func test_tier2_prompt_agrees_with_the_server_by_level() -> void:
+func test_tier2_prompt_agrees_with_the_server_by_pack() -> void:
 	var nd := _a_night_and_a_day()
 	var state := Gathering.new_state()
 	for n in ResourceNodes.tier2():
-		var skill := str(ResourceNodes.info(n).skill)
-		for lv in [1, 4, 5, 9]:
-			var sk := _skills_at(skill, lv)
-			var t := GatherPrompt.target(n.pos + Vector3(0.4, 0, 0), nd[1], Vector3.ZERO, Vector3.ZERO, {}, sk)
+		for inv in [{}, {"stone_axe": 1}, {"stone_pickaxe": 1}, {"ember_axe": 1, "ember_pickaxe": 1}]:
+			var t := GatherPrompt.target(n.pos + Vector3(0.4, 0, 0), nd[1], Vector3.ZERO, Vector3.ZERO, {}, inv)
 			if t.is_empty() or int(t.id) != int(n.id):
 				continue
-			var server := Gathering.check(state, n.id, n.pos, 0.0, nd[1], -INF, 0.0, sk)
-			check_eq(bool(t.can), server == "", "node %d at %s %d: server says '%s'" % [n.id, skill, lv, server])
+			var server := Gathering.check(state, n.id, n.pos, 0.0, nd[1], -INF, 0.0, inv)
+			check_eq(bool(t.can), server == "", "node %d with %s: server says '%s'" % [n.id, inv, server])
 
 
-func test_level_refusal_notice_names_the_skill() -> void:
+func test_tool_refusal_notice_names_the_tool() -> void:
 	var ash := _tier2("ash")
-	check_eq(GatherPrompt.notice_for("level", int(ash.id)), "Needs Felling 5")
-	check_eq(GatherPrompt.notice_for("level", -1), GatherPrompt.notice_text("level"), "unknown node: plain words")
-	check(GatherPrompt.notice_text("level") != "", "level has centre words")
+	check_eq(GatherPrompt.notice_for("tool", int(ash.id)), "Needs an axe")
+	check_eq(GatherPrompt.notice_for("tool", int(_tier2("stone").id)), "Needs a pickaxe")
+	check_eq(GatherPrompt.notice_for("tool", -1), GatherPrompt.notice_text("tool"), "unknown node: plain words")
+	check(GatherPrompt.notice_text("tool") != "", "tool has centre words")
 	check_eq(GatherPrompt.notice_for("full", int(ash.id)), "Your pack is full")
 
 

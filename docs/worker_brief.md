@@ -26,6 +26,12 @@ player will feel that they didn't before. In practice: every action answers with
 100 ms (sound, motion, flash, number); a first reward within about 60 s of spawning; every
 loop ends in a payoff you can see, hear and use; no dead time; always one clear next goal.
 
+## No levels (design bible, owner direction 5, 2026-11-26)
+No levels, XP, skill trees, perk points, "mastery" or any bar that fills by repetition. You
+get stronger through tools (an axe opens the old ember ash, a pickaxe the rich seam), gear,
+the base and what you know. Gate things by a material, a tool, a station or a place. Old XP
+in saves is kept untouched and never read; the old skills RPCs stay as do-nothing slots.
+
 ## A clean fight (design bible, owner direction 10)
 No text on screen in a fight: threats, blows, kills and knock-downs are told by motion and
 sound only. Full speed only forward; backing off is a walk, capped on the server. Animations
@@ -42,6 +48,7 @@ start, and put before/after shots in the PR.
 ## Never (vision)
 - Tell players about a feature before it is on `main` and in the bot test.
 - Sell power, safety or progress.
+- Add levels, XP or a skill tree (owner, 2026-11-26).
 - Lose a player's save, world or character (add-only migrations, old saves always load).
 - Make a death the player couldn't have seen coming.
 - Break the official world or raise its cap past what the load test proved.

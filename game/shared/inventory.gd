@@ -11,8 +11,8 @@ class_name Inventory
 ## - normalize() never drops an item id it doesn't know, so an item retired from ITEMS can
 ##   never silently vanish from someone's saved pack (save compatibility rule).
 
-## per item id. Was 99; raised to 999 (2026-11-23) because both wood stacks filled around
-## Felling 4 and a full pack quietly ends a gathering session (test_gameplay_first_session_pace).
+## per item id. Was 99; raised to 999 (2026-11-23) because both wood stacks filled in
+## one long session and a full pack quietly ended it (test_gameplay_first_session_pace).
 const MAX_STACK := 999
 
 ## Every item that exists. Ids are PERMANENT: they are stored in inventory_items.item.

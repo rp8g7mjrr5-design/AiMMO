@@ -21,7 +21,7 @@ const HINT_RADIUS := 80.0 ## how far "the nearest pine is 14 m north-east" looks
 ## Tools (see Crafting): carrying the right one gives more per gather (tool_extra) and
 ## shortens both the gather bar (GatherChannel) and the cooldown by tool_speed. Each kind
 ## lists its tools best first; the best one you carry is the one used. A stone tool gives
-## TOOL_EXTRA more and runs at TOOL_SPEED; the ember-hardened tools (Toolcraft 5) give
+## TOOL_EXTRA more and runs at TOOL_SPEED; the ember-hardened tools give
 ## EMBER_EXTRA more and run at EMBER_SPEED, so the bar is visibly shorter on the very next
 ## gather. Seeps take no tool: sap is collected by hand.
 const TOOLS := {
@@ -55,16 +55,15 @@ static func node_charges(node: Dictionary) -> int:
 	return int(ResourceNodes.info(node).get("charges", charges(str(node.get("kind", "")))))
 
 
-## The level in the node's skill that working it needs (1: anyone).
-static func required_level(node: Dictionary) -> int:
-	return int(node.get("min_level", 1))
+## True when working `node` takes a tool (a tier-2 node: ResourceNodes.TIER2 `needs_tool`).
+static func needs_tool(node: Dictionary) -> bool:
+	return bool(ResourceNodes.info(node).get("needs_tool", false))
 
 
-## True if a player with these skills (skill id -> XP, as CharacterData.skills) may work
-## `node`. Empty skills = level 1 in everything.
-static func can_work(node: Dictionary, skills: Dictionary) -> bool:
-	var need := required_level(node)
-	return need <= 1 or Skills.level_of(skills, str(node.get("skill", ""))) >= need
+## True if a player carrying `inv` may work `node`: anyone for a tier-1 node, and for a
+## tool-gated one only with one of TOOLS[kind] in the pack.
+static func can_work(node: Dictionary, inv: Dictionary) -> bool:
+	return not needs_tool(node) or tool_for(str(node.get("kind", "")), inv) != ""
 
 
 ## Brings back every node whose respawn time has passed. Returns the ids that came back
@@ -103,18 +102,18 @@ static func charges_left(state: Dictionary, id: int, now: float) -> int:
 
 
 ## Why `id` can't be gathered by a player at `player_pos` right now, or "" if it can.
-## Reasons: "unknown", "level" (a tier-2 node above the player's level in its skill),
+## Reasons: "unknown", "tool" (a tier-2 node and no axe or pickaxe for it in the pack),
 ## "far", "depleted", "day" (night-only node in daylight), "cooldown".
 ## `cooldown` is the player's own (see cooldown_for); it defaults to the bare-handed one.
-## `skills` is the player's (CharacterData.skills); left out it means level 1 everywhere.
-## "level" comes before "far": the requirement doesn't depend on where you stand, so the
+## `inv` is the player's pack; left out it means bare hands.
+## "tool" comes before "far": the requirement doesn't depend on where you stand, so the
 ## answer to "can I work that old ash?" is the same from across the meadow.
-static func check(state: Dictionary, id: int, player_pos: Vector3, now: float, world_seconds: float, last_gather: float, cooldown: float = COOLDOWN, skills: Dictionary = {}) -> String:
+static func check(state: Dictionary, id: int, player_pos: Vector3, now: float, world_seconds: float, last_gather: float, cooldown: float = COOLDOWN, inv: Dictionary = {}) -> String:
 	var node := ResourceNodes.get_by_id(id)
 	if node.is_empty():
 		return "unknown"
-	if not can_work(node, skills):
-		return "level"
+	if not can_work(node, inv):
+		return "tool"
 	if not ResourceNodes.in_range(id, player_pos):
 		return "far"
 	if is_depleted(state, id, now):
@@ -128,10 +127,10 @@ static func check(state: Dictionary, id: int, player_pos: Vector3, now: float, w
 
 ## Which node "/gather" (optionally "/gather <kind>") means: the nearest node in reach that
 ## can be gathered now, else the nearest in reach at all (so the refusal names it), else -1.
-static func pick_target(state: Dictionary, player_pos: Vector3, now: float, world_seconds: float, kind: String = "", skills: Dictionary = {}) -> int:
+static func pick_target(state: Dictionary, player_pos: Vector3, now: float, world_seconds: float, kind: String = "", inv: Dictionary = {}) -> int:
 	var in_reach := ResourceNodes.near(player_pos, ResourceNodes.GATHER_RANGE, kind)
 	for n in in_reach:
-		if check(state, n.id, player_pos, now, world_seconds, -INF, COOLDOWN, skills) == "":
+		if check(state, n.id, player_pos, now, world_seconds, -INF, COOLDOWN, inv) == "":
 			return n.id
 	return in_reach[0].id if not in_reach.is_empty() else -1
 
@@ -183,19 +182,17 @@ static func cooldown_for(kind: String, inv: Dictionary) -> float:
 	return COOLDOWN * tool_speed(tool_for(kind, inv))
 
 
-## How many items one gather of `kind` gives with this pack, at `level` in the skill that
-## kind trains (Skills.yield_bonus: the "+1 wood" unlocks).
-static func amount_for(kind: String, inv: Dictionary, level: int = 1) -> int:
-	var base := int(ResourceNodes.kind_info(kind).get("amount", 1)) + tool_extra(tool_for(kind, inv))
-	return base + Skills.yield_bonus(Skills.skill_for_kind(kind), level)
+## How many items one gather of `kind` gives with this pack (the kind's amount plus what the
+## best tool carried adds).
+static func amount_for(kind: String, inv: Dictionary) -> int:
+	return int(ResourceNodes.kind_info(kind).get("amount", 1)) + tool_extra(tool_for(kind, inv))
 
 
 ## amount_for, for one node (a tier-2 node has its own base amount).
-static func amount_at(id: int, inv: Dictionary, level: int = 1) -> int:
+static func amount_at(id: int, inv: Dictionary) -> int:
 	var node := ResourceNodes.get_by_id(id)
 	var kind := str(node.get("kind", ""))
-	var base := int(ResourceNodes.info(node).get("amount", 1)) + tool_extra(tool_for(kind, inv))
-	return base + Skills.yield_bonus(Skills.skill_for_kind(kind), level)
+	return int(ResourceNodes.info(node).get("amount", 1)) + tool_extra(tool_for(kind, inv))
 
 
 ## "north-east" for a flat offset (north is -Z, east is +X, as on the client's compass).
@@ -209,10 +206,10 @@ static func direction_name(offset: Vector3) -> String:
 
 ## "The nearest pine is 14 m to the north-east." Skips depleted nodes and, in daylight,
 ## night-only ones. Pass kind to look for one kind only.
-## Skips nodes above the player's level too (`skills` as in check()).
-static func hint(state: Dictionary, player_pos: Vector3, now: float, world_seconds: float, kind: String = "", skills: Dictionary = {}) -> String:
+## Skips nodes the pack has no tool for too (`inv` as in check()).
+static func hint(state: Dictionary, player_pos: Vector3, now: float, world_seconds: float, kind: String = "", inv: Dictionary = {}) -> String:
 	for n in ResourceNodes.near(player_pos, HINT_RADIUS, kind):
-		if is_depleted(state, n.id, now) or not can_work(n, skills):
+		if is_depleted(state, n.id, now) or not can_work(n, inv):
 			continue
 		var info := ResourceNodes.info(n)
 		if info.get("night_only", false) and not WorldClock.is_night(world_seconds):
@@ -238,17 +235,17 @@ static func parse_kind(word: String) -> Variant:
 
 
 ## The reply for a refused gather (reason from check(), or "none" when nothing is in reach,
-## or "full" when the pack has no room). `skills` as in check().
-static func refusal(reason: String, state: Dictionary, id: int, player_pos: Vector3, now: float, world_seconds: float, kind: String = "", skills: Dictionary = {}) -> String:
+## or "full" when the pack has no room). `inv` as in check().
+static func refusal(reason: String, state: Dictionary, id: int, player_pos: Vector3, now: float, world_seconds: float, kind: String = "", inv: Dictionary = {}) -> String:
 	var node := ResourceNodes.get_by_id(id)
 	var label := str(ResourceNodes.info(node).get("label", "node")).to_lower() if not node.is_empty() else "node"
 	match reason:
-		"level":
-			return level_text(node, skills)
+		"tool":
+			return tool_text(node)
 		"depleted":
 			var mins := maxi(1, ceili((float(state.respawn_at.get(id, now)) - now) / 60.0))
 			return "This %s is spent; it comes back in about %d minute%s. %s" % [
-				label, mins, "" if mins == 1 else "s", hint(state, player_pos, now, world_seconds, kind, skills)]
+				label, mins, "" if mins == 1 else "s", hint(state, player_pos, now, world_seconds, kind, inv)]
 		"day":
 			return "The %s is dry by daylight. Ember sap only seeps at night." % label
 		"cooldown":
@@ -256,21 +253,25 @@ static func refusal(reason: String, state: Dictionary, id: int, player_pos: Vect
 		"full":
 			var item := str(ResourceNodes.info(node).get("item", ""))
 			return "Your pack can't hold any more %s." % Inventory.label(item).to_lower()
-	return "Nothing to gather within reach. %s" % hint(state, player_pos, now, world_seconds, kind, skills)
+	return "Nothing to gather within reach. %s" % hint(state, player_pos, now, world_seconds, kind, inv)
 
 
-## "Needs Felling 5. You're Felling 3." for a node above the player's level.
-static func level_text(node: Dictionary, skills: Dictionary) -> String:
-	var skill := str(node.get("skill", ""))
-	var name := Skills.label(skill)
-	return "Needs %s %d. You're %s %d." % [name, required_level(node), name, Skills.level_of(skills, skill)]
+## "You need an axe to work this old ember ash." for a tool-gated node and bare hands.
+static func tool_text(node: Dictionary) -> String:
+	var label := str(ResourceNodes.info(node).get("label", "node")).to_lower()
+	return "You need %s to work this %s." % [tool_word(str(node.get("kind", ""))), label]
 
 
-## "Your pack can't hold any more ash wood. You leave it, but the work still counts." for a
-## timed gather that finished with a full stack: no items, the XP still lands.
+## "an axe" or "a pickaxe": what a tool-gated node of `kind` takes.
+static func tool_word(kind: String) -> String:
+	return "a pickaxe" if kind == "stone" else "an axe"
+
+
+## "Your pack can't hold any more ash wood, so you leave it." for a timed gather that
+## finished with a full stack: no items.
 static func full_text(id: int, depleted: bool = false) -> String:
 	var item := str(ResourceNodes.info(ResourceNodes.get_by_id(id)).get("item", ""))
-	var line := "Your pack can't hold any more %s. You leave it, but the work still counts." % Inventory.label(item).to_lower()
+	var line := "Your pack can't hold any more %s, so you leave it." % Inventory.label(item).to_lower()
 	if depleted:
 		line += " It is spent for now."
 	return line

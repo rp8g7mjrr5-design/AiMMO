@@ -175,21 +175,36 @@ func test_start_refusals() -> void:
 	srv.free()
 
 
-func test_a_full_stack_still_teaches() -> void:
-	# Milestone 1: a full pack is never a wall on the road to the next level. The gather
-	# runs, uses its charge and pays the XP; no items, no haul toast, a line saying why.
+func test_a_full_stack_is_refused_up_front() -> void:
+	# There is no XP to earn, so a gather that can pay nothing would be dead time: a full
+	# stack is refused before the bar starts, no charge used, "Your pack is full" centre screen.
 	var n := _first("stone")
 	var srv := _server({3: n.pos})
 	var s: Dictionary = srv.sessions[3]
 	s.character.inventory["stone"] = Inventory.MAX_STACK
 	var r: Dictionary = srv.gather_start(3, n.id)
-	check(r.ok, "a full stack still starts (%s)" % r.reason)
+	check(not r.ok, "refused")
+	check_eq(r.reason, "full")
+	check(not GatherChannel.is_active(s.channel), "no bar")
+	check_eq(Gathering.charges_left(srv.gathering, n.id, srv.test_now), Gathering.CHARGES.stone, "no charge used")
+	check_eq(GatherPrompt.notice_text("full"), "Your pack is full")
+	check(s.character.skills.is_empty(), "nothing learned: there are no skills")
+	srv.free()
+
+
+func test_a_stack_filling_mid_gather_ends_quietly() -> void:
+	# If the stack fills while the bar runs, the gather still ends "done" with nothing taken
+	# home: no haul toast, a line saying why.
+	var n := _first("stone")
+	var srv := _server({3: n.pos})
+	var s: Dictionary = srv.sessions[3]
+	var r: Dictionary = srv.gather_start(3, n.id)
+	check(r.ok, r.reason)
+	s.character.inventory["stone"] = Inventory.MAX_STACK
 	srv.test_now += float(r.seconds) + GameConfig.TICK_DT
 	srv._tick_channels(srv.test_now)
 	check(not GatherChannel.is_active(s.channel), "the gather finished")
 	check_eq(Inventory.count(s.character.inventory, "stone"), Inventory.MAX_STACK, "no stone added past the cap")
-	check_eq(Skills.xp_of(s.character.skills, "quarrying"), Skills.gather_xp("stone"), "the XP still lands")
-	check_eq(Gathering.charges_left(srv.gathering, n.id, srv.test_now), Gathering.CHARGES.stone - 1, "the charge is used")
 	var ends: Array = []
 	var results := 0
 	for m in srv.test_outbox:
@@ -199,7 +214,7 @@ func test_a_full_stack_still_teaches() -> void:
 			results += 1
 	check_eq(ends, ["done"], "it ends done")
 	check_eq(results, 0, "no haul toast for nothing")
-	check(_texts(srv, 3).back().begins_with("Your pack can't hold any more stone. You leave it, but the work still counts."), "told why: %s" % [_texts(srv, 3)])
+	check(_texts(srv, 3).back().begins_with("Your pack can't hold any more stone, so you leave it."), "told why: %s" % [_texts(srv, 3)])
 	srv.free()
 
 

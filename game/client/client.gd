@@ -40,9 +40,7 @@ var look_window: LookWindow ## character creation (first login) and "Change appe
 var time_dial: TimeDial
 var compass: CompassStrip
 var gather_prompt: GatherPrompt
-var xp_meter: XpMeter
-var vitals_bar: VitalsBar ## health and stamina, under the XP bar (protocol v7 s2c_vitals)
-var level_up_banner: LevelUpBanner
+var vitals_bar: VitalsBar ## health and stamina, bottom centre (protocol v7 s2c_vitals)
 ## Knocked down: the screen goes dark and you come to, lying in Spawn Meadow, and get up.
 ## No words (owner, 2026-11-25); CAME_TO_DARK s fully dark, then CAME_TO_FADE s back to light.
 var came_to_shade: ColorRect
@@ -50,7 +48,6 @@ var _came_to_t := INF
 const CAME_TO_DARK := 0.35
 const CAME_TO_FADE := 1.1
 const CAME_TO_LIE := 0.7 ## s you lie there before getting up
-var sfx_level_up: AudioStreamPlayer
 var gather_watch := GatherWatch.new() ## everyone's gathers -> node hits and empty looks
 var sfx_haul := {} ## node kind -> AudioStreamPlayer for Sfx.haul(kind)
 var craft_window: CraftWindow
@@ -74,15 +71,10 @@ var sfx_whoosh_light: AudioStreamPlayer
 var sfx_whoosh_heavy: AudioStreamPlayer
 var sfx_thwack: AudioStreamPlayer ## your swing landed on something
 var controls_overlay: ControlsOverlay
-var skills_window: SkillsWindow
 var pack_window: PackWindow
 var pack_button: Button
-var skills_button: Button
 var players_panel: PlayersPanel
 var players_button: Button
-var goal_label: Label
-var _goal_key := "" ## which unlock the goal line names ("felling:5")
-var _goal_flash := 0.0 ## seconds left on the goal line's gold flash after a new goal
 var controls_button: Button
 var perf_overlay: PerfOverlay
 ## Item icons, drawn on a background thread from the moment the game starts.
@@ -135,10 +127,6 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.nodes_depleted.connect(_on_nodes_depleted)
 	net.node_state.connect(_on_node_state)
 	net.craft_result.connect(_on_craft_result)
-	net.skills_changed.connect(_on_skills)
-	net.xp_gained.connect(_on_xp)
-	net.level_up.connect(_on_level_up)
-	net.level_up_seen.connect(_on_level_up_seen)
 	net.roster_changed.connect(_on_roster)
 	net.unstuck_result.connect(_on_unstuck)
 	net.wildlife_changed.connect(_on_wildlife)
@@ -170,8 +158,6 @@ func start(p_net: Node, args: Dictionary) -> void:
 		perf_overlay.toggle() # test hook: the F3 overlay in a screenshot
 	if args.has("open-controls"):
 		_open_controls_after_login.call_deferred()
-	if args.has("open-skills"):
-		_open_skills_after_login.call_deferred()
 	if args.has("open-pack"):
 		_open_pack_after_login.call_deferred()
 	if args.has("open-players"):
@@ -201,14 +187,6 @@ func _open_controls_after_login() -> void:
 	controls_overlay.open()
 
 
-## Test hook (--open-skills): opens the K skills window once logged in, as K would.
-func _open_skills_after_login() -> void:
-	while not logged_in:
-		await get_tree().process_frame
-	await get_tree().create_timer(1.0).timeout
-	skills_window.open()
-
-
 ## Test hook (--open-pack): opens the I pack window once logged in, as I would.
 func _open_pack_after_login() -> void:
 	while not logged_in:
@@ -224,15 +202,15 @@ func _open_pack_after_login() -> void:
 
 
 ## Test hook (--open-players): opens the O players panel once logged in, as O would.
-## --open-players=Ash:9,Wren:14 adds those names to the real roster (display only), and just
-## before a --screenshot the first of them levels up, so the shot catches the gold "+1".
+## --open-players=Ash,Wren adds those names to the real roster (display only), and just
+## before a --screenshot the first of them arrives, so the shot catches the gold "just arrived".
 func _open_players_after_login() -> void:
 	while not logged_in:
 		await get_tree().process_frame
 	await get_tree().create_timer(1.0).timeout
 	var spec := str(_args.get("open-players", ""))
-	if spec.contains(":"):
-		players_panel.on_roster(_players_spec(spec, players_panel.entries, false))
+	if spec != "":
+		players_panel.on_roster(_players_spec(spec, players_panel.entries, true))
 	players_panel.open()
 
 
@@ -250,18 +228,20 @@ func _open_look_after_login() -> void:
 		look_window.set_look(Appearance.random(r))
 
 
-## The real roster plus "Ash:9,Wren:14" as made-up players (negative ids, which no real peer
-## has), for the test hook; `level_first` adds one level to the first made-up player.
-static func _players_spec(spec: String, real: Array, level_first: bool) -> Array:
+## The real roster plus "Ash,Wren" as made-up players (negative ids, which no real peer has),
+## for the test hook; `hold_first` leaves the first made-up player out (they arrive later).
+## An old "Ash:9" spec still works: the number is ignored.
+static func _players_spec(spec: String, real: Array, hold_first: bool) -> Array:
 	var out: Array = []
 	for r in real:
 		if int(r.id) > 0:
-			out.append({"id": int(r.id), "name": str(r.name), "level": int(r.level)})
+			out.append({"id": int(r.id), "name": str(r.name)})
 	var i := 0
 	for part in spec.split(","):
-		var kv := part.split(":")
-		if kv.size() == 2:
-			out.append({"id": -1 - i, "name": kv[0], "level": kv[1].to_int() + (1 if level_first and i == 0 else 0)})
+		var name := part.split(":")[0].strip_edges()
+		if name != "":
+			if not (hold_first and i == 0):
+				out.append({"id": -1 - i, "name": name})
 			i += 1
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.name).nocasecmp_to(str(b.name)) < 0)
 	return out
@@ -286,9 +266,9 @@ func _screenshot_later(path: String, wait: float) -> void:
 			inv[first] = int(inv[first]) + 1
 			pack_window.seed_pack(inv)
 		await get_tree().create_timer(0.4).timeout
-	elif str(_args.get("open-players", "")).contains(":"):
+	elif str(_args.get("open-players", "")) != "":
 		await get_tree().create_timer(maxf(0.0, wait - 0.4)).timeout
-		players_panel.on_roster(_players_spec(str(_args["open-players"]), players_panel.entries, true))
+		players_panel.on_roster(_players_spec(str(_args["open-players"]), players_panel.entries, false))
 		await get_tree().create_timer(0.4).timeout
 	elif _args.has("show-notice"):
 		# Test hook (--show-notice): a centre-screen refusal notice, just before the shot.
@@ -312,12 +292,6 @@ func _screenshot_later(path: String, wait: float) -> void:
 		await get_tree().create_timer(maxf(0.0, wait - 0.4)).timeout
 		var item := str(_args["show-toast"])
 		gather_prompt.show_toast(GatherPrompt.toast_text({"qty": 2, "label": Inventory.label(item), "in_pack": 6}), item)
-		if _args.has("show-xp"):
-			# Test hook (--show-xp): the "+10 Felling" floater and bar that come with the haul.
-			xp_meter.on_gain("felling", 10, 260)
-		if _args.has("show-level-up"):
-			# Test hook (--show-level-up): the level-up banner and burst, caught mid-moment.
-			_on_level_up("felling", 5, [Skills.unlock_at("felling", 5)])
 		await get_tree().create_timer(0.4).timeout
 	else:
 		await get_tree().create_timer(wait).timeout
@@ -348,8 +322,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			look_window.cancel()
 		elif controls_overlay.visible:
 			controls_overlay.close()
-		elif skills_window.visible:
-			skills_window.close()
 		elif pack_window.visible:
 			pack_window.close()
 		elif players_panel.visible:
@@ -374,15 +346,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			look_window.drag(event.relative.x)
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_controls"):
-		if not craft_window.visible and not skills_window.visible and not pack_window.visible and not players_panel.visible:
+		if not craft_window.visible and not pack_window.visible and not players_panel.visible:
 			controls_overlay.toggle()
 			if controls_overlay.visible:
 				chat_edit.release_focus()
 				sfx_chime.play()
-		get_viewport().set_input_as_handled()
-		return
-	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_skills"):
-		_toggle_skills()
 		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_pack"):
@@ -393,7 +361,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_players()
 		get_viewport().set_input_as_handled()
 		return
-	if controls_overlay.visible or skills_window.visible or pack_window.visible or players_panel.visible:
+	if controls_overlay.visible or pack_window.visible or players_panel.visible:
 		return
 	if craft_window.visible:
 		if event is InputEventKey and event.pressed and not event.echo and event.is_action("interact"):
@@ -446,22 +414,12 @@ func _apply_settings(s: ClientSettings) -> void:
 
 ## True while a window that frees the cursor is open (Settings, the workbench, the F1 controls).
 func window_open() -> bool:
-	return settings_menu.visible or craft_window.visible or controls_overlay.visible or skills_window.visible or pack_window.visible or players_panel.visible or look_window.visible
-
-
-## K or the Skills button: open or shut the skills window (not over another window).
-func _toggle_skills() -> void:
-	if craft_window.visible or controls_overlay.visible or settings_menu.visible or pack_window.visible or players_panel.visible:
-		return
-	skills_window.toggle()
-	if skills_window.visible:
-		chat_edit.release_focus()
-		sfx_chime.play()
+	return settings_menu.visible or craft_window.visible or controls_overlay.visible or pack_window.visible or players_panel.visible or look_window.visible
 
 
 ## I or the Pack button: open or shut the pack window (not over another window).
 func _toggle_pack() -> void:
-	if craft_window.visible or controls_overlay.visible or settings_menu.visible or skills_window.visible or players_panel.visible:
+	if craft_window.visible or controls_overlay.visible or settings_menu.visible or players_panel.visible:
 		return
 	pack_window.toggle()
 	if pack_window.visible:
@@ -471,7 +429,7 @@ func _toggle_pack() -> void:
 
 ## O or the Players button: open or shut the players panel (not over another window).
 func _toggle_players() -> void:
-	if craft_window.visible or controls_overlay.visible or settings_menu.visible or skills_window.visible or pack_window.visible:
+	if craft_window.visible or controls_overlay.visible or settings_menu.visible or pack_window.visible:
 		return
 	players_panel.toggle()
 	if players_panel.visible:
@@ -491,16 +449,13 @@ func _move_vector() -> Vector2:
 
 func _process(delta: float) -> void:
 	perf_overlay.step(delta)
-	xp_meter.step(delta)
 	vitals_bar.step(delta)
-	level_up_banner.step(delta)
 	notice_line.step(delta)
 	_step_came_to(delta)
 	if settings_menu.visible and settings_menu.in_game:
 		settings_menu.refresh_home(Time.get_ticks_msec())
 	pack_window.step(delta)
 	players_panel.step(delta)
-	_step_goal(delta)
 	grazers.sync(herd, _now(), delta)
 	zombai_figures.sync(zombai, _now(), delta)
 	var move := _move_vector() if logged_in else Vector2.ZERO
@@ -715,17 +670,14 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	time_dial.refresh()
 	compass.visible = true
 	gather_prompt.visible = true
-	xp_meter.visible = true
 	vitals_bar.visible = true
 	hud_label.visible = true
 	help_label.visible = true
 	controls_button.visible = true
-	skills_button.visible = true
 	pack_button.visible = true
 	players_button.visible = true
 	players_panel.set_me(id)
 	settings_menu.set_in_game(true)
-	goal_label.visible = true
 	_spawn(id, character.name, character.appearance_seed, Vector3(character.x, character.y, character.z), character.yaw, Appearance.normalize(character.get("look", {})))
 	# First time here (or never chose): make your traveller. Not for the automated test
 	# clients (--autoconnect), which must start playing at once; --open-look shows it to them.
@@ -757,11 +709,8 @@ func _on_server_disconnected() -> void:
 	compass.visible = false
 	gather_prompt.visible = false
 	gather_prompt.hide_all()
-	xp_meter.visible = false
-	xp_meter.hide_all()
 	vitals_bar.visible = false
 	vitals_bar.hide_all()
-	level_up_banner.hide_all()
 	notice_line.hide_all()
 	gather_watch.reset()
 	herd.clear()
@@ -774,8 +723,6 @@ func _on_server_disconnected() -> void:
 	help_label.visible = false
 	controls_button.visible = false
 	controls_overlay.visible = false
-	skills_window.reset()
-	skills_button.visible = false
 	pack_window.reset()
 	pack_button.visible = false
 	players_panel.reset()
@@ -783,9 +730,6 @@ func _on_server_disconnected() -> void:
 	look_window.reset()
 	players_button.visible = false
 	players_button.text = PlayersPanel.button_text(0)
-	goal_label.visible = false
-	goal_label.text = ""
-	_goal_key = ""
 	reticle.visible = false
 	reticle.active = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -913,8 +857,6 @@ func _on_system(text: String) -> void:
 	if text == Vitals.KNOCKED_DOWN_TEXT:
 		_came_to()
 		return # the fade and getting up say it: no words (owner, 2026-11-25)
-	if level_up_banner != null and level_up_banner.consume_system(text):
-		return # the banner already said it (chat is for talking)
 	var echo := gather_prompt != null and gather_prompt.on_system(text)
 	if echo:
 		return # the bar and the toast already said it
@@ -957,75 +899,14 @@ func _on_gather_result(item_id: String, count: int) -> void:
 		p.play()
 
 
-# --- skills and XP (protocol v4, Net/Play) ---
-
-func _on_skills(skills: Dictionary) -> void:
-	xp_meter.on_skills(skills)
-	skills_window.on_skills(skills)
-	_share_skills()
-	_update_goal(false)
-
-
-## s2c_xp arrives right after the gather/craft result, so the "+10 Felling" pops in the same
-## frame as the haul toast.
-func _on_xp(skill: String, gained: int, total_xp: int) -> void:
-	xp_meter.on_gain(skill, gained, total_xp)
-	skills_window.on_gain(skill, total_xp)
-	_share_skills()
-	_update_goal(true)
-
-
-## The gather prompt and the workbench read your levels too: a tier-2 node or an ember tool
-## above your level says what it needs instead of offering E or Craft.
 ## s2c_roster: everyone online, for the players panel and the count on its button.
 func _on_roster(entries: Array) -> void:
 	players_panel.on_roster(entries)
 	players_button.text = PlayersPanel.button_text(players_panel.entries.size())
 
 
-func _share_skills() -> void:
-	gather_prompt.skills = skills_window.skills.duplicate()
-	craft_window.on_skills(skills_window.skills)
-
-
-## The goal line under the compass: the closest named unlock. When it moves on to a new goal
-## (you just reached the old one), it flashes gold for a moment.
-func _update_goal(flash: bool) -> void:
-	var before := _goal_key
-	_goal_key = SkillsWindow.goal_key(skills_window.skills)
-	goal_label.text = SkillsWindow.goal_text(skills_window.skills)
-	if flash and before != "" and before != _goal_key:
-		_goal_flash = SkillsWindow.GOAL_FLASH_SECONDS
-
-
-## The goal line steps aside while the level-up banner (just below it) is up, and its gold
-## "new goal" flash waits for the banner to go, so the two read one after the other.
-func _step_goal(delta: float) -> void:
-	var banner_a := level_up_banner.current_alpha()
-	goal_label.modulate.a = SkillsWindow.goal_alpha(banner_a)
-	if _goal_flash <= 0.0:
-		return
-	_goal_flash = SkillsWindow.goal_flash_after(_goal_flash, delta, banner_a > 0.0)
-	goal_label.add_theme_color_override("font_color", SkillsWindow.goal_colour(_goal_flash / SkillsWindow.GOAL_FLASH_SECONDS))
-
-
-## s2c_level_up: the banner, the rising chord and world's burst on your own avatar, together.
-func _on_level_up(skill: String, level: int, unlocks: Array) -> void:
-	level_up_banner.on_level_up(skill, level, unlocks)
-	sfx_level_up.play()
-	if avatars.has(my_id):
-		LevelUpFx.play(avatars[my_id].node, level)
-
-
-## s2c_level_up_seen: someone near you levelled; the same burst over them, no banner or sound.
-func _on_level_up_seen(peer_id: int, _skill: String, level: int) -> void:
-	if avatars.has(peer_id) and peer_id != my_id:
-		LevelUpFx.play(avatars[peer_id].node, peer_id * 31 + level)
-
-
 ## The bench's answer to a Craft press: the window shows the server's words; a success also
-## gets the toast with the product's icon and the craft sound (the Toolcraft "+N" floater
-## comes from s2c_xp, sent with it).
+## gets the toast with the product's icon and the craft sound.
 ## The answer to the Esc menu's "Return to Spawn Meadow". On ok the next snapshot carries
 ## you home (prediction snaps, the camera jumps with it in _on_snapshot); the menu closes so
 ## you see the meadow, and the words show centre screen, never in chat.
@@ -1146,7 +1027,7 @@ func _on_look(peer_id: int, look: Dictionary) -> void:
 func _open_look(creating: bool) -> void:
 	if not logged_in or not avatars.has(my_id):
 		return
-	for w in [craft_window, controls_overlay, skills_window, pack_window, players_panel]:
+	for w in [craft_window, controls_overlay, pack_window, players_panel]:
 		if w.visible:
 			w.close()
 	chat_edit.release_focus()
@@ -1291,21 +1172,6 @@ func _build_ui() -> void:
 	ui.add_child(compass)
 	compass.setup(theme)
 
-	# The next goal, just under the compass: "Next: Felling 5 unlocks Old ember ash (240 XP)".
-	goal_label = Label.new()
-	goal_label.theme = theme
-	goal_label.anchor_left = 0.5
-	goal_label.anchor_right = 0.5
-	goal_label.offset_left = -CompassStrip.WIDTH * 0.5 - 60
-	goal_label.offset_right = CompassStrip.WIDTH * 0.5 + 60
-	goal_label.offset_top = 76
-	goal_label.offset_bottom = 96
-	goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	HudStyle.quiet_label(goal_label, 13, SkillsWindow.goal_colour(0.0))
-	goal_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	goal_label.visible = false
-	ui.add_child(goal_label)
-
 	# Gather prompt and "+2 ash wood" toasts, bottom centre.
 	gather_prompt = GatherPrompt.new()
 	gather_prompt.anchor_left = 0.5
@@ -1321,20 +1187,7 @@ func _build_ui() -> void:
 	ui.add_child(gather_prompt)
 	gather_prompt.setup(theme)
 
-	# XP you can see: "+10 Felling" and that skill's bar, just under the gather prompt.
-	xp_meter = XpMeter.new()
-	xp_meter.anchor_left = 0.5
-	xp_meter.anchor_right = 0.5
-	xp_meter.anchor_top = 1.0
-	xp_meter.anchor_bottom = 1.0
-	xp_meter.offset_left = -XpMeter.WIDTH * 0.5
-	xp_meter.offset_right = XpMeter.WIDTH * 0.5
-	xp_meter.offset_top = -100
-	xp_meter.offset_bottom = -100 + XpMeter.HEIGHT
-	xp_meter.visible = false
-	ui.add_child(xp_meter)
-	xp_meter.setup(theme)
-	# Health and stamina, bottom centre under the XP bar: where an action MMO keeps them.
+	# Health and stamina, bottom centre: where an action game keeps them.
 	vitals_bar = VitalsBar.new()
 	vitals_bar.anchor_left = 0.5
 	vitals_bar.anchor_right = 0.5
@@ -1366,15 +1219,6 @@ func _build_ui() -> void:
 	came_to_shade.color = Color(0.02, 0.015, 0.01, 0.0)
 	came_to_shade.visible = false
 	ui.add_child(came_to_shade)
-	level_up_banner = LevelUpBanner.new()
-	level_up_banner.anchor_left = 0.5
-	level_up_banner.anchor_right = 0.5
-	level_up_banner.offset_left = -LevelUpBanner.WIDTH * 0.5
-	level_up_banner.offset_right = LevelUpBanner.WIDTH * 0.5
-	level_up_banner.offset_top = 96
-	level_up_banner.offset_bottom = 96 + LevelUpBanner.HEIGHT
-	ui.add_child(level_up_banner)
-	level_up_banner.setup(theme)
 
 	# Centre reticle for the action camera: what you look at is what E gathers.
 	reticle = Reticle.new()
@@ -1394,8 +1238,8 @@ func _build_ui() -> void:
 	help_label.text = ControlsOverlay.corner_hint()
 	help_label.anchor_left = 1.0
 	help_label.anchor_right = 1.0
-	help_label.offset_left = -610
-	help_label.offset_right = -270
+	help_label.offset_left = -542
+	help_label.offset_right = -202
 	help_label.offset_top = 12
 	help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	HudStyle.quiet_label(help_label, 15, HudStyle.TEXT)
@@ -1416,28 +1260,12 @@ func _build_ui() -> void:
 	controls_button.offset_bottom = 38
 	controls_button.visible = false
 	controls_button.pressed.connect(func():
-		if not craft_window.visible and not settings_menu.visible and not skills_window.visible and not pack_window.visible and not players_panel.visible:
+		if not craft_window.visible and not settings_menu.visible and not pack_window.visible and not players_panel.visible:
 			controls_overlay.toggle()
 			sfx_chime.play())
 	ui.add_child(controls_button)
 
-	# "Skills" button left of the "?": the same window as K, for mouse players.
-	skills_button = Button.new()
-	skills_button.theme = theme
-	skills_button.text = "Skills"
-	skills_button.tooltip_text = "Skills (%s)" % ControlsOverlay.key_text("toggle_skills")
-	skills_button.focus_mode = Control.FOCUS_NONE
-	skills_button.anchor_left = 1.0
-	skills_button.anchor_right = 1.0
-	skills_button.offset_left = -112
-	skills_button.offset_right = -52
-	skills_button.offset_top = 10
-	skills_button.offset_bottom = 38
-	skills_button.visible = false
-	skills_button.pressed.connect(_toggle_skills)
-	ui.add_child(skills_button)
-
-	# "Pack" button left of "Skills": the same window as I, for mouse players.
+	# "Pack" button left of the "?": the same window as I, for mouse players.
 	pack_button = Button.new()
 	pack_button.theme = theme
 	pack_button.text = "Pack"
@@ -1445,8 +1273,8 @@ func _build_ui() -> void:
 	pack_button.focus_mode = Control.FOCUS_NONE
 	pack_button.anchor_left = 1.0
 	pack_button.anchor_right = 1.0
-	pack_button.offset_left = -172
-	pack_button.offset_right = -120
+	pack_button.offset_left = -104
+	pack_button.offset_right = -52
 	pack_button.offset_top = 10
 	pack_button.offset_bottom = 38
 	pack_button.visible = false
@@ -1461,8 +1289,8 @@ func _build_ui() -> void:
 	players_button.focus_mode = Control.FOCUS_NONE
 	players_button.anchor_left = 1.0
 	players_button.anchor_right = 1.0
-	players_button.offset_left = -262
-	players_button.offset_right = -180
+	players_button.offset_left = -194
+	players_button.offset_right = -112
 	players_button.offset_top = 10
 	players_button.offset_bottom = 38
 	players_button.visible = false
@@ -1477,12 +1305,6 @@ func _build_ui() -> void:
 	controls_overlay.setup(theme)
 	controls_overlay.closed.connect(func(): sfx_chime.play())
 	ui.add_child(controls_overlay)
-
-	# The K skills window, centre screen.
-	skills_window = SkillsWindow.new()
-	skills_window.setup(theme)
-	skills_window.closed.connect(func(): sfx_chime.play())
-	ui.add_child(skills_window)
 
 	# The I pack window, centre screen.
 	pack_window = PackWindow.new()
@@ -1577,10 +1399,6 @@ func _build_audio() -> void:
 	sfx_hurt.stream = Sfx.hurt()
 	sfx_hurt.volume_db = -8.0
 	add_child(sfx_hurt)
-	sfx_level_up = AudioStreamPlayer.new()
-	sfx_level_up.stream = Sfx.level_up()
-	sfx_level_up.volume_db = -3.0
-	add_child(sfx_level_up)
 	sfx_arrive = AudioStreamPlayer.new()
 	sfx_arrive.stream = Sfx.arrive()
 	sfx_arrive.volume_db = -6.0

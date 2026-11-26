@@ -13,12 +13,12 @@ func _no_outline(l: Label, what: String) -> void:
 
 func test_one_calm_accent() -> void:
 	check(HudStyle.EMBER.is_equal_approx(Palette.EMBER), "the accent is the palette's ember")
-	for c in [HudStyle.XP, HudStyle.TEXT, HudStyle.NOTE, HudStyle.OK, HudStyle.SHORT, HudStyle.PANEL, HudStyle.CONTROL]:
+	for c in [HudStyle.GLOW, HudStyle.TEXT, HudStyle.NOTE, HudStyle.OK, HudStyle.SHORT, HudStyle.PANEL, HudStyle.CONTROL]:
 		check(HudStyle.saturation(c) < 0.6, "no neon: %s is %.2f saturated" % [c, HudStyle.saturation(c)])
 	check(HudStyle.TEXT.v < 0.95, "text is warm parchment, not paper white")
 	check(HudStyle.PANEL.a >= 0.7 and HudStyle.PANEL.a <= 0.85, "panels about 70 to 85% opaque")
 	check(HudStyle.PANEL.r >= HudStyle.PANEL.b, "panels lean warm, not blue-grey")
-	check(HudStyle.XP.s < HudStyle.EMBER.s, "XP is a step calmer than the accent")
+	check(HudStyle.GLOW.s < HudStyle.EMBER.s, "the glow is a step calmer than the accent")
 
 
 func test_quiet_label() -> void:
@@ -41,17 +41,6 @@ func test_theme_is_warm() -> void:
 
 func test_hud_pieces_are_quiet() -> void:
 	var t := HudStyle.theme()
-	var b := LevelUpBanner.new()
-	b.setup(t)
-	for l in [b.title_label, b.unlock_label, b.next_label]:
-		_no_outline(l, "banner")
-	check(b.title_label.get_theme_font_size("font_size") < 30, "the banner title is proud, not loud")
-	b.free()
-	var x := XpMeter.new()
-	x.setup(t)
-	_no_outline(x.gain_label, "XP floater")
-	_no_outline(x.level_label, "XP bar label")
-	x.free()
 	var g := GatherPrompt.new()
 	g.setup(t)
 	_no_outline(g.toast_label, "haul toast")

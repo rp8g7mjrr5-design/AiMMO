@@ -68,16 +68,6 @@ const FIRE_CHAR := Color(0.18, 0.16, 0.15) ## burned-out log stubs: charcoal, ne
 const FIRE_ASH := Color(0.47, 0.45, 0.43) ## the ash bed: pale grey ash, a touch warm
 
 
-# Skill badges (SkillIcons, Milestone 1): one colour per skill, used for the badge disc and
-# to tint that skill's toasts, XP bar and window header. Each echoes what the skill works on.
-const SKILL_FELLING := Color(0.36, 0.56, 0.32) ## forest green: the trees you fell
-const SKILL_QUARRYING := Color(0.42, 0.50, 0.62) ## cool slate blue: cut stone
-const SKILL_TAPPING := Color(0.62, 0.24, 0.17) ## sap red-brown, close to SMOULDER: the seeps
-const SKILL_TOOLCRAFT := Color(0.66, 0.48, 0.30) ## worked ash-wood: the bench and handles
-const SKILL_PLAIN := Color(0.58, 0.56, 0.52) ## a skill with no badge of its own yet
-const BADGE_INK := Color(0.16, 0.11, 0.09, 0.55) ## soft dark backing so a badge's emblem pops off its disc
-const BADGE_STAR := Color(0.92, 0.88, 0.78) ## the plain badge's pale star
-
 ## Cloth a traveller could actually dye in Ashgrove: undyed wool, madder, woad, weld, walnut,
 ## lichen. Earthy, below 0.45 saturation, never bright primaries (art bible, "Characters").
 const CLOTH := [

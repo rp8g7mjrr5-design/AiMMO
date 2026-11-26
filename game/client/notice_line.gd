@@ -27,7 +27,7 @@ const PAIR_WINDOW := 1.0
 ## Gather refusal reasons whose toast ("Your pack is full", "Needs Felling 5") already says
 ## everything the server's longer line does. Any other reason (today "depleted", which adds
 ## when the node comes back and where the next one is) shows the server's line here.
-const SAID_BY_TOAST := ["full", "day", "busy", "cooldown", "level", "far", "unknown"]
+const SAID_BY_TOAST := ["full", "day", "busy", "cooldown", "tool", "far", "unknown"]
 const HOLD_MIN := 2.4
 const HOLD_MAX := 6.0
 const HOLD_PER_CHAR := 0.04 ## seconds of reading per character

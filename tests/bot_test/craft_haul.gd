@@ -5,11 +5,10 @@ extends RefCounted
 ##
 ## The main bots press Craft with whatever they happen to carry, and they almost never carry a
 ## recipe's inputs (ember sap is night-only, one charge, ten-minute respawn), so in the 180 s
-## run every press was refused "missing" and the ok path (the toast, the "+N Toolcraft" XP)
+## run every press was refused "missing" and the ok path (the toast)
 ## was only proven in unit tests. The haul check is the player coming home from a haul: a
 ## character seeded at the workbench with exactly a campfire's and a torch's inputs presses
-## Craft on the real client window: the campfire and the torches must both be made, each with
-## its Toolcraft XP, and the pack must come back without the inputs and with the goods.
+## Craft on the real client window: the campfire and the torches must both be made, and the pack must come back without the inputs and with the goods.
 
 ## Metres from the bench's centre, toward spawn: well inside Crafting.BENCH_RANGE (6 m) and
 ## clear of the behaviour's 1.5 m position-lag edge.
@@ -59,6 +58,4 @@ static func verdict(stats: Dictionary) -> Array:
 		out.append("no pack reported after the crafts")
 	elif Inventory.to_wire(Inventory.normalize(got)) != want:
 		out.append("pack after the crafts %s, wanted %s" % [Inventory.to_wire(Inventory.normalize(got)), want])
-	if int(stats.get("toolcraft_xp", 0)) < RECIPES.size():
-		out.append("%d Toolcraft XP gains for %d crafts" % [int(stats.get("toolcraft_xp", 0)), RECIPES.size()])
 	return out
