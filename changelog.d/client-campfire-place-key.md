@@ -1,0 +1,2 @@
+- **Campfires you can actually set down.** Craft a campfire at the workbench, press **B**, and a pale outline of the fire stands where it will go; click (or B again) and it catches with a soft whumph. The outline turns red where a fire can't go, and right-click or Esc puts it away.
+- **Everyone's fires are on screen now:** a ring of stones, leaning logs and flickering flames that light the ground at night, slump low near the end and leave a bed of ash. The Zombai keep their distance from them.
