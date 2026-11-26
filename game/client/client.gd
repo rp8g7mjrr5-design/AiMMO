@@ -85,6 +85,13 @@ var grazers: GrazerFigures ## draws them, in the world
 var zombai := ZombaiView.new() ## the Zombai walkers in view (protocol v10), smoothed
 var zombai_figures: ZombaiFigures ## draws them and gives them voices, in the world
 var _args := {} ## command-line test hooks
+var place_ghost: PlaceGhost ## the campfire you are about to set down (B), in the world
+var placing := false ## B was pressed with a campfire in the pack: the ghost follows your aim
+var _place_sent := false ## c2s_place("campfire") is out; waiting for s2c_place_result
+var fires: Array = [] ## the campfires the server last sent ({id, pos, left}, CampfireProps.from_wire)
+var _fires_follow := 0.0 ## seconds since the fire lights last moved to the nearest fires
+var _hurt_at := -INF ## seconds (engine clock) you last lost health: a fight is on for Vitals.COMBAT_SECONDS
+var sfx_kindle: AudioStreamPlayer ## a campfire you set down catches
 
 
 func start(p_net: Node, args: Dictionary) -> void:
@@ -107,6 +114,9 @@ func start(p_net: Node, args: Dictionary) -> void:
 	zombai_figures = ZombaiFigures.new()
 	zombai_figures.setup()
 	world.add_child(zombai_figures)
+	place_ghost = PlaceGhost.new()
+	place_ghost.setup()
+	world.add_child(place_ghost)
 	camera = Camera3D.new()
 	camera.far = 600.0
 	camera.fov = 65.0
@@ -131,6 +141,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.node_state.connect(_on_node_state)
 	net.craft_result.connect(_on_craft_result)
 	net.place_result.connect(_on_place_result)
+	net.campfires_changed.connect(_on_campfires)
 	net.roster_changed.connect(_on_roster)
 	net.unstuck_result.connect(_on_unstuck)
 	net.wildlife_changed.connect(_on_wildlife)
@@ -322,7 +333,9 @@ func _setup_input() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if look_window.visible:
+		if placing:
+			_cancel_place()
+		elif look_window.visible:
 			look_window.cancel()
 		elif controls_overlay.visible:
 			controls_overlay.close()
@@ -374,6 +387,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		cam.turn(look_delta(event.relative, settings))
+	elif event is InputEventMouseButton and event.pressed and placing and (event.is_action("click_use") or event.is_action("click_heavy")):
+		# While the ghost is up, left-click sets the fire down and right-click puts it away:
+		# neither swings nor gathers.
+		if event.is_action("click_use"):
+			_confirm_place()
+		else:
+			_cancel_place()
+		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed:
 		if event.is_action("click_use") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 			_click_tap = true
@@ -390,6 +411,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
 			chat_feed.wake()
 			chat_edit.grab_focus()
+			get_viewport().set_input_as_handled()
+		elif event.is_action("place"):
+			# B: hold a campfire up where it would go; B again (or a click) sets it down.
+			if placing:
+				_confirm_place()
+			else:
+				_start_place()
 			get_viewport().set_input_as_handled()
 		elif event.is_action("use_bandage"):
 			# Put a bandage on (Server.use_bandage, carried by c2s_place). The health bar
@@ -500,10 +528,11 @@ func _process(delta: float) -> void:
 	_send_accum += delta
 	if _send_accum >= GameConfig.TICK_DT:
 		_send_accum = 0.0
-		if move != _last_sent or move != Vector2.ZERO or seq % 10 == 0:
+		if move != _last_sent or move != Vector2.ZERO or placing or seq % 10 == 0:
 			seq += 1
-			# While moving you face where the camera looks (or your kept heading in free-look).
-			var yaw: float = ActionCamera.facing_yaw(cam.move_yaw()) if move != Vector2.ZERO else (avatars[my_id].yaw if avatars.has(my_id) else 0.0)
+			# While moving you face where the camera looks (or your kept heading in free-look);
+			# while placing a campfire you turn to aim it, standing still.
+			var yaw: float = ActionCamera.facing_yaw(cam.move_yaw()) if move != Vector2.ZERO or placing else (avatars[my_id].yaw if avatars.has(my_id) else 0.0)
 			net.c2s_input.rpc_id(1, seq, move, yaw)
 			_last_sent = move
 			if avatars.has(my_id):
@@ -523,6 +552,8 @@ func _process(delta: float) -> void:
 			compass.feed(cam.yaw, me.position, other_positions())
 		_update_gather(delta, me.position, xf.origin, -xf.basis.z)
 		_update_bench(delta, me.position)
+		_update_place(delta, me.position)
+		_follow_fires(delta, me.position)
 		hud_label.text = "Ashgrove  ·  %d online  ·  %.0f, %.0f" % [avatars.size(), me.position.x, me.position.z]
 
 
@@ -706,6 +737,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 
 
 func _on_server_disconnected() -> void:
+	_cancel_place()
 	for id in avatars.keys():
 		_on_player_left(id)
 	logged_in = false
@@ -876,7 +908,7 @@ func _on_world_config(config: Dictionary) -> void:
 	world.set_meta("world_config", WorldGen.config())
 	if old != null:
 		for child in old.get_children():
-			if child == grazers or child == zombai_figures or avatars.values().any(func(a): return a.node == child):
+			if child == grazers or child == zombai_figures or child == place_ghost or avatars.values().any(func(a): return a.node == child):
 				child.reparent(world, false)
 		remove_child(old)
 		old.free() # now, not at the end of the frame: nothing outside it points into it any more
@@ -887,6 +919,7 @@ func _on_world_config(config: Dictionary) -> void:
 		prediction.place(Terrain.clamp_to_world(me.position))
 	if shore_cover != null:
 		shore_cover.done()
+	_show_fires() # the new world's Campfires node starts empty
 	print("[client] built world %s in %d ms" % [str(WorldGen.config()), Time.get_ticks_msec() - t])
 
 
@@ -979,13 +1012,108 @@ func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
 ## The answer to c2s_place (a bandage put on, from H). Success is told by the sound and the
 ## health bar filling (a clean fight: no words); a refusal says why, centre screen.
 func _on_place_result(item: String, ok: bool, _reason: String, text: String) -> void:
+	if item == Campfires.ITEM:
+		_place_sent = false
+		if ok:
+			# The fire itself (s2c_campfires) and its catch are the answer: no words.
+			_cancel_place()
+			sfx_kindle.play()
+			return
+		if placing:
+			place_ghost.refuse() # red for a moment, so you see this spot won't do
 	if ok:
 		if item == Vitals.BANDAGE_ITEM:
 			sfx_craft.play()
 		return
-	if text != "":
+	if text != "" and not in_fight():
 		notice_line.show_notice(text, true)
 	sfx_nope.play()
+
+
+## True for Vitals.COMBAT_SECONDS after you last lost health: a clean fight shows no words
+## (design bible direction 10), so refusals then are told by sound and colour only.
+func in_fight() -> bool:
+	return Time.get_ticks_msec() / 1000.0 - _hurt_at < Vitals.COMBAT_SECONDS
+
+
+## --- Campfires: on screen and set down with B ---
+
+## s2c_campfires: every fire burning in the world. Drawn by the world's Campfires node.
+func _on_campfires(entries: PackedFloat32Array) -> void:
+	fires = PlaceGhost.fires_from_wire(entries)
+	_show_fires()
+
+
+func _show_fires() -> void:
+	if world == null:
+		return
+	var near := prediction.position if logged_in and prediction.has_position else Vector3.INF
+	CampfireProps.sync(world.get_node_or_null(CampfireProps.NODE_NAME), fires, near)
+
+
+## About once a second the few fire lights move to the fires nearest you.
+func _follow_fires(delta: float, my_pos: Vector3) -> void:
+	_fires_follow += delta
+	if _fires_follow < 1.0 or fires.is_empty():
+		return
+	_fires_follow = 0.0
+	CampfireProps.follow(world.get_node_or_null(CampfireProps.NODE_NAME), my_pos)
+
+
+## The campfire you'd set down, from the pack the client was last sent.
+func has_campfire() -> bool:
+	return int(gather_prompt.pack.get(Campfires.ITEM, 0)) > 0
+
+
+func _start_place() -> void:
+	if window_open() or chat_edit.has_focus():
+		return
+	if not has_campfire():
+		if not in_fight():
+			notice_line.show_notice(Campfires.refusal_text("no_item"), true)
+		sfx_nope.play()
+		return
+	placing = true
+	_place_sent = false
+
+
+func _cancel_place() -> void:
+	placing = false
+	_place_sent = false
+	if place_ghost != null:
+		place_ghost.drop()
+
+
+## The spot the server will use: in front of you, the way you face (you turn to the camera
+## while placing, and that yaw goes out with every input).
+func place_spot(my_pos: Vector3) -> Vector3:
+	return Campfires.spot_in_front(my_pos, ActionCamera.facing_yaw(cam.move_yaw()))
+
+
+func _confirm_place() -> void:
+	if not placing or _place_sent or not avatars.has(my_id):
+		return
+	var why := PlaceGhost.reason_at(fires, place_spot(avatars[my_id].node.position))
+	if why != "":
+		# The ghost is already red; say why unless a fight is on.
+		place_ghost.refuse()
+		if not in_fight():
+			notice_line.show_notice(Campfires.refusal_text(why), true)
+		sfx_nope.play()
+		return
+	# The aim is already on the server: while placing, every input carries the camera's yaw.
+	net.play.c2s_place.rpc_id(1, Campfires.ITEM)
+	_place_sent = true
+
+
+func _update_place(delta: float, my_pos: Vector3) -> void:
+	if not placing:
+		return
+	if window_open() or not has_campfire():
+		_cancel_place()
+		return
+	var spot := place_spot(my_pos)
+	place_ghost.show_at(spot, PlaceGhost.reason_at(fires, spot), delta)
 
 
 func _on_inventory(items: Dictionary) -> void:
@@ -1435,6 +1563,10 @@ func _build_audio() -> void:
 	sfx_craft.stream = Sfx.craft()
 	sfx_craft.volume_db = -4.0
 	add_child(sfx_craft)
+	sfx_kindle = AudioStreamPlayer.new()
+	sfx_kindle.stream = Sfx.kindle()
+	sfx_kindle.volume_db = -5.0
+	add_child(sfx_kindle)
 	sfx_nope = AudioStreamPlayer.new()
 	sfx_nope.stream = Sfx.nope()
 	sfx_nope.volume_db = -9.0
@@ -1476,6 +1608,7 @@ func _on_vitals(hp: int, max_hp: int, stamina: int, max_stamina: int) -> void:
 	var c := vitals_bar.on_vitals(hp, max_hp, stamina, max_stamina)
 	if c.thump:
 		sfx_hurt.play()
+		_hurt_at = Time.get_ticks_msec() / 1000.0
 
 
 ## s2c_swing (v7): someone in view, maybe you, started a swing. Their body plays it: the

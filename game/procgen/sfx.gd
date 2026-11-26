@@ -327,6 +327,41 @@ static func thwack() -> AudioStreamWAV:
 	return wav
 
 
+## A campfire catching (the place key, CampfireProps): a soft low "whumph" as the kindling
+## takes, a breath of rushing air and a few dry crackles, about 0.6 s. Warmer and longer than
+## craft(), quieter than a blow: a small, good moment. Peak about 0.3 full scale.
+const KINDLE_LENGTH := 0.6
+const KINDLE_POPS := [0.12, 0.21, 0.33, 0.41, 0.52]
+
+
+static func kindle() -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4410
+	var data := PackedByteArray()
+	var lp := 0.0
+	var lp2 := 0.0
+	var phase := 0.0
+	var n := int(RATE * KINDLE_LENGTH)
+	for i in n:
+		var t := float(i) / RATE
+		phase += TAU * (70.0 + 40.0 * exp(-t * 12.0)) / RATE
+		var whumph := sin(phase) * minf(1.0, t * 60.0) * exp(-t * 9.0)
+		var white := rng.randf_range(-1.0, 1.0)
+		lp += 0.08 * (white - lp)
+		lp2 += 0.5 * (white - lp2)
+		var rush := lp * 2.2 * minf(1.0, t * 12.0) * exp(-t * 5.0)
+		var crackle := 0.0
+		for p in KINDLE_POPS:
+			var dt: float = t - float(p)
+			if dt >= 0.0 and dt < 0.02:
+				crackle += lp2 * exp(-dt * 260.0) * 1.4
+		var fade := clampf((KINDLE_LENGTH - t) / 0.04, 0.0, 1.0)
+		var s16 := int(clampf((whumph * 0.8 + rush + crackle) * fade * 0.3, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	return _wav(data)
+
+
 static func _tones(notes: Array, volume: float) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	for n in notes:
