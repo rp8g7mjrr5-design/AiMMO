@@ -102,6 +102,9 @@ const LEATHER_DARK := Color(0.22, 0.17, 0.14) ## belts, straps, boots: old, dark
 const WOOL := Color(0.47, 0.43, 0.37) ## undyed wool: mantles and hoods
 const TROUSERS := Color(0.27, 0.25, 0.22) ## heavy wool trousers, faded charcoal-brown
 const BEDROLL := Color(0.58, 0.52, 0.42) ## a rolled canvas blanket
+const IRON := Color(0.42, 0.40, 0.36) ## a belt buckle and fittings: dull worn iron, never shiny steel
+const EYE := Color(0.13, 0.10, 0.08) ## painted eyes: a dark slit under the brow, never black, never a cut socket
+const COAT := Color(0.30, 0.27, 0.22) ## a long travelling coat: oiled wool, darker than the shirt under it
 
 
 ## Natural hair (characters): black, browns, auburn, ash blond, grey. Never bright.
