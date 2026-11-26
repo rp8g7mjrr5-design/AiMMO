@@ -1,3 +1,0 @@
-- [x] Owner direction 2026-11-26: rework the characters. Three directions were shown in game and the owner picked the goofy cartoon. `Toon` is now on every survivor and Zombai (this PR). This supersedes world's "Basics 1: the sculpted body" and "Basics 2: the walker's look", which are done with the cartoon folk.
-- [ ] Follow-up: delete the now-unused `ZombaiBody.parts()`/`mesh()` and `AvatarBuilder.parts()` paths, along with their tests, in one cleanup PR.
-- [ ] Follow-up: a blink, and a surprised face when grabbed. Also a little squash on landing for the cartoon bodies.
