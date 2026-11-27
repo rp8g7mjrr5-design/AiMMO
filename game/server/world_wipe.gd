@@ -68,6 +68,7 @@ static func on_login(store: PlayerStore, ch: Dictionary, world: Dictionary) -> b
 	for k in inv:
 		inv[k] = 0
 	ch.inventory = inv
+	ch.pack = [] # an empty pack on the new island
 	var key := hash(str(ch.get("name", "")).to_lower()) & 0x7FFFFFFF
 	var p := Terrain.clamp_to_world(WorldGen.landing_for(key))
 	ch.x = p.x

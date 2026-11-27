@@ -234,8 +234,12 @@ func test_a_full_stack_gets_no_toast_for_that_drop() -> void:
 	var spot: Array = _next_to(srv, 0)
 	srv.free()
 	srv = _server({1: spot[0]})
-	srv.sessions[1].character.inventory["hide"] = Inventory.MAX_STACK
-	srv.sessions[1].character.inventory["raw_meat"] = Inventory.MAX_STACK - 1
+	# The grid pack (PackGrid): hides fill all but two cells, and the meat in those two
+	# cells has room for one more.
+	var hide_cap := PackGrid.stack_size("hide")
+	var cells := PackGrid.COLS * PackGrid.ROWS
+	srv.sessions[1].character.inventory["hide"] = hide_cap * (cells - 2) / 2
+	srv.sessions[1].character.inventory["raw_meat"] = PackGrid.stack_size("raw_meat") * 2 - 1
 	_hit(srv, "heavy")
 	_hit(srv, "light")
 	check(Wildlife.is_down(srv.wildlife, 0), "down")

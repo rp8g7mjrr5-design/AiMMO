@@ -266,3 +266,25 @@ func s2c_gloam_hits(peer_id: int, kind: String, walker_ids: Array, downed: Array
 @rpc("authority", "call_remote", "reliable")
 func s2c_needs(needs: Dictionary) -> void:
 	_net().needs_changed.emit(needs)
+
+
+# --- protocol v13: the grid pack (owner direction, 2026-11-27) ---
+
+## Move one stack of your pack: `item`'s stack number `index` to cell (x, y), standing or
+## turned. The server checks it (PackGrid.move) and answers with s2c_pack either way.
+@rpc("any_peer", "call_remote", "reliable")
+func c2s_pack_move(item: String, index: int, x: int, y: int, turned: bool) -> void:
+	_net().pack_move_requested.emit(_sender(), item, index, x, y, turned)
+
+
+## Drop one stack of your pack: it is gone. s2c_inventory and s2c_pack follow.
+@rpc("any_peer", "call_remote", "reliable")
+func c2s_pack_drop(item: String, index: int) -> void:
+	_net().pack_drop_requested.emit(_sender(), item, index)
+
+
+## Your pack's layout, [[item, index, x, y, turned], ...] (PackGrid places): sent just
+## before every s2c_inventory, and after a move. Lay it out with PackGrid.layout.
+@rpc("authority", "call_remote", "reliable")
+func s2c_pack(places: Array) -> void:
+	_net().pack_layout_changed.emit(places)

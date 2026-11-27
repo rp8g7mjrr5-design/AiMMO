@@ -16,12 +16,6 @@ func test_slots_follow_the_pack_in_a_fixed_order() -> void:
 	check(bool(PackWindow.slots({"stone": Inventory.MAX_STACK})[0].full), "a stack at the cap is full")
 
 
-func test_slot_count() -> void:
-	check_eq(PackWindow.slot_count(0), 10, "two rows even when empty")
-	check_eq(PackWindow.slot_count(10), 10)
-	check_eq(PackWindow.slot_count(11), 15, "rounded up to a full row")
-
-
 func test_texts() -> void:
 	ControlsOverlay.install_input()
 	check_eq(PackWindow.total_text({}), "Empty")
@@ -54,15 +48,14 @@ func test_window_follows_the_server() -> void:
 	ControlsOverlay.install_input()
 	var w := PackWindow.new()
 	w.setup(Theme.new())
-	check_eq(w.shown().size(), 10)
-	check_eq(w.shown()[0], "")
+	check_eq(w.shown(), [], "an empty grid")
 	w.seed_pack({"ash_wood": 2, "stone": 1})
-	check_eq(w.shown().slice(0, 3), ["ash_wood", "stone", ""])
+	check_eq(w.shown(), ["ash_wood", "stone"])
 	check_eq(w.count_shown("ash_wood"), "2")
 	check_eq(w.flash_of("ash_wood"), 0.0, "the first pack (login) never glows")
 	w.seed_pack({"ash_wood": 4, "stone": 1})
 	check_eq(w.count_shown("ash_wood"), "4")
-	check_eq(w.flash_of("ash_wood"), 1.0, "a slot that grew glows")
+	check_eq(w.flash_of("ash_wood"), 1.0, "a stack that grew glows")
 	check_eq(w.flash_of("stone"), 0.0)
 	w.seed_pack({"ash_wood": 5, "stone": 1})
 	check_eq(int(w._gain["ash_wood"]), 3, "a second haul while glowing adds to the +N")
@@ -73,12 +66,10 @@ func test_window_follows_the_server() -> void:
 	check(not w._gain.has("ash_wood"), "+N gone")
 	w.seed_pack("not a pack")
 	check_eq(w.count_shown("ash_wood"), "5", "junk is ignored")
-	var many := {}
-	for item in Inventory.ITEM_ORDER:
-		many[item] = 1
-	many["zz_new"] = 1
-	w.seed_pack(many)
-	check_eq(w.shown().size(), PackWindow.slot_count(Inventory.ITEM_ORDER.size() + 1), "every stack plus the unknown one, in full rows")
+	w.seed_pack({"ash_wood": 45})
+	check_eq(w.shown(), ["ash_wood", "ash_wood", "ash_wood"], "45 logs are three stacks")
+	w.seed_places([["ash_wood", 2, 9, 4, false]])
+	check_eq(PackGrid.stack_at(w.laid(), 9, 4), {"item": "ash_wood", "index": 2}, "the server's layout is drawn")
 	w.open()
 	check(w.visible, "opens")
 	var closes := [0]
@@ -88,8 +79,51 @@ func test_window_follows_the_server() -> void:
 	check_eq(closes[0], 1)
 	w.reset()
 	check(not w.pack_known, "reset forgets the pack")
-	check_eq(w.shown()[0], "")
+	check_eq(w.shown(), [])
 	w.free()
+
+
+func test_drag_turn_and_drop() -> void:
+	var w := PackWindow.new()
+	w.setup(Theme.new())
+	w.seed_pack({"ash_wood": 5, "stone": 3})
+	var moves: Array = []
+	var drops: Array = []
+	w.move_requested.connect(func(i, n, x, y, t): moves.append([i, n, x, y, t]))
+	w.drop_requested.connect(func(i, n): drops.append([i, n]))
+	var c := PackWindow.CELL
+	# the log sits at (0, 0) standing (1x2): grab its top half
+	check(w.pick_up_at(Vector2(0.5, 0.5) * c), "picked up")
+	check_eq(w.put_down_at(Vector2(7.5, 2.5) * c), "moved")
+	check_eq(moves, [["ash_wood", 0, 7, 2, false]], "the server is asked")
+	check_eq(PackGrid.stack_at(w.laid(), 7, 3), {"item": "ash_wood", "index": 0}, "and it shows at once")
+	check(w.pick_up_at(Vector2(7.5, 2.5) * c), "again")
+	w.turn_held()
+	check_eq(w.put_down_at(Vector2(2.5, 5.5) * c), "moved", "turned, it lies in the bottom row")
+	check_eq(moves[1], ["ash_wood", 0, 2, 5, true])
+	check(w.pick_up_at(Vector2(2.5, 5.5) * c), "the turned log")
+	var stone_at: Dictionary = {}
+	for p in w.laid().placed:
+		if str(p.item) == "stone":
+			stone_at = p
+	check_eq(w.put_down_at((Vector2(int(stone_at.x), int(stone_at.y)) + Vector2(0.5, 0.5)) * c), "back", "not onto the stone")
+	check_eq(moves.size(), 2, "a refused move asks nothing")
+	check(not w.holding(), "the hand is empty again")
+	check(w.pick_up_at((Vector2(int(stone_at.x), int(stone_at.y)) + Vector2(0.5, 0.5)) * c), "the stone")
+	check_eq(w.put_down_at(Vector2(PackWindow.GRID_W + 80.0, 20.0)), "dropped", "out of the grid is a drop")
+	check_eq(drops, [["stone", 0]])
+	check(not w.pick_up_at(Vector2(9.5, 0.5) * c), "nothing in an empty pocket")
+	w.free()
+
+
+func test_what_does_not_fit_waits_below() -> void:
+	var laid := PackGrid.layout({"ash_wood": 999}, [])
+	var t := PackWindow.over_text(laid)
+	check(t.begins_with("No room for"), t)
+	check(t.contains("ash wood"), t)
+	check_eq(PackWindow.over_text(PackGrid.layout({"stone": 2}, [])), "", "nothing over, no line")
+	check(PackWindow.stack_tooltip("ash_wood", 20, 45).contains("This stack: 20 of 20"), "a stack says its own count")
+	check(PackWindow.stack_tooltip("stone_axe", 1, 1).contains("Takes 1x3"), "a tool says its size")
 
 
 func test_i_key_is_listed() -> void:
@@ -107,11 +141,11 @@ func _recipes_using(item: String) -> Array:
 	return out
 
 
-func test_a_three_digit_stack_fits_its_slot() -> void:
-	# Gameplay is raising Inventory.MAX_STACK to 999: the count in a slot's corner must still
-	# fit inside the slot, with room to spare for the icon.
+func test_a_stack_count_fits_its_cell() -> void:
 	var font := ThemeDB.fallback_font
-	var w := font.get_string_size("999", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-	check(w + 10.0 < PackWindow.SLOT * 0.6, "\"999\" is %.0f px in a %.0f px slot" % [w, PackWindow.SLOT])
-	var big := font.get_string_size(str(maxi(Inventory.MAX_STACK, 999)), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-	check(big < PackWindow.SLOT - 8.0, "the full stack's count fits too")
+	var most := 0
+	for item in PackGrid.SHAPES:
+		most = maxi(most, PackGrid.stack_size(item))
+	var w := font.get_string_size(str(most), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+	check(w + 10.0 < PackWindow.CELL * 0.6, "\"%d\" is %.0f px in a %.0f px cell" % [most, w, PackWindow.CELL])
+	check(PackWindow.WIDTH < 640.0, "the window fits beside the world at 1280 px")
