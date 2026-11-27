@@ -115,10 +115,10 @@ func setup(theme_res: Theme) -> void:
 	anchor_bottom = 0.5
 	offset_left = -WIDTH * 0.5
 	offset_right = WIDTH * 0.5
-	offset_top = -150
-	offset_bottom = 150
+	offset_top = -100
+	offset_bottom = 100
 	grow_vertical = Control.GROW_DIRECTION_BOTH
-	add_theme_stylebox_override("panel", HudStyle.panel(0.9)) # muted warm grey, no ember frame (art bible section 9)
+	add_theme_stylebox_override("panel", HudStyle.panel()) # the satchel leather every window shares (art bible section 9)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 18)
@@ -130,8 +130,7 @@ func setup(theme_res: Theme) -> void:
 	box.add_child(head)
 	var title := Label.new()
 	title.text = "Pack"
-	title.add_theme_font_size_override("font_size", 21)
-	title.add_theme_color_override("font_color", ACCENT)
+	HudStyle.title(title, 21)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
 	_total_label = Label.new()
@@ -167,11 +166,12 @@ func _make_slot() -> Dictionary:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(SLOT, SLOT)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP # so the tooltip shows on hover
+	var look := HudStyle.slot_look()
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(1, 1, 1, 0.06)
-	style.border_color = Color(1, 1, 1, 0.12)
+	style.bg_color = look.bg
+	style.border_color = look.border
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(5)
+	style.set_corner_radius_all(int(look.radius))
 	panel.add_theme_stylebox_override("panel", style)
 	var icon := TextureRect.new()
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
@@ -266,9 +266,10 @@ func _paint_flash() -> void:
 		var item: String = _shown[i] if i < _shown.size() else ""
 		var t := clampf(float(_flash.get(item, 0.0)) / FLASH_SECONDS, 0.0, 1.0) if item != "" else 0.0
 		var style: StyleBoxFlat = s.style
-		style.border_color = Color(1, 1, 1, 0.12).lerp(GOLD, t)
+		var look := HudStyle.slot_look()
+		style.border_color = (look.border as Color).lerp(GOLD, t)
 		style.set_border_width_all(1 + int(round(t * 2.0)))
-		style.bg_color = Color(1, 1, 1, 0.06).lerp(Color(GOLD, 0.22), t * t)
+		style.bg_color = (look.bg as Color).lerp(Color(GOLD, 0.22), t * t)
 		s.plus.text = "+%d" % int(_gain[item]) if t > 0.0 and _gain.has(item) else ""
 
 

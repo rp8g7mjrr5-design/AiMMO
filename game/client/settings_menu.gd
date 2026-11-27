@@ -53,7 +53,7 @@ func setup(p_settings: ClientSettings, theme_res: Theme) -> void:
 
 	var title := Label.new()
 	title.text = "Settings"
-	title.add_theme_font_size_override("font_size", 24)
+	HudStyle.title(title, 24)
 	box.add_child(title)
 
 	var grid := GridContainer.new()

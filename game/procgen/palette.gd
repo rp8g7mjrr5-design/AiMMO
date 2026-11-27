@@ -31,6 +31,12 @@ const SOOT := Color("#2B2A2E") ## the darkest value; never pure black anywhere i
 const SHADE := Color("#4A5878") ## shadow tint: shadows lean blue-violet, never grey or black
 const HAZE := Color("#E8C9A0") ## warm golden valley haze by day
 
+# The Satchel UI (art bible section 9, owner pick 2026-11-27): the windows' oiled leather.
+const UI_LEATHER := Color(0.20, 0.14, 0.10) ## dark oiled hide, the window body
+const LEATHER_THREAD := Color(0.70, 0.57, 0.40) ## tan saddle-stitch thread
+const IRON_SHADE := Color(0.30, 0.29, 0.27) ## a corner stud's shaded side
+const IRON_LIT := Color(0.66, 0.63, 0.57) ## a corner stud's lit crown
+
 # Light and air through the day (SkyClock, Emberlight part 4: golden hour, blue-and-ember nights).
 const GOLDEN_LIGHT := Color(1.0, 0.80, 0.56) ## the low sun's key light: the valley's favourite hour
 const MOONLIGHT := Color(0.50, 0.60, 1.0) ## the night key: SHADE's blue, bright enough to see by
