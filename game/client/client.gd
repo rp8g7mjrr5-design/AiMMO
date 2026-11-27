@@ -78,6 +78,7 @@ var controls_overlay: ControlsOverlay
 var pack_window: PackWindow
 var pack_button: Button
 var players_panel: PlayersPanel
+var map_window: MapWindow ## the world map (M)
 var players_button: Button
 var controls_button: Button
 var perf_overlay: PerfOverlay
@@ -182,6 +183,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 		_open_pack_after_login.call_deferred()
 	if args.has("open-players"):
 		_open_players_after_login.call_deferred()
+	if args.has("open-map"):
+		_open_map_after_login.call_deferred()
 	if args.has("open-look"):
 		_open_look_after_login.call_deferred()
 	if args.has("autoconnect"):
@@ -219,6 +222,23 @@ func _open_pack_after_login() -> void:
 		# that slot's gold glow and "+1" (see _screenshot_later).
 		pack_window.seed_pack(_pack_spec(spec))
 	pack_window.open()
+
+
+## Test hook (--open-map): opens the M map once logged in and its sheet is painted, as M would.
+## --open-map=2 opens it zoomed in that far on you.
+func _open_map_after_login() -> void:
+	while not logged_in or not avatars.has(my_id):
+		await get_tree().process_frame
+	await get_tree().create_timer(1.0).timeout
+	map_window.prepare()
+	while not map_window.is_ready():
+		await get_tree().process_frame
+	map_window.open()
+	var z := str(_args.get("open-map", "")).to_float()
+	if z > 1.0:
+		map_window.zoom = z
+		map_window.center = MapWindow.clamp_center(z, MapWindow.uv_of(avatars[my_id].node.position))
+	map_window.queue_redraw()
 
 
 ## Test hook (--open-players): opens the O players panel once logged in, as O would.
@@ -348,6 +368,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			pack_window.close()
 		elif players_panel.visible:
 			players_panel.close()
+		elif map_window.visible:
+			map_window.close()
 		elif craft_window.visible:
 			craft_window.close()
 		elif chat_edit.has_focus():
@@ -368,7 +390,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			look_window.drag(event.relative.x)
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_controls"):
-		if not craft_window.visible and not pack_window.visible and not players_panel.visible:
+		if not craft_window.visible and not pack_window.visible and not players_panel.visible and not map_window.visible:
 			controls_overlay.toggle()
 			if controls_overlay.visible:
 				chat_edit.release_focus()
@@ -383,7 +405,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_toggle_players()
 		get_viewport().set_input_as_handled()
 		return
-	if controls_overlay.visible or pack_window.visible or players_panel.visible:
+	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_map"):
+		_toggle_map()
+		get_viewport().set_input_as_handled()
+		return
+	if controls_overlay.visible or pack_window.visible or players_panel.visible or map_window.visible:
 		return
 	if craft_window.visible:
 		if event is InputEventKey and event.pressed and not event.echo and event.is_action("interact"):
@@ -461,12 +487,12 @@ func _apply_settings(s: ClientSettings) -> void:
 
 ## True while a window that frees the cursor is open (Settings, the workbench, the F1 controls).
 func window_open() -> bool:
-	return settings_menu.visible or craft_window.visible or controls_overlay.visible or pack_window.visible or players_panel.visible or look_window.visible
+	return settings_menu.visible or craft_window.visible or controls_overlay.visible or pack_window.visible or players_panel.visible or look_window.visible or map_window.visible
 
 
 ## I or the Pack button: open or shut the pack window (not over another window).
 func _toggle_pack() -> void:
-	if craft_window.visible or controls_overlay.visible or settings_menu.visible or players_panel.visible:
+	if craft_window.visible or controls_overlay.visible or settings_menu.visible or players_panel.visible or map_window.visible:
 		return
 	pack_window.toggle()
 	if pack_window.visible:
@@ -476,10 +502,22 @@ func _toggle_pack() -> void:
 
 ## O or the Players button: open or shut the players panel (not over another window).
 func _toggle_players() -> void:
-	if craft_window.visible or controls_overlay.visible or settings_menu.visible or pack_window.visible:
+	if craft_window.visible or controls_overlay.visible or settings_menu.visible or pack_window.visible or map_window.visible:
 		return
 	players_panel.toggle()
 	if players_panel.visible:
+		chat_edit.release_focus()
+		sfx_chime.play()
+
+
+## M: open or shut the world map (not over another window), on you and facing the camera's way.
+func _toggle_map() -> void:
+	if craft_window.visible or controls_overlay.visible or settings_menu.visible or pack_window.visible or players_panel.visible:
+		return
+	if avatars.has(my_id):
+		map_window.feed(avatars[my_id].node.position, CompassStrip.heading(cam.yaw))
+	map_window.toggle()
+	if map_window.visible:
 		chat_edit.release_focus()
 		sfx_chime.play()
 
@@ -504,6 +542,7 @@ func _process(delta: float) -> void:
 		settings_menu.refresh_home(Time.get_ticks_msec())
 	pack_window.step(delta)
 	players_panel.step(delta)
+	map_window.step(delta)
 	grazers.sync(herd, _now(), delta)
 	zombai_figures.sync(zombai, _now(), delta)
 	var move := _move_vector() if logged_in else Vector2.ZERO
@@ -561,6 +600,8 @@ func _process(delta: float) -> void:
 			camera.transform = xf
 		if compass.due(delta):
 			compass.feed(cam.yaw, me.position, other_positions())
+		if map_window.visible:
+			map_window.feed(me.position, CompassStrip.heading(cam.yaw))
 		_update_gather(delta, me.position, xf.origin, -xf.basis.z)
 		_update_bench(delta, me.position)
 		_update_cook(me.position)
@@ -805,6 +846,7 @@ func _on_server_disconnected() -> void:
 	pack_window.reset()
 	pack_button.visible = false
 	players_panel.reset()
+	map_window.reset()
 	settings_menu.set_in_game(false)
 	look_window.reset()
 	players_button.visible = false
@@ -932,7 +974,11 @@ const COVER_OVER_M := 1000.0
 
 func _on_world_config(config: Dictionary) -> void:
 	var want := WorldGen.parse("") if config.is_empty() else config
+	if map_window != null:
+		map_window.settle() # a map sheet still drawing reads WorldGen: let it finish first
 	WorldGen.apply(want)
+	if map_window != null:
+		map_window.prepare(MapWindow.PAINT_DELAY) # the M map, painted once you're ashore
 	if world != null and world.get_meta("world_config", {}) == WorldGen.config():
 		return
 	var t := Time.get_ticks_msec()
@@ -1259,7 +1305,7 @@ func _on_look(peer_id: int, look: Dictionary) -> void:
 func _open_look(creating: bool) -> void:
 	if not logged_in or not avatars.has(my_id):
 		return
-	for w in [craft_window, controls_overlay, pack_window, players_panel]:
+	for w in [craft_window, controls_overlay, pack_window, players_panel, map_window]:
 		if w.visible:
 			w.close()
 	chat_edit.release_focus()
@@ -1505,7 +1551,7 @@ func _build_ui() -> void:
 	controls_button.offset_bottom = 38
 	controls_button.visible = false
 	controls_button.pressed.connect(func():
-		if not craft_window.visible and not settings_menu.visible and not pack_window.visible and not players_panel.visible:
+		if not craft_window.visible and not settings_menu.visible and not pack_window.visible and not players_panel.visible and not map_window.visible:
 			controls_overlay.toggle()
 			sfx_chime.play())
 	ui.add_child(controls_button)
@@ -1563,6 +1609,12 @@ func _build_ui() -> void:
 	players_panel.setup(theme)
 	players_panel.closed.connect(func(): sfx_chime.play())
 	ui.add_child(players_panel)
+
+	# The M world map, over the whole screen (it dims the world behind its sheet).
+	map_window = MapWindow.new()
+	map_window.setup(theme)
+	map_window.closed.connect(func(): sfx_chime.play())
+	ui.add_child(map_window)
 
 	# The workbench window, centre screen (E at the Spawn Meadow workbench).
 	craft_window = CraftWindow.new()
