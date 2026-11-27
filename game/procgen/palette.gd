@@ -124,6 +124,12 @@ const SAILCLOTH := Color(0.64, 0.60, 0.51) ## grey-buff canvas, salt-stained
 const IRON_RUST := Color(0.38, 0.28, 0.21) ## bolts, hoops and nails gone to rust
 const SEA_SHALLOW := Color(0.30, 0.42, 0.40) ## sea over sand, a hand deep: green-grey, never pool blue
 const FOAM := Color(0.86, 0.87, 0.84) ## broken water: off-white
+## Beach palms (Flora, owner 2026-11-27: "trees shouldn't be on the beach. Palm trees maybe").
+const PALM_BARK := Color(0.47, 0.42, 0.35) ## a palm's ringed trunk: salt-greyed brown, paler than TRUNK
+const PALM_RING := Color(0.33, 0.28, 0.22) ## the old leaf scars round the trunk, darker
+const PALM_FROND := Color(0.36, 0.43, 0.25) ## living fronds: sea-dulled olive, near GRASS, never tropical green
+const PALM_FROND_DRY := Color(0.55, 0.50, 0.33) ## the old, sun-burned lower fronds: straw
+const PALM_NUT := Color(0.36, 0.27, 0.18) ## a palm's nut cluster: brown husk
 const DEAD_FLESH := Color(0.46, 0.46, 0.43) ## a dead Zombai's hand in the fishing shack (about ZombaiBody.flesh)
 const STILL_WATER := Color(1.0, 1.0, 1.0, 0.2) ## instance colour for a tide pool: alpha calms the Sea shader's surf
 const WORKED_WOOD := Color(0.52, 0.38, 0.24) ## a carved wooden tool head or club: darker than a fresh cut
@@ -220,6 +226,7 @@ static func ground(h: float, slope: float, jitter: float) -> Color:
 	return c.lightened(jitter) if jitter > 0.0 else c.darkened(-jitter)
 
 
+const DUNE_FRINGE := 0.65 ## how sandy the grass is right at the beach's edge (fades to none a band inland)
 const COVER_SCALE := 38.0 ## metres: rough width of a moss or dry-grass patch
 const EARTH_SCALE := 22.0 ## metres: bare-earth scuffs are smaller
 const COVER_MAX := 0.65 ## a patch never fully replaces the ground under it: gentle, not a quilt
@@ -306,7 +313,14 @@ static func _kingdom_ground_at(x: float, z: float, h: float, slope: float, jitte
 	var earth := smoothstep(0.30, 0.85, e) * EARTH_MAX
 	c = c.lerp(_jittered(MOSS, jitter), moss)
 	c = c.lerp(_jittered(DRY_GRASS, jitter), dry)
-	return c.lerp(_jittered(BARE_EARTH, jitter), earth)
+	c = c.lerp(_jittered(BARE_EARTH, jitter), earth)
+	if WorldGen.is_island():
+		# The back of the beach: sand blown into the first metres of turf, so the beach meets
+		# the grass in a soft fringe, not a hard 4 m staircase (owner, 2026-11-27).
+		var m := WorldGen.sand_margin(x, z, h)
+		if m < 1.0:
+			c = c.lerp(_jittered(SAND, jitter), DUNE_FRINGE * (1.0 - smoothstep(0.0, 1.0, m)))
+	return c
 
 
 static func _jittered(c: Color, jitter: float) -> Color:

@@ -137,7 +137,9 @@ static func summarise(frames: Array[Dictionary]) -> Dictionary:
 
 
 ## Distinct materials on everything drawn under `node` (or `nodes`) (material overrides, per-surface
-## overrides and the meshes' own surface materials). Sky and environment don't count.
+## overrides and the meshes' own surface materials). Sky and environment don't count, and nor
+## does anything hidden (a hidden Node3D and everything under it draws nothing): the campfire
+## placement ghost (#243) waits hidden in every world and only draws while you place a fire.
 static func count_materials(node: Node) -> int:
 	return count_materials_in([node])
 
@@ -150,6 +152,8 @@ static func count_materials_in(nodes: Array) -> int:
 
 
 static func _collect(node: Node, seen: Dictionary) -> void:
+	if node is Node3D and not (node as Node3D).visible:
+		return
 	if node is GeometryInstance3D:
 		var g := node as GeometryInstance3D
 		if g.material_override != null:

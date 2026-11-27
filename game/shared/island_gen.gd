@@ -192,6 +192,16 @@ static func biome_for(L: Dictionary, x: float, z: float, h: float) -> String:
 	return "moor" if m < 0.05 else "forest"
 
 
+## How far (x, z) with ground height h is past the beach: 0 at the sand's edge (and on it),
+## 1 a band inland (about 0.8 m up or about a seventieth of the way to the heart, whichever the edge
+## is made of). Same rule and wobble as biome_for's "shore", so the two always agree.
+static func sand_margin(L: Dictionary, x: float, z: float, h: float) -> float:
+	var inl := inland(L, x, z) + (L.wobble as FastNoiseLite).get_noise_2d(x * 1.3, z * 1.3) * 0.06
+	var low := (h - (WorldGen.KINGDOM_WATER + 1.0)) / 0.8
+	var coast := maxf((h - 2.2) / 0.8, (inl - 0.06) / 0.014)
+	return clampf(minf(low, coast), 0.0, 1.0)
+
+
 # ---------------------------------------------------------------------------------------
 # Water
 

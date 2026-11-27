@@ -1,6 +1,7 @@
 class_name Flora
-## Biome variety: birch groves on the lake shores, mossy boulders in the pine forests, and
-## wildflower patches in the grassy lowlands. All deterministic from the world seed.
+## Biome variety: birch groves on the lake shores, mossy boulders in the pine forests,
+## wildflower patches in the grassy lowlands, and on an island, palms on the sea beaches.
+## All deterministic from the world seed.
 ##
 ## This is a second, independent scatter on its own seed, so the existing forest from
 ## `Props.scatter` is untouched (same trees in the same places). Flora only fills gaps: it
@@ -21,6 +22,16 @@ const BIRCHES := 260
 const BOULDERS := 150
 const FLOWER_PATCHES := 220
 const FLOWERS_PER_PATCH := 12
+## Island palms (owner, 2026-11-27: "Trees shouldn't be on the beach. Palm trees maybe"). The
+## coast is walked by bearing from the island's centre, one look every PALM_STEP metres of
+## coast; a seeded noise along the coast decides where the groves are, so palms stand in
+## loose clumps with long open stretches of bare sand between.
+const PALM_STEP := 7.0 ## metres of coast between looks
+const PALM_GROVE_NOISE := 0.0 ## coast noise above this is a grove
+const PALM_CHANCE := 0.55 ## chance a look inside a grove grows a palm
+const PALM_LANDING_CLEAR := 6.0 ## metres past BeachGen.CLEAR kept open round a landing
+const PALM_SEGMENTS := 6 ## trunk pieces: each leans a little more than the last, so the trunk curves
+const PALM_FRONDS := 11
 
 const BARK := Color(0.90, 0.88, 0.82) ## birch bark: chalk white, a little warm
 const BARK_MARK := Color(0.20, 0.18, 0.17)
@@ -30,7 +41,8 @@ const STEM := Color(0.30, 0.48, 0.22)
 ## Wildflower colours. Each patch picks one, with a few odd ones mixed in.
 const BLOOMS := [Color(0.97, 0.86, 0.38), Color(0.66, 0.50, 0.86), Color(0.96, 0.95, 0.90), Color(0.92, 0.42, 0.30), Color(0.55, 0.70, 0.95)]
 
-const LAYERS := ["BirchBark", "BirchMarks", "BirchCrowns", "MossRocks", "Moss", "FlowerStems", "FlowerBlooms"]
+const LAYERS := ["BirchBark", "BirchMarks", "BirchCrowns", "MossRocks", "Moss", "FlowerStems", "FlowerBlooms",
+	"PalmTrunks", "PalmRings", "PalmFronds", "PalmNuts"]
 ## Layers the Graphics quality thins (art bible section 7, client's `Quality.flora_density()`).
 ## Only the wildflowers: they are most of flora's triangles (12 stems and 12 blooms a patch)
 ## and have no camera solid. Birches and boulders stay whole on every level, because they are
@@ -49,7 +61,7 @@ const KINGDOM_MAX_SCALE := 6.0
 const KINGDOM_TRIES := 20 ## tries per spot on a kingdom (Ashgrove: 60), so a big world grows in about a second
 
 
-## Every flora spot: Array of {kind: "birch"|"boulder"|"flowers", pos: Vector3 (on the ground),
+## Every flora spot: Array of {kind: "birch"|"boulder"|"flowers"|"palm", pos: Vector3 (on the ground),
 ## rot: float, scale: float, tone: float (0..1, small colour variation), bloom: int (flowers)}.
 ## Built once and cached; treat it as read-only.
 static func spots() -> Array:
@@ -76,6 +88,8 @@ static func generate() -> Array:
 	var grass := _is_kingdom_grassland if k else _is_grassland
 	_scatter(out, "flowers", int(FLOWER_PATCHES * n), SEED_OFFSET + 2, blockers,
 		func(x: float, z: float, y: float, slope: float) -> bool: return grass.call(x, z, y, slope) and mask.get_noise_2d(x, z) > 0.15)
+	if WorldGen.is_island():
+		_place_palms(out, blockers) # appended last, so every other spot is where it was
 	return out
 
 
@@ -117,6 +131,8 @@ static func _scatter(out: Array, kind: String, count: int, seed_offset: int, blo
 		var slope := absf(Terrain.height(x + 1.0, z) - y) + absf(Terrain.height(x, z + 1.0) - y)
 		if not fits.call(x, z, y, slope):
 			continue
+		if k and WorldGen.near_sand(x, z):
+			continue # birches, boulders and flowers keep off the beach (palms grow there)
 		var p := Vector3(x, y, z)
 		if not ResourceNodes.near(p, NODE_CLEARANCE).is_empty() or blockers.hit(p):
 			continue
@@ -125,15 +141,82 @@ static func _scatter(out: Array, kind: String, count: int, seed_offset: int, blo
 		placed += 1
 
 
-## On dry ground just above a lake, with open water close by.
+## On dry ground just above a lake, with open water close by. On a generated world the birch
+## also keeps WorldGen.SAND_CLEAR off the sand, so it looks that much further for its water.
 static func _is_shore(x: float, z: float, y: float, slope: float) -> bool:
 	if y < Terrain.water_level() + 0.6 or y > Terrain.water_level() + 5.0 or slope > 0.9:
 		return false
+	var probe := SHORE_PROBE + (WorldGen.SAND_CLEAR if WorldGen.is_kingdom() else 0.0)
 	for i in 8:
 		var a := TAU * i / 8.0
-		if Terrain.height(x + cos(a) * SHORE_PROBE, z + sin(a) * SHORE_PROBE) < Terrain.water_level():
+		if Terrain.height(x + cos(a) * probe, z + sin(a) * probe) < Terrain.water_level():
 			return true
 	return false
+
+
+## An island's beach palms: walk the coast by bearing, and in the groves the coast noise marks,
+## stand a palm on the dry sand between the wet band and the grass, leaning out to sea. Never
+## on a landing's lantern ring, a beach landmark, a resource node, a road or a river mouth.
+static func _place_palms(out: Array, blockers: _Grid) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _world_seed() + SEED_OFFSET + 5
+	var grove := FastNoiseLite.new()
+	grove.seed = _world_seed() + SEED_OFFSET + 6
+	grove.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	grove.frequency = 0.012
+	var wl := Terrain.water_level()
+	var lands := WorldGen.landings()
+	var marks := BeachGen.landmarks()
+	var rays := int(TAU * WorldGen.size_m() * 0.36 / PALM_STEP) # the coast runs about 0.36 x size from the centre
+	for i in rays:
+		var a := TAU * float(i) / rays
+		var chance := rng.randf()
+		var up := rng.randf_range(-4.0, 16.0)
+		var along := rng.randf_range(-2.5, 2.5)
+		var rot := rng.randf_range(-0.6, 0.6)
+		var s := rng.randf_range(0.8, 1.2)
+		var tone := rng.randf()
+		var c := WorldGen.coast_at(a)
+		if c.is_empty():
+			continue
+		var p: Vector2 = c.pos
+		if grove.get_noise_2d(p.x, p.y) < PALM_GROVE_NOISE or chance > PALM_CHANCE:
+			continue
+		var sea: Vector2 = c.sea
+		var q := p - sea * up + Vector2(-sea.y, sea.x) * along
+		var y := Terrain.height(q.x, q.y)
+		if y < wl + 0.75 or y > wl + 3.0:
+			continue # in the wet band, or up off the beach
+		if WorldGen.biome_at(q.x, q.y) != "shore":
+			continue
+		var slope := absf(Terrain.height(q.x + 1.0, q.y) - y) + absf(Terrain.height(q.x, q.y + 1.0) - y)
+		if slope > 0.6:
+			continue
+		if _near_beach_things(q, lands, marks):
+			continue
+		var pos := Vector3(q.x, y, q.y)
+		if not ResourceNodes.near(pos, NODE_CLEARANCE).is_empty() or blockers.hit(pos):
+			continue
+		blockers.add(pos)
+		# rot turns the palm so it leans seaward (its lean is along local +X), give or take.
+		out.append({"kind": "palm", "pos": pos, "rot": -sea.angle() + rot, "scale": s, "tone": tone, "bloom": 0})
+
+
+static func _near_beach_things(q: Vector2, lands: Array, marks: Array) -> bool:
+	for l in lands:
+		if q.distance_to(l) < BeachGen.CLEAR + PALM_LANDING_CLEAR:
+			return true
+	for m in marks:
+		var r: float = BeachGen.LANDMARKS[m.kind].r + 3.0
+		if m.kind == "old_pier":
+			r += BeachGen.PIER_LENGTH * 0.5
+		if q.distance_to(Vector2(m.pos.x, m.pos.z)) < r:
+			return true
+	if WorldGen.road_distance(q.x, q.y) < WorldGen.ROAD_HALF_WIDTH + 1.5:
+		return true
+	if WorldGen.river_distance(q.x, q.y) < WorldGen.RIVER_HALF_WIDTH + 3.0:
+		return true
+	return Props._on_ruin(q.x, q.y, WorldGen.ruin_sites())
 
 
 static func _is_forest_floor(_x: float, _z: float, y: float, slope: float) -> bool:
@@ -183,6 +266,8 @@ static func parts(spot: Dictionary) -> Array:
 			if spot.tone > 0.5: # some boulders have a smaller companion
 				put.call("MossRocks", Vector3(1.3 * s, 0.15 * s, 0.5 * s), Vector3(0.8, 0.6, 0.7) * s, Palette.ROCK.darkened(0.12))
 				put.call("Moss", Vector3(1.3 * s, 0.4 * s, 0.5 * s), Vector3(0.62, 0.22, 0.55) * s, MOSS)
+		"palm":
+			_palm_parts(spot, vary, put)
 		"flowers":
 			var base: Color = BLOOMS[spot.bloom]
 			for i in FLOWERS_PER_PATCH:
@@ -196,6 +281,43 @@ static func parts(spot: Dictionary) -> Array:
 				var c: Color = base if i % 5 != 3 else BLOOMS[(spot.bloom + 2) % BLOOMS.size()] # a couple of odd flowers per patch
 				put.call("FlowerBlooms", off + Vector3(0, ground + stem_h, 0), Vector3(0.21, 0.13, 0.21), c)
 	return out
+
+
+## A beach palm: a ringed trunk that curves out to sea (each piece leans a little more), a
+## crown of long drooping fronds with a couple of sun-burned old ones hanging lowest, and a
+## cluster of nuts under them. Its lean is along local +X; `rot` points that seaward.
+static func _palm_parts(spot: Dictionary, vary: Array, put: Callable) -> void:
+	var s: float = spot.scale
+	var seg_len := 1.05 * s
+	var lean: float = 0.08 + 0.05 * vary[0] # radians at the foot
+	var bend: float = 0.075 + 0.03 * vary[1] # more per piece, so the trunk curves
+	var at := Vector3(0.0, -0.15, 0.0)
+	var tilt := Basis.IDENTITY
+	for i in PALM_SEGMENTS:
+		tilt = Basis(Vector3.BACK, -(lean + bend * i))
+		var w := (0.46 if i == 0 else 0.36) * (1.0 - 0.05 * i) * s # a flared foot, then a slow taper
+		var up := tilt * Vector3.UP
+		put.call("PalmTrunks", at + up * seg_len * 0.5, Vector3(w, seg_len * 1.04, w), _palm_bark(spot.tone), tilt)
+		at += up * seg_len
+		put.call("PalmRings", at - up * 0.04, Vector3(w * 0.86, 0.09, w * 0.86), Palette.PALM_RING, tilt)
+	var top := at
+	var frond := Palette.PALM_FROND.lerp(Palette.PALM_FROND_DRY, 0.15 + spot.tone * 0.15)
+	for f in PALM_FRONDS:
+		var dry := f >= PALM_FRONDS - 2
+		var yaw: float = TAU * float(f) / PALM_FRONDS + vary[(f + 2) % 4] * 0.25 + float(f % 2) * 0.2
+		var lift: float = (-0.55 if dry else (0.35 if f % 3 == 0 else 0.05)) + vary[f % 4] * 0.12
+		var length := (2.4 if dry else 3.0 + 0.4 * float(f % 2)) * s
+		var b := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, -lift)
+		var col := Palette.PALM_FROND_DRY.darkened(0.05) if dry else frond.lightened(0.04 * float(f % 3))
+		put.call("PalmFronds", top + Vector3(0, 0.05, 0), Vector3(0.95 * s, length, length), col, b)
+	for n in 3:
+		var a: float = TAU * n / 3.0 + vary[3]
+		put.call("PalmNuts", top + Vector3(cos(a) * 0.17 * s, -0.22 * s, sin(a) * 0.17 * s), Vector3(0.2, 0.22, 0.2) * s, Palette.PALM_NUT)
+
+
+## The trunk's bark: PALM_BARK, a little lighter or darker per tree.
+static func _palm_bark(tone: float) -> Color:
+	return Palette.PALM_BARK.darkened(0.12 * tone) if tone > 0.5 else Palette.PALM_BARK.lightened(0.06 * tone)
 
 
 ## Four stable numbers in -1..1 for a spot, from its position, so the look never draws from
@@ -378,6 +500,11 @@ static func _meshes() -> Dictionary:
 	bloom.height = 1.0
 	bloom.radial_segments = 5
 	bloom.rings = 2
+	var nut := SphereMesh.new()
+	nut.radius = 0.5
+	nut.height = 1.0
+	nut.radial_segments = 5
+	nut.rings = 2
 	# Baked vertex colours (Emberlight): dark at the foot, lighter up the height. Same
 	# vertices, so WorldSolids (which reads these meshes) is unchanged.
 	return {
@@ -388,7 +515,47 @@ static func _meshes() -> Dictionary:
 		"Moss": Emberlight.bake(moss, 0.20),
 		"FlowerStems": Emberlight.bake(stem, 0.30),
 		"FlowerBlooms": bloom,
+		"PalmTrunks": Emberlight.bake(trunk, 0.18),
+		"PalmRings": Emberlight.bake(band, 0.0),
+		"PalmFronds": Emberlight.bake(_frond_mesh(), 0.25),
+		"PalmNuts": Emberlight.bake(nut, 0.3),
 	}
+
+
+## One palm frond, 1 long (along +Z) and 1 wide, rising a little then drooping: a midrib with
+## leaflets hanging either side in a shallow upside-down V, cut in five faceted pieces that
+## narrow to the tip. Both faces are built (the shared material culls back faces) so a frond
+## seen from underneath, as from the beach, is still there.
+static func _frond_mesh() -> ArrayMesh:
+	const N := 5
+	var widths := [0.12, 0.50, 0.50, 0.40, 0.22, 0.0]
+	var spine: Array = []
+	var left: Array = []
+	var right: Array = []
+	for k in N + 1:
+		var z := float(k) / N
+		var y := 0.30 * z - 0.85 * z * z
+		var w: float = widths[k]
+		spine.append(Vector3(0, y, z))
+		left.append(Vector3(w * 0.5, y - 0.10 * w, z - 0.04 * w))
+		right.append(Vector3(-w * 0.5, y - 0.10 * w, z - 0.04 * w))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var tri := func(a: Vector3, b: Vector3, c: Vector3) -> void:
+		st.add_vertex(a)
+		st.add_vertex(b)
+		st.add_vertex(c)
+		var d := Vector3(0, -0.012, 0) # the underside, a hair below, wound the other way
+		st.add_vertex(c + d)
+		st.add_vertex(b + d)
+		st.add_vertex(a + d)
+	for k in N:
+		tri.call(spine[k], spine[k + 1], left[k + 1])
+		tri.call(spine[k], left[k + 1], left[k])
+		tri.call(spine[k], right[k + 1], spine[k + 1])
+		tri.call(spine[k], right[k], right[k + 1])
+	st.generate_normals()
+	return st.commit()
 
 
 ## Which shared Emberlight material each flora layer uses: birch bark and mossy rocks share the
@@ -397,7 +564,7 @@ static func _meshes() -> Dictionary:
 ## trunk. See the world backlog follow-up.)
 static func layer_material(layer: String) -> ShaderMaterial:
 	match layer:
-		"BirchBark":
+		"BirchBark", "PalmTrunks":
 			return Emberlight.painted("bark")
 		"MossRocks":
 			return Emberlight.painted("stone")

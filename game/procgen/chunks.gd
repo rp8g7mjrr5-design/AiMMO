@@ -20,6 +20,7 @@ const RANGES := {
 	# flora
 	"BirchBark": 300.0, "BirchCrowns": 300.0, "BirchMarks": 160.0,
 	"MossRocks": 160.0, "Moss": 160.0, "FlowerStems": 90.0, "FlowerBlooms": 90.0,
+	"PalmTrunks": 300.0, "PalmFronds": 300.0, "PalmRings": 160.0, "PalmNuts": 160.0,
 }
 
 ## Chunk side per layer when it differs from SIZE. Visibility range is measured to a chunk, not
@@ -35,7 +36,7 @@ const CHUNK_SIZES := {
 
 ## Small layers that don't cast shadows: their shadow is a few pixels nobody notices, and every
 ## shadow cascade would draw them again.
-const NO_SHADOW := ["FlowerStems", "FlowerBlooms", "BirchMarks", "Moss"]
+const NO_SHADOW := ["FlowerStems", "FlowerBlooms", "BirchMarks", "Moss", "PalmRings", "PalmNuts"]
 
 ## Draw distances on the Low Graphics preset, as a share of each layer's range (qa, 2026-11-23:
 ## Low thinned only the flowers, which are mostly past their 90 m cut anyway, so the frame drew
