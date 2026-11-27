@@ -45,9 +45,12 @@ const RECIPES := {
 	"stone_spear": {"label": "stone spear", "needs": {"wooden_spear": 1, "stone": 2, "plant_fibre": 2}, "makes": 1, "bench": true, "tool": true,
 		"upgrades": "wooden_spear"},
 	"campfire": {"label": "campfire", "needs": {"ash_wood": 2, "pine_wood": 2, "stone": 4}, "makes": 1, "bench": true, "tool": false},
+	# Thirst (Needs, step 3 of the survival plan): carry water away from the lakes and rivers.
+	# The hunt's hide and the scrub's fibre; no bench, so you can make one where you need it.
+	"waterskin": {"label": "waterskin", "needs": {"hide": 2, "plant_fibre": 2}, "makes": 1, "bench": false, "tool": false},
 }
 const RECIPE_ORDER := ["wooden_axe", "wooden_pickaxe", "wooden_club", "wooden_spear", "bandage", "torch",
-	"stone_axe", "stone_pickaxe", "stone_maul", "stone_spear", "campfire"]
+	"stone_axe", "stone_pickaxe", "stone_maul", "stone_spear", "campfire", "waterskin"]
 
 ## Plain words players type, to recipe ids. A bare "axe" or "pickaxe" means the wooden one.
 const WORDS := {
@@ -62,6 +65,7 @@ const WORDS := {
 	"bandage": "bandage", "bandages": "bandage",
 	"torch": "torch", "torches": "torch",
 	"campfire": "campfire", "fire": "campfire", "camp_fire": "campfire",
+	"waterskin": "waterskin", "skin": "waterskin", "water_skin": "waterskin",
 }
 
 

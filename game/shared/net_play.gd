@@ -211,7 +211,9 @@ func s2c_world(config: Dictionary) -> void:
 ## Use `item` from your pack: "campfire" is set down in front of you, "bandage" is put on
 ## (Server.use_bandage, servers from 2026-11-26), "eat" eats your best food (or name a food:
 ## "cooked_meat", "berries", "raw_meat"), and "cook" cooks all your raw meat at a lit campfire
-## (servers from protocol v12). For a campfire the server places it
+## (servers from protocol v12). "drink" drinks at fresh water (filling empty waterskins) or
+## from a full waterskin (protocol v14). "search" searches the loot spot you stand at (it
+## answers when the search ends). For a campfire the server places it
 ## Campfires.PLACE_DISTANCE ahead of where it has you standing, facing your last yaw, and on
 ## success everyone also gets s2c_campfires. Either way it answers with s2c_place_result.
 @rpc("any_peer", "call_remote", "reliable")
@@ -260,7 +262,8 @@ func s2c_gloam_hits(peer_id: int, kind: String, walker_ids: Array, downed: Array
 
 # --- protocol v12: survival needs (the owner's survival plan, 2026-11-27) ---
 
-## Your needs, whole numbers 0 (empty) to 100 (full), from Needs.to_wire: {"hunger": 72}.
+## Your needs, whole numbers 0 (empty) to 100 (full), from Needs.to_wire:
+## {"hunger": 72, "thirst": 55} ("thirst" from protocol v14).
 ## Sent once after login and whenever a whole point changes. Keys you don't know yet are
 ## future needs: ignore them. Show a need only when it is low (Needs.LOW_AT) or worse.
 @rpc("authority", "call_remote", "reliable")

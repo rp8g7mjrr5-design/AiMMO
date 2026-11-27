@@ -58,6 +58,8 @@ const GRAZER_DARK := Color(0.20, 0.16, 0.14) ## hooves, muzzle and eyes: close t
 # What a downed grazer gives (the first hunt, ItemIcons): earthy and a little grim, never
 # glowing, and the meat kept well away from ember orange so it never reads as "usable fire".
 const HIDE_FUR := Color(0.46, 0.34, 0.24) ## a fresh hide's fur side: GRAZER_COAT, duller and darker once off the animal
+const WATERSKIN := Color(0.42, 0.30, 0.20) ## worked hide, sewn and oiled: darker and smoother than a raw hide
+const WATER_BEAD := Color(0.52, 0.64, 0.68) ## a bead of fresh water: cool grey-blue, never bright
 const HIDE_FLESH := Color(0.78, 0.69, 0.56) ## the scraped flesh side of a hide: pale tan, not cream
 const RAW_MEAT := Color(0.47, 0.17, 0.16) ## a raw cut: deep brown-red, darker than SMOULDER and nowhere near EMBER
 const MEAT_FAT := Color(0.80, 0.72, 0.60) ## the fat rim and marbling on a cut, and the bone's cross-section

@@ -131,14 +131,14 @@ func test_hunger_drains_and_is_sent_and_told_once() -> void:
 	var srv := _server({1: "Ash"})
 	var ch: Dictionary = srv.sessions[1].character
 	_run(srv, 0.2)
-	check_eq(_sent(srv, 1, "s2c_needs").back(), [{"hunger": 100}], "sent full")
+	check_eq(_sent(srv, 1, "s2c_needs").back(), [{"hunger": 100, "thirst": 100}], "sent full")
 	Needs.set_hunger(ch, Needs.LOW_AT + 0.01)
 	_run(srv, 2.0)
 	check_eq(_sent(srv, 1, "s2c_system").back(), [Needs.text("low")], "told once when hunger arrives")
 	var told := _sent(srv, 1, "s2c_system").size()
 	_run(srv, 2.0)
 	check_eq(_sent(srv, 1, "s2c_system").size(), told, "not told again")
-	check_eq(_sent(srv, 1, "s2c_needs").back(), [{"hunger": 50}], "the bar follows")
+	check_eq(_sent(srv, 1, "s2c_needs").back(), [{"hunger": 50, "thirst": 100}], "the bar follows")
 	srv.free()
 
 

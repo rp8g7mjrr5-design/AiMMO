@@ -41,6 +41,8 @@ const SHAPES := {
 	"campfire": [2, 2, 1],
 	"cooked_meat": [1, 1, 5],
 	"berries": [1, 1, 20],
+	"waterskin": [1, 2, 1],
+	"full_waterskin": [1, 2, 1],
 }
 const DEFAULT_STACK := 10
 

@@ -403,6 +403,8 @@ func place_request(id: int, item: String) -> Dictionary:
 		return cook_request(id)
 	if word == "search":
 		return search_start(id)
+	if word == "drink" or Needs.is_drink(word):
+		return drink_request(id)
 	if word != Campfires.ITEM:
 		return _refuse_place("unknown")
 	if Vitals.is_dead(vitals_of(id)):
@@ -646,6 +648,7 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 	_send(id, "s2c_world_time", [world_seconds()])
 	_send_vitals(id) # the bar starts right, before anything changes it
 	s.hunger_tier = Needs.tier_of(ch)
+	s.thirst_tier = Needs.thirst_tier_of(ch)
 	_send_needs(id) # v12: hunger, once, then on every whole-point change
 	_send_world_state(id)
 	if washed and not is_new:
@@ -860,6 +863,8 @@ func _on_place(id: int, item: String) -> void:
 			word = Vitals.BANDAGE_ITEM
 		elif word == "eat" or Needs.is_food(word):
 			word = "eat"
+		elif word == "drink" or Needs.is_drink(word):
+			word = "drink"
 		elif word != "cook":
 			word = Campfires.ITEM
 	_send(id, "s2c_place_result", [word, r.ok, str(r.reason), str(r.text)])
@@ -1367,6 +1372,12 @@ func _tick_needs(id: int, tier: String) -> void:
 		s.hunger_tier = tier
 		if Needs.TIERS.find(tier) > Needs.TIERS.find(was) and Needs.text(tier) != "":
 			_send(id, "s2c_system", [Needs.text(tier)])
+	var thirst := Needs.thirst_tier_of(s.character)
+	var was_thirst := str(s.get("thirst_tier", "fine"))
+	if thirst != was_thirst:
+		s.thirst_tier = thirst
+		if Needs.TIERS.find(thirst) > Needs.TIERS.find(was_thirst) and Needs.text("thirst_" + thirst) != "":
+			_send(id, "s2c_system", [Needs.text("thirst_" + thirst)])
 	if Needs.to_wire(s.character) != s.get("needs_shown", {}):
 		_send_needs(id)
 
@@ -1377,6 +1388,44 @@ func _send_needs(id: int) -> void:
 	var wire := Needs.to_wire(s.character)
 	s.needs_shown = wire
 	_send(id, "s2c_needs", [wire])
+
+
+## Player `id` drinks (Needs, thirst): at fresh water (Needs.at_fresh_water) they drink their
+## fill and every empty waterskin fills; anywhere else one full waterskin is drunk and comes
+## back empty. c2s_place("drink") runs this (the client sends it on F when thirst is the
+## worse need, and on E at a lake or river). Refused ("no_water", "not_thirsty", "dead") it
+## costs nothing. Returns {ok, reason, text, fire_id: -1}.
+func drink_request(id: int) -> Dictionary:
+	var s: Dictionary = sessions[id]
+	var v := vitals_of(id)
+	var at_water := Needs.at_fresh_water(CharacterData.position(s.character))
+	var how := Needs.drink_check(s.character, v, at_water)
+	var text := ""
+	match how:
+		"fresh":
+			var thirsty := Needs.thirst_of(s.character) < Needs.FULL_AT
+			Needs.set_thirst(s.character, Needs.MAX)
+			var filled := 0
+			for empty in Needs.FILLS:
+				var n := Inventory.count(s.character.inventory, empty)
+				if n > 0 and take_item(id, empty, n):
+					filled += give_item(id, str(Needs.FILLS[empty]), n)
+			if thirsty:
+				text = Needs.text("drank_fresh_filled") % filled if filled > 0 else Needs.text("drank_fresh")
+			else:
+				text = Needs.text("filled") % filled
+		"skin":
+			var full := "full_waterskin"
+			if not take_item(id, full, 1):
+				return {"ok": false, "reason": "no_water", "text": Needs.text("no_water"), "fire_id": -1}
+			Needs.drink(s.character, full)
+			give_item(id, str(Needs.DRINKS[full].leaves), 1)
+			text = Needs.text("drank_skin")
+		_:
+			return {"ok": false, "reason": how, "text": Needs.text(how), "fire_id": -1}
+	print("[needs] %s drank (%s), thirst %d" % [s.character.name, how, Needs.shown_thirst(s.character)])
+	_tick_needs(id, Needs.tier_of(s.character))
+	return {"ok": true, "reason": "", "text": text, "fire_id": -1}
 
 
 ## Player `id` eats `food` (an Inventory id), or the best food in their pack for "".
@@ -1747,6 +1796,12 @@ func vitals_command(id: int, line: String) -> String:
 				Needs.set_hunger(sessions[id].character, arg[1].to_float())
 				_tick_needs(id, Needs.tier_of(sessions[id].character))
 			return "%s %s" % [Vitals.describe(vitals_of(id), now_seconds()), Needs.describe(sessions[id].character)]
+		if arg.size() >= 1 and arg[0] == "thirst":
+			# "/vitals thirst" reads thirst, "/vitals thirst 30" sets it (bots, dev servers).
+			if arg.size() == 2 and arg[1].is_valid_float():
+				Needs.set_thirst(sessions[id].character, arg[1].to_float())
+				_tick_needs(id, Needs.tier_of(sessions[id].character))
+			return "%s %s" % [Vitals.describe(vitals_of(id), now_seconds()), Needs.describe_thirst(sessions[id].character)]
 		return Vitals.describe(vitals_of(id), now_seconds())
 	var amount := ChatCommands.hurt_amount(line)
 	if amount <= 0:

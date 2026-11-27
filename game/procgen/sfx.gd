@@ -422,6 +422,33 @@ static func sizzle() -> AudioStreamWAV:
 	return _wav(data)
 
 
+## A drink (lake, river or waterskin): two soft low swallows, a falling sine with a little
+## breathy noise. Quiet and short.
+const DRINK_LENGTH := 0.7
+
+
+static func drink() -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2209
+	var data := PackedByteArray()
+	var n := int(RATE * DRINK_LENGTH)
+	var phase := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var v := 0.0
+		for start in [0.05, 0.36]:
+			var dt: float = t - float(start)
+			if dt >= 0.0 and dt < 0.22:
+				var f := 260.0 - dt * 500.0
+				phase += TAU * f / RATE
+				v += sin(phase) * minf(1.0, dt * 40.0) * exp(-dt * 12.0) * 0.8
+				v += rng.randf_range(-1.0, 1.0) * 0.08 * exp(-dt * 20.0)
+		var s16 := int(clampf(v * 0.35, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	return _wav(data)
+
+
 ## Rummaging through a crate or a sack (Loot's search): soft, low scuffs and a wooden knock,
 ## spread over about the search's length. Quiet and dry, never a "loot" fanfare.
 const RUMMAGE_LENGTH := 1.6
