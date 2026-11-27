@@ -79,15 +79,22 @@ static func generate() -> Array:
 	var k := WorldGen.is_kingdom()
 	var n := scale_for_world()
 	# Shores grow with the edge of the water, not the area, so birches scale by its square root.
-	_scatter(out, "birch", int(BIRCHES * sqrt(n)), SEED_OFFSET, blockers, _is_shore)
-	_scatter(out, "boulder", int(BOULDERS * n), SEED_OFFSET + 1, blockers, _is_kingdom_forest_floor if k else _is_forest_floor)
+	_scatter(out, "birch", int(BIRCHES * sqrt(n)), SEED_OFFSET, blockers, _shore_band, _is_shore)
+	if k:
+		_scatter(out, "boulder", int(BOULDERS * n), SEED_OFFSET + 1, blockers, _is_kingdom_forest_ground, _gentle(1.4))
+	else:
+		_scatter(out, "boulder", int(BOULDERS * n), SEED_OFFSET + 1, blockers, _forest_band, _is_forest_floor)
 	var mask := FastNoiseLite.new() # where flower meadows are; patches cluster where it is high
 	mask.seed = _world_seed() + SEED_OFFSET + 3
 	mask.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	mask.frequency = 0.018
-	var grass := _is_kingdom_grassland if k else _is_grassland
-	_scatter(out, "flowers", int(FLOWER_PATCHES * n), SEED_OFFSET + 2, blockers,
-		func(x: float, z: float, y: float, slope: float) -> bool: return grass.call(x, z, y, slope) and mask.get_noise_2d(x, z) > 0.15)
+	# The meadow mask is the cheapest look, so it goes first: most of the land is no meadow.
+	var meadow := func(x: float, z: float, y: float) -> bool:
+		if mask.get_noise_2d(x, z) <= 0.15:
+			return false
+		return _is_kingdom_field(x, z, y) if k else _grass_band(x, z, y)
+	_scatter(out, "flowers", int(FLOWER_PATCHES * n), SEED_OFFSET + 2, blockers, meadow,
+		_gentle(0.5) if k else _is_grassland)
 	if WorldGen.is_island():
 		_place_palms(out, blockers) # appended last, so every other spot is where it was
 	return out
@@ -105,13 +112,19 @@ static func _world_seed() -> int:
 	return int(WorldGen.config().seed)
 
 
-static func _scatter(out: Array, kind: String, count: int, seed_offset: int, blockers: _Grid, fits: Callable) -> void:
+## Scatter `count` spots of `kind`. `ground(x, z, y)` is the cheap test of the spot's own
+## height and biome; `fits(x, z, y, slope)` the full one, asked only once `ground` passed
+## (so it may assume it). The looks run cheapest and most-often-failing first: on a 3 km
+## island two in five tries land in the sea, and the old order asked the road and every ruin
+## before it found out. The order never changes which spots grow, only how fast (same RNG
+## draws, same tests; `test_world_flora_speed.gd` holds it to the old order).
+static func _scatter(out: Array, kind: String, count: int, seed_offset: int, blockers: _Grid, ground: Callable, fits: Callable) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _world_seed() + seed_offset
 	var h := WorldGen.half_size() - 4.0
 	var sp := WorldGen.spawn_point()
 	var k := WorldGen.is_kingdom()
-	var ruins := WorldGen.ruin_sites()
+	var pads := Props.ruin_pads(WorldGen.ruin_sites())
 	var placed := 0
 	var tries := 0
 	var max_tries := count * (KINGDOM_TRIES if k else 60)
@@ -125,20 +138,42 @@ static func _scatter(out: Array, kind: String, count: int, seed_offset: int, blo
 		var bloom := rng.randi_range(0, BLOOMS.size() - 1)
 		if Vector2(x - sp.x, z - sp.z).length() < SPAWN_CLEAR:
 			continue
-		if k and (WorldGen.road_distance(x, z) < WorldGen.ROAD_HALF_WIDTH + 1.0 or Props._on_ruin(x, z, ruins)):
-			continue # the king's roads and the ruins' pads stay clear
 		var y := Terrain.height(x, z)
+		if not ground.call(x, z, y):
+			continue
+		if k and (WorldGen.road_distance(x, z) < WorldGen.ROAD_HALF_WIDTH + 1.0 or Props.on_pad(x, z, pads)):
+			continue # the king's roads and the ruins' pads stay clear
 		var slope := absf(Terrain.height(x + 1.0, z) - y) + absf(Terrain.height(x, z + 1.0) - y)
 		if not fits.call(x, z, y, slope):
 			continue
-		if k and WorldGen.near_sand(x, z):
-			continue # birches, boulders and flowers keep off the beach (palms grow there)
 		var p := Vector3(x, y, z)
 		if not ResourceNodes.near(p, NODE_CLEARANCE).is_empty() or blockers.hit(p):
 			continue
+		if k and WorldGen.near_sand(x, z):
+			continue # birches, boulders and flowers keep off the beach (palms grow there)
 		blockers.add(p) # flora doesn't stack on flora either
 		out.append({"kind": kind, "pos": p, "rot": rot, "scale": s, "tone": tone, "bloom": bloom})
 		placed += 1
+
+
+## A birch's height band: dry ground a little above the water.
+static func _shore_band(_x: float, _z: float, y: float) -> bool:
+	return y >= Terrain.water_level() + 0.6 and y <= Terrain.water_level() + 5.0
+
+
+## Ashgrove's pine-forest heights (boulders).
+static func _forest_band(_x: float, _z: float, y: float) -> bool:
+	return y > FOREST_MIN and y < FOREST_MAX
+
+
+## Ashgrove's meadow heights (flowers).
+static func _grass_band(_x: float, _z: float, y: float) -> bool:
+	return y > Terrain.water_level() + 1.5 and y < FOREST_MIN - 0.5
+
+
+## Gentle enough ground, whatever the biome (the biome was asked in `ground`).
+static func _gentle(max_slope: float) -> Callable:
+	return func(_x: float, _z: float, _y: float, slope: float) -> bool: return slope < max_slope
 
 
 ## On dry ground just above a lake, with open water close by. On a generated world the birch
@@ -227,16 +262,16 @@ static func _is_grassland(_x: float, _z: float, y: float, slope: float) -> bool:
 	return y > Terrain.water_level() + 1.5 and y < FOREST_MIN - 0.5 and slope < 0.5
 
 
-## A kingdom's mossy boulders: under its forests and on the stone hills.
-static func _is_kingdom_forest_floor(x: float, z: float, y: float, slope: float) -> bool:
+## A kingdom's mossy boulders: under its forests and on the stone hills (slope < 1.4).
+static func _is_kingdom_forest_ground(x: float, z: float, y: float) -> bool:
 	var b := WorldGen.biome_for(x, z, y)
-	return (b == "forest" or b == "stone_hills") and slope < 1.4
+	return b == "forest" or b == "stone_hills"
 
 
-## A kingdom's wildflowers: the old fields and the moor, on gentle ground.
-static func _is_kingdom_grassland(x: float, z: float, y: float, slope: float) -> bool:
+## A kingdom's wildflowers: the old fields and the moor (slope < 0.5).
+static func _is_kingdom_field(x: float, z: float, y: float) -> bool:
 	var b := WorldGen.biome_for(x, z, y)
-	return (b == "farmland" or b == "moor") and slope < 0.5
+	return b == "farmland" or b == "moor"
 
 
 ## Every part of one spot in world space: Array of {layer, xform, color}.
