@@ -103,8 +103,7 @@ func setup(theme_res: Theme) -> void:
 	box.add_child(head)
 	var title := Label.new()
 	title.text = "Players"
-	title.add_theme_font_size_override("font_size", 21)
-	title.add_theme_color_override("font_color", ACCENT)
+	HudStyle.title(title, 21)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
 	_header = Label.new()

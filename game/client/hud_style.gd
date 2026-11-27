@@ -86,13 +86,18 @@ static func title(l: Label, size: int) -> Label:
 			f.spacing_glyph = 4 if skin == "ash" else 3
 			f.variation_embolden = 0.5 if skin == "satchel" else 0.0
 			l.add_theme_font_override("font", f)
-			l.text = l.text.to_upper()
+			l.text = title_case(l.text)
 			l.add_theme_font_size_override("font_size", size - (2 if skin == "satchel" else 4))
 			l.add_theme_color_override("font_color", BRASS if skin == "satchel" else TEXT)
 		_:
 			l.add_theme_font_size_override("font_size", size)
 			l.add_theme_color_override("font_color", EMBER)
 	return l
+
+
+## A title's words as the skin sets them (capitals for the satchel and ash looks).
+static func title_case(text: String) -> String:
+	return text.to_upper() if skin == "satchel" or skin == "ash" else text
 
 
 ## A pack slot's resting colours: {bg, border, radius}.

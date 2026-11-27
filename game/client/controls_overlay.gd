@@ -168,8 +168,7 @@ func setup(theme_res: Theme) -> void:
 	margin.add_child(box)
 	var title := Label.new()
 	title.text = "Controls"
-	title.add_theme_font_size_override("font_size", 21)
-	title.add_theme_color_override("font_color", ACCENT)
+	HudStyle.title(title, 21)
 	box.add_child(title)
 	_keys_box = VBoxContainer.new()
 	_keys_box.add_theme_constant_override("separation", 6)
