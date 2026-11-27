@@ -77,8 +77,8 @@ func load_or_create_character(account: Dictionary) -> Dictionary:
 
 func save_character(ch: Dictionary) -> bool:
 	var r: Variant = _q(
-		"UPDATE characters SET pos_x = $2, pos_y = $3, pos_z = $4, yaw = $5, appearance = $6, world_id = $7, hunger = $8, updated_at = now() WHERE id = $1",
-		[ch.id, ch.x, ch.y, ch.z, ch.yaw, Appearance.to_json(ch.get("look", {})), int(ch.get("world_id", 0)), Needs.hunger_of(ch)])
+		"UPDATE characters SET pos_x = $2, pos_y = $3, pos_z = $4, yaw = $5, appearance = $6, world_id = $7, hunger = $8, pack_layout = $9, updated_at = now() WHERE id = $1",
+		[ch.id, ch.x, ch.y, ch.z, ch.yaw, Appearance.to_json(ch.get("look", {})), int(ch.get("world_id", 0)), Needs.hunger_of(ch), PackGrid.to_json(ch.get("pack", []))])
 	if r == null:
 		return false
 	if not _save_inventory(int(ch.id), Inventory.normalize(ch.get("inventory", {}))):

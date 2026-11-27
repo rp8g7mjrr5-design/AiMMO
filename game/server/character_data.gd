@@ -22,6 +22,10 @@ const DEFAULTS := {
 	## How fed the character is, 0 (starving) to 100 (full) (Needs, migration 0006 adds
 	## characters.hunger). Older saves have none and load full.
 	"hunger": 100.0,
+	## Where each stack sits in the grid pack (PackGrid places, [[item, index, x, y, turned]]).
+	## Stored as JSON text in characters.pack_layout (migration 0007); older saves have none
+	## and are packed top-left first at their next login.
+	"pack": [],
 }
 
 
@@ -47,6 +51,8 @@ static func normalize(src: Dictionary) -> Dictionary:
 					var inv := Inventory.normalize(v)
 					Inventory.convert_retired(inv)
 					out[k] = inv
+			TYPE_ARRAY:
+				out[k] = PackGrid.from_json(v) if typeof(v) == TYPE_STRING else PackGrid.normalize(v)
 			_:
 				out[k] = str(v)
 	# A position outside the world (e.g. after a world resize) snaps back inside it.
@@ -70,6 +76,7 @@ static func from_pg_row(row: Dictionary) -> Dictionary:
 		"look": Appearance.from_json(row.get("appearance", "")),
 		"world_id": row.get("world_id"),
 		"hunger": row.get("hunger"),
+		"pack": str(row.get("pack_layout", "")),
 	})
 
 

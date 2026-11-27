@@ -100,6 +100,13 @@ signal gloam_struck(peer_id: int, kind: String, walker_ids: Array, downed: Array
 ## Your needs as whole numbers 0..100 (Needs.to_wire): {"hunger": 72} today; thirst, warmth
 ## and rest join the same Dictionary later. At login and whenever a whole point changes.
 signal needs_changed(needs: Dictionary)
+# --- protocol v13, carried by Net/Play: the grid pack ---
+## peer_id moves one stack of their pack to (x, y), standing or turned (PackGrid.move).
+signal pack_move_requested(peer_id: int, item: String, index: int, x: int, y: int, turned: bool)
+## peer_id drops one stack of their pack (it is gone).
+signal pack_drop_requested(peer_id: int, item: String, index: int)
+## Your pack's layout (PackGrid places), sent with every s2c_inventory and after a move.
+signal pack_layout_changed(places: Array)
 
 var last_ack_seq := -1
 var play: Node

@@ -141,6 +141,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.gather_ended.connect(_on_gather_ended)
 	net.gather_result.connect(_on_gather_result)
 	net.inventory_changed.connect(_on_inventory)
+	net.pack_layout_changed.connect(func(p: Array): pack_window.seed_places(p))
 	net.nodes_depleted.connect(_on_nodes_depleted)
 	net.node_state.connect(_on_node_state)
 	net.craft_result.connect(_on_craft_result)
@@ -767,6 +768,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	prediction.place(Terrain.clamp_to_world(Vector3(character.x, character.y, character.z)))
 	cam.place(Vector3(character.x, character.y, character.z), character.yaw + PI)
 	craft_window.seed_pack(character.get("inventory"))
+	pack_window.seed_places(character.get("pack", []))
 	pack_window.seed_pack(character.get("inventory"))
 	notice_line.show_notice(message, false) # "Welcome back, Ash." centre screen, not in chat
 	sfx_arrive.play()
@@ -1556,6 +1558,12 @@ func _build_ui() -> void:
 	pack_window.icons = icon_shelf
 	pack_window.setup(theme)
 	pack_window.closed.connect(func(): sfx_chime.play())
+	pack_window.move_requested.connect(func(item: String, index: int, x: int, y: int, turned: bool):
+		if multiplayer.multiplayer_peer != null and logged_in:
+			net.play.c2s_pack_move.rpc_id(1, item, index, x, y, turned))
+	pack_window.drop_requested.connect(func(item: String, index: int):
+		if multiplayer.multiplayer_peer != null and logged_in:
+			net.play.c2s_pack_drop.rpc_id(1, item, index))
 	ui.add_child(pack_window)
 
 	# The O players panel, centre screen.

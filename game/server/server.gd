@@ -126,6 +126,8 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.attack_requested.connect(_on_attack)
 	net.look_requested.connect(_on_set_look)
 	net.place_requested.connect(_on_place)
+	net.pack_move_requested.connect(_on_pack_move)
+	net.pack_drop_requested.connect(_on_pack_drop)
 	get_tree().set_auto_accept_quit(false)
 	print("[server] listening on port %d via %s, protocol v%d" % [port, transport, GameConfig.PROTOCOL_VERSION])
 	print("[server] world clock: ", WorldClock.describe(world_seconds()))
@@ -620,6 +622,7 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 		push_error("[server] could not save %s after the wipe: %s" % [ch.name, store.last_error])
 	place_on_this_world(ch)
 	s.character = ch
+	_relayout(ch) # an older save gets its grid places here (PackGrid)
 	s.yaw = ch.yaw
 	s.vitals = Vitals.full() # not saved: every login starts at full health
 	s.vitals_shown = Vitals.shown(s.vitals)
@@ -950,8 +953,8 @@ func gather_start(id: int, node_id: int) -> Dictionary:
 	# who keeps pressing E goes straight from one gather into the next (no dead time). The
 	# cooldown stays for the instant /gather dev command.
 	var why := Gathering.check(gathering, node_id, pos, now, world_seconds(), -INF, 0.0, inv)
-	if why == "" and Inventory.count(inv, str(ResourceNodes.info(node).get("item", ""))) >= Inventory.MAX_STACK:
-		why = "full"
+	if why == "" and PackGrid.room_for(inv, s_pack(id), str(ResourceNodes.info(node).get("item", ""))) <= 0:
+		why = "full" # the grid pack has no room for what this node gives (or the stack is at MAX_STACK)
 	if why != "":
 		return {"ok": false, "reason": why, "seconds": 0.0}
 	var secs := GatherChannel.seconds_at(node_id, inv)
@@ -1139,6 +1142,7 @@ func _node_changed(node_id: int, depleted: bool, respawn: float = 0.0) -> void:
 
 ## Right after login: the player's pack and which nodes are empty right now.
 func _send_world_state(id: int) -> void:
+	_send(id, "s2c_pack", [sessions[id].character.get("pack", [])])
 	_send(id, "s2c_inventory", [Inventory.to_wire(sessions[id].character.inventory)])
 	_send(id, "s2c_nodes", [Gathering.depleted_ids(gathering, now_seconds())])
 	if Campfires.count(campfires) > 0:
@@ -1153,6 +1157,7 @@ func _flush_inventories() -> void:
 		var s: Dictionary = sessions[id]
 		if s.logged_in and s.get("inv_dirty", false):
 			s.inv_dirty = false
+			_send(id, "s2c_pack", [s.character.get("pack", [])])
 			_send(id, "s2c_inventory", [Inventory.to_wire(s.character.inventory)])
 
 
@@ -1202,13 +1207,16 @@ func _craft(id: int, recipe: String) -> Dictionary:
 	for item in r.needs:
 		if not take_item(id, item, int(r.needs[item])):
 			for back in taken:
-				give_item(id, back, int(taken[back]))
+				give_item(id, back, int(taken[back]), true)
 			return {"ok": false, "reason": "missing", "text": Crafting.refusal("missing", inv, recipe, pos)}
 		taken[item] = int(r.needs[item])
-	var made := give_item(id, recipe, int(r.makes))
+	# All of it or none: the grid pack must hold the whole batch (PackGrid.room_for).
+	var made := 0
+	if PackGrid.room_for(inv, s.character.get("pack", []), recipe) >= int(r.makes):
+		made = give_item(id, recipe, int(r.makes))
 	if made <= 0:
 		for back in taken:
-			give_item(id, back, int(taken[back]))
+			give_item(id, back, int(taken[back]), true)
 		return {"ok": false, "reason": "full", "text": Crafting.refusal("full", inv, recipe, pos)}
 	print("[craft] %s made %d %s" % [s.character.name, made, recipe])
 	return {"ok": true, "reason": "", "text": Crafting.success(recipe, made, inv)}
@@ -1378,7 +1386,10 @@ func cook_request(id: int) -> Dictionary:
 		var room := Inventory.MAX_STACK - Inventory.count(s.character.inventory, into)
 		n = mini(n, room)
 		if n > 0 and take_item(id, raw, n):
-			cooked += give_item(id, into, n)
+			var got := give_item(id, into, n)
+			if got < n: # no room in the grid for all of it cooked: the rest stays raw
+				give_item(id, raw, n - got, true)
+			cooked += got
 	if cooked <= 0:
 		return {"ok": false, "reason": "no_raw", "text": Needs.text("no_raw"), "fire_id": -1, "cooked": 0}
 	print("[needs] %s cooked %d meat" % [s.character.name, cooked])
@@ -1628,15 +1639,82 @@ static func unstuck_spot(id: int) -> Vector3:
 ## (gathering, crafting, quests) goes through these two, never edits the Dictionary itself.
 ## The change is saved with the character (autosave, logout, shutdown), and the player gets
 ## their new pack as s2c_inventory at the end of the tick (_flush_inventories).
-## Returns how many were added (stacks cap at Inventory.MAX_STACK).
-func give_item(id: int, item: String, qty: int) -> int:
+## Returns how many were added: only what the grid pack has room for (PackGrid.room_for),
+## and stacks cap at Inventory.MAX_STACK. `force` skips the room check, only for handing back
+## what was just taken (a craft that failed), so nothing is ever lost.
+func give_item(id: int, item: String, qty: int, force := false) -> int:
 	if not sessions.has(id) or not sessions[id].logged_in:
 		return 0
-	var added := Inventory.add(sessions[id].character.inventory, item, qty)
+	var ch: Dictionary = sessions[id].character
+	if not force:
+		qty = mini(qty, PackGrid.room_for(ch.inventory, ch.get("pack", []), item))
+	var added := Inventory.add(ch.inventory, item, qty)
 	if added > 0:
+		_relayout(ch)
 		sessions[id].inv_dirty = true
 		print("[inventory] %s +%d %s" % [sessions[id].character.name, added, item])
 	return added
+
+
+## Lays `ch`'s pack out again after a change and keeps every stack's place, so the
+## saved layout always names every stack (PackGrid.room_for relies on that).
+func s_pack(id: int) -> Array:
+	return sessions[id].character.get("pack", []) if sessions.has(id) else []
+
+
+static func _relayout(ch: Dictionary) -> void:
+	ch.pack = PackGrid.places_of(PackGrid.layout(ch.get("inventory", {}), ch.get("pack", [])))
+
+
+## c2s_pack_move (v13): moves one stack in player `id`'s grid pack. Returns whether it moved;
+## the layout goes back to the player either way, so a refused drag snaps back.
+func pack_move(id: int, item: String, index: int, x: int, y: int, turned: bool) -> bool:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return false
+	var ch: Dictionary = sessions[id].character
+	var places := PackGrid.move(ch.inventory, ch.get("pack", []), item.left(32), index, x, y, turned)
+	if not places.is_empty():
+		ch.pack = places
+		_relayout(ch)
+	_send(id, "s2c_pack", [ch.pack])
+	return not places.is_empty()
+
+
+## c2s_pack_drop (v13): player `id` drops one whole stack of their pack (it is gone).
+## Returns how many were dropped.
+func pack_drop(id: int, item: String, index: int) -> int:
+	if not sessions.has(id) or not sessions[id].logged_in:
+		return 0
+	var ch: Dictionary = sessions[id].character
+	var laid := PackGrid.layout(ch.inventory, ch.get("pack", []))
+	for st in (laid.placed as Array) + (laid.over as Array):
+		if str(st.item) == item and int(st.index) == index:
+			# The stack's own place goes too, and the stacks after it keep theirs.
+			var places: Array = []
+			for p in ch.get("pack", []):
+				if str(p[0]) != item or int(p[1]) < index:
+					places.append(p)
+				elif int(p[1]) > index:
+					places.append([p[0], int(p[1]) - 1, p[2], p[3], p[4]])
+			var was: Array = ch.pack
+			ch.pack = places
+			if take_item(id, item, int(st.n)):
+				print("[pack] %s dropped %d %s" % [ch.name, int(st.n), item])
+				return int(st.n)
+			ch.pack = was
+	return 0
+
+
+func _on_pack_move(id: int, item: String, index: int, x: int, y: int, turned: bool) -> void:
+	if not _play_allowed(id, "_last_pack"):
+		return
+	pack_move(id, item, index, x, y, turned)
+
+
+func _on_pack_drop(id: int, item: String, index: int) -> void:
+	if not _play_allowed(id, "_last_pack"):
+		return
+	pack_drop(id, item, index)
 
 
 ## Removes exactly qty of item, or nothing. Returns whether it was removed.
@@ -1645,6 +1723,7 @@ func take_item(id: int, item: String, qty: int) -> bool:
 		return false
 	var ok := Inventory.remove(sessions[id].character.inventory, item, qty)
 	if ok:
+		_relayout(sessions[id].character)
 		sessions[id].inv_dirty = true
 		print("[inventory] %s -%d %s" % [sessions[id].character.name, qty, item])
 	return ok
