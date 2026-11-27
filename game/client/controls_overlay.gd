@@ -158,21 +158,20 @@ func setup(theme_res: Theme) -> void:
 	offset_top = -230
 	offset_bottom = 230
 	grow_vertical = Control.GROW_DIRECTION_BOTH
-	add_theme_stylebox_override("panel", HudStyle.panel(0.9)) # muted warm grey, no ember frame (art bible section 9)
+	add_theme_stylebox_override("panel", HudStyle.panel()) # the satchel leather every window shares (art bible section 9)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 18)
+		margin.add_theme_constant_override("margin_" + side, 12) # the leather's own rim pads the rest
 	add_child(margin)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	margin.add_child(box)
 	var title := Label.new()
 	title.text = "Controls"
-	title.add_theme_font_size_override("font_size", 21)
-	title.add_theme_color_override("font_color", ACCENT)
+	HudStyle.title(title, 21)
 	box.add_child(title)
 	_keys_box = VBoxContainer.new()
-	_keys_box.add_theme_constant_override("separation", 6)
+	_keys_box.add_theme_constant_override("separation", 3)
 	box.add_child(_keys_box)
 	var foot := HBoxContainer.new()
 	box.add_child(foot)
@@ -199,7 +198,7 @@ func _fill() -> void:
 			last_section = r[0]
 			var head := Label.new()
 			head.text = last_section
-			head.add_theme_color_override("font_color", Color(ACCENT, 0.85))
+			head.add_theme_color_override("font_color", HudStyle.BRASS)
 			_keys_box.add_child(head)
 		var line := HBoxContainer.new()
 		line.add_theme_constant_override("separation", 4)

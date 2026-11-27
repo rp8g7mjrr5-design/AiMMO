@@ -33,10 +33,32 @@ func test_theme_is_warm() -> void:
 	var t := HudStyle.theme()
 	var button := t.get_stylebox("normal", "Button") as StyleBoxFlat
 	check(button != null, "buttons have our own box")
-	check(button.bg_color.r >= button.bg_color.b, "buttons are warm grey, not Godot's blue-grey")
-	var panel := t.get_stylebox("panel", "PanelContainer") as StyleBoxFlat
-	check(panel != null and panel.bg_color.is_equal_approx(HudStyle.PANEL), "panels are the HUD's warm grey")
-	check(panel.border_color.s < 0.4, "the panel edge is faint warm grey, not an ember frame")
+	check(button.bg_color.r >= button.bg_color.b, "buttons are dark leather, not Godot's blue-grey")
+	check(button.border_color.s < 0.6, "the button edge is tan thread, not neon")
+	var panel := t.get_stylebox("panel", "PanelContainer") as StyleBoxTexture
+	check(panel != null and panel.texture == UiSkin.panel_texture(), "windows are the shared satchel leather")
+	var world := HudStyle.theme(true).get_stylebox("panel", "PanelContainer") as StyleBoxFlat
+	check(world != null and world.bg_color.is_equal_approx(HudStyle.PANEL), "panels over the world stay the quiet warm grey")
+	check(world.border_color.s < 0.4, "the over-world edge is faint warm grey, not an ember frame")
+	check(t.get_stylebox("normal", "CheckBox") is StyleBoxEmpty, "a check box is its tick, with no button box round it")
+
+
+func test_satchel_titles() -> void:
+	var l := Label.new()
+	l.text = "Pack"
+	HudStyle.title(l, 21)
+	check_eq(l.text, "PACK", "titles are capitals, tooled into the flap")
+	check(l.get_theme_color("font_color").is_equal_approx(HudStyle.BRASS), "titles are brass")
+	check(HudStyle.saturation(HudStyle.BRASS) < 0.45, "brass is a muted natural, not gold leaf")
+	check(l.get_theme_font_size("font_size") <= 24, "calm type")
+	check_eq(HudStyle.title_case("Make your traveller"), "MAKE YOUR TRAVELLER")
+	l.free()
+
+
+func test_slot_is_a_pocket() -> void:
+	var look := HudStyle.slot_look()
+	check((look.bg as Color).v < 0.15, "a slot is a dark pocket pressed into the leather")
+	check(HudStyle.saturation(look.border) < 0.6, "its rim is the calm thread colour")
 
 
 func test_hud_pieces_are_quiet() -> void:

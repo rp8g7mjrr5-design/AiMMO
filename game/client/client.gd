@@ -1257,6 +1257,7 @@ func _set_status(text: String, is_error: bool) -> void:
 func _build_ui() -> void:
 	ui = CanvasLayer.new()
 	add_child(ui)
+	var hud_theme := HudStyle.theme(true) # the bits that sit over the world
 	var theme := HudStyle.theme() # one quiet look for every window and button (art bible section 9)
 
 	login_panel = PanelContainer.new()
@@ -1274,7 +1275,7 @@ func _build_ui() -> void:
 
 	var title := Label.new()
 	title.text = "ZombAi · Ashgrove"
-	title.add_theme_font_size_override("font_size", 30)
+	HudStyle.title(title, 30)
 	box.add_child(title)
 	var sub := Label.new()
 	sub.text = "A world built and run by AI."
@@ -1311,7 +1312,7 @@ func _build_ui() -> void:
 
 	# Chat, bottom-left.
 	chat_panel = PanelContainer.new()
-	chat_panel.theme = theme
+	chat_panel.theme = hud_theme
 	chat_panel.anchor_top = 1.0
 	chat_panel.anchor_bottom = 1.0
 	chat_panel.offset_left = 16
@@ -1321,7 +1322,7 @@ func _build_ui() -> void:
 	chat_panel.visible = false
 	chat_panel.modulate = Color(1, 1, 1, ChatFeed.FULL_ALPHA)
 	# Chat sits over the world all the time, so it is the quietest panel: lighter, no edge.
-	var chat_bg := HudStyle.panel(0.5)
+	var chat_bg := HudStyle.flat_panel(0.5)
 	chat_bg.border_color = Color(0, 0, 0, 0)
 	chat_panel.add_theme_stylebox_override("panel", chat_bg)
 	ui.add_child(chat_panel)
@@ -1348,7 +1349,7 @@ func _build_ui() -> void:
 	time_dial.offset_bottom = -266
 	time_dial.visible = false
 	ui.add_child(time_dial)
-	time_dial.setup(theme)
+	time_dial.setup(hud_theme)
 
 	# Compass strip, top centre: cardinal points, other players, and the way home.
 	compass = CompassStrip.new()
@@ -1360,7 +1361,7 @@ func _build_ui() -> void:
 	compass.offset_bottom = 44 + CompassStrip.HEIGHT
 	compass.visible = false
 	ui.add_child(compass)
-	compass.setup(theme)
+	compass.setup(hud_theme)
 
 	# Gather prompt and "+2 ash wood" toasts, bottom centre.
 	gather_prompt = GatherPrompt.new()
@@ -1375,7 +1376,7 @@ func _build_ui() -> void:
 	gather_prompt.visible = false
 	gather_prompt.icons = icon_shelf
 	ui.add_child(gather_prompt)
-	gather_prompt.setup(theme)
+	gather_prompt.setup(hud_theme)
 
 	# Health and stamina, bottom centre: where an action game keeps them.
 	vitals_bar = VitalsBar.new()
@@ -1389,7 +1390,7 @@ func _build_ui() -> void:
 	vitals_bar.offset_bottom = -44 + VitalsBar.HEIGHT
 	vitals_bar.visible = false
 	ui.add_child(vitals_bar)
-	vitals_bar.setup(theme)
+	vitals_bar.setup(hud_theme)
 	# System notices and refusals, centre screen just above the reticle (chat is for talking).
 	notice_line = NoticeLine.new()
 	notice_line.anchor_left = 0.5
@@ -1401,7 +1402,7 @@ func _build_ui() -> void:
 	notice_line.offset_top = -150
 	notice_line.offset_bottom = -150 + NoticeLine.HEIGHT
 	ui.add_child(notice_line)
-	notice_line.setup(theme)
+	notice_line.setup(hud_theme)
 	came_to_shade = ColorRect.new()
 	came_to_shade.name = "CameToShade"
 	came_to_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1417,14 +1418,14 @@ func _build_ui() -> void:
 	ui.add_child(reticle)
 
 	hud_label = Label.new()
-	hud_label.theme = theme
+	hud_label.theme = hud_theme
 	hud_label.position = Vector2(16, 12)
 	HudStyle.quiet_label(hud_label, 15, HudStyle.TEXT)
 	hud_label.visible = false
 	ui.add_child(hud_label)
 
 	help_label = Label.new()
-	help_label.theme = theme
+	help_label.theme = hud_theme
 	help_label.text = ControlsOverlay.corner_hint()
 	help_label.anchor_left = 1.0
 	help_label.anchor_right = 1.0
@@ -1438,7 +1439,7 @@ func _build_ui() -> void:
 
 	# "?" button beside the corner hint: the same controls list as F1, for mouse players.
 	controls_button = Button.new()
-	controls_button.theme = theme
+	controls_button.theme = hud_theme
 	controls_button.text = "?"
 	controls_button.tooltip_text = "Controls (%s)" % ControlsOverlay.key_text("toggle_controls")
 	controls_button.focus_mode = Control.FOCUS_NONE
@@ -1457,7 +1458,7 @@ func _build_ui() -> void:
 
 	# "Pack" button left of the "?": the same window as I, for mouse players.
 	pack_button = Button.new()
-	pack_button.theme = theme
+	pack_button.theme = hud_theme
 	pack_button.text = "Pack"
 	pack_button.tooltip_text = "Pack (%s)" % ControlsOverlay.key_text("toggle_pack")
 	pack_button.focus_mode = Control.FOCUS_NONE
@@ -1473,7 +1474,7 @@ func _build_ui() -> void:
 
 	# "Players 5" button left of "Pack": the same panel as O, with the live head count.
 	players_button = Button.new()
-	players_button.theme = theme
+	players_button.theme = hud_theme
 	players_button.text = PlayersPanel.button_text(0)
 	players_button.tooltip_text = "Who is online (%s)" % ControlsOverlay.key_text("toggle_players")
 	players_button.focus_mode = Control.FOCUS_NONE
@@ -1489,7 +1490,7 @@ func _build_ui() -> void:
 
 	# The F1 controls overlay, centre screen.
 	perf_overlay = PerfOverlay.new()
-	perf_overlay.setup(theme)
+	perf_overlay.setup(hud_theme)
 	ui.add_child(perf_overlay)
 	controls_overlay = ControlsOverlay.new()
 	controls_overlay.setup(theme)

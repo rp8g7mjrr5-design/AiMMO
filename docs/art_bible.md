@@ -360,6 +360,23 @@ leather satchel, our own, never like another game's menus.
   thick black outlines on big bold yellow type; no exclamation marks except real milestones.
 - **Ours, not borrowed.** Our own layouts, our own procedural icons (`ItemIcons`), Godot's bundled font until we generate our own. See section 6.
 
+### Satchel: the windows' look (owner pick, 2026-11-27)
+The owner chose this from three mockups in the real game and named it **Satchel**. Every
+window and menu (pack, workbench, settings, login, players, controls, appearance, and any new
+one such as the map or the skill screen) uses it through `HudStyle`, never its own styles:
+- **The panel is leather.** `HudStyle.panel()`: one generated nine-patch (`UiSkin`, no files)
+  of dark oiled leather, a burnished rim, a tan saddle-stitch run inside it and an iron stud
+  in each corner. Shared by every window, so it costs one texture.
+- **Titles are tooled brass capitals.** `HudStyle.title(label, size)`: spaced capitals in
+  `HudStyle.BRASS`. Section heads inside a window are brass too, in normal case.
+- **Controls are darker hide on the leather** with a tan thread edge; hover and press take the
+  ember edge. Slots are dark pockets pressed into the leather (`HudStyle.slot_look()`). Check
+  boxes are a thread-rimmed square with an ember tick. Sliders fill with ember.
+- **The world is never framed in leather.** Chat, the top bar, the dial and anything else that
+  sits on the world all the time use `HudStyle.theme(true)`: the quiet warm-grey panel.
+- Ember stays information: a ready button, a fill, what you just got. Brass is the only new
+  colour, a muted natural (under 0.45 saturation).
+
 ## 10. Effects: restraint
 Effects mark moments. If everything sparkles, nothing does.
 - **Small and short by default.** Gather hits: a few chips or leaves and a puff, gone in about

@@ -69,12 +69,7 @@ func setup(theme_res: Theme) -> void:
 	offset_top = -250
 	offset_bottom = 250
 	grow_vertical = Control.GROW_DIRECTION_BOTH
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.09, 0.08, 0.07, 0.9)
-	bg.border_color = Color(ACCENT, 0.6)
-	bg.set_border_width_all(1)
-	bg.set_corner_radius_all(6)
-	add_theme_stylebox_override("panel", bg)
+	add_theme_stylebox_override("panel", HudStyle.panel())
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 18)
@@ -83,8 +78,7 @@ func setup(theme_res: Theme) -> void:
 	box.add_theme_constant_override("separation", 8)
 	margin.add_child(box)
 	_title = Label.new()
-	_title.add_theme_font_size_override("font_size", 24)
-	_title.add_theme_color_override("font_color", ACCENT)
+	HudStyle.title(_title, 24)
 	box.add_child(_title)
 	_hint = Label.new()
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -154,7 +148,7 @@ func open(current: Dictionary, appearance_seed: int, is_creating: bool) -> void:
 	orbit = 0.0
 	look = Appearance.normalize(current) if Appearance.is_chosen(current) else Appearance.from_seed(appearance_seed)
 	if _title != null:
-		_title.text = title_text(creating)
+		_title.text = HudStyle.title_case(title_text(creating))
 		_hint.text = CREATE_HINT if creating else EDIT_HINT
 		_save.text = save_text(creating)
 		_cancel.text = "Later" if creating else "Cancel"
