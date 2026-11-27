@@ -26,6 +26,18 @@ const KINDS := {
 }
 const KIND_ORDER := ["ash", "pine", "stone", "scrub"]
 
+## The starting beaches' pickings (BeachGen, owner 2026-11-26: "things to collect" on the beach
+## you wash up on). All by hand, a little at a time, so the first minute pays out: driftwood off
+## the tideline, loose stones you can carry (no rock is broken, so no pickaxe), kelp for fibre
+## and planks from a smashed crate. Islands only, appended after every older pass.
+const BEACH_KINDS := {
+	"driftwood": {"label": "Driftwood", "item": "ash_wood", "amount": 2, "respawn": 300.0, "night_only": false},
+	"beach_stones": {"label": "Loose stones", "item": "stone", "amount": 1, "respawn": 300.0, "night_only": false},
+	"kelp": {"label": "Kelp", "item": "plant_fibre", "amount": 2, "respawn": 240.0, "night_only": false},
+	"wreck_crate": {"label": "Washed-up crate", "item": "pine_wood", "amount": 2, "respawn": 420.0, "night_only": false},
+}
+const BEACH_ORDER := ["driftwood", "beach_stones", "kelp", "wreck_crate"]
+
 ## Stone needs a pickaxe (`needs_tool`, owner direction 2026-11-26: "wooden pick and axe
 ## first, then stone"): bare hands can't break rock, so your first craft is a wooden pickaxe.
 ##
@@ -110,7 +122,7 @@ static func get_by_id(id: int) -> Dictionary:
 
 ## The kind's own values. For one node, use info(): a tier-2 node has its own.
 static func kind_info(kind: String) -> Dictionary:
-	return KINDS.get(kind, {})
+	return KINDS.get(kind, BEACH_KINDS.get(kind, {}))
 
 
 ## Everything about gathering one node: KINDS[kind], with TIER2[kind] over it for a tier-2
@@ -118,7 +130,7 @@ static func kind_info(kind: String) -> Dictionary:
 static func info(node: Dictionary) -> Dictionary:
 	if node.is_empty():
 		return {}
-	var out: Dictionary = KINDS.get(str(node.kind), {}).duplicate()
+	var out: Dictionary = kind_info(str(node.kind)).duplicate()
 	var tier := int(node.get("tier", 1))
 	if tier >= 2:
 		out.merge(TIER2.get(str(node.kind), {}), true)
@@ -287,6 +299,10 @@ static func _generate_kingdom() -> Array:
 			var scale := rng.randf_range(0.95, 1.05)
 			_append(out, grid, kind, Vector3(x, Terrain.height(x, z), z), rot, scale, 2)
 			break
+	# The starting beaches' pickings (appended 2026-11-26; islands only): every id before
+	# them is exactly as before.
+	for spot in BeachGen.nodes():
+		_append(out, grid, str(spot.kind), spot.pos, float(spot.rot), float(spot.scale), 1)
 	return out
 
 
@@ -416,4 +432,7 @@ static func describe() -> String:
 	var bits := PackedStringArray()
 	for k in KIND_ORDER:
 		bits.append("%s %d" % [k, by_kind.get(k, 0)])
+	for k in BEACH_ORDER:
+		if by_kind.has(k):
+			bits.append("%s %d" % [k, by_kind[k]])
 	return "%d nodes (%s, %d tier 2)" % [count(), ", ".join(bits), tier2().size()]

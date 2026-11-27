@@ -30,7 +30,8 @@ const STYLES := {
 	"mine": {"period": 1.0, "top": -2.85, "bottom": -0.55, "wind": 0.66, "lean": 0.24},
 	"collect": {"period": 1.4, "top": -1.25, "bottom": -0.7, "wind": 0.5, "lean": 0.2},
 }
-const KIND_STYLE := {"ash": "chop", "pine": "chop", "stone": "mine", "scrub": "collect"}
+const KIND_STYLE := {"ash": "chop", "pine": "chop", "stone": "mine", "scrub": "collect",
+	"driftwood": "collect", "beach_stones": "collect", "kelp": "collect", "wreck_crate": "chop"}
 
 var weight := 0.0  ## 0 = walk pose only, 1 = full swing
 var phase := 0.0   ## 0..1 through the current stroke

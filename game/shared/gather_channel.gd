@@ -12,7 +12,9 @@ class_name GatherChannel
 ## How long one gather takes, bare-handed (or, for stone, with the least pickaxe), per node
 ## kind. Rocks are a little slower, scrub a little quicker (fibre is pulled, not chopped). A
 ## tool (Gathering.tool_for) scales it by Gathering.tool_speed (wood 0.75, stone 0.5).
-const SECONDS := {"ash": 2.0, "pine": 2.0, "stone": 2.4, "scrub": 1.6}
+const SECONDS := {"ash": 2.0, "pine": 2.0, "stone": 2.4, "scrub": 1.6,
+	# The starting beaches: quick pickings by hand, so the first minute is all payoff.
+	"driftwood": 1.6, "beach_stones": 1.4, "kelp": 1.3, "wreck_crate": 1.8}
 const DEFAULT_SECONDS := 2.0
 ## Moving further than this (flat metres) from where the gather started cancels it. Small
 ## enough that walking off always cancels, big enough that a server tick of drift doesn't.

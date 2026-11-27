@@ -17,12 +17,14 @@ const SHELL_SLOTS := 10 ## parts per layer the shell can hold (a node has at mos
 const HIGHLIGHT := Color(1.0, 0.74, 0.40) ## warm ember gold, the same for every kind
 const FADE_IN := 0.15 ## seconds for the glow to come up (and go down)
 
-const SHAKE_TIME := {"ash": 0.6, "pine": 0.6, "stone": 0.35, "scrub": 0.5}
+const SHAKE_TIME := {"ash": 0.6, "pine": 0.6, "stone": 0.35, "scrub": 0.5,
+	"driftwood": 0.35, "beach_stones": 0.3, "kelp": 0.5, "wreck_crate": 0.35}
 ## Layers that move when hit (a kind not listed moves all of its layers).
 const SHAKE_LAYERS := {}
 
 const BIT_POOL := 64 ## flying bits shared by every node; the oldest is reused when full
-const BITS := {"ash": 7, "pine": 7, "stone": 6, "scrub": 8}
+const BITS := {"ash": 7, "pine": 7, "stone": 6, "scrub": 8,
+	"driftwood": 5, "beach_stones": 5, "kelp": 6, "wreck_crate": 7}
 const GRAVITY := 9.8
 const LEAF_FALL := 1.4 ## m/s, leaves drift down instead of dropping
 const CHIP := Color(0.66, 0.63, 0.58)
@@ -58,12 +60,12 @@ static func shake(kind: String, t: float, axis_angle: float = 0.0) -> Transform3
 			# A shudder from the base: about 2.5 degrees, ringing down fast.
 			var axis := Vector3(cos(axis_angle), 0.0, sin(axis_angle))
 			return Transform3D(Basis(axis, 0.045 * sin(t * 30.0) * fade * fade), Vector3.ZERO)
-		"stone":
+		"stone", "beach_stones", "driftwood", "wreck_crate":
 			# A short, stiff jolt: a couple of centimetres sideways and a tiny squash.
 			var j := 0.025 * sin(t * 70.0) * fade
 			var sq := 1.0 - 0.03 * fade
 			return Transform3D(Basis.from_scale(Vector3(1.0 / sq, sq, 1.0 / sq)), Vector3(j * cos(axis_angle), 0.0, j * sin(axis_angle)))
-		"scrub":
+		"scrub", "kelp":
 			# A quick rustle: the mounds shiver side to side, low and fast.
 			var axis := Vector3(cos(axis_angle), 0.0, sin(axis_angle))
 			return Transform3D(Basis(axis, 0.06 * sin(t * 40.0) * fade), Vector3.ZERO)
@@ -124,6 +126,28 @@ static func spawn_bits(node: Dictionary, hit_no: int = 0) -> Array:
 				b.fall = "drift"
 				b.size = Vector3(0.05, 0.03, 0.24)
 				b.color = (Palette.SCRUB_DRY if i % 2 == 0 else Palette.SCRUB_LEAF).lightened(rng.randf() * 0.1)
+			"driftwood", "wreck_crate", "beach_stones":
+				# Splinters off a log or a crate, grit and chips off the stones: a short hop.
+				var crate: bool = node.kind == "wreck_crate"
+				b.p0 = base + dir * rng.randf_range(0.3, 0.7) * s + Vector3.UP * (0.7 if crate else 0.3) * s
+				b.v = dir * rng.randf_range(0.8, 1.8) + Vector3.UP * rng.randf_range(1.6, 2.8)
+				b.life = rng.randf_range(0.6, 0.9)
+				b.fall = "arc"
+				if node.kind == "beach_stones":
+					var c := rng.randf_range(0.05, 0.09)
+					b.size = Vector3(c, c * 0.7, c)
+					b.color = Palette.PEBBLE.lightened(rng.randf() * 0.2)
+				else:
+					b.size = Vector3(0.04, 0.03, rng.randf_range(0.14, 0.26))
+					b.color = (Palette.PLANK if crate else Palette.DRIFTWOOD).lightened(rng.randf() * 0.12)
+			"kelp":
+				# Wet strands flicked up, flopping back down.
+				b.p0 = base + dir * rng.randf_range(0.3, 0.9) * s + Vector3.UP * 0.25 * s
+				b.v = dir * rng.randf_range(0.4, 1.0) + Vector3.UP * rng.randf_range(1.2, 2.0)
+				b.life = rng.randf_range(0.6, 0.9)
+				b.fall = "arc"
+				b.size = Vector3(0.05, 0.02, 0.3)
+				b.color = Palette.KELP.lightened(rng.randf() * 0.08)
 		out.append(b)
 	return out
 
