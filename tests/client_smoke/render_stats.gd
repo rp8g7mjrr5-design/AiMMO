@@ -20,7 +20,7 @@ const SAMPLE_FRAMES := 30
 
 var out_path := ""
 var world_build_s := -1.0
-var world_parts: Array[Node] = [] ## the world's children as built, so avatars added later don't count
+var world_parts: Array[Node] = [] ## the world's children as built, so avatars added later don't count (nor walkers)
 
 
 func _initialize() -> void:
@@ -39,7 +39,11 @@ func _initialize() -> void:
 		var c := _client()
 		if c != null and c.get("world") != null:
 			world_build_s = (Time.get_ticks_usec() - t0) / 1e6
-			world_parts.assign(c.world.get_children()), CONNECT_ONE_SHOT)
+			# Walkers (the "Zombai" node) rise near players on the server's clock, so whether one
+			# stands in the shot when it is sampled is chance (the same build counts 16 or 17
+			# materials depending on it). Their "carved" material is the survivors' own, which avatars
+			# already leave out, so they are left out the same way.
+			world_parts.assign(c.world.get_children().filter(func(n: Node) -> bool: return n.name != "Zombai")), CONNECT_ONE_SHOT)
 	root.add_child(main)
 	_run.call_deferred()
 
