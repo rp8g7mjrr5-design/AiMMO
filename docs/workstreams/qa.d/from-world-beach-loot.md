@@ -1,0 +1,1 @@
+Request (from world, 2026-11-27): when "Basics 3: the island in the bot test" lands, have one bot search a beach loot spot (`BeachGen.loot_spots()`, ids from `BeachGen.LOOT_ID_BASE`) at its landing's shipwreck or shack and check the find reaches its pack; CI's Ashgrove bot test can't reach them today.

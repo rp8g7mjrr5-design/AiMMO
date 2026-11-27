@@ -103,6 +103,54 @@ static func landmarks() -> Array:
 	return out
 
 
+## --- Loot in the landmarks (Basics 4) ---
+
+## Each beach landmark's loot spots, in its local frame (BeachProps' frame: +X along, +Z out;
+## for the shack +Z is the sea and its door). Searched like a ruin's spots and paid from Loot's
+## grade 1 table (`Loot.grade_of` gives 1 to any id that is no ruin's): the beach you wake on
+## is the first, quietest rung of the ladder. `drawn` marks a spot the landmark already draws
+## (the shape under a sail in the shack); BeachProps draws the rest exactly on these points.
+const LOOT := {
+	"shipwreck": [
+		{"kind": "chest", "at": Vector2(2.4, -0.9), "rot": 0.08}, # her sea chest, wedged in the hull between two frames
+		{"kind": "body", "at": Vector2(-0.4, -6.4), "rot": 1.3}, # a sailor the sea brought in, under a scrap of sail
+	],
+	"fishing_shack": [
+		{"kind": "body", "at": Vector2(0.5, -0.95), "rot": 0.2, "drawn": true}, # the shape under the sail, against the back wall
+		{"kind": "sack", "at": Vector2(-1.15, 0.6), "rot": 0.9}, # a sack inside the door
+	],
+}
+## Beach spots' `ruin_id`: LOOT_ID_BASE + beach index * 10 + landmark slot. Ruin ids are small
+## (Ruins.all() counts from 0), so a beach spot's Loot.key never meets a ruin's.
+const LOOT_ID_BASE := 1000000
+const LOOT_DRY := 0.25 ## a spot whose sand is this close to the sea walks up the beach until it is dry
+
+
+## Every loot spot on the island's beaches, beach by beach, landmark by landmark:
+## [{ruin_id, index, kind, pos: Vector3 on the ground, rot: world yaw, landmark, drawn}], the
+## same shape as RuinLayout.loot_spots (RuinLayout.all_loot_spots appends these). Pure and
+## deterministic, and it draws nothing from the beaches' rng, so no beach moves.
+static func loot_spots() -> Array:
+	var out: Array = []
+	var wl := Terrain.water_level()
+	for b in all():
+		for slot in b.landmarks.size():
+			var lm: Dictionary = b.landmarks[slot]
+			var plan: Array = LOOT.get(str(lm.kind), [])
+			var o: Vector3 = lm.pos
+			for i in plan.size():
+				var e: Dictionary = plan[i]
+				var p := Vector2(o.x, o.z) + (e.at as Vector2).rotated(-float(lm.rot))
+				var t := 0.0
+				while t < 20.0 and Terrain.height(p.x, p.y) < wl + LOOT_DRY:
+					t += 0.5
+					p -= (b.sea as Vector2) * 0.5
+				out.append({"ruin_id": LOOT_ID_BASE + int(b.index) * 10 + slot, "index": i, "kind": str(e.kind),
+					"pos": _ground(p), "rot": float(lm.rot) + float(e.rot), "landmark": str(lm.kind),
+					"drawn": bool(e.get("drawn", false))})
+	return out
+
+
 ## What players read for a landmark kind.
 static func label(kind: String) -> String:
 	return {"shipwreck": "Shipwreck", "lifeboat": "Lifeboat", "old_pier": "Old Pier",

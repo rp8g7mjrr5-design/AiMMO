@@ -37,6 +37,9 @@ static func parts() -> Array:
 			out.append_array(_deco(d))
 		for f in b.far:
 			out.append_array(_far_wreck(f))
+	for spot in BeachGen.loot_spots():
+		if not bool(spot.drawn):
+			out.append_array(loot_parts(spot))
 	out.append_array(CoastDress.parts()) # the rest of the coast, between the landing beaches
 	return out
 
@@ -269,6 +272,39 @@ static func _shack(put: Callable, rng: RandomNumberGenerator) -> void:
 	put.call("BeachCloth", Basis(Vector3.UP, 0.3), Vector3(-0.35, 0.06, -d * 0.5 + 0.95), Vector3(0.18, 0.08, 0.1), Palette.DEAD_FLESH)
 	for f in 3:
 		put.call("BeachBits", Basis(Vector3.UP, 0.3 + f * 0.25), Vector3(-0.5 - f * 0.03, 0.05, -d * 0.5 + 1.02 + f * 0.04), Vector3(0.12, 0.06, 0.05), Palette.DEAD_FLESH.darkened(0.05))
+
+
+## What you can search in a landmark (BeachGen.loot_spots), drawn on the very point gameplay
+## fills, in the spot's own frame (+Z its front). Salt-worn like the rest of the beach: a
+## tarred sea chest with rusted bands half in the sand, a hessian sack, and a body wrapped in
+## sailcloth like the one in the shack, a hand out from under it. No glow (direction 11).
+static func loot_parts(spot: Dictionary) -> Array:
+	var out: Array = []
+	var origin: Vector3 = spot.pos
+	var turn := Basis(Vector3.UP, float(spot.rot))
+	var put := func(layer: String, local_basis: Basis, local_pos: Vector3, size: Vector3, color: Color) -> void:
+		out.append({"layer": layer, "xform": Transform3D(turn * local_basis * Basis.from_scale(size), origin + turn * local_pos), "color": color})
+	match str(spot.kind):
+		"chest":
+			var wood := Palette.HULL_WOOD.lightened(0.1)
+			var tilt := Basis(Vector3.FORWARD, 0.08) # settled crooked in the sand
+			put.call("BeachPlanks", tilt, Vector3(0, 0.2, 0), Vector3(0.9, 0.48, 0.55), wood)
+			put.call("BeachPlanks", tilt, Vector3(0, 0.47, 0), Vector3(0.94, 0.09, 0.59), wood.darkened(0.12)) # the lid
+			for x in [-0.3, 0.3]:
+				put.call("BeachCloth", tilt, Vector3(x, 0.26, 0), Vector3(0.06, 0.56, 0.6), Palette.IRON_RUST)
+			put.call("BeachCloth", tilt, Vector3(0, 0.38, 0.29), Vector3(0.12, 0.13, 0.04), Palette.IRON_RUST.darkened(0.15)) # the hasp
+		"sack":
+			put.call("BeachBits", Basis(Vector3.FORWARD, 0.25), Vector3(0, 0.22, 0), Vector3(0.55, 0.44, 0.45), Palette.BEDROLL)
+			put.call("BeachBits", Basis(Vector3.FORWARD, 1.1), Vector3(0.28, 0.36, 0), Vector3(0.18, 0.2, 0.18), Palette.BEDROLL.darkened(0.08))
+		"body":
+			# Face down, a scrap of sail over the back: a long low shape, the head, the boots.
+			put.call("BeachCloth", Basis(Vector3.FORWARD, 0.06), Vector3(0, 0.13, 0), Vector3(0.58, 0.24, 1.2), Palette.SAILCLOTH.darkened(0.12))
+			put.call("BeachCloth", Basis(Vector3.UP, 0.25), Vector3(0.05, 0.03, 0.1), Vector3(1.0, 0.04, 0.9), Palette.SAILCLOTH.darkened(0.05)) # the sail's edge on the sand
+			put.call("BeachBits", Basis.IDENTITY, Vector3(0, 0.12, 0.74), Vector3(0.26, 0.22, 0.28), Palette.LEATHER_DARK.lightened(0.08)) # the head, hair dark with the sea
+			for sx in [-0.12, 0.12]:
+				put.call("BeachCloth", Basis.IDENTITY, Vector3(sx, 0.07, -0.86), Vector3(0.12, 0.14, 0.28), Palette.LEATHER_DARK)
+			put.call("BeachCloth", Basis(Vector3.UP, 0.4), Vector3(0.42, 0.05, 0.45), Vector3(0.18, 0.08, 0.1), Palette.DEAD_FLESH)
+	return out
 
 
 # ---------------------------------------------------------------------------------------
