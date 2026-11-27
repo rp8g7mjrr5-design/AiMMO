@@ -381,6 +381,12 @@ func place_request(id: int, item: String) -> Dictionary:
 		word = Campfires.ITEM
 	if word in [Vitals.BANDAGE_ITEM, "bandages"]:
 		return use_bandage(id)
+	if word == "eat":
+		return eat_request(id)
+	if Needs.is_food(word):
+		return eat_request(id, word)
+	if word == "cook":
+		return cook_request(id)
 	if word != Campfires.ITEM:
 		return _refuse_place("unknown")
 	if Vitals.is_dead(vitals_of(id)):
@@ -621,6 +627,8 @@ func _on_login(id: int, protocol: int, username: String, password: String) -> vo
 	_send(id, "s2c_world", [WorldGen.config()]) # v9: build this world before anything in it
 	_send(id, "s2c_world_time", [world_seconds()])
 	_send_vitals(id) # the bar starts right, before anything changes it
+	s.hunger_tier = Needs.tier_of(ch)
+	_send_needs(id) # v12: hunger, once, then on every whole-point change
 	_send_world_state(id)
 	if washed and not is_new:
 		_send(id, "s2c_system", [WASHED_UP_TEXT])
@@ -822,7 +830,12 @@ func _on_place(id: int, item: String) -> void:
 	var r := place_request(id, item)
 	var word := item.strip_edges().to_lower().left(32)
 	if r.ok:
-		word = Vitals.BANDAGE_ITEM if word in [Vitals.BANDAGE_ITEM, "bandages"] else Campfires.ITEM
+		if word in [Vitals.BANDAGE_ITEM, "bandages"]:
+			word = Vitals.BANDAGE_ITEM
+		elif word == "eat" or Needs.is_food(word):
+			word = "eat"
+		elif word != "cook":
+			word = Campfires.ITEM
 	_send(id, "s2c_place_result", [word, r.ok, str(r.reason), str(r.text)])
 
 
@@ -1000,11 +1013,18 @@ func _finish_channel(id: int, now: float) -> void:
 	# safe) takes nothing, but the gather still happened: the charge is used. "done" with
 	# count 0: no haul toast, a system line.
 	var added := give_item(id, got.item, Gathering.amount_at(node_id, inv))
+	var also: Dictionary = ResourceNodes.kind_info(kind).get("also", {})
+	var extras := {}
+	for extra in also:
+		extras[str(extra)] = give_item(id, str(extra), int(also[extra]))
 	s.last_gather = now
 	if got.depleted:
 		_node_changed(node_id, true, got.respawn)
 	Gloam.noise(gloam, pos, now, GATHER_NOISE) # chopping and mining carry
 	_gather_event(id, "done", node_id, {"item": got.item, "count": added, "tool": tool, "depleted": got.depleted, "audience": audience})
+	for extra in extras:
+		if int(extras[extra]) > 0:
+			_send(id, "s2c_gather_result", [extra, int(extras[extra])]) # a second haul toast
 
 
 ## Where a timed gather's begin / cancelled / done is told to players:
@@ -1272,8 +1292,12 @@ func _tick_vitals(now: float) -> void:
 	for id in sessions:
 		if not sessions[id].logged_in:
 			continue
-		Vitals.tick(vitals_of(id), now, GameConfig.TICK_DT)
+		var s: Dictionary = sessions[id]
+		var v := vitals_of(id)
+		var tier := Needs.tick(s.character, v, GameConfig.TICK_DT)
+		Vitals.tick(v, now, GameConfig.TICK_DT, Needs.stamina_regen(s.character), Needs.can_heal(s.character))
 		_send_vitals_if_changed(id)
+		_tick_needs(id, tier)
 
 
 func _send_vitals_if_changed(id: int) -> void:
@@ -1293,6 +1317,72 @@ func _send_vitals(id: int) -> void:
 	var shown := Vitals.shown(v)
 	sessions[id].vitals_shown = shown
 	_send(id, "s2c_vitals", [shown[0], roundi(float(v.max_hp)), shown[1], roundi(float(v.max_stamina))])
+
+
+## --- Hunger, the first survival need (Needs; the owner's survival plan, 2026-11-27) ---
+
+## After each tick's Needs.tick: a tier that got worse is told once (getting hungry,
+## starving), and s2c_needs goes out when the whole number changed.
+func _tick_needs(id: int, tier: String) -> void:
+	var s: Dictionary = sessions[id]
+	var was := str(s.get("hunger_tier", "fine"))
+	if tier != was:
+		s.hunger_tier = tier
+		if Needs.TIERS.find(tier) > Needs.TIERS.find(was) and Needs.text(tier) != "":
+			_send(id, "s2c_system", [Needs.text(tier)])
+	if Needs.to_wire(s.character) != s.get("needs_shown", {}):
+		_send_needs(id)
+
+
+## s2c_needs({"hunger": 0..100}) (protocol v12), and remember what was shown.
+func _send_needs(id: int) -> void:
+	var s: Dictionary = sessions[id]
+	var wire := Needs.to_wire(s.character)
+	s.needs_shown = wire
+	_send(id, "s2c_needs", [wire])
+
+
+## Player `id` eats `food` (an Inventory id), or the best food in their pack for "".
+## c2s_place("eat") / c2s_place("<food>") runs this, so there is no new client message.
+## Refused ("no_food", "full", "dead") it costs nothing. Returns {ok, reason, text, fire_id: -1}.
+func eat_request(id: int, food: String = "") -> Dictionary:
+	var s: Dictionary = sessions[id]
+	var v := vitals_of(id)
+	var why := Needs.eat_check(s.character, v, food)
+	if why != "":
+		return {"ok": false, "reason": why, "text": Needs.text(why), "fire_id": -1}
+	var item := food if food != "" else Needs.best_food(s.character.inventory)
+	if not take_item(id, item, 1):
+		return {"ok": false, "reason": "no_food", "text": Needs.text("no_food"), "fire_id": -1}
+	var r := Needs.eat(s.character, v, item)
+	print("[needs] %s ate %s, hunger %d" % [s.character.name, item, Needs.shown(s.character)])
+	_send_vitals_if_changed(id)
+	_tick_needs(id, Needs.tier_of(s.character))
+	return {"ok": true, "reason": "", "text": Needs.ate_text(item), "fire_id": -1, "item": item}
+
+
+## Player `id` cooks every raw meat in their pack over a lit campfire they stand at
+## (Campfires.is_warm). c2s_place("cook") runs this. Returns {ok, reason, text, fire_id: -1, cooked}.
+func cook_request(id: int) -> Dictionary:
+	var s: Dictionary = sessions[id]
+	if Vitals.is_dead(vitals_of(id)):
+		return {"ok": false, "reason": "dead", "text": "", "fire_id": -1, "cooked": 0}
+	if not Campfires.is_warm(campfires, CharacterData.position(s.character)):
+		return {"ok": false, "reason": "no_fire", "text": Needs.text("no_fire"), "fire_id": -1, "cooked": 0}
+	var cooked := 0
+	for raw in Needs.COOKS:
+		var n := Inventory.count(s.character.inventory, raw)
+		if n <= 0:
+			continue
+		var into := str(Needs.COOKS[raw])
+		var room := Inventory.MAX_STACK - Inventory.count(s.character.inventory, into)
+		n = mini(n, room)
+		if n > 0 and take_item(id, raw, n):
+			cooked += give_item(id, into, n)
+	if cooked <= 0:
+		return {"ok": false, "reason": "no_raw", "text": Needs.text("no_raw"), "fire_id": -1, "cooked": 0}
+	print("[needs] %s cooked %d meat" % [s.character.name, cooked])
+	return {"ok": true, "reason": "", "text": Needs.text("cooked") % cooked, "fire_id": -1, "cooked": cooked}
 
 
 ## A hit of `amount` damage on player `id` (Vitals.hit; `blocking` takes most of it on
@@ -1329,6 +1419,7 @@ func knock_down(id: int) -> void:
 	s.character.z = spot.z
 	s.move = Vector2.ZERO
 	s.vitals = Vitals.full()
+	Needs.after_knockdown(s.character)
 	s.swing = {}
 	s.knocked_down_at = now_seconds()
 	s.knockdowns = int(s.get("knockdowns", 0)) + 1
@@ -1507,6 +1598,13 @@ func gloam_command(id: int, arg: String) -> String:
 ## reply ("" after a knock-down, whose own line is the answer).
 func vitals_command(id: int, line: String) -> String:
 	if ChatCommands.is_vitals(line):
+		var arg := ChatCommands.argument(line).to_lower().split(" ", false)
+		if arg.size() >= 1 and arg[0] == "hunger":
+			# "/vitals hunger" reads hunger, "/vitals hunger 30" sets it (bots, dev servers).
+			if arg.size() == 2 and arg[1].is_valid_float():
+				Needs.set_hunger(sessions[id].character, arg[1].to_float())
+				_tick_needs(id, Needs.tier_of(sessions[id].character))
+			return "%s %s" % [Vitals.describe(vitals_of(id), now_seconds()), Needs.describe(sessions[id].character)]
 		return Vitals.describe(vitals_of(id), now_seconds())
 	var amount := ChatCommands.hurt_amount(line)
 	if amount <= 0:

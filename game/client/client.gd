@@ -42,6 +42,9 @@ var time_dial: TimeDial
 var compass: CompassStrip
 var gather_prompt: GatherPrompt
 var vitals_bar: VitalsBar ## health and stamina, bottom centre (protocol v7 s2c_vitals)
+var needs_icon: NeedsIcon ## hunger, left of the health bar, only when you're hungry (protocol v12 s2c_needs)
+var sfx_eat: AudioStreamPlayer ## you ate something (F)
+var sfx_sizzle: AudioStreamPlayer ## meat went onto the fire (E at a lit campfire)
 ## Knocked down: the screen goes dark and you come to, lying in Spawn Meadow, and get up.
 ## No words (owner, 2026-11-25); CAME_TO_DARK s fully dark, then CAME_TO_FADE s back to light.
 var came_to_shade: ColorRect
@@ -149,6 +152,7 @@ func start(p_net: Node, args: Dictionary) -> void:
 	net.gloam_changed.connect(_on_zombai)
 	net.gloam_struck.connect(_on_zombai_struck)
 	net.vitals_changed.connect(_on_vitals)
+	net.needs_changed.connect(func(needs: Dictionary): needs_icon.on_needs(needs))
 	net.attack_refused.connect(_on_attack_refused)
 	net.swing_begun.connect(_on_swing_begun)
 	net.swing_landed.connect(_on_swing_landed)
@@ -420,6 +424,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				_start_place()
 			get_viewport().set_input_as_handled()
+		elif event.is_action("eat"):
+			# Eat the best food in the pack (Server.eat_request, carried by c2s_place). The
+			# hunger mark filling and the bite sound are the answer.
+			net.play.c2s_place.rpc_id(1, "eat")
+			get_viewport().set_input_as_handled()
 		elif event.is_action("use_bandage"):
 			# Put a bandage on (Server.use_bandage, carried by c2s_place). The health bar
 			# filling is the answer; only a refusal says anything.
@@ -488,6 +497,7 @@ func _move_vector() -> Vector2:
 func _process(delta: float) -> void:
 	perf_overlay.step(delta)
 	vitals_bar.step(delta)
+	needs_icon.step(delta)
 	notice_line.step(delta)
 	_step_came_to(delta)
 	if settings_menu.visible and settings_menu.in_game:
@@ -553,6 +563,7 @@ func _process(delta: float) -> void:
 			compass.feed(cam.yaw, me.position, other_positions())
 		_update_gather(delta, me.position, xf.origin, -xf.basis.z)
 		_update_bench(delta, me.position)
+		_update_cook(me.position)
 		_update_place(delta, me.position)
 		_follow_fires(delta, me.position)
 		hud_label.text = "Ashgrove  ·  %d online  ·  %.0f, %.0f" % [avatars.size(), me.position.x, me.position.z]
@@ -611,6 +622,29 @@ func _update_bench(delta: float, my_pos: Vector3) -> void:
 		craft_window.open(my_pos)
 		sfx_chime.play()
 	craft_window.tick(delta, my_pos)
+
+
+## Cooking: standing at a lit campfire (Campfires.WARM_RADIUS) with raw meat in the pack shows
+## "[E] Cook 3 raw meat"; E sends c2s_place("cook") and the server cooks all of it at once.
+func _update_cook(my_pos: Vector3) -> void:
+	var raw := int(gather_prompt.pack.get("raw_meat", 0))
+	var free := not chat_edit.has_focus() and not window_open() and not placing
+	if raw <= 0 or not free or not gather_prompt.current_target().is_empty() or CraftWindow.near_bench(my_pos):
+		return
+	if not at_lit_fire(my_pos):
+		return
+	gather_prompt.show_hint("[%s] Cook %d raw meat" % [NeedsIcon.key_name("interact", "E"), raw])
+	if Input.is_action_just_pressed("interact"):
+		net.play.c2s_place.rpc_id(1, "cook")
+
+
+## Whether `pos` is within Campfires.WARM_RADIUS of a fire the server says is burning.
+func at_lit_fire(pos: Vector3) -> bool:
+	for f in fires:
+		var fp: Vector3 = f.pos
+		if Vector2(fp.x - pos.x, fp.z - pos.z).length() <= Campfires.WARM_RADIUS:
+			return true
+	return false
 
 
 ## World's warm glow on the node E would gather (the one under the reticle, else the nearest).
@@ -712,6 +746,7 @@ func _on_login_result(ok: bool, message: String, id: int, character: Dictionary)
 	compass.visible = true
 	gather_prompt.visible = true
 	vitals_bar.visible = true
+	needs_icon.visible = true
 	hud_label.visible = true
 	help_label.visible = true
 	controls_button.visible = true
@@ -753,6 +788,8 @@ func _on_server_disconnected() -> void:
 	gather_prompt.hide_all()
 	vitals_bar.visible = false
 	vitals_bar.hide_all()
+	needs_icon.visible = false
+	needs_icon.hide_all()
 	notice_line.hide_all()
 	gather_watch.reset()
 	herd.clear()
@@ -1026,6 +1063,11 @@ func _on_place_result(item: String, ok: bool, _reason: String, text: String) -> 
 	if ok:
 		if item == Vitals.BANDAGE_ITEM:
 			sfx_craft.play()
+		elif item == "eat":
+			sfx_eat.play()
+		elif item == "cook":
+			sfx_sizzle.play()
+			gather_prompt.show_toast(text.trim_suffix(".").replace("You cook ", "Cooked ").replace(" over the fire", ""), "cooked_meat")
 		return
 	if text != "" and not in_fight():
 		notice_line.show_notice(text, true)
@@ -1391,6 +1433,18 @@ func _build_ui() -> void:
 	vitals_bar.visible = false
 	ui.add_child(vitals_bar)
 	vitals_bar.setup(hud_theme)
+	needs_icon = NeedsIcon.new()
+	needs_icon.anchor_left = 0.5
+	needs_icon.anchor_right = 0.5
+	needs_icon.anchor_top = 1.0
+	needs_icon.anchor_bottom = 1.0
+	needs_icon.offset_left = vitals_bar.offset_left - NeedsIcon.SIZE - 12.0 # just left of the bars
+	needs_icon.offset_right = needs_icon.offset_left + NeedsIcon.SIZE
+	needs_icon.offset_top = -52
+	needs_icon.offset_bottom = -52 + NeedsIcon.SIZE + 6.0
+	needs_icon.visible = false
+	ui.add_child(needs_icon)
+	needs_icon.setup(hud_theme)
 	# System notices and refusals, centre screen just above the reticle (chat is for talking).
 	notice_line = NoticeLine.new()
 	notice_line.anchor_left = 0.5
@@ -1570,6 +1624,14 @@ func _build_audio() -> void:
 	sfx_kindle.stream = Sfx.kindle()
 	sfx_kindle.volume_db = -5.0
 	add_child(sfx_kindle)
+	sfx_eat = AudioStreamPlayer.new()
+	sfx_eat.stream = Sfx.eat()
+	sfx_eat.volume_db = -5.0
+	add_child(sfx_eat)
+	sfx_sizzle = AudioStreamPlayer.new()
+	sfx_sizzle.stream = Sfx.sizzle()
+	sfx_sizzle.volume_db = -6.0
+	add_child(sfx_sizzle)
 	sfx_nope = AudioStreamPlayer.new()
 	sfx_nope.stream = Sfx.nope()
 	sfx_nope.volume_db = -9.0

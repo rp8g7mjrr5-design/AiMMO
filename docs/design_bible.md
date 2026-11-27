@@ -156,30 +156,40 @@ Directions 2 and 3 give the camera, gathering and looting that feel; the owner w
 - **Physical and grounded.** Weighty movement, readable animations, sound on every action,
   day and night that change what is out there.
 
-### 5. Progress you can hold: tools, gear and the base, no levels (owner direction, 2026-11-26)
-The owner: "We should get rid of the leveling system and just work on the basics. a survival
-zombie game right now." So there are **no levels, no XP and no skill tree**. This replaces
-"The long road" (one character level and a five-branch tree, 2026-11-25) and the four skills
-before it. In our own design:
-- **You get stronger by what you hold and build.** A better tool opens a better node (an axe
-  of stone works the old ash, a stone pickaxe the rich stone seam; see direction 11) and works every node a little faster
-  and for a little more; better weapons and armour from crafting and ruins; a stronger base;
-  and what you, the player, know about the map, the ruins and the Zombai.
+### 5. Progress you can hold: tools, gear, the base, and one character level with a tree (owner direction, 2026-11-26 and 2026-11-27)
+The owner, 2026-11-26: "We should get rid of the leveling system and just work on the basics."
+Then, 2026-11-27, once the basics had a plan: "what about skills for your character that dont
+wipe so you can build your character up over time", and finally "Lets just do 1 character
+level with the branches and points", with the tree screen laid out in the spirit of ARC
+Raiders' (branching nodes), in our own Satchel style. So progress has two parts:
+- **You get stronger by what you hold and build, first.** A better tool opens a better node (an
+  axe of stone works the old ash, a stone pickaxe the rich stone seam; see direction 11); better
+  weapons and armour from crafting and ruins; a stronger base; and what you know about the map,
+  the ruins and the Zombai.
 - **Gates are things, never numbers.** Anything locked is locked by a material, a tool, a
-  station, a key or a place: something you can see, go and get. Never by a number that only
-  goes up by grinding, and never by payment, luck alone or a daily timer.
-- **Every minute still pays.** With no XP bar, the pay is the haul itself: the item landing in
-  the pack with its toast, the next recipe in sight in the craft window, a node that shakes and
-  empties. A gather that can pay nothing (a full stack) is refused up front instead of
-  wasting the bar.
-- **Old XP is kept, never read.** Characters saved with skill XP (the character_skills table
-  and the save's `skills`) keep it exactly (CLAUDE.md hard rules 1 and 6); nothing in the game
-  shows it, earns it or uses it. The old skills network messages stay as do-nothing slots so the
-  protocol's numbering never moves.
-- **Don't bring it back sideways.** No "proficiency", "mastery", "reputation level", perk
-  points or any other bar that fills by repetition and unlocks power. If a future system seems
-  to need one, ask whether a tool, a station or a place can do the same job first; only the
-  owner can reopen levels.
+  station, a key or a place. **No level or node ever unlocks an item, a recipe, a node or a
+  place**, so a fresh character with the right tool can do everything a veteran can.
+- **One character level.** XP comes from what the game is about: gathering, crafting, cooking,
+  looting ruins, putting Zombai down and surviving nights. Each action pays a little, with
+  diminishing returns for repeating the same thing in one place, so there is no grind spot. The
+  first levels come in minutes, later ones over weeks. Cap 30 to start. Each level is one point.
+- **Points go on a tree of five branches:** Survival (needs and wounds), Gathering, Crafting,
+  Fighting and Scavenging. More nodes than points, so characters specialise and a group wants
+  different people. Nodes make you **better at things, not stronger outright**: faster
+  gathers and searches, more carry weight, slower hunger, quicker bandaging, cheaper swings and
+  blocks. No flat damage or health, and no more than about 25% better at any one thing from the
+  whole tree. A **free respec at your bedroll** once per in-game day, so a wrong pick is never
+  a trap.
+- **Kept across wipes** with your look and best days survived, so a character builds up over
+  time. Server rules: levels on/off, and kept across wipes on/off, shown before you join.
+- **Feedback with restraint.** A thin XP bar in the character panel, a quiet chime and one line
+  when you level ("Level 7: a point to spend"), never a column of light or a banner over the
+  fight (art bible sections 9 and 10).
+- **Old XP.** The 2026-11-24 skill XP stays in saves untouched (CLAUDE.md hard rules 1 and 6) and
+  is not converted: everyone starts the new level at 1 on the same day. The old skills network
+  messages stay as do-nothing slots.
+- **Don't bring more back sideways.** No second level, no per-skill levels, no "mastery", no
+  reputation level. Only the owner widens this.
 
 ### 6. Take the best, then beat it
 The owner's words: take other games' best features and improve on them, making them better
@@ -404,6 +414,8 @@ The goal is survival, with no story endgame (owner, 2026-11-24).
 
 ## Revision history
 - **Week 01 (2026-11-27, the Satchel UI):** The owner said the inventory and menus "look basic, we need to find our games style". Three directions were mocked up in the real client (field journal parchment, leather satchel, ash-and-ember glass); the owner picked the leather satchel and named it **Satchel**. Every window now shares one generated leather panel (stitching, iron corner studs) with brass capital titles; HUD pieces that sit over the world stay the quiet warm grey. Art bible section 9 says how. The owner also asked for a Tarkov- or ARC Raiders-style grid inventory next; that is mechanics only, the look stays Satchel.
+- **Week 01 (2026-11-27, one character level and a tree):** The same evening, the owner turned the six use-grown skills into "1 character level with the branches and points", with a tree screen laid out in the spirit of ARC Raiders' branching tree in our own Satchel style. Direction 5 now has one level (cap 30 to start), one point a level, five branches (Survival, Gathering, Crafting, Fighting, Scavenging), more nodes than points, a free daily respec at the bedroll, kept across wipes, and the guard rails from the earlier draft: no node unlocks an item and no node adds flat damage or health. The six use-grown skills are dropped before any were built. The vision's "Never" list follows.
+- **Week 01 (2026-11-27, survival systems and skills that grow by doing):** The owner asked to study Project Zomboid and "put that system into our game", and to make sure every item has a purpose. The plan (Claude Doc "ZombAi survival systems plan") adopts, in our own design and lighter: needs (hunger, thirst, warmth, rest) in three tiers, quiet status icons, one short wound list (bleeding, sprain, the chill, cured by a herb poultice now that the ember salve is gone with magic), carry weight, spoiling food, searchable loot and per-action noise; it leaves out traits, tool wear and per-body-part injuries. The item audit found hide, raw meat and the torch with no use; each gets one. The owner then asked for "skills for your character that dont wipe" and approved: six skills that grow by doing, ranks 1 to 10, efficiency only (about 25% at most), never damage, health or unlocks, kept across wipes, server rules to turn them off. Direction 5 and the vision's "Never" list now allow exactly that and still forbid a character level, XP bar, skill tree and perk points.
 - **Week 01 (2026-11-26, clean carved characters):** After seeing the goofy cartoon folk (#238) in game the owner said: "Now that i look at it i want to go with B clean carved real proportions". Direction 7's character line now reads clean carved figures with real proportions (`Carved`: faceted solids, flat shading, no grain); the cartoon exception is gone, so "real proportions (never chibi)" holds for characters again. `Toon` is retired; art bible section 3 is rewritten.
 - **Week 01 (2026-11-26, goofy cartoon characters):** The owner, on the sculpted traveller in game: "this doesnt look good at all we need to rework our character entirely", then "we can make them funny" and "would it be easier for ai to make everything super small?". Three directions were rendered in the meadow (small and chunky, clean carved low poly, goofy cartoon) and the owner picked the **goofy cartoon**. Direction 7 now carves the characters out of "real proportions (never chibi)": survivors and the Zombai are goofy cartoon folk (`Toon`) in the world's muted colours, with no paint grain; the world itself stays grounded. The sculpted body (`Traveller`, `SculptField`, `TravellerBodies`) is retired; art bible section 3 is rewritten.
 - **Week 01 (2026-11-26, a grounded survival kit):** The owner asked to remove the ember (magic) tools and go for basic zombie-survival tools in wood then stone tiers, a wooden club, bandages and the like ("We dont need magic"). Added owner direction 11. Removed the ember axe, ember pickaxe, ember lantern, heartwood, veinstone and ember sap; old saves convert them on load to their grounded counterparts. Added the wooden axe, wooden pickaxe, wooden club, wooden spear, stone pickaxe, stone maul, stone spear, plant fibre and bandage. The glowing sap seeps became scrub patches at the same places (node ids unchanged). Stone now needs a pickaxe. Natural healing caps at half health; bandages heal the rest. The ember glow left on trees and stone is a visual follow-up for the world stream.

@@ -19,6 +19,9 @@ const DEFAULTS := {
 	## The world (store.current_world id) this character was last on, for monthly wipes
 	## (WorldWipe, migration 0005). 0: before wipes, or a server that doesn't wipe.
 	"world_id": 0,
+	## How fed the character is, 0 (starving) to 100 (full) (Needs, migration 0006 adds
+	## characters.hunger). Older saves have none and load full.
+	"hunger": 100.0,
 }
 
 
@@ -66,6 +69,7 @@ static func from_pg_row(row: Dictionary) -> Dictionary:
 		"appearance_seed": row.get("appearance_seed"),
 		"look": Appearance.from_json(row.get("appearance", "")),
 		"world_id": row.get("world_id"),
+		"hunger": row.get("hunger"),
 	})
 
 

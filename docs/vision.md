@@ -210,13 +210,18 @@ another game's names for its zombies).
 - **Vehicles:** horses (tame, feed, stable, ride; a horse can be hurt and must be looked after),
   carts (hitched to a horse, hauling a ruin's worth of loot), and boats (rowboat first, then a
   small sail boat for the coast). Vehicles are saved with the world.
-- **No levels, no XP, no skill tree** (owner, 2026-11-26: "get rid of the leveling system and
-  just work on the basics"; this replaces the one-level-one-tree plan of 2026-11-25). You get
-  stronger through what you carry and build: better tools open better nodes (an axe for the
-  old ember ash, a pickaxe for the rich seam), better weapons and armour, a stronger base, and
-  what you know about the map and the Zombai. A gate on anything is a material, a tool, a
-  station or a place, never a number that goes up by grinding. Old XP in saves is kept
-  untouched but never read.
+- **One character level and a tree of points** (owner, 2026-11-26: "get rid of the leveling
+  system and just work on the basics"; then 2026-11-27: "skills for your character that dont
+  wipe so you can build your character up over time" and "Lets just do 1 character level with
+  the branches and points"). You get stronger first through what you carry and build: better
+  tools open better nodes, better weapons and armour, a stronger base, and what you know. On
+  top of that, **one character level** (cap 30 to start) earned by gathering, crafting,
+  cooking, looting, fighting and surviving nights, one point per level, spent on a **branching
+  tree** (Survival, Gathering, Crafting, Fighting, Scavenging) with more nodes than points.
+  Nodes make you better at things (speed, carry weight, slower hunger, cheaper swings), never
+  flat damage or health, about 25% at most in any one thing, and **never unlock an item, recipe,
+  node or place**. Free respec at your bedroll once a day. The level and tree **survive wipes**;
+  server rules can turn them off or wipe them. Design bible direction 5 has the details.
 - **Dying** (owner, 2026-11-25): you drop **a couple of items from your pack** (two or three
   random stacks, never what you hold in your hands) in a small sack where you fell, and wake at
   your bedroll or a spawn point in under a minute with everything else. **Your body rises** (owner, 2026-11-25): a Zombai in your clothes and your look,
@@ -348,7 +353,7 @@ is easy to tune.
 | Keeps | Changes | Goes |
 |---|---|---|
 | Godot client and headless authoritative server, ENet and WebSocket; the official always-on Railway world | One fixed valley becomes a generated kingdom per server, built in chunks; the server learns interest management and server rules | The MMO framing, "thousands on one world", anything shared across servers |
-| Gathering with E, timed bars, nodes; the bench and crafting; tools that open better nodes | Vitals grow into needs and wounds; inventory gets weight; one global chat becomes nearby, faction and server chat | The 8-player co-op cap as a design limit (it stays only as the live world's current setting); skills, XP and levels (owner, 2026-11-26) |
+| Gathering with E, timed bars, nodes; the bench and crafting; tools that open better nodes | Vitals grow into needs and wounds; inventory gets weight; one global chat becomes nearby, faction and server chat | The 8-player co-op cap as a design limit (it stays only as the live world's current setting); the four per-skill levels of 2026-11-24 (owner, 2026-11-26) |
 | The third-person action camera, swings, dodge, block | Ashgrove's ember lore becomes the fallen kingdom's (the Dimming, the ember) | The towns-MMO plan (PR #184, closed); the old "Later, maybe" of 16 to 48 player PvP servers, now folded into server rules |
 | Grounded art and its budgets; wildlife; the character creator | New: ruins, the Zombai, building, death and loot, factions, server rules, the server list and dedicated server download | |
 | CI, bot test, fun metrics, the self-updating client, the worker setup | Fun metrics add survival measures (time to first fire, nights survived, ruins cleared); qa adds a load test | |
@@ -385,7 +390,7 @@ only what is on `main`**.
 ## Never
 - Never tell players about a feature before it is on `main` and in the bot test.
 - Never sell power, safety or progress. It's a one-time buy.
-- Never add levels, XP or a skill tree (owner, 2026-11-26). Progress is tools, gear, the base and what you know.
+- Never let a level or a tree node unlock an item, recipe, node or place, or add flat damage or health, and never add a second kind of level (owner, 2026-11-27). Progress is tools, gear, the base, what you know, and one character level with a tree.
 - Never lose a player's save, world or character.
 - Never make a death the player couldn't have seen coming.
 - Never break the official always-on world, and never raise its cap past what the load test has

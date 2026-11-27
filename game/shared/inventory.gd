@@ -18,7 +18,7 @@ const MAX_STACK := 999
 ## Every item that exists. Ids are PERMANENT: they are stored in inventory_items.item.
 ## The raw materials match ResourceNodes.KINDS[*].item (plant fibre from the scrub) and the
 ## creatures' drops (Wildlife.KINDS); the rest are made with Crafting.RECIPES (whose ids are
-## the same as the item they make).
+## the same as the item they make); cooked meat is cooked at a campfire (Needs.COOKS) and berries come with scrub fibre.
 ##
 ## Grounded zombie survival (owner direction, 2026-11-26, design bible direction 11): no magic.
 ## Tools go wood, then stone (an axe and a pickaxe of each); the first weapons are a wooden
@@ -41,11 +41,13 @@ const ITEMS := {
 	"bandage": {"label": "bandage"},
 	"torch": {"label": "torch"},
 	"campfire": {"label": "campfire"},
+	"cooked_meat": {"label": "cooked meat"},
+	"berries": {"label": "berries"},
 }
 const ITEM_ORDER := ["ash_wood", "pine_wood", "stone", "plant_fibre", "hide", "raw_meat",
 	"wooden_axe", "wooden_pickaxe", "stone_axe", "stone_pickaxe",
 	"wooden_club", "wooden_spear", "stone_maul", "stone_spear",
-	"bandage", "torch", "campfire"]
+	"bandage", "torch", "campfire", "cooked_meat", "berries"]
 ## Items that are drawn (world's ItemIcons has them) but not moved into ITEMS yet. Empty
 ## today: the first hunt's hide and raw meat waited here until the grounded-tools pass
 ## (2026-11-26) moved them into ITEMS. Kept as the waiting room for the next one.
