@@ -18,6 +18,13 @@ class_name Needs
 ##
 ## Hunger is 0 (starving) to MAX (full), saved as `hunger` on the character (CharacterData,
 ## migration 0006). Old saves load full.
+##
+## **Thirst** (step 3 of the survival plan) works the same way and on the same tiers, only
+## faster (THIRST_DRAIN: full to empty in 45 minutes): it is the need that pulls you to the
+## lakes and rivers. Drink at fresh water (at_fresh_water) to fill up at once, and carry water
+## in a waterskin (DRINKS). The two never stack into a double penalty: stamina comes back at
+## the worse need's pace, and starving and parched together wear health at the same rate.
+## Saved as `thirst` (migration 0008). Old saves load full.
 
 const MAX := 100.0
 ## Points lost per real second while logged in: full to empty in an hour.
@@ -35,6 +42,19 @@ const HP_FLOOR := 15.0
 const AFTER_KNOCKDOWN := 50.0
 ## Refused when you are this full already (nothing would be wasted under it).
 const FULL_AT := 95.0
+
+## Thirst points lost per real second while logged in: full to empty in 45 minutes, so low
+## after about 22 (a drink about twice per meal).
+const THIRST_DRAIN := MAX / 2700.0
+## What a drink gives: fresh water fills you up; a full waterskin gives a big swallow and
+## comes back empty (`leaves`). Waterskins fill at fresh water (FILLS).
+const DRINKS := {
+	"full_waterskin": {"thirst": 45.0, "leaves": "waterskin"},
+}
+const FILLS := {"waterskin": "full_waterskin"}
+## Fresh water: within this many metres of a lake's edge or a river's line. The sea is salt.
+const LAKE_REACH := 3.0
+const RIVER_REACH := 5.0
 
 ## What each food gives, and what you eat first when you press the eat key (best first).
 ## Ids are Inventory ids. `hurt`: health lost (raw meat turns your stomach).
@@ -59,6 +79,14 @@ const TEXTS := {
 	"no_food": "You have nothing to eat. Cook meat at a campfire, or pick berries from scrub.",
 	"dead": "",
 	"cooked": "You cook %d meat over the fire.",
+	"thirst_low": "You're thirsty. Drink at a lake or a river, or from a waterskin (F).",
+	"thirst_bad": "You're parched. You tire fast and feel yourself weakening. Find water.",
+	"drank_fresh": "You drink your fill of fresh water.",
+	"drank_fresh_filled": "You drink your fill and fill %d waterskin(s).",
+	"filled": "You fill %d waterskin(s).",
+	"drank_skin": "You drink from your waterskin.",
+	"not_thirsty": "You're not thirsty.",
+	"no_water": "You have nothing to drink. Find a lake or a river, or carry a waterskin.",
 	"no_fire": "You need to stand at a lit campfire to cook.",
 	"no_raw": "You have nothing to cook. Hunt a grazer for meat.",
 }
@@ -83,13 +111,15 @@ static func tier_of(ch: Dictionary) -> String:
 	return tier(hunger_of(ch))
 
 
+## Stamina comes back at the worse need's pace (they never multiply).
 static func stamina_regen(ch: Dictionary) -> float:
-	return float(STAMINA_REGEN[tier_of(ch)])
+	return minf(float(STAMINA_REGEN[tier_of(ch)]), float(STAMINA_REGEN[thirst_tier_of(ch)]))
 
 
-## Whether natural healing (Vitals' out-of-combat trickle) is allowed: not while starving.
+## Whether natural healing (Vitals' out-of-combat trickle) is allowed: not while starving or
+## parched.
 static func can_heal(ch: Dictionary) -> bool:
-	return tier_of(ch) != "bad"
+	return tier_of(ch) != "bad" and thirst_tier_of(ch) != "bad"
 
 
 ## Advances hunger by `dt` real seconds on `ch` and, when starving, wears `v` (Vitals) down
@@ -98,8 +128,9 @@ static func tick(ch: Dictionary, v: Dictionary, dt: float) -> String:
 	if dt <= 0.0:
 		return tier_of(ch)
 	ch.hunger = maxf(hunger_of(ch) - DRAIN * dt, 0.0)
+	ch.thirst = maxf(thirst_of(ch) - THIRST_DRAIN * dt, 0.0)
 	var t := tier_of(ch)
-	if t == "bad" and not v.is_empty() and not Vitals.is_dead(v):
+	if (t == "bad" or thirst_tier_of(ch) == "bad") and not v.is_empty() and not Vitals.is_dead(v):
 		var hp := float(v.hp)
 		if hp > HP_FLOOR:
 			v.hp = maxf(hp - HP_DRAIN * dt, HP_FLOOR)
@@ -111,9 +142,81 @@ static func set_hunger(ch: Dictionary, value: float) -> void:
 	ch.hunger = clampf(value, 0.0, MAX) if is_finite(value) else MAX
 
 
-## After a knockdown: never wake up starving.
+## After a knockdown: never wake up starving or parched.
 static func after_knockdown(ch: Dictionary) -> void:
 	set_hunger(ch, maxf(hunger_of(ch), AFTER_KNOCKDOWN))
+	set_thirst(ch, maxf(thirst_of(ch), AFTER_KNOCKDOWN))
+
+
+## --- Thirst ---
+
+## The character's thirst, 0 (parched) .. MAX (quenched); missing or broken reads as full.
+static func thirst_of(ch: Dictionary) -> float:
+	var h: Variant = ch.get("thirst", MAX)
+	var f := float(h) if typeof(h) in [TYPE_INT, TYPE_FLOAT] else MAX
+	return clampf(f, 0.0, MAX) if is_finite(f) else MAX
+
+
+static func thirst_tier_of(ch: Dictionary) -> String:
+	return tier(thirst_of(ch))
+
+
+static func set_thirst(ch: Dictionary, value: float) -> void:
+	ch.thirst = clampf(value, 0.0, MAX) if is_finite(value) else MAX
+
+
+static func is_drink(item: String) -> bool:
+	return DRINKS.has(item)
+
+
+## Whether `pos` is at fresh water: near a lake's edge or a river's line (WorldGen). The sea
+## and Ashgrove have none.
+static func at_fresh_water(pos: Vector3) -> bool:
+	var p := Vector2(pos.x, pos.z)
+	for l in WorldGen.lakes():
+		var c: Vector2 = l.center
+		if p.distance_to(c) <= float(l.radius) + LAKE_REACH:
+			return true
+	for line in WorldGen.rivers():
+		var pts: PackedVector2Array = line
+		for i in range(pts.size() - 1):
+			if Geometry2D.get_closest_point_to_segment(p, pts[i], pts[i + 1]).distance_to(p) <= RIVER_REACH:
+				return true
+	return false
+
+
+## What a drink would do from where you stand: "fresh" (at water: drink and fill skins),
+## "skin" (drink a full waterskin), or why not: "dead", "not_thirsty", "no_water".
+static func drink_check(ch: Dictionary, v: Dictionary, at_water: bool) -> String:
+	if not v.is_empty() and Vitals.is_dead(v):
+		return "dead"
+	var inv: Dictionary = ch.get("inventory", {})
+	if at_water:
+		if thirst_of(ch) >= FULL_AT and Inventory.count(inv, "waterskin") <= 0:
+			return "not_thirsty"
+		return "fresh"
+	if Inventory.count(inv, "full_waterskin") <= 0:
+		return "no_water"
+	if thirst_of(ch) >= FULL_AT:
+		return "not_thirsty"
+	return "skin"
+
+
+## Drinks one `item` from DRINKS (the caller swaps the skin): thirst goes up. Returns thirst.
+static func drink(ch: Dictionary, item: String) -> float:
+	var d: Dictionary = DRINKS.get(item, {"thirst": 0.0})
+	set_thirst(ch, thirst_of(ch) + float(d.thirst))
+	return thirst_of(ch)
+
+
+## Thirst as a whole number 0..100, as sent.
+static func shown_thirst(ch: Dictionary) -> int:
+	return roundi(thirst_of(ch) / MAX * 100.0)
+
+
+## "Thirst 72/100 (fine)." for the hidden /vitals dev command.
+static func describe_thirst(ch: Dictionary) -> String:
+	return "Thirst %d/100 (%s)." % [shown_thirst(ch), thirst_tier_of(ch)]
 
 
 static func is_food(item: String) -> bool:
@@ -174,7 +277,7 @@ static func shown(ch: Dictionary) -> int:
 ## What goes over the wire in s2c_needs: {"hunger": 0..100}. Thirst, warmth and rest join this
 ## Dictionary later without a protocol bump.
 static func to_wire(ch: Dictionary) -> Dictionary:
-	return {"hunger": shown(ch)}
+	return {"hunger": shown(ch), "thirst": shown_thirst(ch)}
 
 
 ## "Hunger 72/100 (fine)." for the hidden /vitals dev command.

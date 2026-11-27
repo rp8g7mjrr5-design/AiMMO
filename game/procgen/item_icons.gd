@@ -150,6 +150,8 @@ static func tint(item: String) -> Color:
 			return Palette.COOKED_MEAT.lightened(0.25)
 		"berries":
 			return Palette.BERRY.lightened(0.3)
+		"waterskin", "full_waterskin":
+			return Palette.WATERSKIN.lightened(0.3)
 	return CLOTH
 
 
@@ -548,6 +550,33 @@ static func _recipe(item: String) -> Array:
 				_circle(Vector2(0.52, 0.58), 0.028, Palette.BERRY_SHINE, {"outline": false, "shade": 0.0}),
 				_circle(Vector2(0.40, 0.74), 0.028, Palette.BERRY_SHINE, {"outline": false, "shade": 0.0}),
 			]
+		"waterskin", "full_waterskin":
+			# A sewn hide water bag: a teardrop body of oiled hide with a stitched seam, a
+			# tied neck and a wooden stopper, on a fibre cord. Empty it hangs slack and
+			# creased; full it is round and taut with one cool bead of water at the neck.
+			var full := item == "full_waterskin"
+			var body := Palette.WATERSKIN.darkened(0.08) if full else Palette.WATERSKIN.lightened(0.06)
+			var out := [
+				_capsule(Vector2(0.30, 0.20), Vector2(0.50, 0.30), 0.014, Palette.FIBRE, {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.70, 0.20), Vector2(0.50, 0.30), 0.014, Palette.FIBRE, {"outline": false, "shade": 0.0}),
+			]
+			if full:
+				out.append(_poly([Vector2(0.44, 0.34), Vector2(0.56, 0.34), Vector2(0.72, 0.48), Vector2(0.80, 0.66), Vector2(0.74, 0.82),
+					Vector2(0.58, 0.90), Vector2(0.42, 0.90), Vector2(0.26, 0.82), Vector2(0.20, 0.66), Vector2(0.28, 0.48)], body, {"shade": 0.3}))
+			else:
+				out.append(_poly([Vector2(0.45, 0.34), Vector2(0.55, 0.34), Vector2(0.64, 0.50), Vector2(0.70, 0.70), Vector2(0.64, 0.86),
+					Vector2(0.52, 0.90), Vector2(0.40, 0.88), Vector2(0.32, 0.76), Vector2(0.34, 0.58), Vector2(0.40, 0.46)], body, {"shade": 0.22}))
+				# Slack creases.
+				out.append(_capsule(Vector2(0.42, 0.56), Vector2(0.56, 0.62), 0.010, body.darkened(0.3), {"outline": false, "shade": 0.0}))
+				out.append(_capsule(Vector2(0.40, 0.72), Vector2(0.58, 0.76), 0.010, body.darkened(0.3), {"outline": false, "shade": 0.0}))
+			# The stitched seam down the middle.
+			out.append(_capsule(Vector2(0.50, 0.40), Vector2(0.50, 0.86), 0.008, Palette.HIDE_FLESH.darkened(0.25), {"outline": false, "shade": 0.0}))
+			# Tied neck and the wooden stopper.
+			out.append(_box(Vector2(0.50, 0.33), Vector2(0.07, 0.025), 0.0, Palette.FIBRE.darkened(0.15), {"round": 0.01}))
+			out.append(_box(Vector2(0.50, 0.25), Vector2(0.045, 0.05), 0.0, Palette.WORKED_WOOD, {"round": 0.015}))
+			if full:
+				out.append(_circle(Vector2(0.60, 0.40), 0.03, Palette.WATER_BEAD, {"outline": false, "shade": 0.0}))
+			return out
 		FALLBACK:
 			return [
 				_circle(Vector2(0.50, 0.60), 0.27, CLOTH),

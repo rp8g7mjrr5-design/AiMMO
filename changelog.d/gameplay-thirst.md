@@ -1,0 +1,3 @@
+- **You get thirsty now.** Thirst comes on faster than hunger, about every twenty minutes on your feet, and a small waterskin mark appears beside the food mark when it does. Thirsty, your stamina comes back slower; parched, you weaken too (never past one bad fight from going down, the same as hunger, and the two never stack).
+- **Drink at the lakes and rivers.** Walk to fresh water and press **E** to drink your fill. The sea is salt: it won't help.
+- **Waterskins.** Craft one from 2 hide and 2 plant fibre, anywhere. Fill it at a lake or river, and press **F** away from water to take a long drink. **F** now eats or drinks, whichever you need more. (Protocol 14: the game updates itself.)

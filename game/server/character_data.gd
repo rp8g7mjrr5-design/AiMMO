@@ -22,6 +22,9 @@ const DEFAULTS := {
 	## How fed the character is, 0 (starving) to 100 (full) (Needs, migration 0006 adds
 	## characters.hunger). Older saves have none and load full.
 	"hunger": 100.0,
+	## How quenched, 0 (parched) to 100 (Needs, migration 0008 adds characters.thirst).
+	## Older saves have none and load full.
+	"thirst": 100.0,
 	## Where each stack sits in the grid pack (PackGrid places, [[item, index, x, y, turned]]).
 	## Stored as JSON text in characters.pack_layout (migration 0007); older saves have none
 	## and are packed top-left first at their next login.
@@ -76,6 +79,7 @@ static func from_pg_row(row: Dictionary) -> Dictionary:
 		"look": Appearance.from_json(row.get("appearance", "")),
 		"world_id": row.get("world_id"),
 		"hunger": row.get("hunger"),
+		"thirst": row.get("thirst"),
 		"pack": str(row.get("pack_layout", "")),
 	})
 

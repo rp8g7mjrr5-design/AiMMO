@@ -76,4 +76,5 @@ static func on_login(store: PlayerStore, ch: Dictionary, world: Dictionary) -> b
 	ch.z = p.z
 	ch.world_id = int(world.id)
 	Needs.set_hunger(ch, Needs.MAX) # a fresh start on the new island
+	Needs.set_thirst(ch, Needs.MAX)
 	return true

@@ -19,5 +19,5 @@ func test_v12_adds_s2c_needs_only() -> void:
 
 func test_needs_go_over_the_wire_as_a_dictionary() -> void:
 	var wire := Needs.to_wire({"hunger": 72.4})
-	check_eq(wire, {"hunger": 72})
+	check_eq(int(wire.hunger), 72)
 	check_eq(typeof(wire), TYPE_DICTIONARY, "room for thirst, warmth and rest without another bump")

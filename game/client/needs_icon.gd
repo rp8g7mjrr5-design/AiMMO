@@ -8,6 +8,9 @@ extends Control
 ## - bad: the same in SMOULDER red, slowly pulsing, so "eat now" is felt without words.
 ## The key hint (F) sits under it the first time it shows each login and fades.
 ##
+## One node per need: `need` is the s2c_needs key it reads ("hunger", or "thirst" since step
+## 3 of the survival plan, with the full waterskin as its mark and "Drink" as its hint).
+##
 ## Pure static helpers (tier, alpha, tint) are unit tested; the node only draws.
 
 const SIZE := 32.0
@@ -20,7 +23,13 @@ const BAD_TINT := Color(0.88, 0.42, 0.30) ## SMOULDER, lifted a little so it rea
 const FILL := Color(0.72, 0.62, 0.40) ## straw
 const FILL_BAD := Color(0.71, 0.26, 0.16)
 
-var hunger := 100
+var need := "hunger"
+var icon_item := "cooked_meat"
+var verb := "Eat"
+## Another mark whose key hint wins while both show (F answers whichever need is worse, so one
+## hint is enough; two would overlap).
+var partner: NeedsIcon
+var hunger := 100 ## this need's value, 0..100 (named for the first need)
 var known := false
 var _shown_for := 0.0
 var _t := 0.0
@@ -52,12 +61,20 @@ static func tint(value: int, t: float) -> Color:
 	return Color(1, 1, 1, 0)
 
 
+## Makes this mark show `p_need` ("thirst") with `p_icon`'s item icon and `p_verb` in the hint.
+## Call before setup().
+func configure(p_need: String, p_icon: String, p_verb: String) -> void:
+	need = p_need
+	icon_item = p_icon
+	verb = p_verb
+
+
 func setup(p_theme: Theme) -> void:
 	theme = p_theme
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(SIZE, SIZE + BAR_H + 3.0)
 	icon = TextureRect.new()
-	icon.texture = ItemIcons.texture("cooked_meat")
+	icon.texture = ItemIcons.texture(icon_item)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.size = Vector2(SIZE, SIZE)
@@ -90,10 +107,10 @@ func _panel(color: Color, pos: Vector2, sz: Vector2) -> Panel:
 
 ## s2c_needs: {"hunger": 0..100}; other keys are later needs and are ignored here.
 func on_needs(needs: Dictionary) -> void:
-	if not needs.has("hunger"):
+	if not needs.has(need):
 		return
 	var was_visible := known and visible_for(hunger)
-	hunger = clampi(int(needs.hunger), 0, 100)
+	hunger = clampi(int(needs[need]), 0, 100)
 	known = true
 	if visible_for(hunger) and not was_visible:
 		_shown_for = 0.0
@@ -133,6 +150,22 @@ static func eat_key() -> String:
 	return key_name("eat", "F")
 
 
+## What the F key sends (c2s_place): "drink" when thirst is the worse need and there is water
+## to hand (a full waterskin, or standing at fresh water), else "eat" when there is food, else
+## "drink" if any water is to hand and you're thirsty at all, else "eat" (whose refusal says
+## what to do). `pack` is item -> count.
+static func f_word(hunger_v: int, thirst_v: int, pack: Dictionary, at_water: bool) -> String:
+	var water := at_water or int(pack.get("full_waterskin", 0)) > 0
+	var food := Needs.best_food(pack) != ""
+	if water and thirst_v < hunger_v:
+		return "drink"
+	if food:
+		return "eat"
+	if water and thirst_v < roundi(Needs.FULL_AT):
+		return "drink"
+	return "eat"
+
+
 func _draw_mark() -> void:
 	if icon == null:
 		return
@@ -146,8 +179,9 @@ func _draw_mark() -> void:
 	var box := fill.get_theme_stylebox("panel") as StyleBoxFlat
 	if box != null:
 		box.bg_color = FILL_BAD if tier_of(hunger) == "bad" else FILL
-	if not _hinted and _shown_for < HINT_SECONDS:
-		hint.text = "[%s] Eat" % eat_key()
+	var partner_hinting := partner != null and partner.hint != null and partner.hint.text != ""
+	if not _hinted and _shown_for < HINT_SECONDS and not partner_hinting:
+		hint.text = "[%s] %s" % [eat_key(), verb]
 		hint.modulate.a = clampf((HINT_SECONDS - _shown_for) / 1.0, 0.0, 1.0)
 	else:
 		if _shown_for >= HINT_SECONDS:
