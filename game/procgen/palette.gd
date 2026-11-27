@@ -124,6 +124,7 @@ const SAILCLOTH := Color(0.64, 0.60, 0.51) ## grey-buff canvas, salt-stained
 const IRON_RUST := Color(0.38, 0.28, 0.21) ## bolts, hoops and nails gone to rust
 const SEA_SHALLOW := Color(0.30, 0.42, 0.40) ## sea over sand, a hand deep: green-grey, never pool blue
 const FOAM := Color(0.86, 0.87, 0.84) ## broken water: off-white
+const DUNE_GRASS := Color(0.45, 0.46, 0.30) ## marram on the back of a beach: straw going olive, sandier than MEADOW
 ## Beach palms (Flora, owner 2026-11-27: "trees shouldn't be on the beach. Palm trees maybe").
 const PALM_BARK := Color(0.47, 0.42, 0.35) ## a palm's ringed trunk: salt-greyed brown, paler than TRUNK
 const PALM_RING := Color(0.33, 0.28, 0.22) ## the old leaf scars round the trunk, darker
@@ -226,6 +227,10 @@ static func ground(h: float, slope: float, jitter: float) -> Color:
 	return c.lightened(jitter) if jitter > 0.0 else c.darkened(-jitter)
 
 
+const DUNE_LOW := 0.7 ## metres above the sea where dune grass may start (the tide never reaches it)
+const DUNE_FROM := 0.3 ## beach depth (WorldGen.beach_depth) where the dune grass starts
+const DUNE_FULL := 0.6 ## and where it is at its thickest
+const DUNE_BACK := 0.9 ## how grassy the back of the beach gets at its thickest
 const DUNE_FRINGE := 0.65 ## how sandy the grass is right at the beach's edge (fades to none a band inland)
 const COVER_SCALE := 38.0 ## metres: rough width of a moss or dry-grass patch
 const EARTH_SCALE := 22.0 ## metres: bare-earth scuffs are smaller
@@ -286,6 +291,9 @@ static func _kingdom_ground_at(x: float, z: float, h: float, slope: float, jitte
 			if WorldGen.is_island():
 				# The wet band: the waves keep the last half metre of beach dark (BeachGen).
 				c = SAND.lerp(WET_SAND, 1.0 - smoothstep(Terrain.water_level() + 0.15, Terrain.water_level() + 0.65, h))
+				# The back of the beach is dune grass, not bare sand (owner, 2026-11-27: "our
+				# beaches still look empty"): the open sand runs from the sea about half way up.
+				c = c.lerp(DUNE_GRASS, DUNE_BACK * dune_weight(x, z, h))
 		"snow":
 			c = SNOW
 		_:
@@ -321,6 +329,14 @@ static func _kingdom_ground_at(x: float, z: float, h: float, slope: float, jitte
 		if m < 1.0:
 			c = c.lerp(_jittered(SAND, jitter), DUNE_FRINGE * (1.0 - smoothstep(0.0, 1.0, m)))
 	return c
+
+
+## How much of a dune (x, z) with ground height h is on an island's beach, 0..1: none on the
+## lower, wetter half (by how far up the beach and how high), thickest at the back of the sand.
+## The terrain colour and Grass both read it, so the grass grows where the ground turns olive.
+static func dune_weight(x: float, z: float, h: float) -> float:
+	var up := smoothstep(Terrain.water_level() + DUNE_LOW, Terrain.water_level() + DUNE_LOW + 0.6, h)
+	return up * smoothstep(DUNE_FROM, DUNE_FULL, WorldGen.beach_depth(x, z))
 
 
 static func _jittered(c: Color, jitter: float) -> Color:

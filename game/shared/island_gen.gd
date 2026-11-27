@@ -192,6 +192,14 @@ static func biome_for(L: Dictionary, x: float, z: float, h: float) -> String:
 	return "moor" if m < 0.05 else "forest"
 
 
+## How far up an island's beach (x, z) is: 0 out where the sea starts (the outline's 1.07, past
+## its 1.0, since the beach runs on beyond it) to 1 at the back of the sand where the "shore"
+## biome ends (inland 0.06, with biome_for's wobble).
+static func beach_depth(L: Dictionary, x: float, z: float) -> float:
+	var inl := 1.0 - shape(L, x, z) + (L.wobble as FastNoiseLite).get_noise_2d(x * 1.3, z * 1.3) * 0.06
+	return clampf((inl + 0.07) / 0.13, 0.0, 1.0)
+
+
 ## How far (x, z) with ground height h is past the beach: 0 at the sand's edge (and on it),
 ## 1 a band inland (about 0.8 m up or about a seventieth of the way to the heart, whichever the edge
 ## is made of). Same rule and wobble as biome_for's "shore", so the two always agree.
