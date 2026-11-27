@@ -98,6 +98,8 @@ static func _scatter_kingdom(count: int) -> Array:
 		var biome := WorldGen.biome_for(x, z, y)
 		if keep >= float(KINGDOM_KEEP.get(biome, 0.0)):
 			continue # water, shore, snow, or an open stretch of field and moor
+		if WorldGen.near_sand(x, z):
+			continue # no forest tree or rock at the beach's edge (owner, 2026-11-27); palms grow there (Flora)
 		if WorldGen.road_distance(x, z) < WorldGen.ROAD_HALF_WIDTH + KINGDOM_ROAD_CLEAR:
 			continue
 		if _on_ruin(x, z, ruins):
