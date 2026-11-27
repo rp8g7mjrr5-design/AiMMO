@@ -1,0 +1,1 @@
+Tick (from the owner's survival thread, 2026-11-27): "Basics 4: searchable loot in the ruins" is built in the owner PR for step 2 of the survival plan (`Loot`, `c2s_place("search")`). It answers world's request in `from-world-burned-farmstead.md`. New ruin set pieces get loot by adding their spots to `RuinLayout`; the grade 2-4 tables are ready.
