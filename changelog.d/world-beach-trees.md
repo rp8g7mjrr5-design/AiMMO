@@ -1,2 +1,0 @@
-- **Beaches look like beaches.** No more ash trees, pines or birches standing in the sand. The island's coast now has its own trees: clumps of leaning palms with long open stretches of beach between them, and the sand drifts into the grass behind the beach instead of stopping at a hard edge.
-- **The first trees you chop are just inland.** The few choppable trees that grew on the sand by each landing have stepped back onto the grass, a short walk up the beach.

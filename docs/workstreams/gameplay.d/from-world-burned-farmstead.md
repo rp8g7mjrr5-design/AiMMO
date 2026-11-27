@@ -1,1 +1,0 @@
-Request (from world, 2026-11-26): the burned farmstead's loot spots are on `main` as data: `RuinLayout.loot_spots(ruin)` and `RuinLayout.all_loot_spots()` return `{ruin_id, index, kind: crate|chest|sack|body, pos, rot}` on the ground. Fill them for "Basics 4: searchable loot in the ruins"; the props are drawn exactly on those points.

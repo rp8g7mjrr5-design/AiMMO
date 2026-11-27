@@ -1678,3 +1678,56 @@ Notes to next self / known gaps:
 - The ember veins on trees and stone and the old ash's glowing pods are still there (world).
 - Iron/metal tier from ruins next; cloth as a step between fibre and bandage if bandages feel
   too cheap.
+
+## 2026-11-26 — hunger-and-cooking
+
+Step 1 of the owner's survival plan (roadmap Phase 2, "The survival plan"; design bible revision 2026-11-27).
+
+**What shipped.** `game/shared/needs.gd` holds every number: hunger 0..100, full to low in about 30 real minutes, empty in an hour, drains only while logged in. Tiers fine / low / bad: low scales stamina regen by 0.75, bad by 0.5, stops the out-of-combat heal and wears health to `HP_FLOOR` (15), never lower. `Vitals.tick` grew two optional args (regen scale, heal allowed) so nothing else changed. Foods: cooked meat 40, berries 10, raw meat 15 and 8 health (never below 1). Eating and cooking ride on `c2s_place` ("eat", a food id, "cook"), so the only new RPC is `s2c_needs(Dictionary)` on Net/Play (protocol 12; frozen `net_v11.gd` / `net_play_v11.gd`). The Dictionary leaves room for thirst, warmth and rest without another bump. Saved as `characters.hunger` (migration 0006, default 100) and in the JSON store through CharacterData; a wipe and a knockdown (at least 50) refill it. Scrub's `also: {berries: 1}` is a new optional field in `ResourceNodes.KINDS`; the server sends a second `s2c_gather_result` for it.
+
+**Client.** `NeedsIcon` (cooked-meat icon, straw when low, slow SMOULDER pulse when starving, a thin fill, "[F] Eat" hint the first few seconds) sits left of the vitals bar and is invisible while fed. F eats (new `eat` action). At a lit fire with raw meat the gather prompt shows "[E] Cook N raw meat". New procedural sounds `Sfx.eat()` and `Sfx.sizzle()`. Berries got an icon and two palette colours (`BERRY`, `BERRY_SHINE`).
+
+**Tried and dropped.** Cooking as a craft-window recipe: the craft window only opens at the bench, so it could never be used at a fire.
+
+**Next self.**
+- The tier lines ("You're getting hungry. Press F to eat.") go to the chat feed as system lines; a notice-line version that respects the clean-fight rule would read better.
+- Spoiling (plan step 6) will need a per-stack age; keep `cooked_meat`/`raw_meat` ids, add a freshness field rather than new ids.
+- The character level (plan step 7): cooking should pay XP from the count `cook_request` returns.
+
+## 2026-11-26 — grid-pack
+
+The owner asked for "an inventory that works like Tarkov or ARC Raiders" (mechanics; the look
+stays Satchel). Built on top of the hunger PR (#245) because both touch `save_character`,
+`CharacterData` and the protocol (v12 there, v13 here).
+
+- `game/shared/pack_grid.gd` (PackGrid): 10x6 grid, item shapes and stack sizes, a
+  deterministic layout (saved places first, then first fit top-left, standing then turned),
+  `room_for`, `move`, `normalize`/JSON. Counts stay the truth (`Inventory`); the layout is
+  only where stacks sit. Stacks with no room are "over": owned, drawn under the grid.
+- Server: `give_item` adds only what `room_for` allows (`force` for hand-backs, so a failed
+  craft never loses parts); every change re-lays out and keeps every stack named in
+  `ch.pack` (room_for is exact only then). Gather start refuses "full" when there is no room.
+  Cooking gives back raw meat that won't fit cooked. New `pack_move`, `pack_drop`;
+  `s2c_pack` goes before every `s2c_inventory`. Migration 0007 adds `characters.pack_layout`.
+- Client: `PackWindow` draws the grid in one `_draw` (pockets, stacks, the ghost in hand);
+  drag, R to turn, drag out to drop; the move shows at once and the server's `s2c_pack` wins.
+- Bot test: `client_pack_window` is replaced by `gameplay_pack_grid` (layout checks on every
+  update, one move per login, the move still there after the reconnect).
+- Tried: `room_for` by re-laying out the whole pack per candidate stack was 28 ms on a busy
+  pack; now it fills the free cells of one layout (well under 1 ms).
+- Known: drop discards the stack (no items on the ground yet). Long items draw their square
+  icon in the middle of the long box; a lengthwise icon would read better. No split/merge of
+  stacks yet, and no quick-move.
+
+## 2026-11-27 — ruin-loot
+
+**What shipped.** `game/shared/loot.gd` holds every number: a table per ruin grade (1 Quiet .. 4 Deadly), draws per spot kind (sack 1-2, crate 2, chest 2-3, body 1-2), and a bias per kind (bodies carry bandages and torches, sacks food, chests tools). Loot only holds items another system already uses (food, bandage, torch, fibre, hide, tools and weapons); cloth from the plan is left out until something uses it. The server searches with `c2s_place("search")`: no protocol bump. It finds the nearest `RuinLayout` loot spot within 2.5 m, runs a 1.8 s search on the server (walking more than 0.5 m or going down stops it with nothing), then rolls, fills the pack, marks the spot searched for one in-game day (2400 s), makes a quiet Gloam noise (15 m) and answers with one `s2c_gather_result` toast per item and then `s2c_place_result("search", ...)`. Refusals ("none", "empty", "busy", "dead") answer at once. `wreck_crate` gathers now also roll `Loot.BEACH_CRATE` (30% nothing).
+
+**Client.** `_update_search` shows "[E] Search the crate" from the existing prompt line, fills the gather bar locally over `Loot.SEARCH_SECONDS` through a new `GatherPrompt.show_progress`, plays a new procedural `Sfx.rummage()`, and remembers spots you searched this login ("Searched", dimmed). It gives way to a node under the reticle, the workbench and the cook prompt.
+
+**Tests.** `test_gameplay_loot.gd` (15). Bot behaviour `gameplay_loot` (bot *_7) runs the hidden `/loot` command: a stand-in grade 1 chest on Ashgrove (the bot test world has no ruins), then the refusal, then `/loot refill`.
+
+**Known gaps / next time.**
+- The searched state is not saved: a restart refills every spot. That only ever helps players; save it if restarts become a farming trick.
+- Only the burned farmstead has loot spots, so only the grade 1 table is reachable today. Grades 2-4 are ready for the world stream's next set pieces.
+- The prompt uses the nearest spot by distance, not the one under the reticle; spots sit at least 1.5 m apart, so it reads fine at a farmstead.

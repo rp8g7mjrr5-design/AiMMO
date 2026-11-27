@@ -1,3 +1,0 @@
-- **Your pack is a grid now.** Every item takes up room by its shape: logs are long, stones are small, a spear runs four cells. Drag things to arrange them, press **R** to turn what you're holding, and drag a stack out of the pack to drop it. When it's full, it's full, so choose what you carry.
-- Nothing you own is lost: if an old pack holds more than fits, the rest waits under the grid until you make room.
-- Protocol v13: the game updates itself on launch.

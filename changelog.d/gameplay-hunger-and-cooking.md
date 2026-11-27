@@ -1,3 +1,0 @@
-- **You get hungry now.** After about half an hour on your feet a small food mark appears by your health bar. Hungry, your stamina comes back slower; starving, you weaken too (hunger alone never knocks you down, but it leaves you one bad fight from it). Press **F** to eat.
-- **Cook your hunt.** Stand at a lit campfire with raw meat and press **E** to cook all of it at once. Cooked meat fills you far more than raw, and raw meat turns your stomach.
-- **Berries in the scrub.** Every scrub patch you pick now gives a handful of wild berries with its fibre: your first food on the beach. (Protocol 12: the game updates itself.)

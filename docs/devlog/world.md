@@ -992,3 +992,169 @@ Thursday of every month at 19:00 UTC.
   change: owner's go-ahead and an announcement first.
 - If archiving fails, the pack is left alone and the wipe is retried at their next login.
 - Tested on Postgres 16 locally (`test_postgres_keeps_worlds_and_archives`) and on the JSON store.
+
+## 2026-11-26 — starting-beach
+
+Owner, 2026-11-26: "lets think of things to put on our starting beach. random landmarks things to
+collect polish out the ocean", then "design the beach stuff and show it to me please". Built on
+the island (gen v2) without touching its layout: everything is derived from the landings.
+
+## What shipped
+- `BeachGen` (shared, pure): per landing, the seaward direction (lowest ground in 24 directions),
+  the waterline, 1 or 2 landmarks (45% two) rolled from shipwreck / lifeboat / old pier / whale
+  bones / fishing shack by weight, never the same twice on a beach; 6 pickings; 2 or 3 tide
+  pools; 46 shells, pebbles, wrack and sticks; one far wreck 240 to 380 m out on deep water.
+  Seed = world seed * 7919 + landing * 131 + 4513.
+- Pickings are real nodes (`ResourceNodes.BEACH_KINDS`), all by hand: driftwood (2 ash wood x 2),
+  loose stones (1 stone x 3), kelp (2 fibre x 2), washed-up crate (2 pine wood x 2). Appended
+  after the tier-2 ring on islands only, so every older id is unchanged (test pins it). A crate
+  always sits by the wreck or lifeboat when the beach has one.
+- `BeachProps` (client): the landmarks from 8 chunked MultiMesh layers on the shared bark, stone
+  and solid materials, the tide pools on the sea material. No new material.
+- `Sea` (client): the island's water plane gets a shader: depth-buffer surf that washes up and
+  back every 6.5 s, a second band of broken water, shallow green-grey over the sand, a normal-only
+  swell. Islands only; Ashgrove's lake keeps its StandardMaterial so the smoke test's shots and
+  style baseline are untouched. Tide pools pass instance alpha 0.2 to calm the surf.
+- `Palette.WET_SAND` on the last half metre of island beach (terrain vertex colour).
+
+## Decisions
+- **Zombai on the beach:** the owner left it open. No extra walkers on the beach: the first
+  minute is for finding your feet (fun rule: first reward within 60 s). The dead fisher in the
+  shack is the warning. Walkers still rise anywhere outside the world spawn's safe radius, so the
+  other landings are not safe havens.
+- **Food:** there is no hunger or eating yet, so no crabs, gulls or shellfish. When hunger lands,
+  add a shellfish picking to BeachGen.NODE_PLAN (append-only: add it after the current kinds).
+- Loose stones by hand do not break "bare hands can't break rock": nothing is broken. One stone a
+  pull keeps the pickaxe the way to real stone.
+- Landmarks have no camera solids yet (the action camera can clip into the wreck's ribs).
+
+## Notes to self
+- Old clients compute fewer nodes; ids past their list are unknown to them and ignored. A new
+  client on an old server would show pickings the server refuses ("unknown"); the server deploys
+  from the same main, so this only lasts minutes.
+- Shots: `tests/client_smoke/beach_shots.gd` renders the real world builder on an island at
+  noon, golden hour and night (wide, close and one view per landmark). Use Vulkan via lavapipe
+  for Forward+ (`VK_ICD_FILENAMES=/opt/lavapipe/lvp_icd.json ... --rendering-driver vulkan`).
+- The surf reads `hint_depth_texture`; Compatibility's NDC depth runs -1..1, so `compat_ndc` is
+  set from `Emberlight.srgb_output()` (no RenderingDevice).
+
+## 2026-11-26 — burned-farmstead
+
+Builder run, Basics 4: the ruin kit and the burned farmstead (grade 1).
+
+### What shipped
+- `game/shared/ruin_layout.gd` (`RuinLayout`): the farmstead's plan as plain data from the site
+  alone (`layout_seed`, `rot`, pos): house, barn, well, cart, fence run, rubble, and four loot
+  spots (chest by the hearth, crate at the barn's front, sack behind the cart, a body by the
+  well). `loot_spots(r)` and `all_loot_spots()` give world points on the ground with
+  `ruin_id` and `index`, ready for gameplay's "searchable loot in the ruins" item. Version 1
+  kingdoms (no layout_seed) seed from the site position instead.
+- `game/procgen/ruin_kit.gd` (`RuinKit`): the kit drawn from that plan in four MultiMesh layers
+  (stone, wood, thatch, round) on the shared `Emberlight` solid material, ground-snapped per
+  part. The chimney (7.2 m), gable end and the barn's standing frame are "Far" layers drawn to
+  900 m, so the farmstead reads from the beach; the rest fades in at 220 m. Well under 400
+  parts per farmstead. Colours are all worked out from `Palette` (static vars), so no new
+  colour literals.
+- `client.gd` adds `RuinKit.build()` to the world right after `WorldBuilder.build()` (both
+  places). **Why not inside `WorldBuilder`:** the owner's open beach PR #241 changes
+  `world_builder.gd` and `palette.gd`, so I stayed out of both. Once #241 lands, move the call
+  into `WorldBuilder.build()` and give the ruins their own palette entries if wanted.
+
+### Tried, didn't work
+- First render had the barn's two roof slopes tilted the wrong way (a butterfly roof). Rotation
+  about +X by +a takes local +z down, so the +z slope needs `+pitch`. Fixed before the PR.
+- Hard-coded colours tripped `test_qa_art_lint` (palette only). Derived them from Palette.
+
+### Known gaps / notes to next self
+- No camera solids yet: the action camera can clip into the chimney and walls. Add the ruin parts
+  to `WorldSolids` (needs `world_solids.gd`, not in #241) or a small `RuinKit.solids()`.
+- No collision for players: you walk through walls, like trees today.
+- No bot behaviour: this is art plus data; nothing a player does changed. The loot spots get a
+  bot behaviour with gameplay's searchable-loot item (qa's "loot in the bot test").
+- Shots: `ruins/` in the project files (seed 1126, the first farmstead, noon and night, plus one
+  from 150 m). The 150 m shot shows the chimney and barn as a small silhouette between trees.
+
+## 2026-11-27 — beach-trees
+
+Owner, 2026-11-27: "We need to make sure the map looks correct. Trees shouldnt be on the beach.
+Palm trees maybe." Island (gen v2) only for anything that moves; Ashgrove is untouched.
+
+## What shipped
+- `WorldGen.near_sand(x, z, r = 5)`: true when "shore" or "water" lies within r (centre, 6 at
+  r/2, 10 at r). Skips high ground and any point whose local slope can't reach sand height
+  (`SAND_TOP` 2.2) within r, so it costs ~3 height reads for most land. False on Ashgrove.
+- Decorative trees and rocks (`Props._scatter_kingdom`) and birches, boulders and flowers
+  (`Flora`) skip spots near sand on generated worlds. Same rng draws, so only the beach-side
+  ones go. Birches on islands drop from ~60 to ~15: most of them were on the sea beach,
+  because their "water within 9 m" rule saw the sea. The rest stand by lakes and rivers; on
+  generated worlds the birch looks 5 m further for its water.
+- Tree nodes: `WorldGen._trees_off_sand` (island only) walks every ash or pine node spot near
+  sand to the nearest free, dry spot within 100 m (rings of 2.5 m, 16 bearings; road, river,
+  ruin, spacing and snow rules as for placement). Spots move but are never added or dropped,
+  so ids, kinds and counts are unchanged; it draws nothing from the placement rng. The tier-2
+  ring around the spawn plot skips sand for trees. Stones and scrub may stay on sand.
+  Nothing about nodes is saved (only depletion, in memory), so moving them can't break a save.
+  The live island's landing beaches are up to ~70 m deep, which is why the reach is 100 m (30
+  and 60 left some starter trees on the sand).
+- Palms (`Flora`, kind "palm", appended last so every other spot is where it was): the coast is
+  walked by bearing from the island centre (`WorldGen.coast_at`, outline maths only), one look
+  per 7 m of coast; a coast noise picks the groves; dry sand only (above the wet band, under
+  3 m), clear of landings (`BeachGen.CLEAR` + 6), landmarks, nodes, roads, river mouths and
+  ruins. ~115 palms on the live island. Parts: 6 trunk pieces leaning further each (curved,
+  seaward), leaf-scar rings, 11 fronds (two dry ones hanging lowest), 3 nuts. New frond mesh
+  built with SurfaceTool, both faces, because the shared material culls back faces. Colours
+  in `Palette.PALM_*`. Chunked layers with tree draw distances; rings and nuts cast no shadow.
+- Dune fringe: `IslandGen.sand_margin` (same rule and wobble as the "shore" biome) and
+  `Palette.DUNE_FRINGE` lerp the first band of turf toward sand, so the 4 m terrain
+  triangles don't show a hard green/sand staircase at the back of the beach.
+
+## Tried and dropped
+- Fronds 0.55 wide looked like spider legs; 0.95 wide with 11 fronds reads as a palm crown.
+- Fringe at 0.8 over a 2% band turned whole meadows sandy; 0.65 over ~1.4% looks like dune grass.
+
+## Notes to next run
+- Palms are decoration only (no node). If the owner wants to chop them, a "palm" node kind with
+  its own stump would fit the beach pickings.
+- The blocky sand edge is softened, not gone: terrain colour is one flat colour per 4 m
+  triangle. A real fix is per-vertex sand weight, which changes the faceted look everywhere.
+- Before/after shots: `/mnt/project-files/beach-trees/` (seed 1126, the live world).
+
+## 2026-11-27 — held-tools
+
+Builder run, world "Basics 2: held tools and weapons."
+
+### Why this item
+Top of the basics I could take without touching the owner's open work: PRs #245 to #248 and
+recent owner branches touch `client.gd`, `server.gd`, `net.gd`, `palette.gd`, `flora.gd`,
+`world_map.gd`, `item_icons.gd` and the node props, so the gameplay items (hunger is the owner's
+#245; loot and the bench need `server.gd`) and most client items were out. This one is a new
+file only, and it unblocks client's "weapon in your hand". Fun: you see the axe you just made
+in your hand and in your friend's, and a stone tool looks like an upgrade.
+
+### What shipped
+- `game/procgen/held_items.gd` (`HeldItems`): wooden and stone axe and pickaxe, wooden club,
+  stone maul, wooden and stone spear, torch. Low-poly solids, flat shaded on `Carved.material()`
+  (no grain), colours derived from `Palette` (no literals, no palette.gd edit because the owner
+  has three PRs on it). 1.2x real size (art bible section 3): axes 0.63 m, picks 0.72 m, club
+  0.76 m, maul 0.78 m, spears 1.93 to 1.97 m, torch 0.81 m with flame. Each under 400 triangles,
+  one surface; the torch has a second surface for its flame on the Emberlight glow material
+  (vertex alpha 0), the only glow (direction 11).
+- Item space: grip at the origin, haft along +Y, striking side +Z. `GRIP` maps it onto the
+  RightHand bone so that with the arm raised forward (rotation.x = -PI/2) the haft points up and
+  the edge faces forward: an overhead chop lands edge first. Checked in the unit test.
+- `attach(skeleton, id)` adds one `BoneAttachment3D` "HeldItem" on RightHand; same id keeps the
+  node (cheap every frame); "", "fists" or anything unknown empties the hand. `held(skeleton)`.
+- `tests/unit/test_world_held_items.gd`: every tool, weapon and the torch from Crafting and
+  Weapons has a shape, triangle budget, real lengths, heads on the striking side, grip fits the
+  carved palm, flat facets, muted solids, only the torch glows, materials, attach and swap.
+
+### Not done / notes to next self
+- Nothing is drawn in game yet: client hangs it (request in the backlog note). No bot behaviour,
+  because nothing a player does changed (same as the farmstead).
+- The headless dummy renderer logs `Parameter "m" is null` for any MeshInstance3D; the attach
+  test calls `expect_error` for it.
+- Shots (`held-items/` in project files) are from a plain test scene, not the game's sky: the
+  torch flame reads bright yellow there because the scene doesn't set the Emberlight heartbeat.
+  Check it in game once client draws it; a flicker (scale the flame surface) is client's call.
+- The spear is held a third of the way up (0.72 m of shaft behind the hand). If the thrust pose
+  looks wrong, move the grip in `parts()` rather than the pose.
