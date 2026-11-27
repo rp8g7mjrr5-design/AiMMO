@@ -34,6 +34,7 @@ const QUALITY_SCRIPT := "res://client/quality.gd"
 const QUALITY_POLL := 0.5
 
 ## How much grass each ground kind grows, 0..1 (ground under a kingdom's biomes; Ashgrove uses heights).
+const DUNE_DENSITY := 0.8 ## at the back of an island's beach
 const BIOME_DENSITY := {"farmland": 1.0, "moor": 0.8, "forest": 0.45, "stone_hills": 0.35}
 
 static var _mesh: ArrayMesh
@@ -128,6 +129,9 @@ static func growth(x: float, z: float, h: float, slope: float) -> float:
 	var steep := 1.0 - smoothstep(MAX_SLOPE * 0.5, MAX_SLOPE, slope)
 	if WorldGen.is_kingdom():
 		var b := WorldGen.biome_for(x, z, h)
+		if b == "shore" and WorldGen.is_island():
+			# Marram on the back of the beach, thickening toward the turf (Palette.DUNE_GRASS).
+			return DUNE_DENSITY * Palette.dune_weight(x, z, h) * steep
 		if not BIOME_DENSITY.has(b):
 			return 0.0
 		if WorldGen.road_distance(x, z) < WorldGen.ROAD_HALF_WIDTH + ROAD_CLEAR:

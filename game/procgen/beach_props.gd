@@ -37,6 +37,7 @@ static func parts() -> Array:
 			out.append_array(_deco(d))
 		for f in b.far:
 			out.append_array(_far_wreck(f))
+	out.append_array(CoastDress.parts()) # the rest of the coast, between the landing beaches
 	return out
 
 

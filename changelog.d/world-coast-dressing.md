@@ -1,0 +1,2 @@
+- **The whole coast washed up something.** Every beach on the island, not just the one you land on, now has a line of kelp along the tide mark, shells and pebbles, grey drift logs (some still with a branch or a root ball), clusters of rocks and the odd washed-up board.
+- **Dunes behind the sand.** The back of every beach is now marram grass, so the open sand is a strip by the sea, not a desert.

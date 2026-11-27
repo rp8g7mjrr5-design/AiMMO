@@ -276,6 +276,15 @@ static func sand_margin(x: float, z: float, h: float) -> float:
 	return IslandGen.sand_margin(_L, x, z, h)
 
 
+## How far up an island's beach (x, z) is, 0 at the sea side to 1 at the back of the sand
+## (IslandGen.beach_depth); 0 on other worlds.
+static func beach_depth(x: float, z: float) -> float:
+	if _gen != ISLAND:
+		return 0.0
+	_ensure()
+	return IslandGen.beach_depth(_L, x, z)
+
+
 ## 0 at an island's shore, 1 at its heart (IslandGen.inland). 1 on other worlds, which have no
 ## sea all round.
 static func inland(x: float, z: float) -> float:
