@@ -29,11 +29,14 @@ player will feel that they didn't before. In practice: every action answers with
 100 ms (sound, motion, flash, number); a first reward within about 60 s of spawning; every
 loop ends in a payoff you can see, hear and use; no dead time; always one clear next goal.
 
-## No levels (design bible, owner direction 5, 2026-11-26)
-No levels, XP, skill trees, perk points, "mastery" or any bar that fills by repetition. You
-get stronger through tools (a stone axe opens the old ash, a stone pickaxe the rich seam), gear,
-the base and what you know. Gate things by a material, a tool, a station or a place. Old XP
-in saves is kept untouched and never read; the old skills RPCs stay as do-nothing slots.
+## No levels; small skills that grow by doing (design bible, owner direction 5, 2026-11-26 and 2026-11-27)
+No character level, XP bar, skill tree or perk points. You get stronger through tools (a stone
+axe opens the old ash, a stone pickaxe the rich seam), gear, the base and what you know. Gate
+things by a material, a tool, a station or a place, never by a skill rank. Six skills grow by
+doing (woodcraft, stonework, fighting, mending, cooking, scavenging; ranks 1 to 10) and only make
+you more efficient (at most about 25% at rank 10; never damage, health or an unlock); they
+survive wipes. Old XP in saves is kept untouched and never read; the old skills RPCs stay as
+do-nothing slots.
 
 ## A grounded survival kit (design bible, owner direction 11, 2026-11-26)
 No magic: no ember tools, glowing sap or enchanted anything; only fire glows. Tools and weapons
@@ -60,7 +63,7 @@ start, and put before/after shots in the PR.
 ## Never (vision)
 - Tell players about a feature before it is on `main` and in the bot test.
 - Sell power, safety or progress.
-- Add levels, XP or a skill tree (owner, 2026-11-26).
+- Add a character level, XP bar, skill tree or perk points, or let a skill lock an item or add damage or health (owner, 2026-11-26 and 2026-11-27).
 - Lose a player's save, world or character (add-only migrations, old saves always load).
 - Make a death the player couldn't have seen coming.
 - Break the official world or raise its cap past what the load test proved.

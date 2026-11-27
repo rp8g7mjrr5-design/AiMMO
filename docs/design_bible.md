@@ -156,7 +156,7 @@ Directions 2 and 3 give the camera, gathering and looting that feel; the owner w
 - **Physical and grounded.** Weighty movement, readable animations, sound on every action,
   day and night that change what is out there.
 
-### 5. Progress you can hold: tools, gear and the base, no levels (owner direction, 2026-11-26)
+### 5. Progress you can hold: tools, gear and the base, no levels; small skills that grow by doing (owner direction, 2026-11-26 and 2026-11-27)
 The owner: "We should get rid of the leveling system and just work on the basics. a survival
 zombie game right now." So there are **no levels, no XP and no skill tree**. This replaces
 "The long road" (one character level and a five-branch tree, 2026-11-25) and the four skills
@@ -176,8 +176,19 @@ before it. In our own design:
   and the save's `skills`) keep it exactly (CLAUDE.md hard rules 1 and 6); nothing in the game
   shows it, earns it or uses it. The old skills network messages stay as do-nothing slots so the
   protocol's numbering never moves.
-- **Don't bring it back sideways.** No "proficiency", "mastery", "reputation level", perk
-  points or any other bar that fills by repetition and unlocks power. If a future system seems
+- **Skills that grow by doing** (owner, 2026-11-27: "what about skills for your character that
+  dont wipe so you can build your character up over time"; the owner approved this shape). Six
+  skills: woodcraft, stonework, fighting, mending, cooking, scavenging. Each grows from doing
+  that thing, ranks 1 to 10, quick early and slow later; ranks below 5 grow twice as fast. A
+  skill only makes you **more efficient** at its one thing, with diminishing steps up to about
+  25% at rank 10 (faster chops and searches, quicker bandaging, food that keeps longer, cheaper
+  swings). Never damage, never health, never an unlock: a fresh player with the same tool can do
+  everything a veteran can, only slower. Skills **survive wipes**. No XP bar or level-up banner,
+  only a quiet note when a rank rises; ranks are seen in the character panel. Server rules:
+  skills on/off and kept across wipes on/off. New skills start at 0; the old 2026-11-24 XP is
+  never read.
+- **Don't bring the rest back sideways.** No character level, XP bar, "mastery", reputation level,
+  perk points or skill tree, and no skill that unlocks power or items. If a future system seems
   to need one, ask whether a tool, a station or a place can do the same job first; only the
   owner can reopen levels.
 
@@ -403,6 +414,7 @@ The goal is survival, with no story endgame (owner, 2026-11-24).
 - Database changes are add-only migrations. Every stored field has a default in `CharacterData` so old saves always load.
 
 ## Revision history
+- **Week 01 (2026-11-27, survival systems and skills that grow by doing):** The owner asked to study Project Zomboid and "put that system into our game", and to make sure every item has a purpose. The plan (Claude Doc "ZombAi survival systems plan") adopts, in our own design and lighter: needs (hunger, thirst, warmth, rest) in three tiers, quiet status icons, one short wound list (bleeding, sprain, the chill, cured by a herb poultice now that the ember salve is gone with magic), carry weight, spoiling food, searchable loot and per-action noise; it leaves out traits, tool wear and per-body-part injuries. The item audit found hide, raw meat and the torch with no use; each gets one. The owner then asked for "skills for your character that dont wipe" and approved: six skills that grow by doing, ranks 1 to 10, efficiency only (about 25% at most), never damage, health or unlocks, kept across wipes, server rules to turn them off. Direction 5 and the vision's "Never" list now allow exactly that and still forbid a character level, XP bar, skill tree and perk points.
 - **Week 01 (2026-11-26, clean carved characters):** After seeing the goofy cartoon folk (#238) in game the owner said: "Now that i look at it i want to go with B clean carved real proportions". Direction 7's character line now reads clean carved figures with real proportions (`Carved`: faceted solids, flat shading, no grain); the cartoon exception is gone, so "real proportions (never chibi)" holds for characters again. `Toon` is retired; art bible section 3 is rewritten.
 - **Week 01 (2026-11-26, goofy cartoon characters):** The owner, on the sculpted traveller in game: "this doesnt look good at all we need to rework our character entirely", then "we can make them funny" and "would it be easier for ai to make everything super small?". Three directions were rendered in the meadow (small and chunky, clean carved low poly, goofy cartoon) and the owner picked the **goofy cartoon**. Direction 7 now carves the characters out of "real proportions (never chibi)": survivors and the Zombai are goofy cartoon folk (`Toon`) in the world's muted colours, with no paint grain; the world itself stays grounded. The sculpted body (`Traveller`, `SculptField`, `TravellerBodies`) is retired; art bible section 3 is rewritten.
 - **Week 01 (2026-11-26, a grounded survival kit):** The owner asked to remove the ember (magic) tools and go for basic zombie-survival tools in wood then stone tiers, a wooden club, bandages and the like ("We dont need magic"). Added owner direction 11. Removed the ember axe, ember pickaxe, ember lantern, heartwood, veinstone and ember sap; old saves convert them on load to their grounded counterparts. Added the wooden axe, wooden pickaxe, wooden club, wooden spear, stone pickaxe, stone maul, stone spear, plant fibre and bandage. The glowing sap seeps became scrub patches at the same places (node ids unchanged). Stone now needs a pickaxe. Natural healing caps at half health; bandages heal the rest. The ember glow left on trees and stone is a visual follow-up for the world stream.
