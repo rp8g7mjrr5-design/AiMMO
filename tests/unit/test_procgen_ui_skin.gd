@@ -28,3 +28,15 @@ func test_shared_and_cheap() -> void:
 	var box := UiSkin.panel_box(6.0)
 	check_eq(box.texture_margin_left, float(UiSkin.MARGIN), "a nine-patch: the studs and stitches never stretch at the corners")
 	check_eq(box.content_margin_top, 6.0)
+
+
+func test_check_box_reads_on_the_leather() -> void:
+	var off := UiSkin.check_icon(false).get_image()
+	var on := UiSkin.check_icon(true).get_image()
+	check(off.get_pixel(0, 9).v > 0.5, "the box has a pale thread rim you can see on dark leather")
+	var ember := 0
+	for y in on.get_height():
+		for x in on.get_width():
+			if on.get_pixel(x, y).is_equal_approx(Palette.EMBER):
+				ember += 1
+	check(ember > 10, "a ticked box shows an ember tick (%d px)" % ember)

@@ -115,8 +115,8 @@ func setup(theme_res: Theme) -> void:
 	anchor_bottom = 0.5
 	offset_left = -WIDTH * 0.5
 	offset_right = WIDTH * 0.5
-	offset_top = -150
-	offset_bottom = 150
+	offset_top = -100
+	offset_bottom = 100
 	grow_vertical = Control.GROW_DIRECTION_BOTH
 	add_theme_stylebox_override("panel", HudStyle.panel()) # the satchel leather every window shares (art bible section 9)
 	var margin := MarginContainer.new()

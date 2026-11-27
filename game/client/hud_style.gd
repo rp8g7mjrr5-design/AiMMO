@@ -151,6 +151,8 @@ static func theme(over_world := false) -> Theme:
 	# A check box is its tick alone, never a button box around it.
 	for st in ["normal", "hover", "pressed", "disabled", "focus", "hover_pressed"]:
 		t.set_stylebox(st, "CheckBox", StyleBoxEmpty.new())
+	t.set_icon("unchecked", "CheckBox", UiSkin.check_icon(false))
+	t.set_icon("checked", "CheckBox", UiSkin.check_icon(true))
 	var slider := bar_box(Color(0.04, 0.03, 0.02, 0.7))
 	slider.content_margin_top = 3
 	slider.content_margin_bottom = 3

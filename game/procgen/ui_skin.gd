@@ -33,6 +33,26 @@ static func panel_box(pad: float) -> StyleBoxTexture:
 	return s
 
 
+## A check box drawn on the leather: a pressed square with a thread rim, and when `on`, an
+## ember tick (ember means "set, usable": art bible section 2).
+static func check_icon(on: bool) -> Texture2D:
+	var n := 18
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	for y in n:
+		for x in n:
+			var rim := x <= 1 or y <= 1 or x >= n - 2 or y >= n - 2
+			img.set_pixel(x, y, Palette.LEATHER_THREAD if rim else Palette.UI_LEATHER.darkened(0.55))
+	if on:
+		for i in 11:
+			var t := float(i) / 10.0
+			# a tick: down to the low point, then up to the far corner
+			var p := Vector2(4, 9).lerp(Vector2(7, 13), t * 2.0) if t < 0.5 else Vector2(7, 13).lerp(Vector2(14, 4), (t - 0.5) * 2.0)
+			for dy in 2:
+				for dx in 2:
+					img.set_pixel(clampi(int(p.x) + dx, 0, n - 1), clampi(int(p.y) + dy, 0, n - 1), Palette.EMBER)
+	return ImageTexture.create_from_image(img)
+
+
 static func _noise(seed: int, freq: float, type := FastNoiseLite.TYPE_SIMPLEX_SMOOTH) -> FastNoiseLite:
 	var n := FastNoiseLite.new()
 	n.seed = seed
