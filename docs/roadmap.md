@@ -164,14 +164,14 @@ Boats (rowboat, then a small sail boat for the coast), great hordes, wounds and 
 farming, fishing, more kinds of Zombai and ruins, weather,
 proximity voice, a spectator camera.
 
-## The next six weeks (director forecast, redrawn 2026-11-24 morning)
+## The next six weeks (forecast, redrawn by the weekly review 2026-11-27)
 A forecast, not a promise: it is redrawn every morning from what actually landed.
 
 | Week | Dates | Focus |
 |------|-------|-------|
 | 00 | to Thu 26 Nov | Milestones 0 and 1 closed. The first hunt becomes playable (attack key). Phase 1 groundwork: the 8-player cap on Railway, the world config on the wire, generator v1. |
-| 01 | 27 Nov to 3 Dec | Phase 1: chunks, the ruin kit, the burned farmstead and abandoned village, the map (M); the Railway world moves to a generated map in one announced step. Build-ahead: campfires, hunger and cooking, the first walker behind a flag. |
-| 02 | 4 to 10 Dec | Phase 2: thirst, warmth and rest, bandages, the walker and the hound live, night rounds, death drops a couple of items, days survived. |
+| 01 | 27 Nov to 3 Dec | Finish the four basics. Phase 1: wash ashore in about a second, the island in the bot test, the abandoned village (grade 2) and loot in the beach landmarks. Phase 2 basics: a walker that is a real threat, a knock-down that drops a sack, a workbench you build, crafting anywhere. The owner's thirst, warmth and rest thread lands alongside. The first wipe is Thu 3 Dec. |
+| 02 | 4 to 10 Dec | Phase 2: walkers rise at ruins, night rounds, the first wounds, days survived; then the first character level and tree once the survival plan's earlier steps play. |
 | 03 | 11 to 17 Dec | Phase 3: the claim marker, snap-grid timber building, doors and gates, chests, the ember hearth, the bedroll. |
 | 04 | 18 to 24 Dec | Phase 3: threat, night rounds at your walls, the first Tolling, barricades, braziers and the bell. |
 | 05 | 25 to 31 Dec | Phase 4: grade 3 ruins (the mine, the drowned village), signet keys, smithing and iron, bows. |
@@ -182,7 +182,7 @@ Phase 5 (servers for up to 100) stays after Phase 4 in the forecast: friends alr
 ## Week history
 | Week | Release | Notes |
 |------|---------|-------|
-| 00 | **First Steps** | Foundation, day and night, gathering, crafting, action camera, self-updating client (Milestone 0). |
+| 00 | **Washed Ashore** | Foundation (Milestone 0), then ZombAi: the 3 km island with monthly wipes and the map on M, beaches that pay out in the first minute, wood and stone tools, the Zombai walker and a clean fight, hunger, cooking and campfires, the burned farmstead with loot to search, the grid pack, carved survivors and character creation, the Satchel windows. About 250 PRs merged. |
 
 ## Director notes
 **Director note (2026-11-22):** with four streams shipping in parallel, Week 01 work (clock, sky, settings) started in Week 00. That's fine: streams may build ahead on next week's headline, but the headline for a week is what gets polished and released that week. Gathering's data and art groundwork (node positions, node props, inventory migration) may start late in Week 01 so Week 02 doesn't stall on dependencies.
@@ -232,6 +232,15 @@ forgiving by default), factions for groups, claims that protect on a server of s
 scaled to the cap, and Phase 5 is now "Servers for up to 100". Nothing already in the backlogs
 changes order: the basics first (direction 9) still lead. The live cap stays 8 until the load
 test proves more.
+
+**Weekly review (2026-11-27, Week 00 closed as "Washed Ashore"):** Phase 1 stays current. Of
+its done-when list, the island generator, roads, ruins, every node kind and gathering and
+crafting end to end in a generated world are true on the live island; two are not yet: the
+world builds in about 6 s, not under 3 (client's top item), and CI still plays only Ashgrove,
+so "five seeds each give a playable world" is unproven (qa's island phase). Of the basics,
+customization is done, the generated map is live, the first ruin has loot, and zombie survival
+lacks a knock-down that costs anything and a first night that bites. Those are the week's
+first items.
 
 ## Backlog (unscheduled)
 - Zone or proximity chat, private messages

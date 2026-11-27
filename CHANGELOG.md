@@ -1,316 +1,53 @@
 # AiMMO Patch Notes
 
-## Week 00 — First Steps
+## Week 00 — Washed Ashore
 
-Welcome to **Ashgrove**, a quiet valley where the ash trees burn orange all year and nobody quite remembers why. This is day one. The world is small, the paint is wet, and you are among the very first people to walk it.
+Welcome to **ZombAi**. You wake on the beach of a 3 km island at the edge of a fallen kingdom with nothing in your hands. The dead walk inland, the ruins still hold what people left behind, and the island is new every month. This is the very first week: the paint is wet, and you are among the first people to walk it.
 
-### New
-- **Your pack is a grid now.** Every item takes up room by its shape: logs are long, stones are small, a spear runs four cells. Drag things to arrange them, press **R** to turn what you're holding, and drag a stack out of the pack to drop it. When it's full, it's full, so choose what you carry.
-- Nothing you own is lost: if an old pack holds more than fits, the rest waits under the grid until you make room.
-- Protocol v13: the game updates itself on launch.
-- **Search the ruins.** The crates, chests, sacks and bodies in a burned farmstead can be searched now: walk up, press **E**, and a short bar fills while you rummage. What you find pops up beside your pack: berries, fibre, bandages, torches, a little cooked meat, and once in a while a club or a spear. A spot you emptied fills again the next day, so a ruin is worth coming back to. Rummaging makes a little noise, so mind what's nearby.
-- **Washed-up crates hold more than wood.** Most crates on the beach now also hold something useful from the wreck: fibre, berries, a torch or a bandage.
-- Every tool and weapon now has a real carved shape to hold: wooden and stone axes and pickaxes, the knotted club, the squared stone maul, both spears and a burning torch, made to match their pack icons.
-- **A new look for every window: Satchel.** Your pack, the workbench, settings, the login screen and the rest now sit on stitched dark leather with iron studs and brass titles, like gear from the bottom of a traveller's satchel.
-- Check boxes in Settings are finally easy to see: a ticked box shows an ember tick.
-- **Beaches look like beaches.** No more ash trees, pines or birches standing in the sand. The island's coast now has its own trees: clumps of leaning palms with long open stretches of beach between them, and the sand drifts into the grass behind the beach instead of stopping at a hard edge.
-- **The first trees you chop are just inland.** The few choppable trees that grew on the sand by each landing have stepped back onto the grass, a short walk up the beach.
-- **A map of the whole island on M.** Press **M** to unfold it: sea, beaches, forest, moor and stone hills, rivers and the king's roads, every ruin marked by how dangerous it is (Quiet to Deadly), the wrecks and piers along the coast, and you as an arrow pointing where you look. Hover a mark for its name, scroll to zoom in (every place gets named), drag to look around, right-click to see the whole island again. A new island each wipe means a new map each wipe.
-- **You get hungry now.** After about half an hour on your feet a small food mark appears by your health bar. Hungry, your stamina comes back slower; starving, you weaken too (hunger alone never knocks you down, but it leaves you one bad fight from it). Press **F** to eat.
-- **Cook your hunt.** Stand at a lit campfire with raw meat and press **E** to cook all of it at once. Cooked meat fills you far more than raw, and raw meat turns your stomach.
-- **Berries in the scrub.** Every scrub patch you pick now gives a handful of wild berries with its fibre: your first food on the beach. (Protocol 12: the game updates itself.)
-- **The first ruins stand on the island.** Look inland from the beach for a dark chimney against the sky: it's a **Burned Farmstead**. Walk up and you'll find the stone farmhouse gutted by fire, a half-fallen barn, an old well, a wrecked cart and a broken fence, laid out differently on every island.
-- Look around the yard: a chest by the hearth, a crate by the barn, a sack off the cart, and someone by the well who didn't make it.
-- **Campfires you can actually set down.** Craft a campfire at the workbench, press **B**, and a pale outline of the fire stands where it will go; click (or B again) and it catches with a soft whumph. The outline turns red where a fire can't go, and right-click or Esc puts it away.
-- **Everyone's fires are on screen now:** a ring of stones, leaning logs and flickering flames that light the ground at night, slump low near the end and leave a bed of ash. The Zombai keep their distance from them.
-- **Every beach is its own place now.** Wherever you wash up, the beach has a landmark or two: a shipwreck heeled over in the surf, a beached lifeboat, an old pier running out to sea, a whale's bones, or a fisher's shack with someone under a sail who never left. No two beaches are dressed the same.
-- **Your first minute pays out.** Pull driftwood off the tideline, break open washed-up crates for planks, collect loose stones and pull kelp for fibre, all by hand. There's a wooden pickaxe's worth of wood within a few steps of where you wake.
-- **The sea got a polish.** Surf now washes up the sand and back, the shallows turn green-grey over the sand, the wet sand darkens at the waterline, tide pools sit among the rocks, and a far wreck shows on the horizon.
-- **Every survivor has been re-carved:** real proportions, crisp carved shapes and clean flat colours, like a painted wooden figure. The faces are clean, with no more grainy pixel noise. You get a proper nose, brow, eyes and jaw, and hands with fingers and a thumb.
-- Every option in the character window still works: builds, heights, skin, four face shapes, all six hair styles, beards, hoods and felt caps, and every dye.
-- From behind you'll spot your friends by their pack and bedroll. A hooded scout wears a cowl and a wool cloak.
-- **The Zombai are carved the same way, but dead:** ash-grey skin, pale dead eyes, a slack mouth, drained clothes and the wound that killed them.
-- **The world is now an island.** The official server moves to a 3 km island with the sea all round. You wash up on one of its beaches with nothing and decide how far inland to push. Farmsteads and shrines sit near the shore, and villages, a watermill and a toll bridge lie further in. The mine, the abbey, the fort, the market town and a fallen castle wait in the hills. **Everyone starts fresh:** the first time you log in on the island your pack is empty. Your character and their look come with you.
-- **A new island every month.** On the first Thursday of each month at 19:00 UTC the island wipes. A new map rolls, every place lands somewhere new and is laid out differently, and everyone washes ashore again. You'll get warnings an hour, ten minutes and a minute before. The first wipe is Thursday 3 December.
-- Joining shows a short "Washing ashore" screen while the island loads, and the ground streams in around you as you explore.
-- **Update your game:** older versions can't play on the island and will ask you to download the new one.
-- **A grounded survival kit, no magic.** The ember tools and lantern are gone. Now you start with your hands and work up: knock together a **wooden axe** and a **wooden pickaxe** from a few logs anywhere, then upgrade each to **stone** at the workbench with stone and plant fibre. Each step is a big, felt speed-up.
-- **Rock needs a pickaxe.** Bare hands can't break stone any more, so your first wooden pickaxe matters.
-- **New weapons:** a wooden club (wide, staggers) and a wooden spear (long reach) by hand, and a stone maul and stone spear at the bench. You always swing the best one you carry.
-- **Scrub patches and plant fibre:** the glowing sap seeps have dried into scrub. Pull them for plant fibre for bindings, torches and bandages.
-- **Bandages:** make one from 3 plant fibre and press **H** to bind your wounds. Your health only creeps back to half on its own now, so carry a few.
-- **Your old gear is safe:** an ember axe becomes a stone axe, an ember pickaxe a stone pickaxe, an ember lantern 3 torches, and heartwood, veinstone and sap turn into ash wood, stone and plant fibre.
-- **Every update now survives a night out.** Before anything reaches the world, a squad of test players walks out past Spawn Meadow at midnight, gets grabbed by the Zombai that rise around them and fights back with bare fists. If a walker misbehaves, the update doesn't ship.
-- **No more levels.** Skills, XP, level-ups and the skills window are gone, so you can get straight to surviving. Your gear is how you get stronger now.
-- **The old ember ashes and rich stone seams open with a tool:** bring an axe or a pickaxe and they're yours from your first trip. Every recipe needs only its materials and the workbench.
-- **No wasted gathers:** if a stack in your pack is full, the game tells you right away instead of running the bar for nothing.
-- Fights with the Zombai are cleaner. No more words popping up mid-fight: a walker's raised arms and rasp are your warning, and it goes down with a thud, not a caption. Get knocked down and the screen drops dark, then you come to lying in Spawn Meadow and pick yourself up.
-- No more sprinting backwards. Backing away is a careful walk, sidestepping is a jog with your hips turned into the step, and only running forward is full speed. Turn and run if you want to get away.
-- Smoother walkers: they shamble at a steady pace instead of stuttering, their feet hold the ground instead of skating, and a heavy blow rocks them back once instead of twice.
-- **The Zombai are here.** Out past Spawn Meadow the kingdom's dead now rise near you: grey, hunched, shambling things that wander until they hear you working or catch sight of you, then come for you. By day you can always walk away; at night they're quicker and there are more of them.
-- **You can see the grab coming.** When one gets close it rasps and raises both arms. Step back, or hit it first: a heavy blow rocks it back and breaks the grab. Stay put and it grabs you for a chunk of health.
-- A few good blows put one down. It goes over where it stood, with a thud, and after a while it sinks back into the earth. You'll hear them groan before you see them.
-- Under the hood for the Zombai: the server now tells your game where every walker near you is, and when one raises its arms to grab, so the next update can put them on your screen with a warning you can react to. Your game updates itself once to talk to the new server.
-- **You can hit back.** Left click swings a quick jab at anything you aren't gathering, right click winds up a heavy blow. Right click even pulls you out of chopping, so a grazer walking up is one click away.
-- Every swing whooshes as the blow comes through (heavy ones lower and longer), a landed hit smacks, and the grazer you struck jolts and snorts before it bolts. F1 lists the new keys.
-- **Grass you can walk through.** Meadows and field edges now grow real tufts of grass around you, coloured by the ground they grow from: olive in the meadow, straw on the dry patches, thinner under the pines. It sways in the wind, goes moonlit-grey at night, and stays off roads, ruins, shores and cliffs. Low graphics draws half as much.
-- The world got its texture: grass clumps and earth underfoot, furrowed bark on the trees and cracked stone on the rocks.
-- Clearer days: a bluer sky, lighter haze, a stronger sun with crisper shadows, and soft contact shadows where things meet the ground (Medium and High graphics).
-- Travellers no longer stand at attention: idle characters rest their weight on one leg, keep their elbows loose and shift their weight every few seconds, each at their own rhythm.
-- Game update required (protocol v9): your game updates itself when you launch it.
-- Coming soon, now ready on the server: setting your campfire down in the world. The server takes the request, checks the ground and tells everyone nearby when a fire catches, so the moment the game gets a key to place one, your friends will see your fire too.
-- The downloads on the release page are now called ZombAi (ZombAi-windows.zip and friends). Already installed? Nothing to do: your game updates itself as usual.
-- Coming soon, built behind the scenes: campfires now have their look. A ring of smoke-blackened stones, split logs leaned in, coals and flickering flames that throw a warm pool of light at night. As a fire burns low the logs slump and the flames shrink, and a burned-out fire leaves charred stubs in grey ash for a while. You'll see them once you can set one down.
-- Coming soon: a cooked meat icon, ready for when the campfire learns to cook.
-- Coming soon, built behind the scenes: the campfire you make at the workbench will soon be something you can set down in the world. It burns for about four hours of the day, and when the Gloam walkers arrive they will not come near its light. Not in your game yet: it shows up once campfires can be drawn and you have a key to place one.
-- The HUD got quieter: haul toasts, XP pop-ups, notices and the level-up banner now use smaller, calmer type with a soft edge instead of thick black outlines, and one warm ember accent instead of bright yellow.
-- Windows, buttons and the chat box share one muted warm-grey look, so the Pack, Skills, Players and Workbench windows feel like one worn satchel instead of the engine's blue-grey.
-- Level-ups settle in proudly instead of bouncing: same badge, level and unlock, without the shouting.
-- Behind the scenes: every test run now counts swings, hits, refusals and kills alongside gathering, so a change that makes fighting feel slow or unresponsive gets caught before it reaches you.
-- Make your own traveller: the first time you log in, pick your build, height, skin, face, hair and hair colour, beard, hood or cap, and the dye of your tunic and trousers. Hit Roll for a surprise. Change it any time from the Esc menu with "Change appearance", and everyone around you sees the new look at once.
-- The game has a new name: **ZombAi**. The window, the login screen and the update screen say so now. Your character, your settings and automatic updates carry on exactly as before; there is nothing to reinstall.
-- **Travellers move like people now.** Every character has a real skeleton, so knees and elbows bend, the spine and head follow, and feet plant on the turf instead of skating. You run with your weight forward and arms pumping, then ease into a walk as you slow down. Standing still, you breathe and shift your weight. Chopping winds the axe up over your shoulder and bites down hard, mining leans into every blow, and collecting sap is a low, careful scoop.
-- Nights are no longer pitch black on computers without Vulkan (the game's Compatibility renderer). The moonlit meadow, the pines and your fellow travellers now read in soft blue moonlight, as they always did on newer graphics cards, and colours by day match too.
-- Behind the scenes, the fallen kingdom now grows from a seed: every number gives its own stretch of land with rim hills or a coast, a river, lakes, forest, moor, wild farmland and stone hills, the king's roads, and ruins graded from a quiet roadside shrine to the fallen castle on the far side. Each generated kingdom lays out its own trees, stone, ember seeps, herds, workbench and lantern-lit spawn plot, with forests thick where the land is forest and the ground coloured by its land. Today's world is untouched; generated worlds arrive in a coming update.
-- Something stirs in the dark: the server now knows how the kingdom's dead walk, hear and grab. Nothing changes in the world you play today; they stay below ground until we can show them to you properly.
-- The world is a friends' world now: it holds up to 8 travellers at once. If it's full, the login screen tells you so ("The world is full (8 / 8). Try again soon.") instead of failing, nobody already inside is ever bumped out, and you can walk in the moment a friend logs off. Every update proves it with nine test players before it ships.
-- Bringing down a grazer now pays out loud: "+1 Hide" and "+2 Raw meat" pop up with their own icons and the haul sound, the same moment the beast drops.
-- Hunting's spoils now look the part in your pack: a folded grazer hide with its pale side turned back, and a dark raw cut with its fat rim and bone. No more anonymous cloth bundles after a kill.
-- The Budda Games intro's sound is clean again: no more doubled, jittery bits.
-- Travellers walk like grown-ups now: a narrower, easier stride, arms swinging close to the body and the side-to-side waddle gone, with a touch more spring in each step to carry the weight.
-- The valley floor is no longer one flat olive: patches of damp moss, sun-bleached straw grass and worn bare earth now break up the meadows and forest floor, mossier under the pines and by the lakes, drier out in the open.
-- The grazers can be hunted now (server side, ready for the attack key): a few bare-handed blows bring one down, and it leaves you a hide and two raw meat in your pack.
-- A wounded grazer limps away slower than you walk, so a good first hit turns into a chase you can win. Leave it alone for a minute and it recovers.
-- By night the herds sleep deep: creep in, freeze whenever a head comes up, and you can get close enough to strike. A downed grazer is back with its herd a few minutes later.
-- Fixed the pale, blocky patch of light that covered Spawn Meadow at night on real graphics cards. Each lantern now throws its own soft, warm pool on the grass, with moonlit blue between them.
-- Ember-sap seeps glow like banked fires after dark, lighting their rim stones and the ground around them.
-- Travellers, trunks and treetops catch a soft moonlit edge at night, so you can pick out shapes in the dark.
-- **Health and stamina bars**, bottom centre under your XP: take a hit and the bar flashes, drops, and leaves a pale chip of what you just lost before it drains, with a soft thump. Below 30% health the bar pulses, so you know to back off.
-- When you're full and out of trouble, the bars fade away so gathering keeps a clean screen. Too tired to swing? The stamina bar flushes red and tells you why.
-- Travellers have been rebuilt from the ground up: lean, grown-up proportions instead of round little barrels, with long legs, real shoulders and a face that reads as a face.
-- Everyone now looks like they live out in the wild: a wool mantle, a hood or their own hair, a framed pack with a bedroll, a belt with a pouch and a knife, leather bracers and tall boots.
-- Characters are now shaped from smooth, rounded forms instead of boxes, with a hand-painted, low-res grain on bodies and ground.
-- The grazers got their real look in your game: fawn coats with a cream belly, tall ears and a white rump you see bounding away. No two in a herd are quite the same colour, and they lean with the hillside instead of floating on it.
-- They move like animals now: legs walk without sliding, a bolt is a run of long bounds, a head snaps up the instant they spot you, and at dusk they fold down into the grass gently instead of dropping.
-- Ashgrove has a new, grounded look: olive meadows instead of neon grass, rust-red ember ash trees with heavy, lopsided crowns, a dusty sky, and long golden light that makes the valley feel old and a little wild.
-- Travellers dress the part: earthy dyed cloth, travelling hoods and felt caps, real hair and more grown-up proportions. The pointed hats are gone.
-- Nights are moonlit blue with the ember trees and lanterns carrying the colour, and your level-up is now a shaft of warm light you can still see yourself through.
-- Your game now knows your health and stamina from the moment you log in, ready for the health bar.
-- First blood, part one: the server now understands a swing. Light jabs and heavy haymakers cost stamina, everyone nearby sees you throw them, and a grazer you manage to sneak up on and strike bolts off with its whole herd. (Needs the client's attack button, coming soon; this update asks you to download the new version.)
-- The Budda Games intro's sound now plays smooth, with no crackles or stutters.
-- Behind the scenes: fixed a flaky health check in our test bots that could hold up new features for no reason, so updates reach you sooner.
-- On the **Low** Graphics setting, far-off trees, rocks and flowers now fade into the haze sooner, so older laptops get a smoother frame (about a quarter faster in our test shot) while the meadow looks the same up close.
-- Switching between Low, Medium and High in Settings changes the draw distance straight away, no restart.
-- A left-click that hits nothing (the sky, a spent node, a tree just out of reach) now gives a soft dry tick, so you feel the miss and know to re-aim instead of wondering if the game heard you.
-- Behind the scenes: every test run now checks that each skill levels up on time on its own, so felling and quarrying both keep their first level-up inside about a minute of gathering.
-- The meadow lanterns and the workbench lantern now flicker gently after dark, each flame on its own rhythm, so the pools of light on the grass breathe like real fire.
-- **Getting ready for the first fight:** the server now keeps everyone's health and stamina. When creatures start to bite, losing is fair: you're knocked down and come to straight away in Spawn Meadow with everything you carried and every point of XP. And "Return to Spawn Meadow" won't work mid-fight, so nobody can use it to dodge a loss.
-- Your feet make a sound now: a soft, grassy patter in time with every stride, four variations so it never sounds copy-pasted.
-- Hear other players before you see them: their footsteps come from where they walk and fade out about 18 m away.
-- Behind the scenes for the first fights: the ash spear (long reach, quick, precise) and the stone maul (slow, wide sweeps, heavy hits that stagger) now have their rules. Neither is simply better, and a dodge always gets you out of a wind-up.
-- Fixed a false alarm in our automatic play test that could hold up updates when two test players happened to split their gathering between trees and rocks and level up a little later.
-- The daily report on how fun the game feels now says straight out whether today beat yesterday: faster first reward, quicker first level-up, more items a minute.
-- The herds past the meadow have a look of their own: fawn grazers with tall ears and a pale rump that nibble the grass head-down, snap their heads up when they spot you, trot home, bound away over the hill when you rush them, and lie folded in the grass at night. (They appear as soon as the client update that draws them lands.)
-- The Budda Games intro now ends cleanly on the logo, plays at 60 fps, and its pixel-art logo is razor sharp in the default window.
-- Every release now proves crafting really works end to end: a test player comes home from a haul, presses Craft at the workbench, and must walk away with a campfire and three torches, Toolcraft XP for each, and a pack that saves.
-- Fixed a rare false alarm in our automatic tests for "Return to Spawn Meadow" when the server answered very quickly.
-- The hills past the meadow are alive: herds of grazers now show up in your game, noses in the grass, ambling about their home.
-- Walk up and they lift their heads to look at you. Rush them and the whole herd snorts, kicks up dust and bolts over the hill. Creep in slowly instead and you can get close enough to watch them graze.
-- At night they lie down to rest.
-- Three players working one tree or rock now share it fairly, and every release proves it: the checks send three fresh players to one node at once and fail if anyone is turned away while a charge is left, or paid after the last one is gone.
-- **The hills are waking up:** the herds of grazers that roam just outside Spawn Meadow now reach your game, a few times a second, with every look-up, bolt and lazy walk home. Their bodies arrive with an upcoming update; rush one and the whole herd will scatter over the rise.
-- **Game update (protocol 6):** your game updates itself the next time you launch it.
-- At night the ember sparks rising over the valley now only float above trees and seeps you can actually gather: fell an ember ash or drain a seep and its sparks go out, and they come back when it grows again.
-- Lost in the hills or wedged somewhere odd? Press Esc and hit **Return to Spawn Meadow**: you're back by the workbench in a blink, with the camera right behind you instead of sweeping across the map.
-- The button counts down its one-minute rest ("Return to Spawn Meadow (42 s)") so you always know when it's ready again, and the answer shows centre screen, never in chat.
-- Level up and your XP bar now fills to the brim and holds there, glowing, while the banner shouts your new level, then rolls over into the next one.
-- The "next goal" line under the compass steps aside for the level-up banner and comes back glowing gold with your new goal as the banner fades.
-- Picked Low graphics on an older laptop? It now really starts on Low: the world is built light from the first frame instead of building everything and thinning it afterwards.
-- **Bench sense is here:** at Toolcraft 3 you can make an **ember lantern** at the workbench (3 ash, 3 pine, 2 stone, 1 ember sap). Each one pays a big chunk of Toolcraft XP, so the road to ember tools is about a dozen lanterns instead of twenty-odd campfires.
-- **Bigger stacks:** each item now stacks to 999 instead of 99, so a long gathering session never stops because your wood is "full".
-- The release checks now measure the Low graphics setting too, and fail any build where picking Low doesn't make the world lighter to draw, so Low keeps helping older computers.
-- When someone levels up across the valley at night, their sky beam now burns deep ember orange over the stars instead of a washed-out grey, so you can spot a friend's level-up from 100 m away in the dark.
-- Behind the scenes for next week: herds of gentle grazers now live in the hills just outside the Spawn Meadow. They graze and wander, lift their heads when you come close, bolt over the hill together if you rush them, and lie down at home at night. Creep in and freeze when they look up, and you can get close enough to watch them. You'll see them as soon as their look is drawn.
-- Every build is now photographed with the F1 controls open, a fresh haul's "+2 Ash wood" and "+10 Felling" popping up, and on the Low graphics setting, so those screens can't quietly break or lose the Emberlight look.
-- Chat is only for talking on every server now, not just the main one: a line starting with "/" always gets the friendly "Press F1 for controls" nudge instead of a hidden developer tool.
-- Your wanderer now moves the instant you press a key. No more waiting a round trip to the server before your own feet start walking: the game walks you right away and quietly agrees with the server behind the scenes, so turning, stopping and dodging around trees feel crisp, even on a laggy connection.
-- Level-ups now show from across the valley: the golden beam stays a clear gold stroke from 100 m away instead of thinning to a hairline in the noon haze.
-- Fixed the level-up ground ring showing as a pale square on the grass when seen from a distance; it is a glowing ring again.
-- The server build check now switches developer chat commands on only for its own test bots, so the "chat is for talking" change can reach every server without tripping the release checks.
-- Level-up bursts are now checked over 64 bursts by day and night, at every frame rate, at the meadow and at the old ember ash and rich seam landmarks, so the gold column and sky beam keep looking right as the world grows.
-- Bot players no longer build a level-up burst inside every test bot, so the server tests run a little lighter and steadier.
-- Your "Next:" goal under the compass now follows what you actually do: a brand-new character is pointed at the first tree, and a skill only becomes your goal once you've started training it.
-- Gathering with a full stack no longer looks like a mistake: a quiet "Pack full: Ash wood (99) · XP still counts" toast with the item's icon replaces the red refusal and the "nope", because the swing still taught you something.
-- Aim and click: left-click a tree, rock or seep under your crosshair to start gathering it, and hold the button to keep going, just like holding E.
-- Clicking again while you chop keeps you chopping, so mashing the button never breaks your swing. E or walking off still stops.
-- The F1 controls list now shows "Left click" next to E for gathering.
-- Every build now puts the server on a stopwatch while eight test players chop, mine and chat: if a tick gets slow, the world stops moving 20 times a second, memory creeps up or each player's connection has to carry much more, the update is held back before you ever feel lag.
-- Chat is for talking now, all the way: "slow down", "chat is for talking", "this ash is spent, it comes back in about 3 minutes" and your welcome all pop up in the middle of the screen, right above your crosshair, and fade on their own. Only what players say (and who arrives or leaves) is left in chat.
-- A soft low "nope" plays with every refusal, so you hear a full pack or an empty node without taking your eyes off the tree.
-- Quarrying and Tapping now have the same promise as Felling: head for the rocks (or the sap seeps on your first night) and your first level lands inside a minute and a half.
-- Behind the scenes for the first fights: health and stamina rules are in. A dodge always goes out while you have any stamina left, the bar refills in about two and a half seconds, sprinting outside a fight is free, and health comes back on its own soon after a fight.
-- Every press of E now has a stopwatch on it: our test client chops, mines and crafts a stone axe before each update ships, and the update is held back if the bar, the haul toast or the "Crafted!" pop takes longer than a blink to answer you.
-- Every build now proves the old ember ashes and rich stone seams stay shut until you reach level 5: a brand-new player is turned away with a clear "Needs Felling 5" hint and loses nothing, while a level-5 veteran works the same tree empty and keeps their level after logging back in.
-- Every build now checks the valley's colours at noon and at midnight: ember glow stays rare and special, grass never goes neon, and night can't turn black or grey without the build stopping.
-- Behind the scenes: the checks that keep every tree, lantern, avatar and camera angle looking right now cover the whole valley at once instead of riding along with our test bots, so test runs are lighter and catch more.
-- The ember lantern has its picture ready: a little stone-and-pine lantern with an ember burning behind the glass, just like the meadow lamps, waiting in your pack the moment you can craft one.
-- Level up in broad daylight and the whole meadow knows: the ember column burns wider and bolder by day, and a slim beam of gold light shoots high over the treetops, so you can spot someone's level-up from across the valley.
-- Golden hour lasts: the sun now spends most of the day in warm, low light, with a golden haze in the valley floors that glows when you look toward the sun.
-- Nights are moonlit blue instead of green-black, so the ember ash crowns, veins and lanterns really glow against them.
-- From dusk to dawn, ember motes drift up out of every ember ash and sap seep: follow the sparks to find something worth gathering (fewer on Low graphics, more on High).
-- Hover the sun/moon dial above the chat (open chat or any window to free the cursor) to see the exact time and how long until dusk, night or dawn. No more typing /time.
-- In the last minute and a half before the light changes, the dial warns you: "· Night soon". Time to head back to the bench lantern, or to stay out and watch the ember glow come up.
-- Your ember axe and ember pickaxe now sit right next to your stone tools in the pack, with their own icons, instead of trailing behind the campfires.
-- Press O (or the new "Players" button, which always shows how many are online) to see everyone in the valley with their total level. No more typing /who.
-- Someone who just walked in glows gold with "just arrived", and when anyone levels up their row lights up with "+1", so you can put a name to that burst of ember light across the meadow.
-- A full pack no longer stops you levelling: when your stack of wood or stone is full, the swing still finishes and the XP still lands (you just leave the haul behind). Before this, a new woodcutter filled both wood stacks around Felling 4 and hit a wall.
-- We now play a fresh character through the real gather timings on every build: Felling 2 arrives in under a minute and Felling 5 inside ten minutes, even bare-handed, and the build fails if that ever slips.
-- Lost behind a ridge or wedged against a rock? The server can now send you straight back to Spawn Meadow, once a minute. The button is on its way to the Esc menu.
-- The server now keeps a live list of everyone online with their total skill level, ready for the players panel (it updates the moment someone joins, leaves or levels up).
-- This update needs the new client (protocol v5). Your game updates itself when you start it.
-- Every press of E and every Craft press is now timed in our automated playtests: if the game ever takes more than a blink to answer one, the build doesn't ship.
-- The first reward for a brand-new player is now held to 90 seconds at worst (it's about 8 today), so a slow start can't sneak back in.
-- The valley runs lighter: trees, stones and seeps you can gather from are now drawn in chunks, so your machine only draws the ones you can see. About a quarter fewer triangles per frame at spawn, with every node looking exactly as before.
-- Press **I** (or the new **Pack** button) to open your pack: every item as an icon with its count, no more typing /bag.
-- Whatever you just picked up glows gold in your pack with a "+2", and hovering an item tells you what it's used to make.
-- Chat stays chat: every build now plays a round where settlers type old commands into chat and checks the only thing that happens is the friendly "Chat is for talking. Press F1 for controls." nudge. Nothing gets gathered, nothing gets shouted to everyone, and plain talk still goes through.
-- The meadow lanterns, the workbench and every wanderer (you included) are now painted in the same warm Emberlight style as the forest around them, with soft shading and cool blue shadows instead of flat plastic.
-- Lantern glass now breathes gently with the valley's slow ember heartbeat, and the sparks and sap droplets that fly when you gather glow in true ember orange.
-- Walk up to an Old Ember Ash or a Rich Stone Seam before you're ready and the prompt now tells you what it takes and how close you are: "Old Ember Ash · Felling 5 (1,680 XP to go)". Hit the level and it lights up as "[E] Chop Old Ember Ash".
-- The workbench greys out the ember axe and ember pickaxe until you reach Toolcraft 5, with the XP still to go, instead of lighting Craft and then saying no.
-- Pressing E on a node above your level now says "Needs Felling 5" in the middle of the screen, not just in chat.
-- Chat is for talking now: everything you used to type a command for lives on keys and windows. Type a command into chat out of old habit and you get one friendly nudge instead: "Chat is for talking. Press F1 for controls."
-- The game now opens on the **Budda Games** intro instead of the engine logo. In a hurry? Any key, click or controller button skips it.
-- Your Toolcraft 5 ember axe and ember pickaxe finally look the part: coal-black heads with an edge that glows like a live ember, right next to the stone tools they replace.
-- Behind the scenes: fixed a stale test that was holding back new builds, and made two automated checks steadier so updates reach you without false alarms.
-- **Level up like you mean it.** Hit a new skill level and a gold banner pops in ("Felling 5") with what you just unlocked and your next goal, a rising chord rings out, and a column of ember light bursts around you. It's over in under two seconds and never stops your swing.
-- See someone near you level up? The same burst lights them up, so the whole meadow knows.
-- The level-up announcement no longer clutters chat: the banner says it.
-- Reach **Toolcraft 5** and the workbench teaches you to harden your tools in ember sap: the **ember axe** (your stone axe, 4 ember heartwood and 1 ember sap) and the **ember pickaxe** (your stone pickaxe, 4 veinstone and 1 ember sap).
-- Ember tools make every gather's bar about a third shorter than stone and give one more item per swing, so you feel the upgrade on the very next tree or rock.
-- Ask for one too early and the workbench tells you how far you have to go ("An ember axe needs Toolcraft 5. You're Toolcraft 3.").
-- Behind the scenes: every build now tracks how fast a fresh player gets their first item and first level-up, run over run, so a change that makes the early game slower gets caught the morning after.
-- Press **K** (or the new **Skills** button, top right) to see all your skills at once: level, XP bar, how far to the next level, what the next unlock gives you, and your total level.
-- A small goal line under the compass always tells you the closest unlock ("Next: Felling 5 unlocks Old ember ash (1,680 XP)"), and glows gold when you reach it and it moves on.
-- Ember heartwood and veinstone finally look the part: heartwood is an old grey log whose heart still glows like a coal, and veinstone is a deep mauve chunk split by a glowing vein and flecked with gold.
-- Fast first level-ups are now guarded: every test run checks that fresh players reach their first level-up within about half a minute of gathering and never stand around long with nothing happening, so a change that makes levelling slower or the valley duller can't ship.
-- The workbench window now opens with your pack already counted and answers the moment you press Craft: the new item pops up with its icon, your Toolcraft XP ticks up, and nothing about crafting ever shows up in chat again.
-- Reach Felling 5 or Quarrying 5 and a new goal opens just past the meadow: eight **old ember ashes** and **rich stone seams** ring Spawn Meadow, and they pay double XP per swing and give new materials, **ember heartwood** and **veinstone**.
-- Not there yet? Try one anyway and it tells you exactly how far you have to go ("Needs Felling 5. You're Felling 3.").
-- Past the meadow, look for the **old ember ashes**: taller and wider than any tree around them, with a bright gold crown and glowing ember pods hanging beneath it that shine all night. And the **rich stone seams**: wide plum-dark outcrops flecked with gold, ember crystals breaking out of the top. They're the trees and rocks your Felling and Quarrying are building toward.
-- Every gather and craft now pays out XP you can see: a gold "+10 Felling" floats up beside your haul, and that skill's bar slides forward ("Felling 2 · 215 XP to 3"), then fades out of your way.
-- Every skill now has its own badge: a green felling stump, a slate quarrying pick, a glowing red tapping drop and a wooden toolcraft bench. They're ready for the skills window and level-up toasts, so you'll know which road just moved before you read a word.
-- Ashgrove draws about a third as many triangles at the Spawn Meadow as before: the forest, birches, boulders and wildflowers are now split into patches the camera can skip when they're behind you or deep in the haze. Same trees in the same places, smoother frames on laptops.
-- Graphics set to **Low** now draws half the wildflower patches, so older laptops get smoother frames in the grasslands. Switch it in Settings and the meadows thin or fill back in on the spot, no restart.
-- Mashing E or the Make button no longer makes the server shout back a hundred times a second, so a busy grove stays smooth for everyone standing in it.
-- Behind the scenes: every build now checks that the game server never builds any graphics (so it stays lean and fast for everyone online), and that the valley's colours come from one shared palette, so the Emberlight look stays warm and consistent as the world grows.
-- Behind the scenes: our test players now meet at the same tree on purpose and chop it together every build, so gathering side by side with a friend keeps working (and the build no longer fails at random when they didn't happen to meet).
-- Your game now hears about every bit of XP the moment you earn it, every level-up with the unlock it gives, and every level-up of the players around you, so XP pops, level-up banners and that ember burst over a friend's head can show up as they happen. (This update brings protocol v4: your game updates itself the next time you launch it.)
-- New **Graphics** setting in Settings: Low, Medium or High. Low trims shadows and view distance so older laptops stay smooth; High stretches sun shadows out to 120 m.
-- Press **F3** for a small frame-rate panel (fps, frame time, draw calls, triangles) in the corner. Press it again to hide it.
-- Gathering now looks like work: your wanderer turns to the tree, rock or seep and gets stuck in. A two-handed chop for ash and pine, heavier blows into stone, a gentle dip of both hands at an ember-sap seep. Everyone else's gathering shows the same, so a busy meadow looks busy.
-- New installs start with medium-range sun shadows (60 m), which look crisper up close. If you already picked a shadow setting, it stays as you set it.
-- Your skill levels are now guarded like your pack: every update is checked to make sure old characters load at level 1, saved XP comes back exactly, and a level-up you earned is never lost when you log off.
-- Every update now also times how long a fresh player has to gather before their first level-up, and fails if it takes more than 90 seconds.
-- Everything you can gather now carries glowing ember cracks: up the bark of gatherable ash and pine, along the outcrop's stone, over the seep's rim stones. They pulse with the valley's slow heartbeat, so a node you can use stands out from plain scenery by day and by night, and an emptied node goes dark until it grows back.
-- Resource nodes, birches, mossy boulders and wildflowers now share the painted Emberlight look with the rest of the forest: warm light, blue-leaning shade, darker where they meet the ground.
-- Every update is now checked for how hard it makes your computer work at spawn, day and night, so new trees, glows and props can't quietly cost you frames.
-- The long road begins: every log you fell, rock you split and seep you tap now earns XP in **Felling**, **Quarrying** or **Tapping**, and every craft at the bench trains **Toolcraft**. Your first level comes within about a minute of gathering.
-- Each level makes that skill's gathers a little quicker, and named unlocks are on the way: at Felling 10 every chop gives an extra log, at Tapping 5 every seep an extra drop of sap. A line in chat cheers each level and tells you what's next.
-- Better together: gather or craft within a stone's throw of another settler and you learn a quarter faster.
-- Levelling up is about to look like it: a column of warm ember light bursts up around you, a glowing ring rolls out across the grass and a swirl of sparks climbs past your head. Everyone nearby sees it, and at night it lights up the meadow.
-- **Gathering feels like a craft now.** Press E at a tree, rock or seep and a bar fills while you chop, mine or scoop ("Chopping Ember Ash"), then your haul pops up with a satisfying chop, clink or slosh and a little pickup chime. Hold E to keep working the node with no pause between swings; press E again or walk off to stop.
-- **Empty nodes look empty for everyone.** When a tree or rock is spent you see it happen (the last hit still shakes the leaves loose), the prompt moves on to the next live node, and it grows back in front of you.
-- **Less chat spam.** "Your pack is full" and other gathering hiccups show as a short message in the middle of the screen, and your own gather lines no longer fill the chat.
-- Ashgrove gets its own painted look: the ground and the forest now catch warm light on their sunny side and fall into cool blue shade on the other, hollows sit darker than the ridges, and every tree trunk and rock darkens where it meets the earth.
-- The ember ash leaves breathe at night: their glow swells and fades together, one slow heartbeat every four seconds, the same moment on every player's screen.
-- Pines and ash crowns now sway gently in the wind.
-- Every item you gather now gets counted three times before an update ships: what the server gave you, what your pack shows, and what is saved. If they ever disagree, the update doesn't go out.
-- Emptied trees and rocks are now tested coming back too: a fresh player sees the stump, hears it regrow, and chops it.
-- **Update required:** this server speaks a new version. Your game updates itself the next time you open it (or when the server turns it away), so just relaunch.
-- Gathering is now a real action under the hood: the server times every chop and strike, other settlers nearby can see you working, and a tree or rock you empty shows up empty for everyone (your new client brings the bar, the motion and the "+1" pop-ups as it catches up).
-- Crafting, your pack and emptied nodes now travel as their own messages instead of chat lines, so they're instant and never collide with what you type.
-- Keep pressing E to keep gathering: there's no pause between one gather and the next any more, the bar itself sets the pace.
-- **Press F1 for controls.** Every key in the game on one card, drawn as keycaps: move, look, free look, shoulder swap, zoom, gather, the workbench, chat. There's a "?" button in the top-right corner too, so you never have to type /help again.
-- The camera no longer swings inside trees, rocks, birches, boulders, the meadow lanterns or the workbench: it slides in front of them, like it already did for gatherable nodes.
-- The workbench glows warm while "[E] Use Workbench" is showing, so you can see it's ready before you press.
-- Fixed a rare mix-up where the workbench window still showed parts you had already used up in a craft.
-- Fewer surprise kicks: the server now restarts once per update instead of twice, and not at all when only the notes change.
-- Every update now boots the exact server package that goes live and has two test players log in, play, log out and back in before it ships, so an update can't leave the world offline.
-- The game now updates itself! Open it and it grabs the newest version of Ashgrove before you log in, with a little ember progress bar. Download the client one last time and you never have to again.
-- Got turned away for an old version? The game now restarts and updates on its own instead of sending you to the Releases page.
-- The world now knows the true shape of every forest tree, rock, birch, mossy boulder, meadow lantern and the workbench, so the camera can slide in smoothly in front of them instead of ending up inside a trunk or a boulder. It switches on as soon as the camera picks it up.
-- Every "+2 Ash wood" pop-up now shows a little picture of what you got: the cut log, the quartz-seamed stone, the glowing drop of ember sap. Crafting pops up the axe, pickaxe, torch or campfire you just made.
-- The workbench shows each recipe's picture and a tiny icon by every part, so you can tell at a glance which pile you still need.
-- The Spawn Meadow workbench now has its own little iron lantern. After dark it pools warm light over the planks, so you can walk straight back to the bench at night.
-- The workbench can now glow with the same soft ember-gold edge as a tree or stone in reach, ready to light up when you step up to use it.
-- Every build is now playtested for fun: robot players time how long a brand-new character waits for their first item, how long anything you do waits for an answer, and how many items a minute come in. A change that makes those worse can't ship.
-- Every item now has its own hand-drawn (well, code-drawn) icon: stacked logs with growth rings for ash and pine wood, a stone chunk with its pale quartz seam, a glowing drop of ember sap, the stone axe and pickaxe, a lit torch and a crackling campfire. They'll show up in your pack and on gather pop-ups as the UI picks them up.
-- The Spawn Meadow workbench works like a real crafting station: walk up to it, press **E**, and a window shows every recipe with what you have against what you need ("Ash wood 2/3"). When the parts are in your pack, hit **Craft** for a satisfying knock-knock-chime and a "Crafted: Stone axe!" pop-up.
-- Typing too fast no longer makes your words vanish without a trace: if a line comes in too quickly, Ashgrove tells you it wasn't sent so you can try again.
-- Talking and pressing E no longer get in each other's way: a gather press can't swallow the line you just typed, and the other way round.
-- The camera no longer pokes into tree crowns, pine boughs, stone outcrops or ember-sap seeps when you back up against them: it now knows each prop's true shape and size and slides in front of it.
-- Up close, Ashgrove's trees now grow roots into the ground and show ridged bark, gatherable stone outcrops carry a sparkling quartz seam, and ember sap looks wet and glossy.
-- Every wanderer now travels with a belt, a small pack and a rolled blanket on their back, so the view over your shoulder has something to look at.
-- Every update now takes photos from the new over-the-shoulder camera before it ships, and fails if your character drifts off your left side, the aiming ring leaves the centre of the screen, or the camera ends up inside a hill. Backing into a slope while looking up is the one we test hardest.
-- Behind the scenes: the world server now knows who can see you gather, which nodes are emptied, and what your pack holds after every haul or craft. The next update turns this into seeing other players gather, emptied trees and rocks that show it, and a live pack window.
-- A brand-new over-the-shoulder camera: the mouse always looks around (no button to hold), W walks where you look and your character turns to face it, and a small reticle marks the centre of the screen. Hold Alt to glance around without turning, press V to swap shoulders, and roll the wheel to zoom from 1.5 to 6 m.
-- The camera slides in when a hill, tree or rock gets in the way and eases back out, so it never ends up inside the scenery.
-- Whatever you look at is what E gathers, and it glows so you know. Two new Settings: field of view and which shoulder the camera sits on.
-- The Spawn Meadow finally has its workbench: a sturdy ash-plank table on stone legs, a few steps from where you arrive, with a hammer left on top and a woodpile round the back. It's where your first stone axe gets made.
-- The chopping block next to it has seen some use. Nobody remembers who split the first log.
-- Gathering is about to slow down in the best way: the server now times every pull from a tree, rock or seep (about two seconds, quicker with the right tool) and calls it off if you walk away, so nothing is lost. You'll feel it when press-E switches over in the next update.
-- If the world server ever freezes, it now notices on its own, saves everyone it can, and restarts in about a minute instead of staying down until someone spots it.
-- **Gathering is getting a glow-up.** The tree, rock or seep in reach will glow with a soft ember-gold rim, and every gather gets a reaction: ash trees shudder and shed glowing leaves, pines drop needles, outcrops spit stone chips, and sap seeps splash bright droplets. The effects are built and switch on with the next client update.
-- Haven't updated yet? Every build is now tested against older clients, so an out-of-date game gets a clear "please update" message instead of a login screen that spins forever.
-- **Press E to gather.** Walk up to an ember ash, a pine, a stone outcrop or (at night) an ember-sap seep and a prompt like "[E] Chop Ember Ash" appears. Tap E, or just hold it, and a short ember bar fills while you work.
-- Every haul pops up as a toast above the prompt, like "+2 Ash wood (6)", so you can keep your eyes on the trees instead of the chat.
-- Birch groves now line the lake shores: chalk-white trunks, yellow-green crowns, and a little lean toward the light.
-- The pine forests have mossy boulders to sit on (and walk around).
-- Wildflower patches dot the grassy lowlands in yellow, violet, white, red and blue. They don't do anything yet. They're just nice.
-- Your pack is safe across updates: every patch is now checked against saved characters to make sure every stack you carry (even ones you've used up) comes back exactly as you left it.
-- Behind the scenes: the rules for crafting a stone axe, a stone pickaxe, torches and a campfire are in, and so are tools that make gathering faster and richer. The Spawn Meadow workbench and its crafting window come next.
-- Ashgrove gives! Walk up to an ember ash, a pine or a stone outcrop and press **E** to gather. Each tree or rock gives a few times, then needs a few minutes to grow back.
-- Ember-sap seeps only give their glowing sap at night, so the dark is finally worth staying up for.
-- Every settler now carries a pack. Press **I** to look inside.
-- Your pack is saved with your character, so whatever ends up in it is still there when you come back.
-- A compass now rides across the top of the screen. It turns with your camera, so north is always the orange **N**.
-- Other wanderers show up as little dots on it, fainter the farther they are. Anyone behind you gets an arrow at the edge, pointing the quicker way to turn and find them.
-- Lost? The ember diamond always points back to the Spawn Meadow.
-- Someone has hung lanterns around the Spawn Meadow. They light themselves at dusk and go out after sunrise, so there is always a warm place to gather after dark.
-- At night the ember ash leaves give off a faint warm glow, and the ember-sap seeps burn brighter, which makes them much easier to find in the dark.
-- **Arms and legs!** Wanderers finally have them. Arms swing, little boots stomp, and nobody slides across the meadow like a chess piece any more. Sleeves match your tunic and trousers are a darker shade of it, so every look you already had just got a matching outfit.
-- **A sun-and-moon dial.** A little dial now sits above the chat with the day and hour, e.g. "Day 3 · 18:20 · Dusk". Plan your evening walks accordingly.
-- **Same sunset for everyone.** Your sky now follows the server's clock exactly, so everyone in Ashgrove sees the sun go down at the same moment (no more private time zones).
-- **What time is it?** The time dial at the top of the screen shows the day and hour in Ashgrove, so you always know when dawn, day, dusk or night is coming.
-- **Who's around?** A quiet line in chat tells you when someone arrives in Ashgrove or heads home. Only you see it.
-- **Everyone walks.** Wanderers now bob with each step, waddle side to side, and lean into their stride, then settle back and breathe gently when they stop. Name tags stay perfectly steady above their heads while they bounce along beneath.
-- **One sky schedule.** The sky now runs on the valley's own clock, the same one the server keeps, so the sun rises, peaks, and sets on the same schedule for everyone in Ashgrove.
-- **The sun's path got a nudge.** It rises in the east, swings a little south at noon, and sets in the west.
-- **Days and nights.** Ashgrove now keeps one shared clock for everyone: a full day lasts 40 real minutes, and it carries on even while you are offline. The sun climbs, sets in ember orange, and hands the valley over to a pale moon.
-- **Look up after dusk.** Stars come out and twinkle. They were always there, you just couldn't see them over the sunshine.
-- **Settings window.** Press **Esc** (or the Settings button on the login screen) to tune mouse sensitivity, invert look, volume, shadows, and draw distance. Changes show up instantly and are remembered between sessions, so you can find your perfect sunset before clicking Done.
-- **Behind the scenes:** our automated tests now catch code that crashes halfway through a check, so fewer hidden bugs slip into the world.
-- **Behind the scenes:** our test bots now check that the world keeps streaming to every player at full speed, so a stalled server gets caught before it ever reaches you.
-- **Behind the scenes:** every update is now test-driven through a full night in Ashgrove too, so a broken moon or a pitch-black meadow gets caught before it reaches you.
-- **Behind the scenes:** every update is now tested against characters saved by every older version of the game, upgraded exactly the way the live server upgrades them. Your wanderer, your look, and where you left off are safe before the first inventory ever lands.
-- **Gathering spots mapped.** The settlers have surveyed Ashgrove: 397 spots where ember ash, pine, stone and the rare ember sap can be gathered are now mapped across the valley, with a ring of every kind right at the edge of Spawn Meadow. You can't swing an axe at them just yet; gathering and an inventory are next.
-- **Fixed:** a rare server hiccup when several wanderers left and joined at the same moment. The server also stops telling every client about every other client's hidden connection id.
-- **Chat with a clock.** Chat lines now carry a little in-game timestamp (the same clock as the sky and the time dial), so "meet at dusk" means something.
-- **Chat that knows when to be quiet.** Chat fades away after a quiet spell and pops back the moment someone speaks, you press Enter, or you hover over it. The time dial's readout fades with it; the little sun keeps shining. The log keeps the latest 150 lines, and the chat box reminds you which key shows the controls.
-- **The gathering spots are real.** Look closer at Ashgrove's wild places: big ember ashes, tall four-tier pines, stone outcrops with a pale seam, and ember-sap seeps that glow from a ring of dark stones. A ring of them waits right around Spawn Meadow. You'll be able to gather from them soon.
+### The island
+- **You wash up on a beach.** The official server is a generated island with the sea all round: beaches, forest, moor, stone hills, rivers and the old king's roads. Every beach is its own place, with a shipwreck heeled over in the surf, a beached lifeboat, a pier, a whale's bones or a fisher's shack, and leaning palms with dunes behind the sand.
+- **A new island every month.** On the first Thursday of each month at 19:00 UTC the island wipes and a new one rolls, with every place somewhere new and laid out differently. You get warnings an hour, ten minutes and a minute before. The first wipe is Thursday 3 December. Your character and their look always come with you.
+- **A map of the whole island on M.** Sea, beaches, forest and hills, rivers and roads, every ruin marked by how dangerous it is (Quiet to Deadly), and you as an arrow. Hover a mark for its name, scroll to zoom, drag to look around.
+- The surf washes up the sand and back, the shallows turn green over the sand, tide pools sit among the rocks, and a far wreck shows on the horizon. Grass sways around your feet, and days are clear and sunny, nights moonlit and dark.
+- Up to 8 survivors share the island at once. If it's full, the login screen says so, and nobody inside is ever bumped out.
 
-### Update your client
-- This update changes how the game talks to the server, so download the new client from the Releases page to keep playing.
+### Your first minute
+- **The beach pays out.** Pull driftwood off the tideline, break washed-up crates for planks and the odd useful thing from the wreck, collect loose stones and pull kelp for fibre, all by hand. There's a wooden pickaxe's worth of wood within a few steps of where you wake, and the first choppable trees stand just up the beach.
+- **Work up from your bare hands, no magic.** Knock together a wooden axe and a wooden pickaxe from a few logs anywhere, then upgrade each to stone at the workbench with stone and plant fibre. Each step is a big, felt speed-up. Bare hands can't break rock, so your first pickaxe matters.
+- **Gathering feels like work.** Look at a tree, rock or scrub patch, press E or click, and a short bar fills while you chop, mine or pull. Every haul pops up with its icon and a sound, and nodes visibly empty and grow back.
+- **Your pack is a grid.** Every item takes room by its shape: logs are long, stones small, a spear runs four cells. Drag to arrange, press R to turn what you hold, drag a stack out to drop it. When it's full, it's full.
+- Every tool and weapon has a real carved shape in your hand: wooden and stone axes and pickaxes, the knotted club, the stone maul, both spears and a burning torch.
 
-### Launch day
-- **The valley of Ashgrove.** Half a kilometre of rolling hills, lakes, pine ridges, and ember-leaved ash groves, all grown from a single seed. Everyone sees the same world, tree for tree.
-- **Make your wanderer.** Pick a name and a password and you are in. Your look (tunic colour, hat, and all) is woven from your name.
-- **Walk together.** See everyone else who is online, moving in real time.
-- **Talk.** Press Enter to chat with the whole valley.
-- **You are remembered.** Log out anywhere and you will wake up right where you left off.
+### Staying alive
+- **The Zombai.** The kingdom's dead rise on the island: grey, hunched shamblers that wander until they hear you working or see you, then come for you. When one gets close it rasps and raises both arms: step away or hit it first, because a grab takes a chunk of health. By night they're quicker and there are more of them.
+- **Hit back.** Left click throws a quick jab, right click winds up a heavy blow that rocks a walker back and breaks a grab. You always swing the best weapon you carry: a wooden club (wide, staggers) or spear (long reach) by hand, a stone maul or spear at the bench. A few good blows put one down with a thud.
+- **A clean fight.** No words pop up mid-fight: motion and sound tell you everything. Full speed is only forward; backing away is a careful walk, so turn and run if you want to get away.
+- **Hunger.** After about half an hour on your feet you get hungry, and your stamina comes back slower; starving weakens you too. Berries come with the fibre from every scrub patch, and F eats.
+- **Campfires.** Make one at the workbench, press B to see where it will go, and click to set it down. It lights the ground at night, slumps low near the end, and the Zombai keep their distance. Stand at a lit fire with raw meat and press E to cook all of it: cooked meat fills you far more than raw.
+- **Bandages.** Three plant fibre make one; press H to bind your wounds. Health only creeps back to half on its own, so carry a few.
+- Get knocked down and the screen drops dark, then you come to with your pack untouched.
+
+### Ruins worth the walk
+- **The Burned Farmstead.** Look inland from the beach for a dark chimney against the sky: a gutted stone farmhouse, a half-fallen barn, an old well, a wrecked cart and a broken fence, laid out differently on every island.
+- **Search the ruins.** Walk up to a chest, crate, sack or body, press E, and a bar fills while you rummage: berries, fibre, bandages, torches, a little cooked meat and once in a while a club or a spear. An emptied spot fills again the next day. Rummaging makes noise, so mind what's nearby.
+
+### Your survivor
+- **Make your own survivor** the first time you log in: build, height, skin, face, hair and colour, beard, hood or cap, and the dye of your clothes, or hit Roll. Change it any time from the Esc menu.
+- Every survivor is a clean carved figure with real proportions, a proper face and hands, a real skeleton so knees and elbows bend and feet hold the ground, and a relaxed stance when standing still. From behind you'll spot your friends by their pack and bedroll.
+- The Zombai are carved the same way, but dead: ash-grey skin, pale eyes, drained clothes and the wound that killed them.
+
+### Windows and controls
+- **Satchel:** your pack, the workbench, settings, the login screen and the rest sit on stitched dark leather with iron studs and brass titles.
+- An over-the-shoulder camera with mouse look, and everything on keys and windows: F1 lists the controls, chat is only for talking.
+- Footsteps you can hear, yours and other players' from where they walk.
+- Low, Medium and High graphics, switched on the fly; Low really is light on older laptops.
+
+### Your game
+- **The game updates itself** when you launch it. Older versions can't play on the island and will ask you to download the new one.
+- Nothing you own is ever lost: old gear converts (an ember axe became a stone axe, the ember lantern three torches) and an old pack that holds more than the grid fits keeps the rest under it until you make room.
 
 ### Known issues
-- There is nothing to *do* yet besides explore and chat. That changes next week.
-- Your own character is not predicted locally, so on a slow connection walking can feel a little floaty.
-- Your sky follows the valley's schedule using your computer's clock, so if that clock is off, your sun is off by the same amount. Listening for the server's exact time is next.
+- Washing ashore takes about six seconds while the island loads.
+- Being knocked down costs nothing yet, and nights don't come in rounds yet. Both are next.
+- There is one workbench, and on a far beach it can be a long walk. A bench you build is on the way.
+- The top-left of the screen still says "Ashgrove" on the island.

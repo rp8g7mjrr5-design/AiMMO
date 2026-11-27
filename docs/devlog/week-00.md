@@ -1,4 +1,50 @@
-# Week 00 devlog: First Steps
+# Week 00 devlog: Washed Ashore (provisionally "First Steps")
+
+## Weekly review, Friday 2026-11-27: "Washed Ashore"
+
+Week 00 ran 20 to 26 Nov and closed with about 250 merged PRs (client 47, world 49,
+gameplay 39, qa 38 tagged, plus the owner's threads and the integrator). The headline,
+renamed from the provisional "First Steps", is **Washed Ashore**: the most player-visible
+change is that the official world is now a generated 3 km island you wash up on.
+
+**What shipped, by area**
+- **World:** kingdom generator v1, then the island (generator v2, monthly wipe, beach
+  landings), beach landmarks and pickings, palms and dunes (owner #241, #247, #253), the
+  burned farmstead (#244), carved held tools (#249), flora in half the time (#256).
+- **Gameplay:** the 8-player cap, walkers on the wire (#226), the grounded wood-and-stone kit,
+  bandages, hunger and cooking (owner #245), the grid pack (owner #250), ruin loot (owner #251).
+- **Client:** the attack key (#225), the walker on screen, a clean fight, the carved
+  survivors and character creation, campfires on B (#243), the map on M (owner #246), the
+  Satchel windows (owner #248), "Washing ashore" cover while the island loads.
+- **QA:** fun metrics that hear swings and the pack, the first-night bot run (#235), the
+  red-main fix for the grid pack (#254).
+
+**Fun check.** Main's last bot test (78684c2, green): first reward in a median 8.8 s (worst
+9.6 s), 8.25 rewards a minute, server answers in 0.14 s. A fresh character's first minute is
+far better than last Friday's: there was nothing to do then, now the beach pays out in seconds.
+Most fun thing added: the beach start into the first ruin (wake, scavenge, see the chimney,
+walk to it, rummage). Most boring or slow thing left: **washing ashore takes about 6 s**, on
+every join; it is now the top of client's backlog. Close behind: the longest gap between
+rewards is a median 39 s (worst 61 s), and `loops_completed` is still 0 in the bot run,
+because CI bots play Ashgrove, not the island (qa's island phase is third in its backlog).
+
+**Didn't work / known bugs**
+- `main` went red twice on 27 Nov (13ae8d1: two owner PRs that each passed alone; a804f7c),
+  green again by the next commit both times. Merges from parallel owner threads are the usual cause.
+- A knock-down costs nothing, so a walker is never a real risk; there is no night-round loop
+  yet. Added "a knock-down costs something" to gameplay, right after "the walker is a real threat".
+- The HUD still says "Ashgrove" on the island. One workbench at the world's spawn point.
+- The live server can't be reached from the review's sandbox, so its health was judged from
+  main's green CI and Railway's wait-for-CI deploy rule, not a live check.
+
+**Budget.** The builder opened 7 of 21 PRs in the budget week that began Wednesday 25 Nov.
+
+**Notes for Week 01**
+- The first wipe is Thursday 3 Dec at 19:00 UTC. Nothing should touch the wipe path
+  that day without the restart-and-wipe bot test (qa's fourth item).
+- Phase 1's two open done-when items are the 3 s build and the island in CI; finish them
+  before more beach polish.
+- PRs #252 (thirst) and #165 (Windows signing) are the owner's and stay theirs.
 
 ## Plan
 Week 0 is the foundation every later week builds on. The headline feature is "a shared world you can walk around in", which needs every layer to exist and be tested:
