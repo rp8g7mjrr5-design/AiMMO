@@ -1,3 +1,0 @@
-- **Every beach is its own place now.** Wherever you wash up, the beach has a landmark or two: a shipwreck heeled over in the surf, a beached lifeboat, an old pier running out to sea, a whale's bones, or a fisher's shack with someone under a sail who never left. No two beaches are dressed the same.
-- **Your first minute pays out.** Pull driftwood off the tideline, break open washed-up crates for planks, collect loose stones and pull kelp for fibre, all by hand. There's a wooden pickaxe's worth of wood within a few steps of where you wake.
-- **The sea got a polish.** Surf now washes up the sand and back, the shallows turn green-grey over the sand, the wet sand darkens at the waterline, tide pools sit among the rocks, and a far wreck shows on the horizon.

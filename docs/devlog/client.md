@@ -1929,3 +1929,92 @@ thread, so a normal frame would never show it) and fades out over 0.6 s after. W
 or less (Ashgrove) never show it.
 
 Next: thread the data warm-up so the cover is up for a second, not six.
+
+## 2026-11-26 — campfire-place-key
+
+Builder run, 2026-11-26 (client backlog item "Basics 2: campfires on screen and the place key").
+
+Why this item: the four basics, zombie survival is the one players feel most, and the server
+had placed campfires since v9 with nothing on the client. Owner PR #241 touches gathering and
+beach files; none of them are in this change. No protocol change.
+
+What shipped:
+- `client.gd` draws fires: `net.campfires_changed` -> `PlaceGhost.fires_from_wire` ->
+  `CampfireProps.sync(world.Campfires, ...)`, and `CampfireProps.follow` about once a second so
+  the 3 lights sit on the nearest fires. Re-synced after the island world is rebuilt.
+- `PlaceGhost` (`game/client/place_ghost.gd`): a see-through ring and logs from
+  `CampfireProps.parts` (stones and logs only), one node, two MultiMeshes, two unshaded
+  materials, never freed while playing. `reason_at` is `Campfires.check_spot` over the fires
+  the client was sent, so it goes red on a fire, a node, the bench, water and the edge.
+  It can't see owners, so "too_many" comes back from the server and `refuse()` holds the ghost
+  red for 1.2 s.
+- Key **B** (`place`, in `ControlsOverlay` and the F1 list). B shows the ghost, B or left-click
+  sets it down, right-click or Esc puts it away. Opening any window, or the pack losing its
+  campfire, cancels. While placing, every input tick carries the camera's yaw, so you turn to
+  aim and the server places it where the ghost stands (it uses the session's last yaw).
+- A fire that catches is answered by sound (`Sfx.kindle`, a 0.6 s whumph and crackle) and the
+  fire appearing, no words. Refusals show their line centre screen except within
+  `Vitals.COMBAT_SECONDS` of losing health (`in_fight()`, clean fight: sound and red only).
+  The bandage refusal uses the same rule now.
+
+Tried and changed:
+- First ghost alpha 0.38 with ash grey disappeared in the meadow grass at noon; now straw-pale
+  at 0.55 (still see-through). Shots: `/mnt/project-files/client/campfire-place/`.
+- Sending an extra `c2s_input` with the aim on confirm would shift prediction's seq labels
+  for one tick; dropped it in favour of sending the yaw every tick while placing.
+- The bot behaviour first built a `CampfireProps` node: `test_qa_art_lint` forbids art in bot
+  behaviours, so it checks the wire reading and the ghost rule only (drawing is unit tested).
+
+Notes to next self:
+- Placing reads `gather_prompt.pack` for the campfire count; if the pack moves elsewhere,
+  move `has_campfire()` with it.
+- The same ghost and key can place a workbench when gameplay's "workbench you build" lands
+  (`c2s_place("workbench")`): give `PlaceGhost` a kind and the bench's parts.
+- In the local 45 s bot test the /kindle bot (*_5) hadn't kindled yet, so `client_campfires`
+  saw no fires; CI's full run is the real check.
+
+## 2026-11-26 — world-map
+
+Owner asked for "a Map as well to pull up with M to show the world" (project thread, 2026-11-27 UTC).
+
+- `game/client/map_window.gd` (`MapWindow`): a full-screen Control that draws its own panel, the
+  painted sheet, the marks, your arrow, a north mark, a scale bar and the legend in `_draw`.
+  Marks are drawn as vectors over the sheet (not baked in), so they stay crisp at zoom 1 to 4.
+  `WorldMap.paint(px, marks := true)` gained the `marks` flag for this; the old call is unchanged.
+- The sheet is 768 px (about 4 m a pixel on the 3 km island). Painting cost on the dev container:
+  256 px 1.2 s, 512 px 3.5 s, 768 px about 8 s (scaled from 512, not timed). It runs on `WorkerThreadPool` 5 s after a world
+  config arrives (`prepare(PAINT_DELAY)`), so it never competes with washing ashore, and M opens
+  it at once if the sheet isn't started ("Drawing the map..." until done).
+- Thread safety: the worker only reads WorldGen and Terrain. `prepare()` builds the lazy tables
+  on the main thread first, and `_on_world_config` calls `map_window.settle()` before
+  `WorldGen.apply`, so a world change never swaps the layout under a running paint.
+- All colours and sizes are in the "Look" block at the top of the file and come from HudStyle and
+  Palette. The panel is `HudStyle.panel()` drawn with `draw_style_box`, and the title is a Label
+  that takes `HudStyle.title()` when that exists (the UI-style thread's leather satchel), so the
+  map follows the new style without edits.
+- Tried: 512 px with linear filtering; zoomed in, biome edges still stair-stepped, hence 768.
+- Test hook: `--open-map` (and `--open-map=2.5` to open zoomed on you) for screenshots.
+- Bot behaviour `client_world_map`: uv round trip, zoom keeps you under the cursor, arrow heading,
+  one mark per ruin and landmark.
+
+## 2026-11-26 — satchel-ui
+
+The owner said the inventory and menus looked basic. I mocked up three directions in the real
+client behind a temporary `AIMMO_UI_STYLE` switch (field journal parchment, leather satchel,
+ash-and-ember glass), shot pack (day and night), workbench and settings for each, and the owner
+picked the satchel. Shots: project files `ui-style/`.
+
+- `game/procgen/ui_skin.gd` (UiSkin): the leather nine-patch (384 px, 40 px margins, about
+  95 ms to build once at startup in GDScript) and the check-box icons. Colours in `palette.gd`
+  (`UI_LEATHER`, `LEATHER_THREAD`, `IRON_SHADE`, `IRON_LIT`); `LEATHER` was taken by the
+  character palette.
+- `HudStyle`: `panel()` is now the leather (a StyleBoxTexture); the old warm grey is
+  `flat_panel()`. `theme(true)` is the over-the-world theme (chat, top bar, dial, compass,
+  prompts, vitals, notice, perf) with flat panels. `title()`, `title_case()` and `slot_look()`
+  are new; every window title goes through `title()`.
+- Tried and dropped: the parchment journal (dark ink text needed its own colour set for every
+  label and glared at night) and the glass panel (clean but read as any game's menu).
+- The controls overlay grew past 720 px with the leather's padding; trimmed its margin to 12
+  and its row gap to 3.
+- Known: the pack window still uses the old 5-wide slot grid; the grid inventory with item
+  sizes (owner asked, Tarkov or ARC Raiders style mechanically) is the next PR.

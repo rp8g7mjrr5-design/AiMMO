@@ -1,2 +1,0 @@
-- **A new look for every window: Satchel.** Your pack, the workbench, settings, the login screen and the rest now sit on stitched dark leather with iron studs and brass titles, like gear from the bottom of a traveller's satchel.
-- Check boxes in Settings are finally easy to see: a ticked box shows an ember tick.

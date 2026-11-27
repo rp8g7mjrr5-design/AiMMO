@@ -1,1 +1,0 @@
-- Every tool and weapon now has a real carved shape to hold: wooden and stone axes and pickaxes, the knotted club, the squared stone maul, both spears and a burning torch, made to match their pack icons. They show up in survivors' hands as soon as the hands learn to hold them.
