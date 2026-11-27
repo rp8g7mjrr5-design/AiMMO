@@ -122,7 +122,7 @@ func setup(theme_res: Theme) -> void:
 	offset_top = -HEIGHT * 0.5
 	offset_bottom = HEIGHT * 0.5
 	grow_vertical = Control.GROW_DIRECTION_BOTH
-	add_theme_stylebox_override("panel", HudStyle.panel(0.9)) # muted warm grey, no ember frame (art bible section 9)
+	add_theme_stylebox_override("panel", HudStyle.panel()) # the satchel leather every window shares (art bible section 9)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 18)
@@ -266,7 +266,7 @@ func _fill_needs(needs: RichTextLabel, parts: Array) -> void:
 		needs.add_image(_icon(str(p.item), IconShelf.PART_SIZE), IconShelf.PART_SIZE, IconShelf.PART_SIZE,
 			Color.WHITE, INLINE_ALIGNMENT_CENTER)
 		needs.add_text(" ")
-		needs.push_color(HudStyle.ok_colour() if bool(p.ok) else HudStyle.short_colour())
+		needs.push_color(OK_COLOR if bool(p.ok) else SHORT_COLOR)
 		needs.add_text("%s %d/%d" % [p.label, int(p.have), int(p.need)])
 		needs.pop()
 
@@ -293,7 +293,7 @@ func on_craft_result(recipe_id: String, ok: bool, text: String) -> Dictionary:
 	if recipe_id == _awaiting:
 		_awaiting = ""
 	status_label.text = text
-	status_label.modulate = ACCENT if ok else HudStyle.short_colour()
+	status_label.modulate = ACCENT if ok else SHORT_COLOR
 	refresh()
 	return {"crafted": recipe_id if ok and Crafting.is_recipe(recipe_id) else "", "ok": ok}
 

@@ -118,7 +118,7 @@ func setup(theme_res: Theme) -> void:
 	offset_top = -150
 	offset_bottom = 150
 	grow_vertical = Control.GROW_DIRECTION_BOTH
-	add_theme_stylebox_override("panel", HudStyle.panel(0.9)) # muted warm grey, no ember frame (art bible section 9)
+	add_theme_stylebox_override("panel", HudStyle.panel()) # the satchel leather every window shares (art bible section 9)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 18)
@@ -180,10 +180,7 @@ func _make_slot() -> Dictionary:
 	var count := Label.new()
 	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	HudStyle.quiet_label(count, 14, HudStyle.window_text())
-	if HudStyle.skin == "journal": # ink on paper needs no shadow
-		count.add_theme_constant_override("outline_size", 0)
-		count.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
+	HudStyle.quiet_label(count, 14, HudStyle.TEXT)
 	count.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(count)
 	var plus := Label.new()
@@ -219,7 +216,7 @@ func refresh() -> void:
 			_shown.append(str(st.item))
 			s.icon.texture = _icon(str(st.item))
 			s.count.text = str(int(st.count))
-			s.count.add_theme_color_override("font_color", FULL_COLOR if st.full else (HudStyle.INK if HudStyle.skin == "journal" else Color.WHITE))
+			s.count.add_theme_color_override("font_color", FULL_COLOR if st.full else Color.WHITE)
 			s.panel.tooltip_text = tooltip_text(str(st.item), int(st.count))
 		else:
 			_shown.append("")

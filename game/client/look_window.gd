@@ -69,7 +69,7 @@ func setup(theme_res: Theme) -> void:
 	offset_top = -250
 	offset_bottom = 250
 	grow_vertical = Control.GROW_DIRECTION_BOTH
-	add_theme_stylebox_override("panel", HudStyle.panel(0.9))
+	add_theme_stylebox_override("panel", HudStyle.panel())
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 18)

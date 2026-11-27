@@ -42,74 +42,39 @@ const SHADOW_SIZE := 0
 const CORNER := 3
 const FONT_SIZE := 16 ## the theme's default body size (windows are laid out for it)
 
-## UI style direction being tried (mockups): "" is today's look; "journal", "satchel", "ash".
-static var skin := _pick_skin()
-
-## Ink colours for the journal's parchment pages.
-const INK := Color(0.20, 0.14, 0.09)
-const INK_RED := Color(0.50, 0.20, 0.11)
+## The satchel look (owner pick, 2026-11-27): window titles in brass capitals, and the
+## leather's tan thread for button edges, rules and slot rims.
 const BRASS := Color(0.84, 0.70, 0.48)
+const THREAD := Color(0.62, 0.48, 0.32)
+## A window's leather: the pressed-in pocket of a slot, a button's darker hide.
+const POCKET := Color(0.05, 0.03, 0.02, 0.45)
+const HIDE := Color(0.10, 0.07, 0.05, 0.85)
+const HIDE_HOVER := Color(0.16, 0.11, 0.08, 0.90)
+const TITLE_SPACING := 3 ## px between title capitals
 
 
-static func _pick_skin() -> String:
-	var s := OS.get_environment("AIMMO_UI_STYLE")
-	return s if s in ["journal", "satchel", "ash"] else ""
-
-
-## Body text colour inside a window.
-static func window_text() -> Color:
-	return INK if skin == "journal" else TEXT
-
-
-static func ok_colour() -> Color:
-	return Color(0.24, 0.38, 0.16) if skin == "journal" else OK
-
-
-static func short_colour() -> Color:
-	return Color(0.60, 0.20, 0.12) if skin == "journal" else SHORT
-
-
-## A window title in the skin's voice.
+## A window title: brass capitals, a little spaced and weighted, like letters tooled into
+## the flap (`size` is the old title size; capitals read bigger, so they draw 2 px smaller).
 static func title(l: Label, size: int) -> Label:
-	match skin:
-		"journal":
-			var f := FontVariation.new()
-			f.base_font = ThemeDB.fallback_font
-			f.variation_transform = Transform2D(Vector2(1, 0), Vector2(-0.22, 1), Vector2.ZERO)
-			f.variation_embolden = 0.4
-			l.add_theme_font_override("font", f)
-			l.add_theme_font_size_override("font_size", size + 4)
-			l.add_theme_color_override("font_color", INK_RED)
-		"satchel", "ash":
-			var f := FontVariation.new()
-			f.base_font = ThemeDB.fallback_font
-			f.spacing_glyph = 4 if skin == "ash" else 3
-			f.variation_embolden = 0.5 if skin == "satchel" else 0.0
-			l.add_theme_font_override("font", f)
-			l.text = title_case(l.text)
-			l.add_theme_font_size_override("font_size", size - (2 if skin == "satchel" else 4))
-			l.add_theme_color_override("font_color", BRASS if skin == "satchel" else TEXT)
-		_:
-			l.add_theme_font_size_override("font_size", size)
-			l.add_theme_color_override("font_color", EMBER)
+	var f := FontVariation.new()
+	f.base_font = ThemeDB.fallback_font
+	f.spacing_glyph = TITLE_SPACING
+	f.variation_embolden = 0.5
+	l.add_theme_font_override("font", f)
+	l.text = title_case(l.text)
+	l.add_theme_font_size_override("font_size", size - 2)
+	l.add_theme_color_override("font_color", BRASS)
 	return l
 
 
-## A title's words as the skin sets them (capitals for the satchel and ash looks).
+## A title's words as the window shows them (capitals). For titles set after `title()`.
 static func title_case(text: String) -> String:
-	return text.to_upper() if skin == "satchel" or skin == "ash" else text
+	return text.to_upper()
 
 
-## A pack slot's resting colours: {bg, border, radius}.
+## A pack slot's resting look: a pocket pressed into the leather. {bg, border, radius}
 static func slot_look() -> Dictionary:
-	match skin:
-		"journal":
-			return {"bg": Color(0.36, 0.25, 0.14, 0.10), "border": Color(INK, 0.45), "radius": 1}
-		"satchel":
-			return {"bg": Color(0.05, 0.03, 0.02, 0.45), "border": Color(0.55, 0.42, 0.28, 0.35), "radius": 4}
-		"ash":
-			return {"bg": Color(1, 1, 1, 0.04), "border": Color(1, 1, 1, 0.10), "radius": 0}
-	return {"bg": Color(1, 1, 1, 0.06), "border": Color(1, 1, 1, 0.12), "radius": 5}
+	return {"bg": POCKET, "border": Color(THREAD, 0.35), "radius": 4}
 
 
 ## A label that sits over the world (toast, floater, banner, notice): `font_size`, `colour`,
@@ -126,19 +91,10 @@ static func quiet_label(l: Label, font_size: int, colour: Color) -> Label:
 	return l
 
 
-## A window's panel: dark warm grey with a faint warm edge.
-static func panel(opacity: float = PANEL.a) -> StyleBox:
-	if skin == "journal" or skin == "satchel":
-		return UiSkin.panel_box(skin, 6.0)
-	if skin == "ash":
-		var a := StyleBoxFlat.new()
-		a.bg_color = Color(0.055, 0.05, 0.045, 0.90)
-		a.border_color = EMBER
-		a.border_width_top = 2
-		a.shadow_color = Color(0, 0, 0, 0.35)
-		a.shadow_size = 14
-		return a
-	return flat_panel(opacity)
+## A window's panel: stitched dark leather with an iron stud in each corner (UiSkin, one
+## generated texture shared by every window). `opacity` is kept for old callers.
+static func panel(_opacity: float = PANEL.a) -> StyleBox:
+	return UiSkin.panel_box(6.0)
 
 
 ## The plain warm-grey panel (chat and anything that sits over the world all the time).
@@ -157,7 +113,7 @@ static func control_box(colour: Color, edge: Color = Color(PANEL_EDGE, 0.0)) -> 
 	s.bg_color = colour
 	s.border_color = edge
 	s.set_border_width_all(1 if edge.a > 0.0 else 0)
-	s.set_corner_radius_all(0 if skin == "ash" else CORNER)
+	s.set_corner_radius_all(CORNER)
 	s.content_margin_left = 10
 	s.content_margin_right = 10
 	s.content_margin_top = 4
@@ -173,86 +129,49 @@ static func bar_box(colour: Color) -> StyleBoxFlat:
 	return s
 
 
-## The HUD's shared theme: warm text, warm-grey buttons, panels and fields in place of
-## Godot's default blue-grey, so every window and button reads as one set.
+## The HUD's shared theme: warm text, dark-leather buttons with a tan thread edge, leather
+## windows. `over_world` is the theme for the bits that sit on the world all the time (chat,
+## top bar, dial): their panels stay the plain warm grey, so the world is never framed in leather.
 static func theme(over_world := false) -> Theme:
-	# Text that sits straight over the world (chat, top bar) never takes the journal's ink.
-	var saved := skin
-	if over_world and skin == "journal":
-		skin = ""
-	var t := _build_theme()
-	skin = saved
-	return t
-
-
-static func _build_theme() -> Theme:
 	var t := Theme.new()
 	t.default_font_size = FONT_SIZE
-	var txt := window_text()
 	for type in ["Label", "Button", "LineEdit", "CheckBox", "OptionButton", "RichTextLabel"]:
-		t.set_color("font_color", type, txt)
-	t.set_color("default_color", "RichTextLabel", txt)
+		t.set_color("font_color", type, TEXT)
+	t.set_color("default_color", "RichTextLabel", TEXT)
 	for type in ["Button", "OptionButton"]:
 		t.set_color("font_hover_color", type, Color(1.0, 0.96, 0.90))
 		t.set_color("font_pressed_color", type, EMBER)
 		t.set_color("font_focus_color", type, TEXT)
 		t.set_color("font_disabled_color", type, Color(TEXT, 0.38))
-		t.set_stylebox("normal", type, control_box(CONTROL))
-		t.set_stylebox("hover", type, control_box(CONTROL_HOVER, PANEL_EDGE))
+		t.set_stylebox("normal", type, control_box(HIDE, Color(THREAD, 0.55)))
+		t.set_stylebox("hover", type, control_box(HIDE_HOVER, Color(EMBER, 0.75)))
 		t.set_stylebox("pressed", type, control_box(CONTROL_PRESSED, Color(EMBER, 0.55)))
-		t.set_stylebox("disabled", type, control_box(Color(CONTROL, 0.4)))
+		t.set_stylebox("disabled", type, control_box(Color(HIDE, 0.4), Color(THREAD, 0.2)))
 		t.set_stylebox("focus", type, control_box(Color(0, 0, 0, 0), Color(EMBER, 0.45)))
-		match skin:
-			"journal":
-				t.set_color("font_hover_color", type, INK_RED)
-				t.set_color("font_pressed_color", type, INK_RED)
-				t.set_color("font_focus_color", type, INK)
-				t.set_color("font_disabled_color", type, Color(INK, 0.40))
-				t.set_stylebox("normal", type, control_box(Color(0.55, 0.42, 0.28, 0.22), Color(INK, 0.55)))
-				t.set_stylebox("hover", type, control_box(Color(0.55, 0.42, 0.28, 0.40), Color(INK_RED, 0.8)))
-				t.set_stylebox("pressed", type, control_box(Color(0.45, 0.32, 0.20, 0.45), INK_RED))
-				t.set_stylebox("disabled", type, control_box(Color(0.55, 0.42, 0.28, 0.10), Color(INK, 0.25)))
-			"satchel":
-				t.set_stylebox("normal", type, control_box(Color(0.10, 0.07, 0.05, 0.85), Color(0.62, 0.48, 0.32, 0.55)))
-				t.set_stylebox("hover", type, control_box(Color(0.16, 0.11, 0.08, 0.9), Color(EMBER, 0.75)))
-				t.set_stylebox("disabled", type, control_box(Color(0.10, 0.07, 0.05, 0.4), Color(0.62, 0.48, 0.32, 0.2)))
-			"ash":
-				t.set_stylebox("normal", type, control_box(Color(1, 1, 1, 0.05), Color(1, 1, 1, 0.16)))
-				t.set_stylebox("hover", type, control_box(Color(EMBER, 0.16), Color(EMBER, 0.85)))
-				t.set_stylebox("disabled", type, control_box(Color(1, 1, 1, 0.02), Color(1, 1, 1, 0.06)))
-	# a check box is just its tick, never a button box
+	# A check box is its tick alone, never a button box around it.
 	for st in ["normal", "hover", "pressed", "disabled", "focus", "hover_pressed"]:
 		t.set_stylebox(st, "CheckBox", StyleBoxEmpty.new())
-	var track_col := TRACK
-	var fill_col := EMBER
-	match skin:
-		"journal":
-			track_col = Color(INK, 0.22)
-			fill_col = INK_RED
-		"satchel":
-			track_col = Color(0.04, 0.03, 0.02, 0.7)
-		"ash":
-			track_col = Color(1, 1, 1, 0.10)
-	var slider := bar_box(track_col)
+	var slider := bar_box(Color(0.04, 0.03, 0.02, 0.7))
 	slider.content_margin_top = 3
 	slider.content_margin_bottom = 3
 	t.set_stylebox("slider", "HSlider", slider)
-	t.set_stylebox("grabber_area", "HSlider", bar_box(fill_col))
-	t.set_stylebox("grabber_area_highlight", "HSlider", bar_box(fill_col))
-	t.set_stylebox("normal", "LineEdit", control_box(Color(0.08, 0.07, 0.06, 0.7), PANEL_EDGE))
+	t.set_stylebox("grabber_area", "HSlider", bar_box(EMBER))
+	t.set_stylebox("grabber_area_highlight", "HSlider", bar_box(EMBER))
+	t.set_stylebox("normal", "LineEdit", control_box(Color(0.06, 0.04, 0.03, 0.75), Color(THREAD, 0.45)))
 	t.set_stylebox("focus", "LineEdit", control_box(Color(0, 0, 0, 0), Color(EMBER, 0.45)))
 	t.set_color("caret_color", "LineEdit", EMBER)
 	t.set_color("font_placeholder_color", "LineEdit", Color(TEXT, 0.45))
-	if skin == "journal":
-		t.set_stylebox("normal", "LineEdit", control_box(Color(0.55, 0.42, 0.28, 0.18), Color(INK, 0.45)))
-		t.set_color("font_placeholder_color", "LineEdit", Color(INK, 0.45))
-		t.set_color("caret_color", "LineEdit", INK_RED)
-	t.set_stylebox("panel", "PanelContainer", panel())
-	t.set_stylebox("panel", "Panel", panel())
-	t.set_stylebox("panel", "TooltipPanel", panel(0.92))
+	var box := flat_panel() if over_world else panel()
+	t.set_stylebox("panel", "PanelContainer", box)
+	t.set_stylebox("panel", "Panel", box)
+	var tip := flat_panel(0.94)
+	tip.border_color = Color(THREAD, 0.6)
+	tip.set_content_margin_all(8)
+	t.set_stylebox("panel", "TooltipPanel", tip)
+	t.set_stylebox("panel", "PopupMenu", tip)
 	t.set_color("font_color", "TooltipLabel", TEXT)
 	var rule := StyleBoxLine.new()
-	rule.color = Color(INK, 0.35) if skin == "journal" else (Color(0.62, 0.48, 0.32, 0.4) if skin == "satchel" else Color(PANEL_EDGE, 0.5))
+	rule.color = Color(THREAD, 0.4)
 	rule.thickness = 1
 	t.set_stylebox("separator", "HSeparator", rule)
 	t.set_stylebox("background", "ProgressBar", bar_box(TRACK))
