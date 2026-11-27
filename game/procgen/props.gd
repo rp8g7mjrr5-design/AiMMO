@@ -82,7 +82,7 @@ static func _scatter_kingdom(count: int) -> Array:
 	var out: Array = []
 	var h := WorldGen.half_size() - 4.0
 	var sp := WorldGen.spawn_point()
-	var ruins := WorldGen.ruin_sites()
+	var pads := ruin_pads(WorldGen.ruin_sites())
 	var tries := 0
 	while out.size() < target and tries < target * 10:
 		tries += 1
@@ -98,12 +98,14 @@ static func _scatter_kingdom(count: int) -> Array:
 		var biome := WorldGen.biome_for(x, z, y)
 		if keep >= float(KINGDOM_KEEP.get(biome, 0.0)):
 			continue # water, shore, snow, or an open stretch of field and moor
-		if WorldGen.near_sand(x, z):
-			continue # no forest tree or rock at the beach's edge (owner, 2026-11-27); palms grow there (Flora)
+		# Cheapest looks first (the road, then the ruin pads, then the beach ring, which reads
+		# the ground up to 17 times); the order never changes which spots are kept.
 		if WorldGen.road_distance(x, z) < WorldGen.ROAD_HALF_WIDTH + KINGDOM_ROAD_CLEAR:
 			continue
-		if _on_ruin(x, z, ruins):
+		if on_pad(x, z, pads):
 			continue
+		if WorldGen.near_sand(x, z):
+			continue # no forest tree or rock at the beach's edge (owner, 2026-11-27); palms grow there (Flora)
 		var slope := absf(Terrain.height(x + 1.0, z) - y) + absf(Terrain.height(x, z + 1.0) - y)
 		var kind := "rock"
 		if slope < 0.8:
@@ -127,4 +129,31 @@ static func _on_ruin(x: float, z: float, ruins: Array) -> bool:
 		var c: Vector3 = site.pos
 		if Vector2(x - c.x, z - c.z).length() < float(site.radius) + KINGDOM_RUIN_CLEAR:
 			return true
+	return false
+
+
+## The ruins' pads as flat numbers (x, z, kept radius, three per ruin) for `on_pad`, which
+## answers like `_on_ruin` without reading a Dictionary per ruin: scatters ask it tens of
+## thousands of times while a world is built.
+static func ruin_pads(ruins: Array) -> PackedFloat64Array:
+	var out := PackedFloat64Array()
+	for site in ruins:
+		var c: Vector3 = site.pos
+		out.append(c.x)
+		out.append(c.z)
+		out.append(float(site.radius) + KINGDOM_RUIN_CLEAR)
+	return out
+
+
+## True when (x, z) is on a ruin's pad: the same answer as `_on_ruin` on the same ruins.
+static func on_pad(x: float, z: float, pads: PackedFloat64Array) -> bool:
+	var i := 0
+	var n := pads.size()
+	while i < n:
+		var dx := x - pads[i]
+		var dz := z - pads[i + 1]
+		var r := pads[i + 2]
+		if dx * dx + dz * dz < r * r:
+			return true
+		i += 3
 	return false
