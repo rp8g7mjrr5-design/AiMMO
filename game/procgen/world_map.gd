@@ -10,7 +10,10 @@ const RELIEF := 0.9 ## how hard the hills shade
 
 
 ## The map of the configured world, `px` pixels square. Ashgrove gets its relief and water.
-static func paint(px: int = 256) -> Image:
+## `marks` false leaves the ruin and landing discs off: the client's map window (MapWindow, M)
+## draws its own marks on top so they stay crisp at any zoom. Safe to call off the main thread
+## once WorldGen's layout is built (it only reads).
+static func paint(px: int = 256, marks: bool = true) -> Image:
 	var half := WorldGen.half_size()
 	var mpp := WorldGen.size_m() / px ## metres per pixel
 	var hg := PackedFloat32Array()
@@ -41,7 +44,7 @@ static func paint(px: int = 256) -> Image:
 			if kingdom and h >= wl - 0.3 and WorldGen.road_distance(x, z) < WorldGen.ROAD_HALF_WIDTH + mpp * 0.35:
 				col = Palette.MAP_ROAD
 			img.set_pixel(i, j, col)
-	if kingdom:
+	if kingdom and marks:
 		for s in WorldGen.ruin_sites():
 			_mark(img, s.pos, half, mpp, maxf(3.0, s.radius / mpp), Palette.MAP_GRADE[int(s.grade) - 1])
 		for q in WorldGen.landings():

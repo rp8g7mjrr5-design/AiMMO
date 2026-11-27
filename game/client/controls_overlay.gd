@@ -26,6 +26,7 @@ const DEFAULT_BINDS := {
 	"toggle_controls": [KEY_F1],
 	"toggle_pack": [KEY_I],
 	"toggle_players": [KEY_O],
+	"toggle_map": [KEY_M],
 	"toggle_perf": [KEY_F3],
 }
 ## The game's default mouse button for every rebindable mouse action (same rules as above).
@@ -59,6 +60,7 @@ const SECTIONS := [
 		["Chat", ["=Enter"]],
 		["Your pack", ["toggle_pack"]],
 		["Who is online", ["toggle_players"]],
+		["The map", ["toggle_map"]],
 		["Settings, or close a window", ["=Esc"]],
 		["This list", ["toggle_controls"]],
 		["Frame rate and draw stats", ["toggle_perf"]],
