@@ -65,6 +65,13 @@ func test_count_materials_counts_each_once() -> void:
 	mm.multimesh.mesh = _mesh(2, StandardMaterial3D.new())
 	root.get_child(0).add_child(mm)
 	check_eq(RenderStats.count_materials(root), 2, "nested multimesh material counted")
+	var hidden := Node3D.new()
+	hidden.visible = false
+	hidden.add_child(_box_with(StandardMaterial3D.new()))
+	root.add_child(hidden)
+	check_eq(RenderStats.count_materials(root), 2, "a hidden node draws nothing, so its material doesn't count")
+	hidden.visible = true
+	check_eq(RenderStats.count_materials(root), 3, "shown, it counts")
 	root.free()
 
 
