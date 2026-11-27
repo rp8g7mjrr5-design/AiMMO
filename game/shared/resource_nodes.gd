@@ -317,6 +317,8 @@ static func _kingdom_ground_ok(x: float, z: float, kind: String) -> bool:
 		return false
 	if kind == "ash" and _slope(x, z, y) > 0.8:
 		return false
+	if WorldGen.is_island() and (kind == "ash" or kind == "pine") and WorldGen.near_sand(x, z):
+		return false # no trees on an island's beach (owner, 2026-11-27)
 	if WorldGen.road_distance(x, z) < WorldGen.ROAD_HALF_WIDTH + 2.5:
 		return false
 	if WorldGen.river_distance(x, z) < WorldGen.RIVER_HALF_WIDTH + 4.0:

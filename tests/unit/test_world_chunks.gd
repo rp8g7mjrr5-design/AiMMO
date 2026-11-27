@@ -67,6 +67,9 @@ func test_flora_is_chunked_without_moving_a_prop() -> void:
 	var lay := Flora.layout(Flora.spots())
 	for l in Flora.LAYERS:
 		var n := flora.get_node(l)
+		if (l as String).begins_with("Palm"):
+			check_eq(lay[l].size(), 0, "%s: palms grow only on an island's beaches, not in Ashgrove" % l)
+			continue
 		check(n.get_child_count() > 1, "%s is chunked" % l)
 		_check_same_props(l, n, lay[l])
 		for c in n.get_children():

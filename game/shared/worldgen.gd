@@ -50,6 +50,14 @@ const SPAWN_FLAT := 22.0 ## metres of dead-flat plot around spawn
 const SPAWN_BLEND := 70.0 ## metres over which the plot blends back into the land
 const SPAWN_CLEAR := 12.0 ## no nodes this close to spawn (same as Ashgrove)
 const NODE_SPACING := 6.0 ## no two node spots closer than this (ResourceNodes.MIN_SPACING)
+## Metres of grass a tree keeps between its foot and the sand (owner, 2026-11-27: "trees
+## shouldn't be on the beach"). One terrain cell (TerrainMesh.CELL) plus a little, so a trunk
+## never stands in the strip where the sand colour blends into the grass.
+const SAND_CLEAR := 5.0
+const SAND_HIGH := 6.0 ## ground this high is never beside sand (cliff tops by the sea are fine)
+const SAND_TOP := 2.2 ## the highest ground either generator paints as sand (IslandGen.biome_for)
+const OFF_SAND_STEP := 2.5 ## metres per step when an island tree node is walked off the sand
+const OFF_SAND_REACH := 40 ## steps (so up to 100 m: a landing's beach can be 70 m deep; about 15 s on foot)
 const PAD_CELL := 64.0 ## metres per cell of an island's pad lookup grid
 const RASTER_CELL := 4.0 ## metres per cell of the baked river and road distance fields
 const RIVER_CAP := 140.0 ## river distances past this are stored as this
@@ -226,6 +234,73 @@ static func biome_for(x: float, z: float, h: float) -> String:
 	if m < -0.22:
 		return "moor"
 	return "farmland"
+
+
+## True when beach sand or water lies within `r` metres of (x, z) on a generated world: where
+## no tree belongs (palms are the beach's own trees, Flora). Always false on Ashgrove, whose
+## shores are hand-tuned and stay as they are. Cheap on high ground.
+static func near_sand(x: float, z: float, r: float = SAND_CLEAR) -> bool:
+	if _gen == ASHGROVE:
+		return false
+	_ensure()
+	var h := height(x, z)
+	if h > SAND_HIGH:
+		return false
+	# Sand and water are all below SAND_TOP: skip the ring when the ground can't fall that far
+	# within r at its local slope (with room for the slope to steepen).
+	var g := Vector2(height(x + 1.0, z) - h, height(x, z + 1.0) - h).length()
+	if h - (g * 1.5 + 0.3) * r > SAND_TOP:
+		return false
+	if _sandy(x, z, h):
+		return true
+	for ring: float in [0.5, 1.0]:
+		var n: int = 6 if ring < 1.0 else 10
+		for i in n:
+			var q: Vector2 = Vector2(x, z) + Vector2.from_angle(TAU * (float(i) + 0.5 * ring) / n) * r * ring
+			if _sandy(q.x, q.y, height(q.x, q.y)):
+				return true
+	return false
+
+
+static func _sandy(x: float, z: float, h: float) -> bool:
+	var b := biome_for(x, z, h)
+	return b == "shore" or b == "water"
+
+
+## 0 at the edge of an island's beach sand, rising to 1 a short band inland (IslandGen.sand_margin);
+## 1 on other worlds.
+static func sand_margin(x: float, z: float, h: float) -> float:
+	if _gen != ISLAND:
+		return 1.0
+	_ensure()
+	return IslandGen.sand_margin(_L, x, z, h)
+
+
+## 0 at an island's shore, 1 at its heart (IslandGen.inland). 1 on other worlds, which have no
+## sea all round.
+static func inland(x: float, z: float) -> float:
+	if _gen != ISLAND:
+		return 1.0
+	_ensure()
+	return IslandGen.inland(_L, x, z)
+
+
+## Where the sea beach is along bearing `a` (radians) from an island's centre:
+## {pos: Vector2 (the middle of the beach band), sea: Vector2 (unit, seaward)}, or {} on a
+## world with no sea all round. Cheap (outline maths only), for dressing the coast.
+static func coast_at(a: float) -> Dictionary:
+	if _gen != ISLAND:
+		return {}
+	_ensure()
+	var c: Vector2 = _L.center
+	var dir := Vector2.from_angle(a)
+	var r: float = _L.radius * 0.6
+	while r < float(_L.half) * 1.4:
+		var p := c + dir * r
+		if IslandGen.shape(_L, p.x, p.y) >= 0.96:
+			return {"pos": p, "sea": dir}
+		r += 4.0
+	return {}
 
 
 ## The spawn point, on the ground in the middle of the spawn plot.
@@ -792,7 +867,74 @@ static func _place_nodes() -> Array:
 			if kind == "" or _crowded(grid, p):
 				continue
 			_add_spot(out, grid, kind, p, rng, false)
+	if _gen == ISLAND:
+		_trees_off_sand(out, grid)
 	return out
+
+
+## An island's tree nodes walked off the beach (owner, 2026-11-27): every ash or pine spot
+## within SAND_CLEAR of sand moves to the nearest dry, free ground at most 100 m away, keeping
+## its place in the list, its kind and its looks. Spots are only ever moved, never added or
+## dropped, so node ids stay what they were. Stones and scrub may stay on the sand (rocks and
+## beach grass belong there). Draws nothing from the placement rng.
+static func _trees_off_sand(out: Array, grid: Dictionary) -> void:
+	for s in out:
+		if s.kind != "ash" and s.kind != "pine":
+			continue
+		var p := Vector2(s.pos.x, s.pos.z)
+		if not near_sand(p.x, p.y):
+			continue
+		var to := _off_sand_spot(p, grid)
+		if to == Vector2.INF:
+			continue
+		_ungrid(grid, p)
+		var c := Vector2i(int(floor(to.x / NODE_SPACING)), int(floor(to.y / NODE_SPACING)))
+		if not grid.has(c):
+			grid[c] = []
+		grid[c].append(to)
+		s.pos = Vector3(to.x, height(to.x, to.y), to.y)
+
+
+## The nearest spot to `p` (rings of OFF_SAND_STEP, 16 bearings each) that is clear of the
+## sand, other nodes, roads, rivers, locations and the snow; Vector2.INF if none within reach.
+static func _off_sand_spot(p: Vector2, grid: Dictionary) -> Vector2:
+	var half := half_size() - 8.0
+	for step in range(1, OFF_SAND_REACH + 1):
+		for i in 16:
+			var q := p + Vector2.from_angle(TAU * float(i) / 16.0) * OFF_SAND_STEP * step
+			if maxf(absf(q.x), absf(q.y)) > half:
+				continue
+			var h := height(q.x, q.y)
+			if h < KINGDOM_WATER + 1.0 or h > SNOW_LINE or near_sand(q.x, q.y):
+				continue
+			if _crowded_but(grid, q, p):
+				continue
+			if _sample(_L.road_d, q.x, q.y) < ROAD_HALF_WIDTH + 2.5 or _sample(_L.river_d, q.x, q.y) < RIVER_HALF_WIDTH + 4.0:
+				continue
+			var on_site := false
+			for site in _L.ruins:
+				if q.distance_to(Vector2(site.pos.x, site.pos.z)) < site.radius + 6.0:
+					on_site = true
+			if not on_site:
+				return q
+	return Vector2.INF
+
+
+## `_crowded`, ignoring the spot at `self_p` (the one being moved).
+static func _crowded_but(grid: Dictionary, p: Vector2, self_p: Vector2) -> bool:
+	var c := Vector2i(int(floor(p.x / NODE_SPACING)), int(floor(p.y / NODE_SPACING)))
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			for q in grid.get(c + Vector2i(dx, dz), []):
+				if q != self_p and p.distance_to(q) < NODE_SPACING:
+					return true
+	return false
+
+
+static func _ungrid(grid: Dictionary, p: Vector2) -> void:
+	var c := Vector2i(int(floor(p.x / NODE_SPACING)), int(floor(p.y / NODE_SPACING)))
+	var cell: Array = grid.get(c, [])
+	cell.erase(p)
 
 
 static func _spot_ok(p: Vector2, sp: Vector2) -> bool:
