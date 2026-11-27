@@ -161,6 +161,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      id-token: write   # lets azure/login sign in to Azure Artifact Signing without a stored password
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-godot
@@ -225,6 +226,49 @@ jobs:
             godot --headless --path game --export-release "$p" 2>&1 | tee "build/$p.log"
             if grep -q "ERROR" "build/$p.log"; then echo "export $p failed"; exit 1; fi
           done
+
+      # Windows SmartScreen warns about unsigned downloads ("Windows protected your PC").
+      # Signing with Azure Artifact Signing puts a verified publisher on AiMMO.exe, and
+      # SmartScreen builds reputation for that identity across releases. Off until the owner
+      # sets the AZURE_SIGNING_* variables and AZURE_* secrets (docs/windows_signing.md).
+      # The embedded game pack lives in its own PE section, so a signed exe still loads it.
+      - name: Sign in to Azure for code signing
+        if: needs.test.outputs.code == 'true' && vars.AZURE_SIGNING_ACCOUNT != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign the Windows client
+        if: needs.test.outputs.code == 'true' && vars.AZURE_SIGNING_ACCOUNT != ''
+        env:
+          ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
+          JSIGN_VERSION: "7.1"
+          JSIGN_SHA256: cfb48b07fdd2ee199bfc9e71d8dccdde67a799c4793602e446c7a101be62b3c4
+        run: |
+          set -euo pipefail
+          curl -fsSL -o jsign.jar "https://github.com/ebourg/jsign/releases/download/$JSIGN_VERSION/jsign-$JSIGN_VERSION.jar"
+          echo "$JSIGN_SHA256  jsign.jar" | sha256sum -c -
+          HOST="${ENDPOINT#https://}"; HOST="${HOST%/}"   # e.g. eus.codesigning.azure.net
+          TOKEN=$(az account get-access-token --resource https://codesigning.azure.net --query accessToken -o tsv)
+          echo "::add-mask::$TOKEN"
+          java -jar jsign.jar --storetype TRUSTEDSIGNING --keystore "$HOST" \
+            --storepass "$TOKEN" --alias "$ACCOUNT/$PROFILE" \
+            --tsaurl http://timestamp.acs.microsoft.com/ --tsmode RFC3161 \
+            --name AiMMO --replace build/client-windows/AiMMO.exe
+          rm -f jsign.jar
+
+      - name: Note an unsigned Windows build
+        if: needs.test.outputs.code == 'true' && vars.AZURE_SIGNING_ACCOUNT == ''
+        run: echo "::warning::Windows client is unsigned (SmartScreen will warn). See docs/windows_signing.md."
+
+      - name: Package clients and update packs
+        if: needs.test.outputs.code == 'true'
+        run: |
+          set -euo pipefail
           mkdir -p dist
           # Release downloads are named ZombAi-*. The files inside keep their AiMMO names
           # (AiMMO.exe, AiMMO.x86_64): an installed game looks for the pack named after its own exe.
