@@ -6,4 +6,4 @@ Request (from the owner's survival thread, 2026-11-26): the owner asked to bring
 - [ ] Wounds: bleeding, sprain, the chill; splint and herb poultice; bandages stop bleeding first
 - [ ] Carry weight per item and the hide pack
 - [ ] Spoiling food (raw about 1 in-game day, cooked about 3)
-- [ ] One character level (cap 30) and a five-branch tree of points (Survival, Gathering, Crafting, Fighting, Scavenging); nodes never unlock items or add flat damage or health; free daily respec at the bedroll; kept across wipes; a branching tree screen in the Satchel style
+- [ ] One character level (cap 30) and a five-branch tree of points (Survival, Gathering, Crafting, Fighting, Scavenging); nodes never unlock items or add flat damage or health; free daily respec at the bedroll; kept across wipes; a branching tree screen laid out like ARC Raiders' (owner, 2026-11-27) in the Satchel look: HudStyle.panel() for the window, HudStyle.title(label, size) for its title, HudStyle.theme() for buttons (art bible section 9 "Satchel", PR #248)
