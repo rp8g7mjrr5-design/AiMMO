@@ -1,0 +1,1 @@
+- Travellers have more meat on them: fuller chests, shoulders, arms and legs, so nobody looks like a stick figure any more.
