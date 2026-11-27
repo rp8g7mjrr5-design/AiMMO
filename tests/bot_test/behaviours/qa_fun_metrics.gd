@@ -45,6 +45,10 @@ func setup(net: Node) -> void:
 		if peer == bot.my_id:
 			m.feedback(bot.elapsed))
 	net.place_result.connect(func(_item: String, _ok: bool, _reason: String, _text: String): m.feedback(bot.elapsed))
+	# Arranging the grid pack (protocol v13): the server answers every c2s_pack_move with
+	# s2c_pack, moved or snapped back. Without this a drag looked like a press nobody
+	# answered (red main on 13ae8d1: every bot's longest wait followed c2s_pack_move).
+	net.pack_layout_changed.connect(func(_places: Array): m.feedback(bot.elapsed))
 	# Combat (protocol v7): a swing beginning, refused, or its blow landing (the swinger
 	# always hears back, hit or miss) answers the press; a kill is counted from its drops.
 	net.swing_begun.connect(func(peer: int, _weapon: String, _kind: String, _secs: float):
