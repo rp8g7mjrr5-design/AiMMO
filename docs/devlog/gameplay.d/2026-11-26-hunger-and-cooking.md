@@ -11,4 +11,4 @@ Step 1 of the owner's survival plan (roadmap Phase 2, "The survival plan"; desig
 **Next self.**
 - The tier lines ("You're getting hungry. Press F to eat.") go to the chat feed as system lines; a notice-line version that respects the clean-fight rule would read better.
 - Spoiling (plan step 6) will need a per-stack age; keep `cooked_meat`/`raw_meat` ids, add a freshness field rather than new ids.
-- Skills (plan step 7): "cooking" should read the cook count from `cook_request`.
+- The character level (plan step 7): cooking should pay XP from the count `cook_request` returns.

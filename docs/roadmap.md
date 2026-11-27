@@ -88,8 +88,8 @@ budget; the world builds in under 3 s.
 - **The survival plan (owner, 2026-11-27):** in order, hunger and cooking; loot in the ruins
   and crates; thirst, warmth and rest (waterskin, hide wrap, the held torch); wounds (bleeding,
   sprain, the chill; bandage, splint, herb poultice); carry weight (hide pack); spoiling food;
-  then **skills that grow by doing** (six skills, efficiency only, kept across wipes; design
-  bible direction 5). Every item has a job; no item ships without the system that uses it.
+  then **one character level and a tree of points** (five branches, kept across wipes, a
+  tree screen in the Satchel style; design bible direction 5). Every item has a job; no item ships without the system that uses it.
 - The Zombai: the walker and the hound, drawn by noise, with clear telegraphs; torches and
   ember-fire hurt them.
 - **Night rounds:** waves until dawn, each a bit tougher, with a short lull between; the round
