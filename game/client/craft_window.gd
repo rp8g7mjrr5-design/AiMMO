@@ -132,8 +132,7 @@ func setup(theme_res: Theme) -> void:
 	margin.add_child(box)
 	var title := Label.new()
 	title.text = "Workbench"
-	title.add_theme_font_size_override("font_size", 21)
-	title.add_theme_color_override("font_color", ACCENT)
+	HudStyle.title(title, 21)
 	box.add_child(title)
 	var sub := Label.new()
 	sub.text = "Spawn Meadow · gather the parts, then craft"
@@ -267,7 +266,7 @@ func _fill_needs(needs: RichTextLabel, parts: Array) -> void:
 		needs.add_image(_icon(str(p.item), IconShelf.PART_SIZE), IconShelf.PART_SIZE, IconShelf.PART_SIZE,
 			Color.WHITE, INLINE_ALIGNMENT_CENTER)
 		needs.add_text(" ")
-		needs.push_color(OK_COLOR if bool(p.ok) else SHORT_COLOR)
+		needs.push_color(HudStyle.ok_colour() if bool(p.ok) else HudStyle.short_colour())
 		needs.add_text("%s %d/%d" % [p.label, int(p.have), int(p.need)])
 		needs.pop()
 
@@ -294,7 +293,7 @@ func on_craft_result(recipe_id: String, ok: bool, text: String) -> Dictionary:
 	if recipe_id == _awaiting:
 		_awaiting = ""
 	status_label.text = text
-	status_label.modulate = ACCENT if ok else SHORT_COLOR
+	status_label.modulate = ACCENT if ok else HudStyle.short_colour()
 	refresh()
 	return {"crafted": recipe_id if ok and Crafting.is_recipe(recipe_id) else "", "ok": ok}
 

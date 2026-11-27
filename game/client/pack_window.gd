@@ -130,8 +130,7 @@ func setup(theme_res: Theme) -> void:
 	box.add_child(head)
 	var title := Label.new()
 	title.text = "Pack"
-	title.add_theme_font_size_override("font_size", 21)
-	title.add_theme_color_override("font_color", ACCENT)
+	HudStyle.title(title, 21)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
 	_total_label = Label.new()
@@ -167,11 +166,12 @@ func _make_slot() -> Dictionary:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(SLOT, SLOT)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP # so the tooltip shows on hover
+	var look := HudStyle.slot_look()
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(1, 1, 1, 0.06)
-	style.border_color = Color(1, 1, 1, 0.12)
+	style.bg_color = look.bg
+	style.border_color = look.border
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(5)
+	style.set_corner_radius_all(int(look.radius))
 	panel.add_theme_stylebox_override("panel", style)
 	var icon := TextureRect.new()
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
@@ -180,7 +180,10 @@ func _make_slot() -> Dictionary:
 	var count := Label.new()
 	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	HudStyle.quiet_label(count, 14, HudStyle.TEXT)
+	HudStyle.quiet_label(count, 14, HudStyle.window_text())
+	if HudStyle.skin == "journal": # ink on paper needs no shadow
+		count.add_theme_constant_override("outline_size", 0)
+		count.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
 	count.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(count)
 	var plus := Label.new()
@@ -216,7 +219,7 @@ func refresh() -> void:
 			_shown.append(str(st.item))
 			s.icon.texture = _icon(str(st.item))
 			s.count.text = str(int(st.count))
-			s.count.add_theme_color_override("font_color", FULL_COLOR if st.full else Color.WHITE)
+			s.count.add_theme_color_override("font_color", FULL_COLOR if st.full else (HudStyle.INK if HudStyle.skin == "journal" else Color.WHITE))
 			s.panel.tooltip_text = tooltip_text(str(st.item), int(st.count))
 		else:
 			_shown.append("")
@@ -266,9 +269,10 @@ func _paint_flash() -> void:
 		var item: String = _shown[i] if i < _shown.size() else ""
 		var t := clampf(float(_flash.get(item, 0.0)) / FLASH_SECONDS, 0.0, 1.0) if item != "" else 0.0
 		var style: StyleBoxFlat = s.style
-		style.border_color = Color(1, 1, 1, 0.12).lerp(GOLD, t)
+		var look := HudStyle.slot_look()
+		style.border_color = (look.border as Color).lerp(GOLD, t)
 		style.set_border_width_all(1 + int(round(t * 2.0)))
-		style.bg_color = Color(1, 1, 1, 0.06).lerp(Color(GOLD, 0.22), t * t)
+		style.bg_color = (look.bg as Color).lerp(Color(GOLD, 0.22), t * t)
 		s.plus.text = "+%d" % int(_gain[item]) if t > 0.0 and _gain.has(item) else ""
 
 
