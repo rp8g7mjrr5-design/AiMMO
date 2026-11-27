@@ -54,11 +54,13 @@ static func loot_spots(r: Dictionary) -> Array:
 	return out
 
 
-## Every loot spot in the world, ruin by ruin in `Ruins.all()` order. Empty on Ashgrove.
+## Every loot spot in the world, ruin by ruin in `Ruins.all()` order, then the beach
+## landmarks' (BeachGen.loot_spots: the shipwreck and the fishing shack). Empty on Ashgrove.
 static func all_loot_spots() -> Array:
 	var out: Array = []
 	for r in Ruins.all():
 		out.append_array(loot_spots(r))
+	out.append_array(BeachGen.loot_spots())
 	return out
 
 
