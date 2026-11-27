@@ -108,6 +108,8 @@ const FIBRE := Color(0.55, 0.53, 0.36) ## pulled plant fibre: dry nettle and fla
 const SCRUB_LEAF := Color(0.33, 0.37, 0.23) ## low scrub bushes: dull olive, darker than MEADOW so a patch reads
 const SCRUB_DRY := Color(0.48, 0.43, 0.29) ## the dead, tawny stems in a scrub patch, and a picked-over one
 const LINEN := Color(0.78, 0.73, 0.62) ## a bandage roll: undyed, slightly grubby linen, never hospital white
+const BERRY := Color(0.30, 0.16, 0.22) ## wild bramble berries: dark plum going black, dull, never candy red or purple
+const BERRY_SHINE := Color(0.52, 0.38, 0.42) ## the small dull highlight on a berry
 ## The starting beaches (BeachGen / BeachProps, 2026-11-26): salt-bleached, sea-dark, never postcard.
 const WET_SAND := Color(0.50, 0.46, 0.36) ## the band the waves keep wet: darker, a little cooler than SAND
 const DRIFTWOOD := Color(0.62, 0.58, 0.50) ## sun- and salt-bleached wood, silver-tan

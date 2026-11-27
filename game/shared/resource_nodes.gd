@@ -22,8 +22,11 @@ const KINDS := {
 	"ash": {"label": "Ash", "item": "ash_wood", "amount": 2, "respawn": 180.0, "night_only": false},
 	"pine": {"label": "Pine", "item": "pine_wood", "amount": 2, "respawn": 180.0, "night_only": false},
 	"stone": {"label": "Stone outcrop", "item": "stone", "amount": 2, "respawn": 240.0, "night_only": false, "needs_tool": true},
-	"scrub": {"label": "Scrub", "item": "plant_fibre", "amount": 2, "respawn": 240.0, "night_only": false},
+	"scrub": {"label": "Scrub", "item": "plant_fibre", "amount": 2, "respawn": 240.0, "night_only": false,
+		"also": {"berries": 1}},
 }
+## `also`: items a gather pays on top of `item` (scrub gives a handful of wild berries with its
+## fibre: the first food, owner's survival plan 2026-11-27). Not raised by tools.
 const KIND_ORDER := ["ash", "pine", "stone", "scrub"]
 
 ## The starting beaches' pickings (BeachGen, owner 2026-11-26: "things to collect" on the beach
