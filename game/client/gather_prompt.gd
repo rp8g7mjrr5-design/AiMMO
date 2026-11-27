@@ -403,11 +403,23 @@ func channel() -> Dictionary:
 
 ## Shows `text` (for example "[E] Use Workbench") in the prompt line when no node is in
 ## reach; the node prompt always wins. Call after update() each frame; "" shows nothing extra.
-func show_hint(text: String) -> void:
+func show_hint(text: String, dim: bool = false) -> void:
 	if _target.is_empty() and _channel.is_empty():
 		prompt_label.visible = text != ""
 		prompt_label.text = text
-		prompt_label.add_theme_color_override("font_color", HudStyle.TEXT)
+		prompt_label.add_theme_color_override("font_color", DIM if dim else HudStyle.TEXT)
+
+
+## A timed action the client runs itself (Loot's search): `text` in the prompt line and the
+## bar at `value` (0..1). Call after update() each frame; the node prompt and a gather win.
+func show_progress(text: String, value: float) -> void:
+	if not _channel.is_empty():
+		return
+	prompt_label.visible = true
+	prompt_label.text = text
+	prompt_label.add_theme_color_override("font_color", HudStyle.TEXT)
+	bar.visible = true
+	bar.value = clampf(value, 0.0, 1.0)
 
 
 ## Pops a floating toast like "Crafted: Stone axe!", with `item`'s icon beside it ("" = no icon).

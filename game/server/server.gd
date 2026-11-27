@@ -73,6 +73,13 @@ var gloam_on := false
 ## everyone on every change and at login.
 ## Not saved yet: a restart puts every fire out.
 var campfires := Campfires.new_state()
+## Ruin loot (Loot, step 2 of the survival plan): which loot spots were searched and when.
+## `loot_spots` is RuinLayout.all_loot_spots() for the running world, `loot_ruins` Ruins.all().
+## Not saved: a restart refills every spot.
+var loot := Loot.new_state()
+var loot_spots: Array = []
+var loot_ruins: Array = []
+var loot_rng := RandomNumberGenerator.new()
 ## A swing landing is a noise this loud (m), a finished gather this loud.
 const SWING_NOISE := Gloam.NOISE_RADIUS
 const GATHER_NOISE := Gloam.NOISE_RADIUS
@@ -149,6 +156,10 @@ func use_world(cfg: Dictionary) -> void:
 	wildlife = Wildlife.new_state()
 	gloam = Gloam.new_state()
 	campfires = Campfires.new_state()
+	loot = Loot.new_state()
+	loot_ruins = Ruins.all()
+	loot_spots = RuinLayout.all_loot_spots()
+	loot_rng.randomize()
 
 
 ## Turns monthly wipes on for world spec `cfg` when `rule` asks and the world is generated
@@ -321,6 +332,7 @@ func _tick() -> void:
 		ch.yaw = s.yaw
 		entries.append_array([id, p.x, p.y, p.z, s.yaw])
 	_tick_channels(now_seconds())
+	_tick_searches(now_seconds())
 	_tick_vitals(now_seconds())
 	_tick_swings(now_seconds())
 	_tick_wildlife(now_seconds())
@@ -389,6 +401,8 @@ func place_request(id: int, item: String) -> Dictionary:
 		return eat_request(id, word)
 	if word == "cook":
 		return cook_request(id)
+	if word == "search":
+		return search_start(id)
 	if word != Campfires.ITEM:
 		return _refuse_place("unknown")
 	if Vitals.is_dead(vitals_of(id)):
@@ -548,6 +562,7 @@ func _on_peer_disconnected(id: int) -> void:
 	var s: Dictionary = sessions[id]
 	if GatherChannel.is_active(s.channel):
 		gather_cancel(id, "disconnected")
+	s.erase("search")
 	sessions.erase(id)
 	if s.logged_in:
 		if not store.save_character(s.character):
@@ -755,6 +770,10 @@ func _on_chat(id: int, text: String) -> void:
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [place_request(id, ChatCommands.argument(clean)).text])
 		return
+	if ChatCommands.is_loot(clean):
+		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
+		_send(id, "s2c_system", [loot_command(id, ChatCommands.argument(clean))])
+		return
 	if ChatCommands.is_kindle(clean):
 		print("[chat] %s ran %s" % [s.character.name, clean.substr(0, 40)])
 		_send(id, "s2c_system", [kindle_command(id, ChatCommands.argument(clean))])
@@ -832,6 +851,10 @@ func _on_place(id: int, item: String) -> void:
 		return
 	var r := place_request(id, item)
 	var word := item.strip_edges().to_lower().left(32)
+	if word == "search":
+		if not r.ok:
+			_send(id, "s2c_place_result", ["search", false, str(r.reason), str(r.text)])
+		return # a search that started answers when it ends (_finish_search)
 	if r.ok:
 		if word in [Vitals.BANDAGE_ITEM, "bandages"]:
 			word = Vitals.BANDAGE_ITEM
@@ -943,6 +966,8 @@ func gather_start(id: int, node_id: int) -> Dictionary:
 	var s: Dictionary = sessions[id]
 	if GatherChannel.is_active(s.channel):
 		return {"ok": false, "reason": "busy", "seconds": 0.0}
+	if not s.get("search", {}).is_empty():
+		search_cancel(id, "stopped") # walking up to a node and pressing E again moves on
 	var now := now_seconds()
 	_respawn_nodes(now)
 	var pos := CharacterData.position(s.character)
@@ -1020,6 +1045,10 @@ func _finish_channel(id: int, now: float) -> void:
 	var extras := {}
 	for extra in also:
 		extras[str(extra)] = give_item(id, str(extra), int(also[extra]))
+	if kind == "wreck_crate":
+		var found := Loot.roll_beach(loot_rng)
+		for extra in found:
+			extras[str(extra)] = int(extras.get(str(extra), 0)) + give_item(id, str(extra), int(found[extra]))
 	s.last_gather = now
 	if got.depleted:
 		_node_changed(node_id, true, got.respawn)
@@ -1367,6 +1396,108 @@ func eat_request(id: int, food: String = "") -> Dictionary:
 	_send_vitals_if_changed(id)
 	_tick_needs(id, Needs.tier_of(s.character))
 	return {"ok": true, "reason": "", "text": Needs.ate_text(item), "fire_id": -1, "item": item}
+
+
+## --- Ruin loot (Loot; step 2 of the survival plan) ---
+
+## Player `id` starts searching the loot spot they stand at (Loot.REACH). c2s_place("search")
+## runs this, so there is no new client message. The search runs Loot.SEARCH_SECONDS on the
+## server and ends in _finish_search (or search_cancel when they walk off). Refused ("none",
+## "empty", "busy", "dead") it costs nothing. Returns {ok, reason, text, fire_id: -1, seconds}.
+func search_start(id: int) -> Dictionary:
+	var s: Dictionary = sessions[id]
+	if Vitals.is_dead(vitals_of(id)):
+		return {"ok": false, "reason": "dead", "text": "", "fire_id": -1}
+	if GatherChannel.is_active(s.channel) or not s.get("search", {}).is_empty():
+		return {"ok": false, "reason": "busy", "text": Loot.text("busy"), "fire_id": -1}
+	var pos := CharacterData.position(s.character)
+	var spot := Loot.nearest(loot_spots, pos)
+	if spot.is_empty():
+		return {"ok": false, "reason": "none", "text": Loot.text("none"), "fire_id": -1}
+	var now := now_seconds()
+	var k := Loot.key(spot)
+	if Loot.is_empty(loot, k, now):
+		return {"ok": false, "reason": "empty", "text": Loot.text("empty", str(spot.kind)), "fire_id": -1}
+	s.search = {"key": k, "spot": spot, "from": pos, "due": now + Loot.SEARCH_SECONDS}
+	return {"ok": true, "reason": "", "text": Loot.text("begin", str(spot.kind)), "fire_id": -1, "seconds": Loot.SEARCH_SECONDS}
+
+
+## Stops player `id`'s search with nothing found. `reason` "moved", "stopped" or "dead".
+func search_cancel(id: int, reason: String) -> void:
+	if not sessions.has(id):
+		return
+	var s: Dictionary = sessions[id]
+	if s.get("search", {}).is_empty():
+		return
+	s.erase("search")
+	_send(id, "s2c_place_result", ["search", false, reason, Loot.text(reason)])
+
+
+## Every tick: stop searches whose player walked off or went down, finish the ones that are due.
+func _tick_searches(now: float) -> void:
+	for id in sessions.keys():
+		var s: Dictionary = sessions[id]
+		if not s.logged_in or s.get("search", {}).is_empty():
+			continue
+		var from: Vector3 = s.search.from
+		var pos := CharacterData.position(s.character)
+		if Vitals.is_dead(vitals_of(id)):
+			search_cancel(id, "dead")
+		elif Vector2(pos.x - from.x, pos.z - from.z).length() > Loot.MOVE_TOLERANCE:
+			search_cancel(id, "moved")
+		elif now >= float(s.search.due):
+			_finish_search(id, now)
+
+
+## A search ran its full time: roll the spot's ruin grade and kind (Loot.roll), fill the pack,
+## mark the spot searched, make a little noise, and answer with haul toasts
+## (s2c_gather_result per item) and s2c_place_result("search", true, "", the found line).
+## Someone else who emptied the spot meanwhile leaves this one with nothing.
+func _finish_search(id: int, now: float) -> void:
+	var s: Dictionary = sessions[id]
+	var sr: Dictionary = s.search
+	s.erase("search")
+	var spot: Dictionary = sr.spot
+	var k := str(sr.key)
+	var found := {}
+	if not Loot.is_empty(loot, k, now):
+		var rolled := Loot.roll(Loot.grade_of(spot, loot_ruins), str(spot.kind), loot_rng)
+		for item in rolled:
+			var added := give_item(id, str(item), int(rolled[item]))
+			if added > 0:
+				found[str(item)] = added
+		Loot.mark_searched(loot, k, now)
+	Gloam.noise(gloam, CharacterData.position(s.character), now, Loot.NOISE)
+	print("[loot] %s searched %s (%s): %s" % [s.character.name, k, spot.kind, str(found)])
+	for item in Inventory.ITEM_ORDER:
+		if found.has(item):
+			_send(id, "s2c_gather_result", [item, int(found[item])])
+	_send(id, "s2c_place_result", ["search", true, "", Loot.found_text(str(spot.kind), found)])
+
+
+## The hidden /loot dev and bot command: searches the nearest loot spot in the whole world at
+## once (no walk, no bar), or a stand-in grade 1 chest ("test:0") on a world without ruins
+## (Ashgrove), through the same tables and searched state. "/loot refill" empties the state.
+func loot_command(id: int, arg: String) -> String:
+	var s: Dictionary = sessions[id]
+	var now := now_seconds()
+	if arg.strip_edges().to_lower() == "refill":
+		loot = Loot.new_state()
+		return "Every loot spot is full again."
+	var spot := Loot.nearest(loot_spots, CharacterData.position(s.character), INF)
+	if spot.is_empty():
+		spot = {"ruin_id": -1, "index": 0, "kind": "chest", "pos": Vector3.ZERO}
+	var k := Loot.key(spot) if int(spot.ruin_id) >= 0 else "test:0"
+	if Loot.is_empty(loot, k, now):
+		return Loot.text("empty", str(spot.kind))
+	var rolled := Loot.roll(Loot.grade_of(spot, loot_ruins), str(spot.kind), loot_rng)
+	var found := {}
+	for item in rolled:
+		var added := give_item(id, str(item), int(rolled[item]))
+		if added > 0:
+			found[str(item)] = added
+	Loot.mark_searched(loot, k, now)
+	return Loot.found_text(str(spot.kind), found)
 
 
 ## Player `id` cooks every raw meat in their pack over a lit campfire they stand at

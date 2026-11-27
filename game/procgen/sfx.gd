@@ -422,6 +422,35 @@ static func sizzle() -> AudioStreamWAV:
 	return _wav(data)
 
 
+## Rummaging through a crate or a sack (Loot's search): soft, low scuffs and a wooden knock,
+## spread over about the search's length. Quiet and dry, never a "loot" fanfare.
+const RUMMAGE_LENGTH := 1.6
+const RUMMAGE_SCUFFS := [0.05, 0.32, 0.55, 0.9, 1.12, 1.38]
+
+
+static func rummage() -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4417
+	var data := PackedByteArray()
+	var lp := 0.0
+	var n := int(RATE * RUMMAGE_LENGTH)
+	for i in n:
+		var t := float(i) / RATE
+		var white := rng.randf_range(-1.0, 1.0)
+		lp += (white - lp) * 0.08 # low-passed noise: cloth and straw, not hiss
+		var v := 0.0
+		for k in RUMMAGE_SCUFFS.size():
+			var dt: float = t - float(RUMMAGE_SCUFFS[k])
+			if dt >= 0.0 and dt < 0.16:
+				v += lp * 4.0 * minf(1.0, dt * 60.0) * exp(-dt * 18.0)
+				if k == 3 and dt < 0.05: # one knock on wood
+					v += sin(TAU * 190.0 * dt) * exp(-dt * 70.0) * 0.6
+		var s16 := int(clampf(v * 0.3, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	return _wav(data)
+
+
 static func _tones(notes: Array, volume: float) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	for n in notes:

@@ -3,7 +3,7 @@ class_name ChatCommands
 ## answers only the sender with a system message and never broadcasts the line itself.
 ## Pure functions, so they are unit tested without a running server.
 ##
-## Commands: /help, /time, /who, /bag, /gather, /craft (and hidden /hurt, /vitals, /lure, /gloam, /place, /kindle). /gather and /craft change the world
+## Commands: /help, /time, /who, /bag, /gather, /craft (and hidden /hurt, /vitals, /lure, /gloam, /place, /kindle, /loot). /gather and /craft change the world
 ## or a pack, so the server handles them itself (see is_gather, is_craft); everything else
 ## is answered by run(). /craft is a debug and bot command only (owner direction: chat is
 ## for talking): it is never listed in HELP or patch notes. Players craft from a window at
@@ -42,6 +42,9 @@ const GLOAM_NAMES := ["gloam"]
 ## /kindle status reads the nearest (Server.kindle_command).
 const PLACE_NAMES := ["place", "setdown"]
 const KINDLE_NAMES := ["kindle"]
+## Hidden bot command for ruin loot: /loot searches the nearest loot spot at once, /loot refill
+## (Server.loot_command).
+const LOOT_NAMES := ["loot"]
 const HURT_MAX := 1000
 const HURT_DEFAULT := 10
 
@@ -103,6 +106,11 @@ static func is_gloam(text: String) -> bool:
 ## True for the hidden /place dev command.
 static func is_place(text: String) -> bool:
 	return is_command(text) and name_of(text) in PLACE_NAMES
+
+
+## True for the hidden /loot bot command.
+static func is_loot(text: String) -> bool:
+	return is_command(text) and name_of(text) in LOOT_NAMES
 
 
 ## True for the hidden /kindle bot command.

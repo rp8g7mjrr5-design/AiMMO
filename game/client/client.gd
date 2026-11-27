@@ -45,6 +45,14 @@ var vitals_bar: VitalsBar ## health and stamina, bottom centre (protocol v7 s2c_
 var needs_icon: NeedsIcon ## hunger, left of the health bar, only when you're hungry (protocol v12 s2c_needs)
 var sfx_eat: AudioStreamPlayer ## you ate something (F)
 var sfx_sizzle: AudioStreamPlayer ## meat went onto the fire (E at a lit campfire)
+var sfx_rummage: AudioStreamPlayer ## searching a ruin's crate, chest, sack or body (Loot)
+## Ruin loot (Loot): the running search {key, kind, started} or {}, the spots searched this
+## login {key: when (seconds)}, and the world's loot spots (RuinLayout), rebuilt when the
+## world changes.
+var _search := {}
+var _searched := {}
+var _loot_spots: Array = []
+var _loot_cfg := {}
 ## Knocked down: the screen goes dark and you come to, lying in Spawn Meadow, and get up.
 ## No words (owner, 2026-11-25); CAME_TO_DARK s fully dark, then CAME_TO_FADE s back to light.
 var came_to_shade: ColorRect
@@ -606,6 +614,7 @@ func _process(delta: float) -> void:
 		_update_gather(delta, me.position, xf.origin, -xf.basis.z)
 		_update_bench(delta, me.position)
 		_update_cook(me.position)
+		_update_search(me.position)
 		_update_place(delta, me.position)
 		_follow_fires(delta, me.position)
 		hud_label.text = "Ashgrove  ·  %d online  ·  %.0f, %.0f" % [avatars.size(), me.position.x, me.position.z]
@@ -678,6 +687,46 @@ func _update_cook(my_pos: Vector3) -> void:
 	gather_prompt.show_hint("[%s] Cook %d raw meat" % [NeedsIcon.key_name("interact", "E"), raw])
 	if Input.is_action_just_pressed("interact"):
 		net.play.c2s_place.rpc_id(1, "cook")
+
+
+## Ruin loot (Loot): standing at a crate, chest, sack or body in a ruin shows
+## "[E] Search the chest"; E sends c2s_place("search") and the bar fills for
+## Loot.SEARCH_SECONDS while the server searches. Walking off stops it. What you find comes
+## back as haul toasts (s2c_gather_result), the end as s2c_place_result("search").
+func _update_search(my_pos: Vector3) -> void:
+	var now := _now()
+	if not _search.is_empty():
+		var p := clampf((now - float(_search.started)) / Loot.SEARCH_SECONDS, 0.0, 1.0)
+		gather_prompt.show_progress(Loot.text("begin", str(_search.kind)), p)
+		if now - float(_search.started) > Loot.SEARCH_SECONDS + 3.0:
+			_search = {} # the answer never came: let the player try again
+		return
+	var free := not chat_edit.has_focus() and not window_open() and not placing
+	if not free or not gather_prompt.current_target().is_empty() or CraftWindow.near_bench(my_pos):
+		return
+	if int(gather_prompt.pack.get("raw_meat", 0)) > 0 and at_lit_fire(my_pos):
+		return # the cook prompt has this E
+	var spot := Loot.nearest(loot_spots(), my_pos)
+	if spot.is_empty():
+		return
+	var k := Loot.key(spot)
+	if _searched.has(k) and now - float(_searched[k]) < Loot.REFILL:
+		gather_prompt.show_hint("Searched", true)
+		return
+	gather_prompt.show_hint(Loot.prompt(str(spot.kind), NeedsIcon.key_name("interact", "E")))
+	if Input.is_action_just_pressed("interact"):
+		_search = {"key": k, "kind": str(spot.kind), "started": now}
+		net.play.c2s_place.rpc_id(1, "search")
+		sfx_rummage.play()
+
+
+## The running world's loot spots, rebuilt when the world changes (a wipe, a new server).
+func loot_spots() -> Array:
+	var cfg := WorldGen.config()
+	if cfg != _loot_cfg:
+		_loot_cfg = cfg
+		_loot_spots = RuinLayout.all_loot_spots()
+	return _loot_spots
 
 
 ## Whether `pos` is within Campfires.WARM_RADIUS of a fire the server says is burning.
@@ -833,6 +882,8 @@ func _on_server_disconnected() -> void:
 	vitals_bar.hide_all()
 	needs_icon.visible = false
 	needs_icon.hide_all()
+	_search = {}
+	_searched = {}
 	notice_line.hide_all()
 	gather_watch.reset()
 	herd.clear()
@@ -1098,7 +1149,7 @@ func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
 
 ## The answer to c2s_place (a bandage put on, from H). Success is told by the sound and the
 ## health bar filling (a clean fight: no words); a refusal says why, centre screen.
-func _on_place_result(item: String, ok: bool, _reason: String, text: String) -> void:
+func _on_place_result(item: String, ok: bool, reason: String, text: String) -> void:
 	if item == Campfires.ITEM:
 		_place_sent = false
 		if ok:
@@ -1108,6 +1159,19 @@ func _on_place_result(item: String, ok: bool, _reason: String, text: String) -> 
 			return
 		if placing:
 			place_ghost.refuse() # red for a moment, so you see this spot won't do
+	if item == "search":
+		if ok and not _search.is_empty():
+			_searched[str(_search.key)] = _now()
+		elif reason == "empty" and not _search.is_empty():
+			_searched[str(_search.key)] = _now()
+		_search = {}
+		sfx_rummage.stop()
+		if ok:
+			if text.contains("nothing left"):
+				gather_prompt.show_toast("Nothing left", "", GatherPrompt.NOTICE)
+			return # the haul toasts already said what you found
+		if text == "": # walked off or went down: the bar going away says it
+			return
 	if ok:
 		if item == Vitals.BANDAGE_ITEM:
 			sfx_craft.play()
@@ -1692,6 +1756,10 @@ func _build_audio() -> void:
 	sfx_sizzle.stream = Sfx.sizzle()
 	sfx_sizzle.volume_db = -6.0
 	add_child(sfx_sizzle)
+	sfx_rummage = AudioStreamPlayer.new()
+	sfx_rummage.stream = Sfx.rummage()
+	sfx_rummage.volume_db = -4.0
+	add_child(sfx_rummage)
 	sfx_nope = AudioStreamPlayer.new()
 	sfx_nope.stream = Sfx.nope()
 	sfx_nope.volume_db = -9.0

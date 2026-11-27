@@ -4,7 +4,7 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ## Every login:
 ##   1. the server sends s2c_vitals right after login, and it must be a full bar;
 ##   2. a couple of seconds in (not while stalking a grazer), c2s_attack("heavy"): the answer
-##      is s2c_swing for us (bare hands) or a refusal we can wait out ("gathering", "busy"),
+##      is s2c_swing for us (bare hands, or a weapon the pack holds) or a refusal we can wait out ("gathering", "busy"),
 ##      then we try again; the swing's stamina must show at once in s2c_vitals;
 ##   3. a quarter second into that heavy swing, c2s_attack("light") must be refused "busy"
 ##      (or, on a very slow link, simply be the next swing);
@@ -108,11 +108,14 @@ func _on_swing(peer: int, weapon: String, kind: String, seconds: float) -> void:
 		_sent_at = -1.0
 		_swing_at = bot.elapsed
 		_step = Step.SWUNG
-		if weapon != Weapons.FISTS:
-			fail("swung %s with an empty-handed character" % weapon)
-		if absf(seconds - Weapons.swing_seconds(Weapons.FISTS, "heavy")) > 0.001:
-			fail("odd swing time %.2f s" % seconds)
-		var want := roundi(100.0 - Weapons.stamina_cost(Weapons.FISTS, "heavy"))
+		# Bare hands, unless the pack picked up a weapon (ruin loot can hand a bot a club,
+		# gameplay_loot): then the numbers are that weapon's.
+		if not Weapons.exists(weapon):
+			fail("swung an unknown weapon %s" % weapon)
+			weapon = Weapons.FISTS
+		if absf(seconds - Weapons.swing_seconds(weapon, "heavy")) > 0.001:
+			fail("odd swing time %.2f s for %s" % [seconds, weapon])
+		var want := roundi(100.0 - Weapons.stamina_cost(weapon, "heavy"))
 		# Our own bar answer comes in the same tick as the swing, just before it.
 		if _last_vitals.size() == 4 and int(_last_vitals[2]) != want and bot.elapsed - _vitals_at < 0.5:
 			fail("stamina after a heavy swing from full is %d, not %d" % [_last_vitals[2], want])
