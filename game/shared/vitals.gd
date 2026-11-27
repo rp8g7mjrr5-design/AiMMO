@@ -165,14 +165,15 @@ static func dealt(v: Dictionary, now: float) -> void:
 
 ## Advances regen to `now` over `dt` seconds (call once per server tick). Stamina refills
 ## REGEN/s once REGEN_DELAY has passed since the last spend; health refills out of combat.
-## The dead regain nothing (respawn uses full()).
-static func tick(v: Dictionary, now: float, dt: float) -> void:
+## The dead regain nothing (respawn uses full()). `regen` scales stamina coming back and
+## `heal` allows the out-of-combat trickle: hunger slows one and stops the other (Needs).
+static func tick(v: Dictionary, now: float, dt: float, regen: float = 1.0, heal: bool = true) -> void:
 	if is_dead(v) or dt <= 0.0:
 		return
 	if now - float(v.spent_at) >= REGEN_DELAY:
-		v.stamina = minf(float(v.stamina) + REGEN * dt, float(v.max_stamina))
+		v.stamina = minf(float(v.stamina) + REGEN * maxf(regen, 0.0) * dt, float(v.max_stamina))
 	var cap := float(v.max_hp) * HP_REGEN_CAP
-	if not in_combat(v, now) and float(v.hp) < cap:
+	if heal and not in_combat(v, now) and float(v.hp) < cap:
 		v.hp = minf(float(v.hp) + float(v.max_hp) * HP_REGEN_SHARE * dt, cap)
 	var left := float(v.get("heal_left", 0.0))
 	if left > 0.0:

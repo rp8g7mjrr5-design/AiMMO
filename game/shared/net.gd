@@ -96,6 +96,10 @@ signal campfires_changed(entries: PackedFloat32Array)
 signal gloam_changed(entries: PackedFloat32Array)
 ## peer_id's blow landed on these walker ids; `downed` are the ones it put down for good.
 signal gloam_struck(peer_id: int, kind: String, walker_ids: Array, downed: Array)
+# --- protocol v12, carried by Net/Play: survival needs ---
+## Your needs as whole numbers 0..100 (Needs.to_wire): {"hunger": 72} today; thirst, warmth
+## and rest join the same Dictionary later. At login and whenever a whole point changes.
+signal needs_changed(needs: Dictionary)
 
 var last_ack_seq := -1
 var play: Node

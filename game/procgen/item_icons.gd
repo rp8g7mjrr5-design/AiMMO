@@ -148,6 +148,8 @@ static func tint(item: String) -> Color:
 			return Palette.RAW_MEAT.lightened(0.2)
 		"cooked_meat":
 			return Palette.COOKED_MEAT.lightened(0.25)
+		"berries":
+			return Palette.BERRY.lightened(0.3)
 	return CLOTH
 
 
@@ -530,6 +532,21 @@ static func _recipe(item: String) -> Array:
 				# Steam: two thin pale wisps rising off the top.
 				_capsule(Vector2(0.42, 0.22), Vector2(0.38, 0.10), 0.014, Palette.MEAT_FAT.lightened(0.3), {"outline": false, "shade": 0.0}),
 				_capsule(Vector2(0.56, 0.24), Vector2(0.60, 0.11), 0.012, Palette.MEAT_FAT.lightened(0.3), {"outline": false, "shade": 0.0}),
+			]
+		"berries":
+			# A small sprig of wild bramble berries picked from scrub: a dull olive leaf, a
+			# thin stem, and a cluster of dark plum berries with one small dull highlight each.
+			# Dark and muted on purpose: food, not a sweet.
+			return [
+				_poly([Vector2(0.52, 0.30), Vector2(0.66, 0.14), Vector2(0.86, 0.12), Vector2(0.80, 0.30), Vector2(0.62, 0.38)], Palette.SCRUB_LEAF, {"shade": 0.2}),
+				_capsule(Vector2(0.56, 0.34), Vector2(0.80, 0.16), 0.008, Palette.SCRUB_LEAF.darkened(0.3), {"outline": false, "shade": 0.0}),
+				_capsule(Vector2(0.52, 0.30), Vector2(0.40, 0.52), 0.016, Palette.SCRUB_DRY, {"shade": 0.0}),
+				_circle(Vector2(0.34, 0.58), 0.13, Palette.BERRY, {"shade": 0.25}),
+				_circle(Vector2(0.56, 0.62), 0.12, Palette.BERRY.darkened(0.08), {"shade": 0.25}),
+				_circle(Vector2(0.44, 0.78), 0.12, Palette.BERRY, {"shade": 0.25}),
+				_circle(Vector2(0.30, 0.54), 0.03, Palette.BERRY_SHINE, {"outline": false, "shade": 0.0}),
+				_circle(Vector2(0.52, 0.58), 0.028, Palette.BERRY_SHINE, {"outline": false, "shade": 0.0}),
+				_circle(Vector2(0.40, 0.74), 0.028, Palette.BERRY_SHINE, {"outline": false, "shade": 0.0}),
 			]
 		FALLBACK:
 			return [

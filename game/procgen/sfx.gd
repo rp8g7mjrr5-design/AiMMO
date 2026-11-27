@@ -362,6 +362,66 @@ static func kindle() -> AudioStreamWAV:
 	return _wav(data)
 
 
+## Eating (the eat key, Needs): three soft, damp bites of low filtered noise with a little
+## body under each, about 0.55 s. Quiet and close: a small comfort, not a fanfare.
+## Peak about 0.25 full scale.
+const EAT_LENGTH := 0.55
+const EAT_BITES := [0.0, 0.17, 0.36]
+
+
+static func eat() -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5120
+	var data := PackedByteArray()
+	var lp := 0.0
+	var n := int(RATE * EAT_LENGTH)
+	for i in n:
+		var t := float(i) / RATE
+		lp += 0.12 * (rng.randf_range(-1.0, 1.0) - lp)
+		var v := 0.0
+		for b in EAT_BITES:
+			var dt: float = t - float(b)
+			if dt >= 0.0 and dt < 0.14:
+				var env := minf(1.0, dt * 300.0) * exp(-dt * 28.0)
+				v += (lp * 2.4 + sin(TAU * 110.0 * dt) * 0.35) * env
+		var fade := clampf((EAT_LENGTH - t) / 0.03, 0.0, 1.0)
+		var s16 := int(clampf(v * fade * 0.25, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	return _wav(data)
+
+
+## Meat going onto the fire (cooking at a campfire, Needs.COOKS): a bright hiss that swells and
+## settles with a few fat pops, about 0.9 s. Peak about 0.22 full scale.
+const SIZZLE_LENGTH := 0.9
+const SIZZLE_POPS := [0.18, 0.31, 0.47, 0.62, 0.74]
+
+
+static func sizzle() -> AudioStreamWAV:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7731
+	var data := PackedByteArray()
+	var hp := 0.0
+	var prev := 0.0
+	var n := int(RATE * SIZZLE_LENGTH)
+	for i in n:
+		var t := float(i) / RATE
+		var white := rng.randf_range(-1.0, 1.0)
+		hp = 0.7 * (hp + white - prev) # a simple high-pass: the hiss
+		prev = white
+		var hiss := hp * minf(1.0, t * 8.0) * (0.6 + 0.4 * exp(-t * 3.0))
+		var pop := 0.0
+		for p in SIZZLE_POPS:
+			var dt: float = t - float(p)
+			if dt >= 0.0 and dt < 0.015:
+				pop += white * exp(-dt * 300.0) * 1.2
+		var fade := clampf((SIZZLE_LENGTH - t) / 0.12, 0.0, 1.0)
+		var s16 := int(clampf((hiss * 0.8 + pop) * fade * 0.22, -1.0, 1.0) * 32767.0)
+		data.append(s16 & 0xFF)
+		data.append((s16 >> 8) & 0xFF)
+	return _wav(data)
+
+
 static func _tones(notes: Array, volume: float) -> AudioStreamWAV:
 	var data := PackedByteArray()
 	for n in notes:

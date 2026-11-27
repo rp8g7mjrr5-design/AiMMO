@@ -20,6 +20,7 @@ const DEFAULT_BINDS := {
 	"move_right": [KEY_D, KEY_RIGHT],
 	"interact": [KEY_E],
 	"use_bandage": [KEY_H],
+	"eat": [KEY_F],
 	"place": [KEY_B],
 	"free_look": [KEY_ALT],
 	"swap_shoulder": [KEY_V],
@@ -53,6 +54,7 @@ const SECTIONS := [
 		["Swing (light, heavy)", ["click_use", "click_heavy"]],
 		["Use the workbench", ["interact"]],
 		["Put on a bandage", ["use_bandage"]],
+		["Eat (cook raw meat with E at a lit campfire)", ["eat"]],
 		["Set down a campfire (B, then click)", ["place", "click_use"]],
 	]],
 	["Talking and menus", [
