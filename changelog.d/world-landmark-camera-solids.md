@@ -1,0 +1,1 @@
+- **The camera stays out of the ruins and the wrecks.** Search the farmhouse, the barn, the shipwreck or the fisher's shack and the camera slides in front of the wall or hull instead of looking out from inside it.
