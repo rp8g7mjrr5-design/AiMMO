@@ -10,6 +10,8 @@ extends PanelContainer
 ## - Drag it out of the grid and let go to drop it (it is gone).
 ## - Hover a stack: what it is, how many, what it's for.
 ## - What doesn't fit (an old save's 999 logs) waits under the grid, never lost, until there's room.
+## - Left of the grid your traveller stands facing you with your best kit in hand (PackPreview);
+##   right of it the Craft column makes the hand recipes anywhere (CraftPanel; owner, 2026-11-28).
 ##
 ## The counts and the layout come only from the server (s2c_inventory, s2c_pack). A move
 ## shows at once (the same PackGrid rules the server checks) and the server's s2c_pack has
@@ -21,12 +23,17 @@ extends PanelContainer
 signal closed
 signal move_requested(item: String, index: int, x: int, y: int, turned: bool)
 signal drop_requested(item: String, index: int)
+## Craft was pressed in the craft column: send it to the server (c2s_craft).
+signal craft_requested(recipe_id: String)
 
 const CELL := 50.0 ## one grid cell in px
 const ICON := IconShelf.SLOT_SIZE
 const GRID_W := PackGrid.COLS * CELL
 const GRID_H := PackGrid.ROWS * CELL
-const WIDTH := GRID_W + 36.0 + 12.0 ## the grid, the margins and the leather's own rim
+const GAP := 16.0 ## between the figure, the grid and the craft column
+## The figure, the grid, the craft column, the gaps, the margins and the leather's own rim.
+const WIDTH := PackPreview.SIZE.x + GAP + GRID_W + GAP + CraftPanel.WIDTH + 36.0 + 12.0
+const HEIGHT := 470.0
 const ACCENT := HudStyle.EMBER
 const GOLD := HudStyle.GLOW ## the "you just got this" glow
 const DIM := HudStyle.TEXT_DIM
@@ -44,6 +51,8 @@ var _total_label: Label
 var _empty_label: Label
 var _over_label: Label
 var _grid: Control
+var preview: PackPreview ## your traveller, facing you, holding your best kit
+var crafting: CraftPanel ## basic crafting, right here in the pack
 var _drag := {} ## the stack in hand: {item, index, n, turned, grab: Vector2 (cells)}
 var _mouse := Vector2.ZERO ## in grid coordinates
 
@@ -157,8 +166,8 @@ func setup(theme_res: Theme) -> void:
 	anchor_bottom = 0.5
 	offset_left = -WIDTH * 0.5
 	offset_right = WIDTH * 0.5
-	offset_top = -200
-	offset_bottom = 200
+	offset_top = -HEIGHT * 0.5
+	offset_bottom = HEIGHT * 0.5
 	grow_vertical = Control.GROW_DIRECTION_BOTH
 	add_theme_stylebox_override("panel", HudStyle.panel()) # the satchel leather every window shares (art bible section 9)
 	var margin := MarginContainer.new()
@@ -179,6 +188,23 @@ func setup(theme_res: Theme) -> void:
 	_total_label.modulate = DIM
 	_total_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(_total_label)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", int(GAP))
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(row)
+	preview = PackPreview.new()
+	preview.setup()
+	preview.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(preview)
+	var mid := VBoxContainer.new()
+	mid.add_theme_constant_override("separation", 10)
+	row.add_child(mid)
+	crafting = CraftPanel.new()
+	crafting.icons = icons
+	crafting.setup()
+	crafting.craft_requested.connect(func(id: String): craft_requested.emit(id))
+	row.add_child(crafting)
+	box = mid
 	_grid = Control.new()
 	_grid.custom_minimum_size = Vector2(GRID_W, GRID_H)
 	_grid.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -196,7 +222,7 @@ func setup(theme_res: Theme) -> void:
 	_over_label.custom_minimum_size = Vector2(GRID_W, 0)
 	box.add_child(_over_label)
 	var foot := HBoxContainer.new()
-	box.add_child(foot)
+	(row.get_parent() as VBoxContainer).add_child(foot)
 	var note := Label.new()
 	note.text = HINT
 	note.modulate = DIM
@@ -227,6 +253,10 @@ func refresh() -> void:
 	_over_label.text = over_text(_laid) if pack_known else ""
 	_over_label.visible = _over_label.text != ""
 	_grid.queue_redraw()
+	if crafting:
+		crafting.seed_pack(pack, pack_known)
+		if preview:
+			preview.set_kit(pack)
 
 
 ## The pack as the server sends it (the login character's `inventory`, then every
@@ -253,8 +283,15 @@ func seed_places(p: Variant) -> void:
 	refresh()
 
 
-## Every frame: fades the glow on stacks that just grew.
-func step(delta: float) -> void:
+## Every frame: fades the glow on stacks that just grew; while open, the figure breathes and
+## the craft column follows where you stand (`p`, for the bench recipes).
+func step(delta: float, p: Vector3 = Vector3.INF) -> void:
+	if visible:
+		preview.step(delta)
+		if p != Vector3.INF:
+			crafting.tick(delta, p)
+	elif crafting.is_waiting():
+		crafting.tick(delta, crafting.pos)
 	if _flash.is_empty():
 		return
 	for item in _flash.keys():
@@ -437,6 +474,13 @@ func _draw_stack_face(r: Rect2, item: String, n: int, _turned: bool, font: Font,
 func open() -> void:
 	refresh()
 	visible = true
+	preview.set_live(true)
+
+
+## Your traveller for the figure: name, seed and saved look (Appearance), drawn with `pack`'s
+## best kit in hand. Call on login and when your look changes.
+func set_traveller(name_text: String, seed_value: int, look: Dictionary) -> void:
+	preview.show_traveller(name_text, seed_value, look, pack)
 
 
 func close() -> void:
@@ -444,6 +488,7 @@ func close() -> void:
 		return
 	_drag = {}
 	visible = false
+	preview.set_live(false)
 	closed.emit()
 
 
@@ -463,4 +508,7 @@ func reset() -> void:
 	_drag = {}
 	_flash.clear()
 	_gain.clear()
+	preview.reset()
+	preview.set_live(false)
+	crafting.reset()
 	refresh()
