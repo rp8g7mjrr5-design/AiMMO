@@ -208,6 +208,15 @@ static func scatter_parts(items: Array) -> Array:
 				for tier in 3:
 					var s := 1.0 - tier * 0.25
 					parts.append({"layer": "PineTiers", "xform": Transform3D(basis.scaled(Vector3(s, 1.0, s)), p + Vector3.UP * (2.2 + tier * 1.1) * it.scale), "color": Palette.PINE.lightened(tier * 0.05)})
+			"snag":
+				# A marsh's drowned tree (island v3): a bare grey trunk, taller and thinner, and one
+				# broken limb from the tree's own rotation (no rng draw), so nothing else shifts.
+				var bare := Palette.TRUNK.lerp(Palette.ROCK, 0.45)
+				var tall := basis.scaled(Vector3(0.6, 1.5, 0.6))
+				parts.append({"layer": "Trunks", "xform": Transform3D(tall, p + Vector3.UP * 1.7 * it.scale), "color": bare})
+				var limb := Basis(Vector3.UP, it.rot) * Basis(Vector3.FORWARD, 0.9)
+				var side: Vector3 = Vector3(cos(it.rot), 0.0, sin(it.rot)) * 0.45 * float(it.scale)
+				parts.append({"layer": "Trunks", "xform": Transform3D(limb.scaled(Vector3.ONE * it.scale * 0.35), p + side + Vector3.UP * 2.6 * it.scale), "color": bare.darkened(0.1)})
 			_:
 				var squash := Basis(Vector3.UP, it.rot).scaled(Vector3(it.scale * 1.3, it.scale * 0.8, it.scale))
 				parts.append({"layer": "Rocks", "xform": Transform3D(squash, p + Vector3.UP * 0.2), "color": Palette.ROCK.darkened(rng.randf() * 0.15)})

@@ -265,7 +265,7 @@ static func _is_grassland(_x: float, _z: float, y: float, slope: float) -> bool:
 ## A kingdom's mossy boulders: under its forests and on the stone hills (slope < 1.4).
 static func _is_kingdom_forest_ground(x: float, z: float, y: float) -> bool:
 	var b := WorldGen.biome_for(x, z, y)
-	return b == "forest" or b == "stone_hills"
+	return b == "forest" or b == "stone_hills" or b == "pine_hills"
 
 
 ## A kingdom's wildflowers: the old fields and the moor (slope < 0.5).

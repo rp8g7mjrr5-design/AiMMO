@@ -60,7 +60,7 @@ const KINGDOM_RUIN_CLEAR := 4.0 ## metres past a ruin's pad kept free for the ru
 const KINGDOM_DENSITY := 0.55 ## share of Ashgrove's trees per square metre (most land is open)
 const KINGDOM_MAX := 9000 ## a hard cap on the decorative forest, whatever the size
 ## How likely a spot is kept, per biome: forests are thick, fields and moor mostly open.
-const KINGDOM_KEEP := {"forest": 1.0, "stone_hills": 0.32, "moor": 0.16, "farmland": 0.10}
+const KINGDOM_KEEP := {"forest": 1.0, "stone_hills": 0.32, "moor": 0.16, "farmland": 0.10, "pine_hills": 1.0, "marsh": 0.14}
 
 
 ## How many decorative trees and rocks a world gets for `count` on Ashgrove: the same on
@@ -108,7 +108,7 @@ static func _scatter_kingdom(count: int) -> Array:
 			continue # no forest tree or rock at the beach's edge (owner, 2026-11-27); palms grow there (Flora)
 		var slope := absf(Terrain.height(x + 1.0, z) - y) + absf(Terrain.height(x, z + 1.0) - y)
 		var kind := "rock"
-		if slope < 0.8:
+		if slope < (1.4 if biome == "pine_hills" else 0.8): # pines hold the steep sides of the pine hills
 			match biome:
 				"forest":
 					kind = ("pine" if r < 0.8 else "ash") if y > 16.0 else ("ash" if r < 0.6 else ("pine" if r < 0.9 else "rock"))
@@ -116,6 +116,10 @@ static func _scatter_kingdom(count: int) -> Array:
 					kind = "pine" if r < 0.45 else "rock"
 				"moor":
 					kind = "rock" if r < 0.55 else "pine"
+				"pine_hills":
+					kind = "pine" if r < 0.88 else "rock"
+				"marsh":
+					kind = "snag" if r < 0.55 else "ash" # drowned dead trees and a few alders
 				_:
 					kind = "ash" if r < 0.75 else "rock"
 		if not ResourceNodes.near(Vector3(x, 0.0, z), NODE_CLEARANCE).is_empty():

@@ -25,15 +25,25 @@ static func enabled(rule: String, cfg: Dictionary) -> bool:
 ## Gen version and size always follow `cfg`. Returns the world record, or {} if the store failed.
 static func choose(store: PlayerStore, cfg: Dictionary, now: int, rng_seed: int = -1) -> Dictionary:
 	var cur := store.current_world()
-	if not cur.is_empty() and now < int(cur.wipes_at) and int(cur.gen_version) == int(cfg.get("gen_version", 0)):
+	if not cur.is_empty() and now < int(cur.wipes_at) and same_kind(int(cur.gen_version), int(cfg.get("gen_version", 0))):
 		return cur
 	return roll(store, cfg, now, cur.is_empty(), rng_seed)
 
 
+## Whether a world on generator `a` may keep running for a server configured for `b`: the
+## same version, or two island versions (an island moves to the newest island generator at its
+## next wipe, never mid-month, so nothing built on it ever floats or sinks).
+static func same_kind(a: int, b: int) -> bool:
+	return a == b or (a >= WorldGen.ISLAND and b >= WorldGen.ISLAND)
+
+
 ## Begins a new world after `now`. `first` keeps cfg's seed; otherwise a random one that is
-## never the seed just played.
+## never the seed just played. Every new island after the first rolls on the newest island
+## generator (owner 2026-11-28: biomes and hills arrive with the wipe, no setting to change).
 static func roll(store: PlayerStore, cfg: Dictionary, now: int, first: bool, rng_seed: int = -1) -> Dictionary:
 	var next := cfg.duplicate()
+	if not first and int(cfg.get("gen_version", 0)) >= WorldGen.ISLAND:
+		next.gen_version = WorldGen.LATEST
 	if not first:
 		var rng := RandomNumberGenerator.new()
 		if rng_seed >= 0:

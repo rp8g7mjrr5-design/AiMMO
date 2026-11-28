@@ -35,7 +35,7 @@ const QUALITY_POLL := 0.5
 
 ## How much grass each ground kind grows, 0..1 (ground under a kingdom's biomes; Ashgrove uses heights).
 const DUNE_DENSITY := 0.8 ## at the back of an island's beach
-const BIOME_DENSITY := {"farmland": 1.0, "moor": 0.8, "forest": 0.45, "stone_hills": 0.35}
+const BIOME_DENSITY := {"farmland": 1.0, "moor": 0.8, "forest": 0.45, "stone_hills": 0.35, "pine_hills": 0.3, "marsh": 0.95}
 
 static var _mesh: ArrayMesh
 static var _material: ShaderMaterial

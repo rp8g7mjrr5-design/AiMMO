@@ -21,6 +21,10 @@ const PINE := Color(0.15, 0.27, 0.21) ## dark spruce: pines are the shadows of t
 const MOSS := Color(0.24, 0.33, 0.20) ## damp cushion moss: hollows, shade and lake margins
 const DRY_GRASS := Color(0.50, 0.47, 0.31) ## sun-bleached straw grass on open, sunny ground
 const BARE_EARTH := Color(0.38, 0.31, 0.23) ## worn brown earth where the turf has thinned
+## Island v3's biomes (owner 2026-11-28: "different types of biomes").
+const PINE_FLOOR := Color(0.30, 0.30, 0.21) ## pine hills: needle litter over thin turf, olive going brown
+const MARSH := Color(0.31, 0.34, 0.22) ## marsh sedge: dark wet olive
+const PEAT := Color(0.24, 0.21, 0.17) ## black-brown peat where the marsh is bare and wet
 
 # Emberlight tokens (docs/art_bible.md, section 2). sRGB, like the rest of this file.
 const EMBER := Color("#F2A541") ## the signature glow: anything you can use. Never on plain decoration
@@ -297,7 +301,7 @@ static func _kingdom_ground_at(x: float, z: float, h: float, slope: float, jitte
 		"snow":
 			c = SNOW
 		_:
-			if slope > 0.55:
+			if slope > (0.9 if biome == "pine_hills" else 0.55): # the pine hills keep their turf on steeper sides
 				c = ROCK
 			elif biome == "stone_hills":
 				c = GRASS.lerp(ROCK, 0.45)
@@ -305,14 +309,19 @@ static func _kingdom_ground_at(x: float, z: float, h: float, slope: float, jitte
 				c = FOREST
 			elif biome == "moor":
 				c = GRASS.lerp(MAP_HEATH, 0.55)
+			elif biome == "pine_hills":
+				c = PINE_FLOOR
+			elif biome == "marsh":
+				# Sedge, going to bare peat on the wet low ground by the pools.
+				c = MARSH.lerp(PEAT, 0.6 * (1.0 - smoothstep(Terrain.water_level() + 0.1, Terrain.water_level() + 0.9, h)))
 			else:
 				c = MEADOW
 	c = _jittered(c, jitter)
-	if biome == "water" or biome == "shore" or biome == "snow" or slope > 0.55:
+	if biome == "water" or biome == "shore" or biome == "snow" or slope > (0.9 if biome == "pine_hills" else 0.55):
 		return c
 	_ensure_cover()
 	var n := _cover_noise.get_noise_2d(x, z)
-	var forest := 1.0 if biome == "forest" else 0.0
+	var forest := 1.0 if biome == "forest" or biome == "marsh" or biome == "pine_hills" else 0.0
 	var moss_bias := 0.18 * forest
 	var dry_bias := 0.12 * (1.0 - forest) - 0.25 * forest + (0.12 if biome == "farmland" else 0.0)
 	var moss := smoothstep(0.05, 0.70, n + moss_bias) * COVER_MAX
@@ -322,7 +331,7 @@ static func _kingdom_ground_at(x: float, z: float, h: float, slope: float, jitte
 	c = c.lerp(_jittered(MOSS, jitter), moss)
 	c = c.lerp(_jittered(DRY_GRASS, jitter), dry)
 	c = c.lerp(_jittered(BARE_EARTH, jitter), earth)
-	if WorldGen.is_island():
+	if WorldGen.is_island() and biome != "marsh":
 		# The back of the beach: sand blown into the first metres of turf, so the beach meets
 		# the grass in a soft fringe, not a hard 4 m staircase (owner, 2026-11-27).
 		var m := WorldGen.sand_margin(x, z, h)
