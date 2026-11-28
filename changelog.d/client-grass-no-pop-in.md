@@ -1,0 +1,1 @@
+- **No more grass wall.** Meadows used to stop in a hard line about 30 metres out and pop in as you turned. Now the grass reaches more than twice as far and thins out gently into the distance, a tuft at a time, so it never visibly loads in around you.
