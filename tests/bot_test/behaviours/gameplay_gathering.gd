@@ -9,6 +9,9 @@ extends "res://tests/bot_test/bot_behaviour.gd"
 ##
 ## Only bare-hand wood is worked: stone needs a pickaxe the bots don't carry, and scrub's
 ## plant fibre is spent by client_craft_window's torch presses, which would read as a loss.
+## A torch spends a pine wood too (a bot that looted fibre can make one after its gather), so
+## what the save must hold is the pack the server last sent before logout (s2c_inventory),
+## not the count in the gather reply: a craft the server made is spending, not a lost save.
 ## Nodes the server says are empty (s2c_nodes at login, s2c_node_state live) are skipped, and
 ## each next target is the nearest live one from where the bot stands, so a bot on the far
 ## side of spawn doesn't spend a 15 s login walking to nodes it already knows are spent.
@@ -48,6 +51,7 @@ func setup(net: Node) -> void:
 	net.system_message.connect(_on_system)
 	net.nodes_depleted.connect(_on_nodes_depleted)
 	net.node_state.connect(_on_node_state)
+	net.inventory_changed.connect(_on_inventory)
 
 
 func on_login(reconnect: bool, character: Dictionary) -> void:
@@ -152,6 +156,14 @@ func _on_system(text: String) -> void:
 	else:
 		fail("unexpected gather reply: %s" % text)
 		_active = false
+
+
+## Every s2c_inventory: the server's own pack now. Items we gathered follow it down when the
+## server spends them (a torch press) and up when more arrive, so the reconnect check compares
+## the save with the last pack the server said we had.
+func _on_inventory(items: Dictionary) -> void:
+	for item in _reported:
+		_reported[item] = int(items.get(item, 0))
 
 
 func _on_nodes_depleted(ids: Array) -> void:

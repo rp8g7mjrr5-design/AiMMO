@@ -148,4 +148,6 @@ func test_a_stack_count_fits_its_cell() -> void:
 		most = maxi(most, PackGrid.stack_size(item))
 	var w := font.get_string_size(str(most), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	check(w + 10.0 < PackWindow.CELL * 0.6, "\"%d\" is %.0f px in a %.0f px cell" % [most, w, PackWindow.CELL])
-	check(PackWindow.WIDTH < 640.0, "the window fits beside the world at 1280 px")
+	# Since 2026-11-28 the pack also shows your traveller and the craft column (owner), so it
+	# spans most of a 1280 px screen instead of half of it.
+	check(PackWindow.WIDTH < 1240.0, "the window fits a 1280 px screen")

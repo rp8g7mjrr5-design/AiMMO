@@ -7,8 +7,18 @@ class_name Grass
 ## of grass, and from far away the painted ground texture already reads as turf. The ground
 ## is cut into CELL x CELL metre cells; each cell's tufts come from a pure, deterministic
 ## `cell()` (same world, same tufts, on every machine and every visit), and all the cells in
-## range share one MultiMesh, so grass is one draw call. Tufts shrink into the ground over the
-## last FADE metres of the range, so the edge grows in softly instead of popping.
+## range share one MultiMesh, so grass is one draw call.
+##
+## No edge, no pop-in (owner, 2026-11-28: "I don't like how I can see the grass loading in").
+## Every tuft carries a rank (0..1, its INSTANCE_CUSTOM.x). Out to FULL metres every tuft stands;
+## from there to RANGE the share that stands, `visible_fraction(d)`, falls smoothly to none, and
+## the shader grows a tuft out of the ground as that share passes its rank. So the meadow thins
+## into the painted turf over 40 metres instead of ending in a wall, and walking toward grass
+## thickens it a tuft at a time. A far cell holds only the tufts that could stand there (`cap`,
+## in TIERS), and is rebuilt with more as it comes nearer, before any of them could show. The
+## grass centre eases after the camera instead of jumping when you turn, so new cells always
+## arrive at the thin far edge. Blade mipmaps keep their alpha (`blade_image`), or far tufts
+## would fade to nothing in the mip chain.
 ##
 ## Client only: WorldBuilder adds it; the server and the bots never build art. Nothing about
 ## grass is saved, so changing it never touches player data. The Graphics setting thins it
@@ -18,17 +28,24 @@ class_name Grass
 const SEED_OFFSET := 509
 const CELL := 8.0 ## metres per cell side
 const GRID := 1.0 ## metres between ground samples inside a cell (height, colour, where grass grows)
-const RANGE := 24.0 ## metres from the grass centre where the last tufts stand
-const FADE := 7.0 ## metres over which tufts shrink into the ground at the edge of the range
-const AHEAD := 9.0 ## metres the grass centre sits ahead of the camera, so the range covers what you see
+const FULL := 12.0 ## metres from the grass centre within which every tuft stands
+const RANGE := 52.0 ## metres from the grass centre where the last tufts stand
+const AHEAD := 8.0 ## metres the grass centre sits ahead of the camera, so the range covers what you see
+const CENTER_RATE := 1.5 ## 1/s: how fast the centre eases after the camera (turning never jumps it)
+const THIN := 2.0 ## how fast the meadow thins past FULL: the share standing is (1 - smoothstep)^THIN
+const GROW := 0.1 ## share of the rank over which one tuft grows out of the ground (no pop)
+const FAR_SCALE := 0.5 ## far tufts stand this much bigger, so the thinner far meadow still reads
+## Rank caps a cell can be built with, smallest first: a cell holds the tufts ranked under its cap.
+const TIERS: Array[float] = [0.02, 0.04, 0.07, 0.1, 0.14, 0.19, 0.26, 0.34, 0.44, 0.56, 0.7, 0.85, 1.0]
+const TIER_MARGIN := 2.0 ## metres nearer than a cell's closest point its tier is chosen for
 const DENSITY := 5.0 ## tufts per square metre on open meadow at full Graphics
-const BUILD_PER_FRAME := 2 ## cells generated per frame once the first fill is done
+const BUILD_MS := 1.5 ## milliseconds a frame may spend building cells once the first fill is done (one at least)
 const WATER_CLEAR := 1.0 ## metres above the water before grass grows (shores stay silt)
 const MAX_SLOPE := 0.45 ## 1 - normal.y: steeper ground is rock and earth
 const ROAD_CLEAR := 1.0 ## metres beyond a kingdom road's edge
 const TUFT_W := 0.55
 const TUFT_H := 0.5
-const FLOATS := 16 ## per instance in the MultiMesh buffer: 12 transform + 4 colour
+const FLOATS := 20 ## per instance in the MultiMesh buffer: 12 transform + 4 colour + 4 custom (rank)
 
 const QUALITY_SCRIPT := "res://client/quality.gd"
 const QUALITY_POLL := 0.5
@@ -42,18 +59,22 @@ static var _material: ShaderMaterial
 static var _patch: FastNoiseLite
 
 
-## The tufts of one cell, as a MultiMesh buffer (FLOATS per tuft: a 3x4 transform, then a
-## linear colour). Pure: depends only on the world, the cell and `density` (0..1, Graphics).
-static func cell(cx: int, cz: int, density: float = 1.0) -> PackedFloat32Array:
-	var out := PackedFloat32Array()
-	if density <= 0.0:
-		return out
+## The tufts of one cell, as a MultiMesh buffer (FLOATS per tuft: a 3x4 transform, a linear
+## colour, then the tuft's rank and three zeros). Pure: depends only on the world, the cell,
+## `density` (0..1, Graphics) and `cap` (keep only tufts ranked under it; the same tufts in the
+## same order as with a higher cap, minus the rest).
+static func cell(cx: int, cz: int, density: float = 1.0, cap: float = 1.0) -> PackedFloat32Array:
+	return tufts(cx, cz, samples(cx, cz), density, cap)
+
+
+## The ground under one cell, sampled once per GRID metres: heights (with a one-sample border,
+## for normals), how much grass grows and its colour. The slow half of `cell()`, so a cell that
+## is rebuilt with a higher cap as you walk toward it reuses it.
+static func samples(cx: int, cz: int) -> Dictionary:
 	var n := int(ceil(CELL / GRID)) + 1
 	var x0 := cx * CELL
 	var z0 := cz * CELL
-	# Sample the ground once per GRID metres (heights, how much grass grows, its colour), then
-	# place tufts between the samples. Terrain.height and the palette are too slow to call for
-	# every tuft.
+	# Terrain.height and the palette are too slow to call for every tuft.
 	var hs := PackedFloat32Array()
 	hs.resize((n + 2) * (n + 2))
 	for j in n + 2:
@@ -61,7 +82,7 @@ static func cell(cx: int, cz: int, density: float = 1.0) -> PackedFloat32Array:
 			hs[j * (n + 2) + i] = Terrain.height(x0 + (i - 1) * GRID, z0 + (j - 1) * GRID)
 	var grow := PackedFloat32Array()
 	grow.resize(n * n)
-	var cols: Array[Color] = []
+	var cols := PackedColorArray()
 	cols.resize(n * n)
 	var any := false
 	for j in n:
@@ -80,8 +101,20 @@ static func cell(cx: int, cz: int, density: float = 1.0) -> PackedFloat32Array:
 			grow[j * n + i] = w
 			cols[j * n + i] = c
 			any = any or w > 0.0
-	if not any:
+	return {"hs": hs, "grow": grow, "cols": cols, "any": any}
+
+
+## Places a cell's tufts between its `samples()`.
+static func tufts(cx: int, cz: int, smp: Dictionary, density: float = 1.0, cap: float = 1.0) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	if density <= 0.0 or cap <= 0.0 or not smp.any:
 		return out
+	var n := int(ceil(CELL / GRID)) + 1
+	var x0 := cx * CELL
+	var z0 := cz * CELL
+	var hs: PackedFloat32Array = smp.hs
+	var grow: PackedFloat32Array = smp.grow
+	var cols: PackedColorArray = smp.cols
 	_ensure_patch()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(Vector3i(cx, cz, int(WorldGen.config().seed) + SEED_OFFSET))
@@ -93,6 +126,9 @@ static func cell(cx: int, cz: int, density: float = 1.0) -> PackedFloat32Array:
 		var keep := rng.randf()
 		var s := rng.randf_range(0.75, 1.15)
 		var tone := rng.randf()
+		var rank := rng.randf()
+		if rank >= cap:
+			continue
 		var gx := fx / GRID
 		var gz := fz / GRID
 		var i0 := mini(int(gx), n - 2)
@@ -100,6 +136,8 @@ static func cell(cx: int, cz: int, density: float = 1.0) -> PackedFloat32Array:
 		var u := gx - i0
 		var v := gz - j0
 		var w := lerpf(lerpf(grow[j0 * n + i0], grow[j0 * n + i0 + 1], u), lerpf(grow[(j0 + 1) * n + i0], grow[(j0 + 1) * n + i0 + 1], u), v)
+		if w <= 0.0:
+			continue
 		var x := x0 + fx
 		var z := z0 + fz
 		var p := _patch.get_noise_2d(x, z) # meadows in clumps: thick patches, thin gaps
@@ -118,8 +156,35 @@ static func cell(cx: int, cz: int, density: float = 1.0) -> PackedFloat32Array:
 		var tall := s * lerpf(0.8, 1.35, clampf(0.5 + p, 0.0, 1.0))
 		var b := Basis(Vector3.UP, rot).scaled(Vector3(s, tall, s))
 		out.append_array([b.x.x, b.y.x, b.z.x, x, b.x.y, b.y.y, b.z.y, y - 0.03, b.x.z, b.y.z, b.z.z, z,
-			lin.r, lin.g, lin.b, 1.0])
+			lin.r, lin.g, lin.b, 1.0, rank, 0.0, 0.0, 0.0])
 	return out
+
+
+## The share of tufts that stand `d` metres from the grass centre: all of them out to FULL,
+## easing to none at RANGE, most of the thinning in the first half (far tufts are fewer but
+## stand bigger, FAR_SCALE, so the far meadow still reads as grass for half the tufts). The shader's `visible` is the same curve.
+static func visible_fraction(d: float) -> float:
+	return pow(1.0 - smoothstep(FULL, RANGE, d), THIN)
+
+
+## The rank cap a cell needs when its nearest point is `d` metres from the grass centre: the
+## smallest tier over what could stand TIER_MARGIN metres nearer, so it is rebuilt before any
+## tuft it lacks could show; 0 where nothing could.
+static func tier_cap(d: float) -> float:
+	var need := visible_fraction(d - TIER_MARGIN)
+	if need <= 0.0:
+		return 0.0 # nothing stands that far out: the cell stays empty
+	for t in TIERS:
+		if t >= need:
+			return t
+	return 1.0
+
+
+## Distance from a point to the nearest point of a cell, in the ground plane.
+static func cell_distance(c: Vector2i, center: Vector3) -> float:
+	var px := clampf(center.x, c.x * CELL, (c.x + 1) * CELL)
+	var pz := clampf(center.z, c.y * CELL, (c.y + 1) * CELL)
+	return Vector2(px - center.x, pz - center.z).length()
 
 
 ## How much grass grows at a ground point, 0..1 (before the patch noise and the colour test).
@@ -177,6 +242,7 @@ static func build() -> Node3D:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
+	mm.use_custom_data = true # x: the tuft's rank
 	mm.mesh = mesh()
 	mmi.multimesh = mm
 	mmi.material_override = material()
@@ -215,6 +281,8 @@ static func mesh() -> ArrayMesh:
 
 ## The blade sheet: RGBA, alpha cut. Brightness only (the colour comes from the ground): dark
 ## roots, lighter tips, about 28 blades of different heights and leans across 64 x 32 texels.
+## Its mipmaps keep the blades' coverage (`coverage_mips`): averaged mips thin the alpha below
+## the cut, so tufts a few dozen metres out vanished in the mip chain instead of thinning out.
 static func blade_image() -> Image:
 	var w := 64
 	var h := 32
@@ -237,8 +305,47 @@ static func blade_image() -> Image:
 			im.set_pixel(x, y, Color(v, v, v, 1.0))
 			if t < 0.45 and x + 1 < w: # blades are two texels wide at the root
 				im.set_pixel(x + 1, y, Color(v * 0.85, v * 0.85, v * 0.85, 1.0))
-	im.generate_mipmaps()
-	return im
+	return coverage_mips(im)
+
+
+## An RGBA8 image with mipmaps where each smaller level's texel is opaque if any texel under it
+## is (its brightness the average of the opaque ones): thin alpha-cut shapes stay solid at a
+## distance instead of averaging away below the cut.
+static func coverage_mips(base: Image) -> Image:
+	var w := base.get_width()
+	var h := base.get_height()
+	var data := base.get_data()
+	var all := PackedByteArray(data)
+	var level := data
+	while w > 1 or h > 1:
+		var nw := maxi(1, w / 2)
+		var nh := maxi(1, h / 2)
+		var next := PackedByteArray()
+		next.resize(nw * nh * 4)
+		for y in nh:
+			for x in nw:
+				var sum := Vector3.ZERO
+				var count := 0
+				for dy in 2:
+					for dx in 2:
+						var sx := mini(x * 2 + dx, w - 1)
+						var sy := mini(y * 2 + dy, h - 1)
+						var o := (sy * w + sx) * 4
+						if level[o + 3] > 0:
+							sum += Vector3(level[o], level[o + 1], level[o + 2])
+							count += 1
+				var q := (y * nw + x) * 4
+				if count > 0:
+					sum /= count
+					next[q] = int(sum.x)
+					next[q + 1] = int(sum.y)
+					next[q + 2] = int(sum.z)
+					next[q + 3] = 255
+		all.append_array(next)
+		level = next
+		w = nw
+		h = nh
+	return Image.create_from_data(base.get_width(), base.get_height(), true, Image.FORMAT_RGBA8, all)
 
 
 ## Grass's own material (one more in the frame, art bible section 7): Emberlight's banded light
@@ -252,8 +359,11 @@ static func material() -> ShaderMaterial:
 	_material = ShaderMaterial.new()
 	_material.shader = sh
 	_material.set_shader_parameter("blades", ImageTexture.create_from_image(blade_image()))
+	_material.set_shader_parameter("full_end", FULL)
 	_material.set_shader_parameter("range_end", RANGE)
-	_material.set_shader_parameter("fade", FADE)
+	_material.set_shader_parameter("thin", THIN)
+	_material.set_shader_parameter("grow_band", GROW)
+	_material.set_shader_parameter("far_scale", FAR_SCALE)
 	return _material
 
 
@@ -272,8 +382,11 @@ global uniform float ember_night;
 
 uniform sampler2D blades : filter_nearest_mipmap, hint_default_white;
 uniform vec3 center = vec3(0.0); // the grass centre (Grass sets it every frame)
-uniform float range_end = 24.0;
-uniform float fade = 7.0;
+uniform float full_end = 12.0;
+uniform float range_end = 52.0;
+uniform float thin = 2.0;
+uniform float grow_band = 0.1;
+uniform float far_scale = 0.5;
 uniform float sway = 0.07; // metres the tips move in the wind
 uniform float shade_strength = 0.30;
 uniform float warmth = 0.10;
@@ -282,12 +395,17 @@ uniform float night_shade = 1.4;
 
 $COMPAT_GLSL
 varying float tip;
+varying float distant;
 
 void vertex() {
 	vec3 origin = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 	float d = length(origin.xz - center.xz);
-	float grow = 1.0 - smoothstep(range_end - fade, range_end, d);
-	VERTEX *= vec3(mix(0.4, 1.0, grow), grow, mix(0.4, 1.0, grow));
+	// Grass.visible_fraction: the share of tufts that stand here. A tuft grows out of the
+	// ground as that share passes its rank, so the meadow thins out with distance, no edge.
+	float far = smoothstep(full_end, range_end, d);
+	float grow = clamp((pow(1.0 - far, thin) - INSTANCE_CUSTOM.x) / grow_band, 0.0, 1.0);
+	VERTEX *= vec3(mix(0.4, 1.0, grow), grow, mix(0.4, 1.0, grow)) * (1.0 + far_scale * far);
+	distant = far;
 	tip = 1.0 - UV.y;
 	float phase = TIME * 1.3 + origin.x * 0.37 + origin.z * 0.23;
 	float gust = 0.6 + 0.4 * sin(TIME * 0.31 + origin.x * 0.05);
@@ -301,7 +419,9 @@ void fragment() {
 	if (b.a < 0.4) {
 		discard;
 	}
-	ALBEDO = COLOR.rgb * b.r * 1.15;
+	// Far blades lose their dark roots and take the ground's own tone, so the thinning meadow
+	// melts into the painted turf instead of reading as a dark band.
+	ALBEDO = COLOR.rgb * mix(b.r * 1.15, 0.92, distant * 0.8);
 	float green = smoothstep(-0.02, 0.10, ALBEDO.g - ALBEDO.r);
 	ALBEDO = mix(ALBEDO, vec3(dot(ALBEDO, vec3(0.299, 0.587, 0.114))), ember_night * night_desat * green);
 	ROUGHNESS = 1.0;
@@ -333,16 +453,22 @@ static func _ensure_patch() -> void:
 	_patch.frequency = 0.07
 
 
-## The node that follows the camera: keeps the cells in range generated (a couple a frame),
-## joins them into the one MultiMesh, and moves the fade centre.
+## The node that follows the camera: eases the grass centre after it, keeps the cells in range
+## generated (a couple a frame) at the tier their distance needs, and joins them into the one
+## MultiMesh.
 class _Field:
 	extends Node3D
 	var tufts: MultiMeshInstance3D
-	var cache := {} ## Vector2i -> PackedFloat32Array
+	var ground := {} ## Vector2i -> Grass.samples(), the slow half of a cell
+	var cache := {} ## Vector2i -> PackedFloat32Array, the cell's tufts at its built cap
+	var caps := {} ## Vector2i -> float, the cap each cached cell was built with
 	var shown: Array[Vector2i] = []
+	var dirty := false
 	var density := -1.0
 	var poll := 0.0
 	var filled := false
+	var center := Vector3.ZERO
+	var has_center := false
 
 	func _process(delta: float) -> void:
 		var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
@@ -355,21 +481,39 @@ class _Field:
 			if not is_equal_approx(d, density):
 				density = d
 				cache.clear()
+				caps.clear()
 				shown.clear()
 				filled = false
 		var fwd := -cam.global_transform.basis.z
 		var flat := Vector3(fwd.x, 0.0, fwd.z)
 		flat = flat.normalized() if flat.length() > 0.01 else Vector3.ZERO
-		var center := cam.global_position + flat * Grass.AHEAD
+		var target := cam.global_position + flat * Grass.AHEAD
+		# Ease after the camera, so turning round slides the centre across instead of jumping it
+		# (cells then arrive at the thin far edge); a teleport or a respawn snaps it.
+		if not has_center or center.distance_to(target) > Grass.RANGE:
+			center = target
+			has_center = true
+		else:
+			center = center.lerp(target, 1.0 - exp(-Grass.CENTER_RATE * delta))
 		(tufts.material_override as ShaderMaterial).set_shader_parameter("center", center)
 		var want := Grass.cells_near(center)
 		var built := 0
+		var t0 := Time.get_ticks_usec()
 		for c in want:
-			if cache.has(c):
+			var cap := Grass.tier_cap(Grass.cell_distance(c, center))
+			if cache.has(c) and caps[c] >= cap:
 				continue
-			if filled and built >= Grass.BUILD_PER_FRAME:
-				break
-			cache[c] = Grass.cell(c.x, c.y, density)
+			if cap <= 0.0: # out past where anything stands: no need to sample its ground
+				cache[c] = PackedFloat32Array()
+				caps[c] = 0.0
+				continue
+			if filled and built > 0 and Time.get_ticks_usec() - t0 > Grass.BUILD_MS * 1000.0:
+				break # nearest first: the nearer cells are in, the rest wait a frame
+			if not ground.has(c):
+				ground[c] = Grass.samples(c.x, c.y)
+			cache[c] = Grass.tufts(c.x, c.y, ground[c], density, cap)
+			caps[c] = cap
+			dirty = true
 			built += 1
 		filled = true
 		var ready: Array[Vector2i] = []
@@ -377,18 +521,21 @@ class _Field:
 			if cache.has(c):
 				ready.append(c)
 		ready.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.x < b.x or (a.x == b.x and a.y < b.y))
-		if ready == shown:
+		if ready == shown and not dirty:
 			return
 		shown = ready
+		dirty = false
 		var buf := PackedFloat32Array()
 		for c in ready:
 			buf.append_array(cache[c])
 		# Forget cells well out of range (turning around brings the near ones straight back).
 		var forget := Grass.RANGE + Grass.CELL * 2.5
-		for c in cache.keys():
+		for c in cache.keys() + ground.keys():
 			var mid := Vector2((c.x + 0.5) * Grass.CELL, (c.y + 0.5) * Grass.CELL)
 			if mid.distance_to(Vector2(center.x, center.z)) > forget:
+				ground.erase(c)
 				cache.erase(c)
+				caps.erase(c)
 		var mm := tufts.multimesh
 		mm.instance_count = 0
 		mm.instance_count = buf.size() / Grass.FLOATS
