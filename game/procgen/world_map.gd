@@ -1,5 +1,5 @@
 class_name WorldMap
-## Paints a generated world (WorldGen, gen_version 1 or the island, 2) as a small top-down map: relief from
+## Paints a generated world (WorldGen, gen_version 1 or the island, 2 and 3) as a small top-down map: relief from
 ## the height field lit from the north-west, ground by biome, water, the river, the king's
 ## roads, ruin sites marked by grade, and the spawn plot or the island's beach landings. Pure Image maths, no textures; the
 ## client's map window (client backlog, Phase 1 part 3) can show it as it is, and world uses
@@ -70,6 +70,10 @@ static func ground(x: float, z: float, h: float, wl: float, kingdom: bool) -> Co
 			return Palette.FOREST
 		"moor":
 			return Palette.MAP_HEATH
+		"pine_hills":
+			return Palette.PINE.lerp(Palette.FOREST, 0.5)
+		"marsh":
+			return Palette.MARSH.lerp(Palette.PEAT, 0.3)
 		_:
 			return Palette.MEADOW.lerp(Palette.DRY_GRASS, 0.35)
 

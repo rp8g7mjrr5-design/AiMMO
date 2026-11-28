@@ -24,6 +24,14 @@ class_name IslandGen
 ##    on the roads.
 ## Plain data and pure functions only (the server reads this file). Frozen once a live
 ## world runs on it: new looks go in a new gen_version.
+##
+## Version 3 (`L.v` 3, owner 2026-11-28: "The map feels really flat ... We need to have
+## different types of biomes ... forests and flatlands and others") keeps every step above
+## and changes only the land and the biomes (`_land3`, `_biome3`): meadows stay low and gently
+## rolling by the sea, broadleaf forest rolls a little more, **pine hills** rise in patches as
+## real 15 to 40 m hills, **marsh** lies flat and wet along stretches of river and lake shore
+## with pools in it, the moor rolls in long swells, and the heart's crags stand twice as tall.
+## Version 2 islands are untouched (their branches are the old code, line for line).
 
 const SIZE_MIN := 1500.0
 const SIZE_MAX := 4000.0
@@ -40,6 +48,17 @@ const LANDING_BLEND := 24.0
 const REF_AREA := 9.0e6 ## counts in LOCATIONS are for a 3 km island (9 km²)
 const SPACING := 150.0 ## metres between two locations' edges on a 3 km island
 const SPACING_HIGH := 300.0 ## between two grade 3 or 4 locations
+
+## Version 3's land (owner 2026-11-28). Heights in metres.
+const V3_BASE_RISE := 8.0 ## how much the land rises from the shore to the heart
+const V3_SWELL := Vector2(1.2, 9.0) ## broad swells: this high by the sea, this high at the heart
+const V3_HILL_FLOOR := 9.0 ## a pine-hill patch's lowest hill
+const V3_HILL_PEAK := 30.0 ## and how much more its tallest crests add
+const V3_MOUNT := Vector2(16.0, 46.0) ## the heart: its base lift, and its crags on top
+const V3_MARSH_H := 1.0 ## the marsh floor's mean height above the water
+const V3_POOL := 2.4 ## how deep the pool noise cuts (anything under the water is a pool)
+const V3_MARSH_NEAR := Vector2(30.0, 160.0) ## metres from a river or lake where marsh fades out
+const V3_SITE_SLACK := 0.28 ## a site's pad may sit on ground this much (x its radius) more uneven than v2's
 
 ## The location pool (the map plan, 2026-11-26). Each entry:
 ## grade, radius (the flat pad, metres), band (inland range), ground (biomes it may stand on,
@@ -88,6 +107,13 @@ static func build(L: Dictionary, seed: int, size: float) -> void:
 	rng.seed = seed * 6151 + 29
 	L.center = Vector2(rng.randf_range(-1.0, 1.0), rng.randf_range(-1.0, 1.0)) * half * 0.04
 	L.heart = L.center + Vector2.from_angle(rng.randf() * TAU) * L.radius * rng.randf_range(0.05, 0.2)
+	if int(L.get("v", 2)) >= 3:
+		# Own seed offsets (20+), so version 2's noises and rng draws are unchanged.
+		L.hills = WorldGen._noise(20, 1.0 / 1000.0, 2) ## where the pine hills are
+		L.knolls = WorldGen._noise(21, 1.0 / 200.0, 3) ## the hills themselves
+		L.swell = WorldGen._noise(22, 1.0 / 420.0, 2) ## broad rolls everywhere
+		L.fen = WorldGen._noise(23, 1.0 / 520.0, 2) ## where the marsh is
+		L.pool = WorldGen._noise(24, 1.0 / 38.0, 2) ## the marsh's pools and hummocks
 	_place_lakes(L, rng, size)
 	_place_rivers(L, rng, size)
 	_place_landings(L, rng, size)
@@ -141,6 +167,8 @@ static func cliff(L: Dictionary, x: float, z: float) -> float:
 
 ## The land before the flat pads.
 static func land(L: Dictionary, x: float, z: float) -> float:
+	if int(L.get("v", 2)) >= 3:
+		return _land3(L, x, z)
 	var s := shape(L, x, z)
 	var inl := clampf(1.0 - s, 0.0, 1.0)
 	var u := WorldGen._uplift(x, z)
@@ -176,6 +204,8 @@ static func land(L: Dictionary, x: float, z: float) -> float:
 static func biome_for(L: Dictionary, x: float, z: float, h: float) -> String:
 	if h < WorldGen.KINGDOM_WATER - 0.2:
 		return "water"
+	if int(L.get("v", 2)) >= 3:
+		return _biome3(L, x, z, h)
 	var inl := inland(L, x, z) + (L.wobble as FastNoiseLite).get_noise_2d(x * 1.3, z * 1.3) * 0.06
 	if h < WorldGen.KINGDOM_WATER + 1.0 or (h < 2.2 and inl < 0.06):
 		return "shore"
@@ -208,6 +238,114 @@ static func sand_margin(L: Dictionary, x: float, z: float, h: float) -> float:
 	var low := (h - (WorldGen.KINGDOM_WATER + 1.0)) / 0.8
 	var coast := maxf((h - 2.2) / 0.8, (inl - 0.06) / 0.014)
 	return clampf(minf(low, coast), 0.0, 1.0)
+
+
+# ---------------------------------------------------------------------------------------
+# Version 3: biomes with their own relief (owner 2026-11-28)
+
+## How much of a pine-hill patch (x, z) is in, 0..1: patches of the hills noise, never on the
+## coast's first band nor in the heart's crags (which have their own relief).
+static func hill_weight(L: Dictionary, x: float, z: float, inl: float, mount: float) -> float:
+	var n: float = (L.hills as FastNoiseLite).get_noise_2d(x, z)
+	return smoothstep(0.02, 0.24, n) * smoothstep(0.10, 0.30, inl) * (1.0 - mount)
+
+
+## 0..1: how close the heart is (the crags), as version 2's `mount`.
+static func _mount(L: Dictionary, x: float, z: float) -> float:
+	var dh: float = Vector2(x, z).distance_to(L.heart) / (L.radius * HEART_REACH)
+	return smoothstep(0.0, 1.0, 1.0 - dh)
+
+
+## How much of a marsh (x, z) is, 0..1: where the fen noise is high, mostly along rivers and
+## lake shores, on low ground (not the hills, the heart or the beach).
+static func marsh_weight(L: Dictionary, x: float, z: float, inl: float, hill: float, mount: float) -> float:
+	var f: float = (L.fen as FastNoiseLite).get_noise_2d(x, z)
+	var fen := smoothstep(0.08, 0.30, f)
+	if fen <= 0.0:
+		return 0.0
+	var d := WorldGen._sample(L.river_d, x, z)
+	for l in L.lakes:
+		d = minf(d, Vector2(x, z).distance_to(l.center) - float(l.radius))
+	var near := 1.0 - smoothstep(V3_MARSH_NEAR.x, V3_MARSH_NEAR.y, d)
+	# Strong fen marks a marsh even away from water (a fen in a hollow); weak needs a river.
+	var w := fen * maxf(near, smoothstep(0.30, 0.45, f) * 0.85)
+	w *= smoothstep(0.07, 0.14, inl) * (1.0 - smoothstep(0.45, 0.62, inl))
+	return w * (1.0 - hill) * (1.0 - mount)
+
+
+static func _land3(L: Dictionary, x: float, z: float) -> float:
+	var s := shape(L, x, z)
+	var inl := clampf(1.0 - s, 0.0, 1.0)
+	var u := WorldGen._uplift(x, z)
+	var road_k := 1.0 - smoothstep(WorldGen.ROAD_HALF_WIDTH, WorldGen.ROAD_SOFT, WorldGen._sample(L.road_d, x, z))
+	var soft := 1.0 - 0.85 * road_k # only the small bumps go: the roads climb the hills, never cut trenches
+	var detail: float = (L.detail as FastNoiseLite).get_noise_2d(x, z) * (1.0 + 3.0 * u * inl)
+	var swell: float = (L.swell as FastNoiseLite).get_noise_2d(x, z) * lerpf(V3_SWELL.x, V3_SWELL.y, smoothstep(0.05, 0.6, inl))
+	var mount := _mount(L, x, z)
+	var rr := 1.0 - absf((L.ridge as FastNoiseLite).get_noise_2d(x, z))
+	var crags := mount * (V3_MOUNT.x + V3_MOUNT.y * rr * rr * rr * (0.5 + 0.7 * u))
+	var hill := hill_weight(L, x, z, inl, mount)
+	var hills := 0.0
+	if hill > 0.0:
+		var b := 1.0 - absf((L.knolls as FastNoiseLite).get_noise_2d(x, z)) # rounded crests
+		hills = hill * (V3_HILL_FLOOR + V3_HILL_PEAK * b * b)
+	var h := 2.0 + V3_BASE_RISE * inl + swell + hills + crags + detail * soft
+	var wet := marsh_weight(L, x, z, inl, hill, mount)
+	if wet > 0.0:
+		var pool: float = (L.pool as FastNoiseLite).get_noise_2d(x, z)
+		h = lerpf(h, V3_MARSH_H + pool * V3_POOL, smoothstep(0.0, 0.7, wet))
+	# The coast, the lakes and the rivers, as version 2.
+	var c := cliff(L, x, z)
+	var beach := smoothstep(0.93, 0.99, s) * (1.0 - c)
+	h = lerpf(h, BEACH_H, beach)
+	var sea := smoothstep(0.995, 1.08 - 0.05 * c, s)
+	h = lerpf(h, SEA_DEPTH, sea)
+	for l in L.lakes:
+		var d: float = Vector2(x, z).distance_to(l.center)
+		var lr: float = l.radius * (1.0 + (L.wobble as FastNoiseLite).get_noise_2d(x * 2.0, z * 2.0) * 0.15)
+		var k := 1.0 - smoothstep(lr * 0.55, lr * 1.15 + 6.0, d)
+		if k > 0.0:
+			h = lerpf(h, WorldGen.LAKE_BED, k)
+	var rd := WorldGen._sample(L.river_d, x, z)
+	if rd < WorldGen.RIVER_CAP:
+		var bank := clampf(10.0 + 0.5 * maxf(h - WorldGen.KINGDOM_WATER, 0.0), 10.0, 40.0)
+		var k := 1.0 - smoothstep(WorldGen.RIVER_HALF_WIDTH, WorldGen.RIVER_HALF_WIDTH + bank, rd)
+		h = lerpf(h, minf(h, WorldGen.RIVER_BED), k)
+	return h
+
+
+## Version 3's biomes. Water, shore and snow as version 2; then the crags (stone hills), the
+## marsh, the pine hills, and the lowland by moisture: meadow ("farmland") by the sea, broadleaf
+## forest in the damp, moor further in.
+static func _biome3(L: Dictionary, x: float, z: float, h: float) -> String:
+	var inl := inland(L, x, z) + (L.wobble as FastNoiseLite).get_noise_2d(x * 1.3, z * 1.3) * 0.06
+	if h < WorldGen.KINGDOM_WATER + 1.0 or (h < 2.2 and inl < 0.06):
+		# Low ground inland in a marsh is marsh (its hummocks), not beach.
+		if inl > 0.08 and h > WorldGen.KINGDOM_WATER - 0.2:
+			var i0 := inland(L, x, z)
+			var m0 := _mount(L, x, z)
+			if marsh_weight(L, x, z, i0, hill_weight(L, x, z, i0, m0), m0) > 0.35:
+				return "marsh"
+		return "shore"
+	var i := inland(L, x, z)
+	var mount := _mount(L, x, z)
+	if h > WorldGen.SNOW_LINE:
+		# Old snow on the heart's peaks only; a pine hill's crest that high is bare rock.
+		return "snow" if mount > 0.25 else "stone_hills"
+	var u := WorldGen._uplift(x, z)
+	if (mount > 0.25 and h > WorldGen.SNOW_LINE - 11.0) or (mount > 0.35 and h > 22.0 + 6.0 * u):
+		return "stone_hills"
+	var hill := hill_weight(L, x, z, i, mount)
+	if marsh_weight(L, x, z, i, hill, mount) > 0.35:
+		return "marsh"
+	if hill > 0.4:
+		return "pine_hills"
+	var m: float = (L.moist as FastNoiseLite).get_noise_2d(x, z)
+	if inl < 0.32:
+		return "forest" if m > 0.22 else "farmland"
+	if inl < 0.6:
+		return "forest" if m > -0.05 else "moor"
+	return "moor" if m < 0.05 else "forest"
 
 
 # ---------------------------------------------------------------------------------------
@@ -427,9 +565,10 @@ static func _site_ok(L: Dictionary, p: Vector2, r: float, grade: int, near: Stri
 			g = SPACING_HIGH * spacing / SPACING
 		if p.distance_to(pad.c) < pad.r + r + g:
 			return false
+	var even := 6.0 + r * (0.12 + (V3_SITE_SLACK if int(L.get("v", 2)) >= 3 else 0.0))
 	for k in 6:
 		var q := p + Vector2.from_angle(TAU * k / 6.0) * r
-		if absf(land(L, q.x, q.y) - h) > 6.0 + r * 0.12:
+		if absf(land(L, q.x, q.y) - h) > even:
 			return false
 	return true
 

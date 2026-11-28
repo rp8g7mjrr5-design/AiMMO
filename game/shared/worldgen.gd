@@ -11,6 +11,10 @@ class_name WorldGen
 ## - `gen_version` 2 is the island (`IslandGen`, owner 2026-11-26): sea all round, 1.5 to 4 km
 ##   (3 km by default), beach landings instead of a spawn plot, and locations rolled from a
 ##   pool with their own layout seeds. It reuses this file's helpers through the same `_L`.
+## - `gen_version` 3 is the same island with biomes and real relief (owner 2026-11-28): pine
+##   hills, marsh by the rivers and lakes, flat meadows by the sea, taller crags at the heart.
+##   Version 2 stays bit-for-bit what it was, so a live version 2 world never shifts under its
+##   campfires; a wiping island moves to 3 at its next wipe.
 ## - `gen_version` 1 is a generated stretch of the fallen kingdom, about 1 to 1.5 km across:
 ##   a rim of hills (or hills and a coast), a river to the sea or a lake, lakes, forest, moor,
 ##   wild farmland and stone hills, the king's roads between graded ruin sites, and a flat
@@ -26,7 +30,11 @@ class_name WorldGen
 const ASHGROVE := 0
 const KINGDOM := 1
 const ISLAND := 2 ## the island (IslandGen), owner 2026-11-26
-const LATEST := ISLAND
+## The island with biomes and real hills (IslandGen, owner 2026-11-28: "The map feels really
+## flat ... We need to have different types of biomes"): pine hills, marsh, flatter meadows,
+## taller highlands. A live island moves onto it at its next wipe (WorldWipe.roll).
+const ISLAND_HILLS := 3
+const LATEST := ISLAND_HILLS
 
 const ASHGROVE_SIZE := 512.0
 const KINGDOM_SIZE_MIN := 800.0
@@ -87,15 +95,19 @@ const RUIN_COUNTS := {1: 5, 2: 3, 3: 2, 4: 1}
 const RUIN_BANDS := {1: [0.15, 0.6], 2: [0.45, 0.9], 3: [0.75, 1.2]}
 const RUIN_GAP := 0.14 ## fraction of the half size between two ruins' edges
 
-const BIOMES := ["forest", "moor", "farmland", "stone_hills"]
+const BIOMES := ["forest", "moor", "farmland", "stone_hills", "pine_hills", "marsh"] ## the last two: island v3 only
 ## Which node kinds a biome grows, and how many spots per km² it aims for.
 const BIOME_NODES := {
 	"forest": {"ash": 0.45, "pine": 0.40, "stone": 0.10, "scrub": 0.05},
 	"farmland": {"ash": 0.50, "pine": 0.10, "stone": 0.36, "scrub": 0.04},
 	"moor": {"ash": 0.10, "pine": 0.33, "stone": 0.55, "scrub": 0.02},
 	"stone_hills": {"ash": 0.02, "pine": 0.25, "stone": 0.73, "scrub": 0.0},
+	## Island v3 (owner 2026-11-28): pines on the hills with stone on their tops; the marsh
+	## grows plant fibre (reeds and sedge) and a few alders.
+	"pine_hills": {"ash": 0.06, "pine": 0.70, "stone": 0.20, "scrub": 0.04},
+	"marsh": {"ash": 0.30, "pine": 0.0, "stone": 0.10, "scrub": 0.60},
 }
-const BIOME_DENSITY := {"forest": 1500.0, "farmland": 650.0, "moor": 700.0, "stone_hills": 900.0}
+const BIOME_DENSITY := {"forest": 1500.0, "farmland": 650.0, "moor": 700.0, "stone_hills": 900.0, "pine_hills": 1300.0, "marsh": 600.0}
 const NODE_KINDS := ["ash", "pine", "stone", "scrub"]
 ## The ring around spawn: two of every kind and a scrub patch (ResourceNodes.STARTER_KINDS).
 const STARTER_KINDS := ["ash", "pine", "stone", "ash", "pine", "stone", "scrub"]
@@ -120,7 +132,7 @@ static func configure(seed: int, size_m: float, gen_version: int) -> void:
 	if gen == ASHGROVE:
 		_seed = GameConfig.WORLD_SEED
 		_size = ASHGROVE_SIZE
-	elif gen == ISLAND:
+	elif gen >= ISLAND:
 		_seed = seed
 		_size = clampf(size_m, IslandGen.SIZE_MIN, IslandGen.SIZE_MAX)
 	else:
@@ -155,7 +167,7 @@ static func parse(spec: String) -> Dictionary:
 	var gen := clampi(int(parts[1]), ASHGROVE, LATEST)
 	if gen == ASHGROVE:
 		return out
-	var island := gen == ISLAND
+	var island := gen >= ISLAND
 	var sizes: Dictionary = IslandGen.SIZES if island else SIZES
 	var size: float = IslandGen.SIZE_DEFAULT if island else KINGDOM_SIZE_DEFAULT
 	if parts.size() >= 3:
@@ -180,7 +192,7 @@ static func is_kingdom() -> bool:
 
 
 static func is_island() -> bool:
-	return _gen == ISLAND
+	return _gen >= ISLAND
 
 
 static func size_m() -> float:
@@ -202,7 +214,7 @@ static func water_level() -> float:
 ## Ground height in metres on the kingdom. Terrain.height is the public entry point.
 static func height(x: float, z: float) -> float:
 	_ensure()
-	var h := IslandGen.land(_L, x, z) if _gen == ISLAND else _land(x, z)
+	var h := IslandGen.land(_L, x, z) if _gen >= ISLAND else _land(x, z)
 	return _pads(x, z, h)
 
 
@@ -215,7 +227,7 @@ static func biome_at(x: float, z: float) -> String:
 ## biome_at() for a point whose height you already have (map painting, placement passes).
 static func biome_for(x: float, z: float, h: float) -> String:
 	_ensure()
-	if _gen == ISLAND:
+	if _gen >= ISLAND:
 		return IslandGen.biome_for(_L, x, z, h)
 	if h < KINGDOM_WATER - 0.2:
 		return "water"
@@ -270,7 +282,7 @@ static func _sandy(x: float, z: float, h: float) -> bool:
 ## 0 at the edge of an island's beach sand, rising to 1 a short band inland (IslandGen.sand_margin);
 ## 1 on other worlds.
 static func sand_margin(x: float, z: float, h: float) -> float:
-	if _gen != ISLAND:
+	if _gen < ISLAND:
 		return 1.0
 	_ensure()
 	return IslandGen.sand_margin(_L, x, z, h)
@@ -279,7 +291,7 @@ static func sand_margin(x: float, z: float, h: float) -> float:
 ## How far up an island's beach (x, z) is, 0 at the sea side to 1 at the back of the sand
 ## (IslandGen.beach_depth); 0 on other worlds.
 static func beach_depth(x: float, z: float) -> float:
-	if _gen != ISLAND:
+	if _gen < ISLAND:
 		return 0.0
 	_ensure()
 	return IslandGen.beach_depth(_L, x, z)
@@ -288,7 +300,7 @@ static func beach_depth(x: float, z: float) -> float:
 ## 0 at an island's shore, 1 at its heart (IslandGen.inland). 1 on other worlds, which have no
 ## sea all round.
 static func inland(x: float, z: float) -> float:
-	if _gen != ISLAND:
+	if _gen < ISLAND:
 		return 1.0
 	_ensure()
 	return IslandGen.inland(_L, x, z)
@@ -298,7 +310,7 @@ static func inland(x: float, z: float) -> float:
 ## {pos: Vector2 (the middle of the beach band), sea: Vector2 (unit, seaward)}, or {} on a
 ## world with no sea all round. Cheap (outline maths only), for dressing the coast.
 static func coast_at(a: float) -> Dictionary:
-	if _gen != ISLAND:
+	if _gen < ISLAND:
 		return {}
 	_ensure()
 	var c: Vector2 = _L.center
@@ -344,7 +356,7 @@ static func rivers() -> Array:
 	if _gen == ASHGROVE:
 		return []
 	_ensure()
-	if _gen == ISLAND:
+	if _gen >= ISLAND:
 		return _L.rivers
 	return [_L.river]
 
@@ -355,7 +367,7 @@ static func landings() -> Array:
 	if _gen == ASHGROVE:
 		return []
 	_ensure()
-	if _gen == ISLAND:
+	if _gen >= ISLAND:
 		return _L.landings
 	return [_L.spawn]
 
@@ -375,7 +387,7 @@ static func road_kinds() -> Array:
 	if _gen == ASHGROVE:
 		return []
 	_ensure()
-	if _gen == ISLAND:
+	if _gen >= ISLAND:
 		return _L.road_kinds
 	var out: Array = []
 	for r in _L.roads:
@@ -476,7 +488,8 @@ static func _build_layout() -> void:
 	L.roads = []
 	L.ruins = []
 	L.spawn = Vector2.ZERO
-	if _gen == ISLAND:
+	L.v = _gen
+	if _gen >= ISLAND:
 		IslandGen.build(L, _seed, _size)
 		return
 	var rng := RandomNumberGenerator.new()
@@ -843,7 +856,7 @@ static func _place_nodes() -> Array:
 	var out: Array = []
 	var grid := {}
 	var sp: Vector2 = _L.spawn
-	if _gen == ISLAND:
+	if _gen >= ISLAND:
 		_place_landing_rings(out, grid, rng)
 	else:
 		# The starter ring, on the spawn plot's edge.
@@ -876,7 +889,7 @@ static func _place_nodes() -> Array:
 			if kind == "" or _crowded(grid, p):
 				continue
 			_add_spot(out, grid, kind, p, rng, false)
-	if _gen == ISLAND:
+	if _gen >= ISLAND:
 		_trees_off_sand(out, grid)
 	return out
 
@@ -950,7 +963,7 @@ static func _spot_ok(p: Vector2, sp: Vector2) -> bool:
 	var half := half_size()
 	if maxf(absf(p.x), absf(p.y)) > half - 8.0:
 		return false
-	if _gen == ISLAND:
+	if _gen >= ISLAND:
 		for q in _L.landings:
 			if p.distance_to(q) < SPAWN_CLEAR + STARTER_MAX:
 				return false

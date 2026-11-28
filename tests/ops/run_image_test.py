@@ -29,6 +29,7 @@ and the bot reaches the container. Needs docker, and `godot` on PATH for the bot
 import argparse
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -269,7 +270,9 @@ def scenario_frozen(image: str, work: Path) -> list:
                 print(f"  frozen: image default {line[len('[server] '):]}")
             if line.startswith("[server] world:") or line.startswith("[server] wipes:"):
                 print(f"  frozen: image default {line[len('[server] '):]}")
-        if "(gen 2)" not in c.log() or "[server] wipes: monthly" not in c.log():
+        # gen 2 is the image's island; gen 3 (the island with hills, 2026-11-28) when the store
+        # already held a world and this boot rolled the next island (WorldWipe.roll).
+        if not re.search(r"\(gen [23]\)", c.log()) or "[server] wipes: monthly" not in c.log():
             problems.append("the image's default world is not the island with monthly wipes")
         r = docker("exec", c.name, "bash", "-c", f"kill -STOP {pid}")
         if r.returncode != 0:
