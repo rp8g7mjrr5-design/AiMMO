@@ -1,0 +1,1 @@
+- **The ruins are guarded.** Walk up to a ruin and the Zombai are already there, shuffling round the yard: one at a quiet farmstead by day, a whole pack at the castle by night. Clear a small ruin and it stays clear while you search it.

@@ -22,6 +22,14 @@ class_name Gloam
 ## - **Only where someone is.** Walkers rise only near online players, outside the Spawn
 ##   Meadow's SAFE_RADIUS, a few per player (more at night, more for a crowd), and crumble
 ##   once nobody is near (`docs/vision.md`: nothing attacks what nobody is there to defend).
+## - **The ruins are guarded** (`docs/vision.md`: "the Zombai ... thickest round the ruins").
+##   When a player comes within GUARD_WAKE of a ruin's pad, its guards rise on the pad, out of
+##   sight of everyone, as many as GUARD_DAY / GUARD_NIGHT give its grade (a Quiet farmstead
+##   has one by day, a Deadly castle a pack). They wander their ruin and go back to it after a
+##   chase. Put them down and the ruin refills only slowly (GUARD_EVERY_*), and never within
+##   GUARD_MIN of a player, so a small ruin you cleared stays clear while you search it. Open
+##   ground stays thin: guards count against the players' own caps, so near a ruin nothing
+##   else rises.
 ##
 ## Players call them the Zombai (owner's name, `docs/vision.md`); the code kept "Gloam".
 ## On by default since the client draws them (2026-11-25); `--gloam=0` / AIMMO_GLOAM=0 turns
@@ -63,23 +71,32 @@ const PER_PLAYER_DAY := 1
 const PER_PLAYER_NIGHT := 3
 const CROWD_RADIUS := 40.0 ## players this close together share a cap that grows with the crowd
 const CROWD_BONUS := 1 ## each extra player in a crowd adds this many on top of PER_PLAYER
-const MAX_WALKERS := 24 ## the whole world's cap (8 players at night)
+const MAX_WALKERS := 32 ## the whole world's cap (8 players at night, plus the ruins' guards)
 const RISE_EVERY_DAY := 45.0 ## seconds between rise attempts per player
 const RISE_EVERY_NIGHT := 12.0
 const CRUMBLE_RADIUS := 70.0 ## a walker with no player this close for CRUMBLE_SECONDS is gone
 const CRUMBLE_SECONDS := 20.0
+## Ruin guards, by grade (Ruins.GRADE_NAMES: 1 Quiet .. 4 Deadly).
+const GUARD_DAY := {1: 1, 2: 2, 3: 3, 4: 4}
+const GUARD_NIGHT := {1: 2, 2: 4, 3: 5, 4: 7}
+const GUARD_WAKE := 50.0 ## a player this far outside a ruin's pad wakes its guards
+const GUARD_MIN := 18.0 ## a guard rises at least this far from every player (beyond a night's sight)
+const GUARD_PAD := 0.85 ## guards rise inside this fraction of the pad's radius
+const GUARD_EVERY_DAY := 60.0 ## seconds between refills of one ruin's guards
+const GUARD_EVERY_NIGHT := 20.0
 const SUMMON_DISTANCE := 7.0 ## /gloam raises a walker this far in front of you
 
 const STATES := ["wander", "drawn", "hunt", "grab", "recover", "stagger", "wary"]
 
 
 ## A fresh, empty Gloam: {walkers: Array, next_id, rng, rise_at: {player_key: seconds},
-## downs}. Each walker is {id, kind, pos, yaw, home, hp, state, until, target, prey, bound,
-## lonely_since, grab_at, grabs, struck}.
+## guard_at: {ruin_id: seconds}, downs}. Each walker is {id, kind, pos, yaw, home, hp, state,
+## until, target, prey, bound, lonely_since, grab_at, grabs, struck, ruin} (ruin: the id of
+## the ruin it guards, or -1; a guard also has ruin_pos and wake, its ruin's wake ring).
 static func new_state(seed_extra: int = 0) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(WorldGen.config().seed) + 409 + seed_extra
-	return {"walkers": [], "next_id": 0, "rng": rng, "rise_at": {}, "downs": 0}
+	return {"walkers": [], "next_id": 0, "rng": rng, "rise_at": {}, "guard_at": {}, "downs": 0}
 
 
 static func max_hp(kind: String) -> float:
@@ -120,7 +137,7 @@ static func rise(state: Dictionary, pos: Vector3, now: float, bound: int = -1, k
 	var w := {
 		"id": int(state.next_id), "kind": kind, "pos": p, "yaw": 0.0, "home": p,
 		"hp": max_hp(kind), "state": "wander", "until": now, "target": p, "prey": -1,
-		"bound": bound, "lonely_since": -1.0, "grab_at": 0.0, "grabs": 0, "struck": 0,
+		"bound": bound, "lonely_since": -1.0, "grab_at": 0.0, "grabs": 0, "struck": 0, "ruin": -1,
 	}
 	state.next_id = int(state.next_id) + 1
 	state.walkers.append(w)
@@ -166,7 +183,7 @@ static func _crumbles(w: Dictionary, players: Array, now: float) -> bool:
 		return _player(players, int(w.bound)).is_empty()
 	var near := false
 	for p in players:
-		if _flat(w.pos).distance_to(_flat(p.pos)) <= CRUMBLE_RADIUS:
+		if _flat(w.pos).distance_to(_flat(p.pos)) <= CRUMBLE_RADIUS or _guards_near(w, p.pos):
 			near = true
 			break
 	if near:
@@ -235,8 +252,9 @@ static func _think(w: Dictionary, players: Array, now: float, night: bool, out: 
 		w.target = seen.pos
 		return
 	if str(w.state) == "drawn" and _flat(w.pos).distance_to(_flat(w.target)) < 1.0:
-		w.state = "wander" # nothing here: it lingers where the noise was
-		w.home = w.pos
+		w.state = "wander" # nothing here: it lingers where the noise was (a guard goes home)
+		if int(w.get("ruin", -1)) < 0:
+			w.home = w.pos
 	if str(w.state) == "wander" and now >= float(w.until):
 		var rng := RandomNumberGenerator.new()
 		rng.seed = hash([int(w.id), int(now * 10.0)])
@@ -287,7 +305,8 @@ static func _move(w: Dictionary, fires: Array, dt: float, night: bool) -> void:
 			v = 0.0
 	if st == "wary" and v > 0.0 and fires.all(func(f): return _flat(w.pos).distance_to(_flat(f)) >= FIRE_KEEPAWAY):
 		w.state = "wander"
-		w.home = w.pos
+		if int(w.get("ruin", -1)) < 0:
+			w.home = w.pos
 		w.until = 0.0
 	if v <= 0.0 or dir == Vector2.ZERO:
 		if dir != Vector2.ZERO:
@@ -366,12 +385,21 @@ static func cap_near(p: Dictionary, players: Array, night: bool) -> int:
 
 
 ## Walkers within CRUMBLE_RADIUS of `pos` (the ones that count against a player's cap).
+## A ruin's guards count for everyone near that ruin, wherever on its pad they stand.
 static func count_near(state: Dictionary, pos: Vector3) -> int:
 	var n := 0
 	for w in state.walkers:
-		if _flat(w.pos).distance_to(_flat(pos)) <= CRUMBLE_RADIUS:
+		if _flat(w.pos).distance_to(_flat(pos)) <= CRUMBLE_RADIUS or _guards_near(w, pos):
 			n += 1
 	return n
+
+
+## Whether `w` guards a ruin whose wake ring (pad radius + GUARD_WAKE) `pos` stands in. A
+## guard stays while anyone is that near its ruin, even on the far side of a big pad.
+static func _guards_near(w: Dictionary, pos: Vector3) -> bool:
+	if int(w.get("ruin", -1)) < 0:
+		return false
+	return _flat(w.ruin_pos).distance_to(_flat(pos)) <= float(w.wake)
 
 
 ## Rise attempts for every player who is due one (RISE_EVERY_DAY / _NIGHT apart, per player):
@@ -380,8 +408,8 @@ static func count_near(state: Dictionary, pos: Vector3) -> int:
 ## walkers about them are under cap_near and the world under MAX_WALKERS. Returns the new
 ## walkers' ids.
 static func rise_near_players(state: Dictionary, players: Array, now: float, night: bool) -> Array:
-	var risen: Array = []
 	var rng: RandomNumberGenerator = state.rng
+	var risen: Array = rise_at_ruins(state, players, now, night, Ruins.all())
 	var every := RISE_EVERY_NIGHT if night else RISE_EVERY_DAY
 	for p in players:
 		var key := str(p.id)
@@ -407,6 +435,89 @@ static func rise_near_players(state: Dictionary, players: Array, now: float, nig
 		if not here:
 			state.rise_at.erase(key)
 	return risen
+
+
+## --- Ruin guards ---
+
+## How many guards a ruin of `grade` keeps (GUARD_DAY / GUARD_NIGHT).
+static func guard_cap(grade: int, night: bool) -> int:
+	return int((GUARD_NIGHT if night else GUARD_DAY).get(clampi(grade, 1, 4), 1))
+
+
+## Walkers guarding ruin `ruin_id`.
+static func guards_of(state: Dictionary, ruin_id: int) -> int:
+	var n := 0
+	for w in state.walkers:
+		if int(w.get("ruin", -1)) == ruin_id:
+			n += 1
+	return n
+
+
+## Guards rise at every ruin a player is near (`ruins` as Ruins.all() gives them). A ruin
+## nobody woke yet fills to guard_cap at once; after that it gets one more every
+## GUARD_EVERY_* while under its cap. A ruin nobody is near is forgotten, so it is full again
+## when someone comes back. Inside MAX_WALKERS. Returns the new walkers' ids.
+static func rise_at_ruins(state: Dictionary, players: Array, now: float, night: bool, ruins: Array) -> Array:
+	var risen: Array = []
+	if not state.has("guard_at"):
+		state.guard_at = {}
+	var every := GUARD_EVERY_NIGHT if night else GUARD_EVERY_DAY
+	var awake := {}
+	for r in ruins:
+		var c := _flat(r.pos)
+		var near := false
+		for p in players:
+			if _flat(p.pos).distance_to(c) <= float(r.radius) + GUARD_WAKE:
+				near = true
+				break
+		if not near:
+			continue
+		var key := int(r.id)
+		awake[key] = true
+		var fresh: bool = not state.guard_at.has(key)
+		if not fresh and now < float(state.guard_at[key]):
+			continue
+		state.guard_at[key] = now + every
+		var want := guard_cap(int(r.grade), night) - guards_of(state, key)
+		for i in (want if fresh else mini(want, 1)):
+			if count(state) >= MAX_WALKERS:
+				break
+			var spot := guard_spot(r, players, state.rng)
+			if spot == Vector3.INF:
+				break
+			var w := rise(state, spot, now)
+			w.ruin = key
+			w.ruin_pos = r.pos
+			w.wake = float(r.radius) + GUARD_WAKE
+			w.home = Vector3(r.pos.x, w.pos.y, r.pos.z).lerp(w.pos, 0.5) # wanders the heart of its ruin
+			w.yaw = state.rng.randf() * TAU
+			risen.append(int(w.id))
+	for key in state.guard_at.keys():
+		if not awake.has(key):
+			state.guard_at.erase(key)
+	return risen
+
+
+## A place on ruin `r`'s pad for a guard to rise, at least GUARD_MIN from every player, or
+## Vector3.INF if none was found in a few tries.
+static func guard_spot(r: Dictionary, players: Array, rng: RandomNumberGenerator) -> Vector3:
+	var sp := WorldGen.spawn_point()
+	for attempt in 12:
+		var a := rng.randf() * TAU
+		var d := sqrt(rng.randf()) * float(r.radius) * GUARD_PAD
+		var x: float = r.pos.x + cos(a) * d
+		var z: float = r.pos.z + sin(a) * d
+		if Vector2(x - sp.x, z - sp.z).length() < SAFE_RADIUS or not good_ground(x, z):
+			continue
+		var too_close := false
+		for p in players:
+			if Vector2(x - p.pos.x, z - p.pos.z).length() < GUARD_MIN:
+				too_close = true
+				break
+		if too_close:
+			continue
+		return Vector3(x, Terrain.height(x, z), z)
+	return Vector3.INF
 
 
 ## A place for a walker to rise near `pos`, or Vector3.INF if none was found in a few tries.
@@ -497,7 +608,7 @@ static func describe_walker(w: Dictionary, from: Vector3) -> String:
 static func describe(on: bool) -> String:
 	if not on:
 		return "off (no walkers rise; /gloam raises one where dev commands are on)"
-	return "on: walkers rise near players, %d each by day, %d at night, at most %d" % [PER_PLAYER_DAY, PER_PLAYER_NIGHT, MAX_WALKERS]
+	return "on: walkers rise near players, %d each by day, %d at night, ruins guarded by grade, at most %d" % [PER_PLAYER_DAY, PER_PLAYER_NIGHT, MAX_WALKERS]
 
 
 static func _yaw_to(from: Vector3, to: Vector3) -> float:

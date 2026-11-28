@@ -8,7 +8,7 @@ import run_bot_test as r  # noqa: E402
 
 GOOD = "\n".join([
     "[server] world clock: Day 214, 00:00 (night)",
-    "[server] gloam: on: walkers rise near players, 1 each by day, 3 at night, at most 24",
+    "[server] gloam: on: walkers rise near players, 1 each by day, 3 at night, ruins guarded by grade, at most 32",
     "[gloam] walker 3 grabbed botx_night1 for 15",
     "[gloam] botx_night2 put walker 4 down",
 ]) + "\n"
