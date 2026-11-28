@@ -1,5 +1,22 @@
 # AiMMO Patch Notes
 
+## Week 01 — The Beach Pays Out
+
+The shore you wake on now has something to search, the whole coast washed something up, and you can craft from your pack anywhere.
+
+### The beach
+- **The beach you wake on is worth a look.** Every shipwreck has a sea chest wedged in her hull and a sailor the sea brought in under a scrap of sail; every fishing shack has a sack inside the door and the shape under the sail by the back wall. Walk up, press E, and search them like a ruin's crates: food, bandages, torches, fibre, now and then a club or a spear. They fill again the next day.
+- **The whole coast washed up something.** Every beach on the island, not just the one you land on, now has a line of kelp along the tide mark, shells and pebbles, grey drift logs (some still with a branch or a root ball), clusters of rocks and the odd washed-up board.
+- **Dunes behind the sand.** The back of every beach is now marram grass, so the open sand is a strip by the sea, not a desert.
+- **Wash ashore sooner.** The island's birches, mossy boulders, wildflowers and palms now grow in about half the time while the world loads (about a second less on the official 3 km island). Every plant stands exactly where it did before.
+
+### Your pack
+- **Craft straight from your pack.** Press I and the new Craft column sits right beside your grid: wooden axe, pickaxe, club and spear, bandages and torches are made on the spot, anywhere, the moment you have the parts. The stone tools and the campfire are listed under them so you always know what's next; they light up when you open your pack at a workbench.
+- **See yourself in your pack.** Your traveller now stands in the pack window facing you, breathing, holding the best weapon or tool you carry. Craft a club and it's in your hand before you close the pack. Drag across them to turn them round.
+
+### The look
+- **No more grass wall.** Meadows used to stop in a hard line about 30 metres out and pop in as you turned. Now the grass reaches more than twice as far and thins out gently into the distance, a tuft at a time, so it never visibly loads in around you.
+
 ## Week 00 — Washed Ashore
 
 Welcome to **ZombAi**. You wake on the beach of a 3 km island at the edge of a fallen kingdom with nothing in your hands. The dead walk inland, the ruins still hold what people left behind, and the island is new every month. This is the very first week: the paint is wet, and you are among the first people to walk it.

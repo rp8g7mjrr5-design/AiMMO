@@ -1,1 +1,0 @@
-- **Wash ashore sooner.** The island's birches, mossy boulders, wildflowers and palms now grow in about half the time while the world loads (about a second less on the official 3 km island). Every plant stands exactly where it did before.

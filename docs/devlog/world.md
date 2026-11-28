@@ -1158,3 +1158,129 @@ in your hand and in your friend's, and a stone tool looks like an upgrade.
   Check it in game once client draws it; a flicker (scale the flame surface) is client's call.
 - The spear is held a third of the way up (0.72 m of shaft behind the hand). If the thrust pose
   looks wrong, move the grip in `parts()` rather than the pose.
+
+## 2026-11-27 — island-flora-faster
+
+Item: world backlog, "Basics 3: flora on the island in chunks" (fewer tries, or per chunk).
+Fun: the island is there sooner after you land, with not one plant moved.
+
+### What shipped
+- `Flora._scatter` asks its cheap looks first: the spawn ring, then the ground's height and a
+  per-kind `ground(x, z, y)` test (height band on Ashgrove and for birches; biome for kingdom
+  boulders and flowers, with the flower-meadow noise mask before the biome), then road and ruin
+  pads, then slope and the rest, then nodes and blockers, and the 50 us `near_sand` ring last.
+  RNG draws are unchanged and every test is a pure filter, so the output is identical.
+- `Props.ruin_pads()` / `Props.on_pad()`: the ruin-pad test on a flat `PackedFloat64Array`
+  (64-bit on purpose, so the edge compares exactly like `_on_ruin`'s doubles). Used by Flora
+  and by the kingdom prop scatter, which also now asks road and pads before `near_sand`.
+- Measured warm, after Props and ResourceNodes are built (headless, this box):
+
+  | World | Flora before | after | spots (same hash) |
+  |---|---|---|---|
+  | Ashgrove | 75 ms | 69 ms | 630 |
+  | kingdom 77, 1400 m | 1884 ms | 1022 ms | 2258 |
+  | island 1126, 1200 m (clamped to 1500) | 1728 ms | 1067 ms | 2293 |
+  | island 1126, 3000 m (live) | 2047 ms | 987 ms | 2351 |
+
+  `Props.scatter` and every `Flora.spots()` hash match before and after on all four.
+- `tests/unit/test_world_flora_speed.gd`: a frozen copy of the old scatter must give the same
+  spots, in order, on Ashgrove, a kingdom and an island; `on_pad` agrees with `_on_ruin` on
+  4000 probes.
+
+### Why not per chunk or fewer tries
+Fewer tries (the item's other idea) would move or drop plants, and the solids the camera and
+server read come from the same spots; identical output costs no review. Per-chunk flora is
+client's warm-up item (WorkerThreadPool behind ShoreCover); this makes that thread's job
+shorter. Didn't touch `worldgen.gd` or `island_gen.gd` because the owner's PR #253 changes them.
+
+### Notes to next self
+- Where the island's remaining load time goes (3 km, warm): `Props.scatter` about 3.1 s, most
+  of it 43,891 tries each paying `Terrain.height` (12 us) plus `biome_for` (12 us), and about
+  0.6 s in `near_sand` for 9,557 survivors; the first call also builds ResourceNodes. Flora
+  about 1.0 s: birches still take 12,720 tries for 14 trees on an island (2,893 of them pay the
+  eight-probe shore ring). Next wins: a coarse height/biome grid shared by both scatters as a
+  pre-reject (needs care to stay identical), or let client's warm-up run them off the main
+  thread.
+- Per-call costs measured here: `Terrain.height` 12 us, `biome_for` 12 us, `near_sand` 50 us,
+  `_on_ruin` 11 us (now ~2 us as `on_pad`), `road_distance` 1.6 us, `ResourceNodes.near` 3 us.
+
+## 2026-11-27 — coast-dressing
+
+Owner, 2026-11-27, with a screenshot from the whale-bones landing: "our beaches still look
+empty :(". The live island's beaches are up to 100 m deep (the outline's beach band runs from
+shape 0.94 to about 1.07), and only the 46 m either side of each landing had anything on it.
+
+## What shipped
+- `CoastDress` (procgen, pure, cached per world): walks the coast by bearing every 3 m
+  (`WorldGen.coast_at`), finds each beach's cross-section (first dry ground walking in from
+  120 m out, back of the "shore" biome), and lays kelp strips on the tide mark, shells and
+  pebbles, drift logs (with branch stubs and root plates), rock clusters and boards. About
+  12k parts on the live island, on BeachProps' existing layers, meshes and materials (no new
+  material or draw-call layer), so BeachProps.parts() just appends them. Clear of the lantern
+  ring (BeachGen.CLEAR + 2), landmarks, pickings, roads and river mouths. All rolls are
+  drawn up front each step, so a skipped step never shifts the next. Adds ~1.1 s to the
+  island world build.
+- Dunes: `IslandGen.beach_depth` (0 where the sea starts, 1 at the back of the sand, with
+  biome_for's wobble) and `Palette.dune_weight` (that, times "at least 0.7 m above the sea").
+  The terrain paints `Palette.DUNE_GRASS` over the back of the beach and `Grass` grows marram
+  there, both from the same weight, so the open sand is about the front half of the beach.
+
+## Tried and dropped
+- beach_depth from `inland` alone: inland is 0 everywhere past shape 1.0, which is half of
+  these beaches, so the dunes never showed. Now from the raw shape.
+- `Basis.scaled()` scales in world axes: the first drift logs stood on end like posts. Now
+  `basis * Basis.from_scale()`.
+- The sand band itself was not narrowed: biome_for decides node placement, and changing it
+  re-rolls every node id after the first changed cell. Painting the back as dunes does it
+  for the eye without touching gameplay.
+
+## Notes to next run
+- Real dune relief (height) would need a terrain change to gen v2. Nodes don't care about
+  height, but saved campfires do, so it waits for a new gen_version or a wipe.
+- Shots: `/mnt/project-files/beach-dressing/` (seed 1126, landings 2 and 6, before and after).
+
+## 2026-11-27 — beach-loot
+
+Builder run (world area), 2026-11-27: loot spots in the shipwreck and the fishing shack
+(Basics 4, follow-up from #241, unblocked when owner PR #253 landed). Fun: the wreck you wake
+next to pays out inside your first minute, the first rung of the ruin ladder.
+
+### Why this item
+Gameplay's top items (the workbench you build, a knock-down that costs something) and client's
+HUD line all touch `server.gd`, `client.gd`, `crafting.gd` or `inventory.gd`, which the owner's
+open thirst PR #252 changes, so I left them. This one needs none of those files: the server and
+the client both read `RuinLayout.all_loot_spots()`, so appending the beach spots there is the
+whole hook.
+
+### What shipped
+- `BeachGen.LOOT` / `BeachGen.loot_spots()`: two spots per shipwreck (a chest wedged in the
+  hull between two frames, a body under a scrap of sail off the planked side) and per fishing
+  shack (the shape under the sail the shack already drew, a sack inside the door). Local
+  frame is BeachProps'. A spot still in the surf walks up the beach (against `b.sea`, 0.5 m
+  steps, up to 20 m) until the sand is `LOOT_DRY` above the water. Reads no rng, so no beach
+  moved (test).
+- Ids: `ruin_id = BeachGen.LOOT_ID_BASE (1000000) + beach index * 10 + landmark slot`, so
+  `Loot.key` never meets a ruin's and `Loot.grade_of` gives 1 (grade 1 table, as the backlog
+  item asked). Gameplay: no table change needed; if the beach should get its own table later,
+  key it on `spot.landmark`.
+- `BeachProps.loot_parts(spot)`: the chest (tarred wood, rusted bands), the sack, and the body
+  (sailcloth over a face-down shape, dark head, boots, a hand) on the shared beach layers. The
+  shack's body is flagged `drawn` and drawn by `_shack` as before (test checks a part sits on
+  the spot).
+- `tests/unit/test_world_beach_loot.gd`: spots per landmark, dry, on the ground, apart, clear
+  of the beach pickings (the first try put the chest on the stripped side, where the wreck
+  crate already lies: 0.1 m apart; moved into the hull), unique keys, grade 1, drawn on the
+  spots, beaches unchanged, and a server search at a wreck that pays and empties the spot.
+
+### Not done / notes to next self
+- No bot behaviour: CI's bot test plays Ashgrove, which has no beaches. qa's "the island in the
+  bot test" item should search one wreck spot when it lands.
+- The lifeboat, pier and whale bones have no spots; add them to `BeachGen.LOOT` if a beach
+  feels thin (one line each plus a drawing, if any).
+- `loot_command` (the /loot dev command) keys on `ruin_id >= 0`, which beach spots pass, so it
+  works on them as on a ruin.
+- Shots: `/mnt/project-files/beach-loot/` (seed 1126 landing 0's wreck, seed 3 landing 2's
+  shack; noon, golden, night, before and after). The shack's spots are inside, so the outside
+  shot barely changes.
+- Camera solids for the wreck and shack are still open (separate item); searching inside the
+  shack can put the camera in a wall until then.
