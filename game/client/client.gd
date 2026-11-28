@@ -549,7 +549,7 @@ func _process(delta: float) -> void:
 	_step_came_to(delta)
 	if settings_menu.visible and settings_menu.in_game:
 		settings_menu.refresh_home(Time.get_ticks_msec())
-	pack_window.step(delta)
+	pack_window.step(delta, avatars[my_id].node.position if logged_in and avatars.has(my_id) else Vector3.INF)
 	players_panel.step(delta)
 	map_window.step(delta)
 	grazers.sync(herd, _now(), delta)
@@ -1141,6 +1141,7 @@ func _on_unstuck(ok: bool, text: String, wait_seconds: float) -> void:
 
 
 func _on_craft_result(recipe_id: String, ok: bool, text: String) -> void:
+	pack_window.crafting.on_craft_result(recipe_id, ok, text)
 	var r := craft_window.on_craft_result(recipe_id, ok, text)
 	if str(r.crafted) != "":
 		gather_prompt.show_toast(CraftWindow.toast_text(str(r.crafted)), str(r.crafted))
@@ -1332,6 +1333,8 @@ func _spawn(id: int, player_name: String, appearance_seed: int, pos: Vector3, ya
 	var anim := AvatarAnimator.new()
 	anim.clock = float(posmod(appearance_seed, 997)) * 0.731 # friends standing together never sway in step
 	avatars[id] = {"node": node, "body": node.get_node("Body"), "skel": node.get_node("Body/Skeleton"), "anim": anim, "target": pos, "yaw": yaw, "name": player_name, "seed": appearance_seed, "look": look}
+	if id == my_id:
+		pack_window.set_traveller(player_name, appearance_seed, look) # you, facing you, in the pack
 
 
 ## Redraws avatar `id` in `look` (Appearance; {} = their seed look) where it stands, keeping
@@ -1352,6 +1355,8 @@ func _restyle(id: int, look: Dictionary) -> void:
 	node.add_child(body)
 	a.body = body
 	a.skel = body.get_node("Skeleton")
+	if id == my_id:
+		pack_window.set_traveller(str(a.name), int(a.seed), look)
 
 
 ## s2c_look (v8): peer_id saved a look, or this is the look of someone who just came into the
@@ -1674,6 +1679,9 @@ func _build_ui() -> void:
 	pack_window.drop_requested.connect(func(item: String, index: int):
 		if multiplayer.multiplayer_peer != null and logged_in:
 			net.play.c2s_pack_drop.rpc_id(1, item, index))
+	pack_window.craft_requested.connect(func(id: String):
+		if multiplayer.multiplayer_peer != null and logged_in:
+			net.play.c2s_craft.rpc_id(1, id))
 	ui.add_child(pack_window)
 
 	# The O players panel, centre screen.
