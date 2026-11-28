@@ -35,7 +35,7 @@ func _initialize() -> void:
 	_run.call_deferred()
 
 
-## Spots on a grid (every 30 m) where `want` is true, nearest the island's centre first.
+## Spots on a grid (every 30 m) where `want` is true, mid-island first.
 func _find(want: Callable, skip: int = 0) -> Vector2:
 	var half := WorldGen.half_size() - 60.0
 	var found := 0
@@ -46,7 +46,11 @@ func _find(want: Callable, skip: int = 0) -> Vector2:
 	for j in n:
 		for i in n:
 			order.append(Vector2(-half + i * step, -half + j * step))
-	order.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.length() < b.length())
+	# Middle of the island first (inland about 0.35): away from the heart's crags and the beach.
+	var key := {}
+	for p in order:
+		key[p] = absf(WorldGen.inland(p.x, p.y) - 0.35)
+	order.sort_custom(func(a: Vector2, b: Vector2) -> bool: return key[a] < key[b])
 	for p in order:
 		if WorldGen.road_distance(p.x, p.y) < 10.0:
 			continue
@@ -147,6 +151,16 @@ func _run() -> void:
 		var from := Vector3(f2.x, maxf(Terrain.height(f2.x, f2.y), 0.0) + float(spec[1]), f2.y)
 		var to := Vector3(t2.x, maxf(Terrain.height(t2.x, t2.y), 0.0) + float(spec[3]), t2.y)
 		cam.look_at_from_position(from, to, Vector3.UP)
+		# Let the streamed ground catch up with the camera before any shot of this view.
+		for node in world.find_children("*", "", true, false):
+			if not node is TerrainStream:
+				continue
+			var ts: TerrainStream = node
+			ts.rethink(from)
+			# The ground within 300 m, built here and now (the thread streams on beyond it).
+			for c in ts.cells_within(from, 300.0):
+				if not ts.is_built(c):
+					ts._add(c, TerrainMesh.build_chunk(ts.corner(c).x, ts.corner(c).y))
 		for t in TIMES:
 			if only_time != "" and t != only_time:
 				continue
